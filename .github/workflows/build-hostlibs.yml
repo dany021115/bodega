@@ -1,0 +1,137 @@
+# FreeType, GnuTLS and MoltenVK from the runner's Intel Homebrew, with what they link, in a tarball of their own
+# that extracts over the engine: the libraries land in engine/lib/wine/x86_64-unix, where the modules'
+# LC_RPATH @loader_path/ finds them by leaf name with no DYLD variables. Nothing is checked out and Wine is not built.
+name: build-hostlibs
+on:
+  workflow_dispatch:
+    inputs:
+      publish_release:
+        description: "Publish the tarball as a GitHub release (tag = file name)"
+        type: boolean
+        default: false
+      ref_note:
+        description: "why this build (free text, goes in the artifact name)"
+        required: false
+        default: "manual"
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: macos-15-intel
+    timeout-minutes: 15
+    env:
+      HOMEBREW_NO_AUTO_UPDATE: "1"
+      HOMEBREW_NO_INSTALL_UPGRADE: "1"
+      HOMEBREW_NO_INSTALL_CLEANUP: "1"
+      HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK: "1"
+      ROOTS: libfreetype.6.dylib libgnutls.30.dylib libMoltenVK.dylib
+    steps:
+      # Today's Homebrew API has no Intel bottles of freetype, its dependencies or several gnutls dependencies:
+      # if the image stops shipping freetype or gnutls, brew would build from source until the timeout.
+      - name: guard
+        run: |
+          brew list --versions freetype gnutls || { echo 'runner image lacks freetype/gnutls; would build from source'; exit 1; }
+      - name: install
+        timeout-minutes: 5
+        run: |
+          brew install freetype gnutls molten-vk
+      - name: bundle
+        run: |
+          python3 - $ROOTS <<'PY'
+          import os, shutil, subprocess, sys
+          prefix = subprocess.run(["brew", "--prefix"], capture_output=True, text=True).stdout.strip()
+          roots = [os.path.join(prefix, "lib", n) for n in sys.argv[1:]]
+          dest = "out/engine/lib/wine/x86_64-unix"
+          os.makedirs(dest, exist_ok=True)
+          # A dependency is a Homebrew path or an @rpath/ name (resolved beside the library or in Homebrew's lib):
+          # both are shipped and rewritten to @loader_path; one that resolves nowhere fails the build.
+          def refs(f):
+              return [l.split()[0] for l in subprocess.run(["otool", "-L", f], capture_output=True, text=True).stdout.splitlines()[1:]]
+          def deps(f):
+              res = []
+              for ref in refs(f):
+                  if ref.startswith(("/opt/homebrew", "/usr/local")):
+                      res.append((ref, ref))
+                  elif ref.startswith("@rpath/"):
+                      leaf = ref[len("@rpath/"):]
+                      here = os.path.join(os.path.dirname(os.path.realpath(f)), leaf)
+                      brew = os.path.join(prefix, "lib", leaf)
+                      path = here if os.path.exists(here) else brew
+                      assert os.path.exists(path), "unresolved @rpath dependency %s of %s" % (ref, f)
+                      res.append((ref, path))
+              return res
+          todo, seen = list(roots), {}
+          while todo:
+              f = todo.pop()
+              real = os.path.realpath(f)
+              leaf = os.path.basename(f)
+              if leaf in seen: continue
+              seen[leaf] = real
+              todo += [path for ref, path in deps(real)]
+          for leaf, real in seen.items():
+              d = os.path.join(dest, leaf)
+              shutil.copy2(real, d); os.chmod(d, 0o755)
+              subprocess.run(["install_name_tool", "-id", "@loader_path/" + leaf, d], check=True, stderr=subprocess.DEVNULL)
+              for ref, path in deps(real):
+                  subprocess.run(["install_name_tool", "-change", ref, "@loader_path/" + os.path.basename(path), d], check=True, stderr=subprocess.DEVNULL)
+              subprocess.run(["codesign", "-f", "-s", "-", d], check=True, stderr=subprocess.DEVNULL)
+          left = [(leaf, ref) for leaf in seen for ref in refs(os.path.join(dest, leaf)) if not ref.startswith(("@loader_path/", "/usr/lib/", "/System/"))]
+          assert not left, left
+          print("x86_64-unix:", sorted(seen))
+          PY
+      # probe.so stands in for a Wine module (LC_RPATH @loader_path/), the executable for the loader (no LC_RPATH).
+      - name: probe
+        run: |
+          cat >probe.c <<'C'
+          #include <dlfcn.h>
+          #include <stdio.h>
+          #ifdef MOD
+          void *probe(const char *name) { return dlopen(name, RTLD_NOW); }
+          #else
+          int main(int argc, char **argv) {
+            void *m = dlopen(argv[1], RTLD_NOW);
+            void *(*probe)(const char *) = m ? (void *(*)(const char *))dlsym(m, "probe") : 0;
+            for (int i = 2; probe && i < argc; i++)
+              if (!probe(argv[i])) probe = 0;
+            if (!probe) { fprintf(stderr, "%s\n", dlerror()); return 1; }
+            return 0;
+          }
+          #endif
+          C
+          clang -DMOD -dynamiclib -Wl,-rpath,@loader_path/ -o out/engine/lib/wine/x86_64-unix/probe.so probe.c
+          clang -o probe probe.c
+          probe="$PWD/probe"; dir=$(cd out/engine/lib/wine/x86_64-unix && pwd -P); log="$RUNNER_TEMP/probe.log"
+          (cd / && env -i DYLD_PRINT_LIBRARIES=1 "$probe" "$dir/probe.so" $ROOTS) 2>"$log" || { cat "$log"; exit 1; }
+          cat "$log"
+          for r in $ROOTS; do grep -F "$dir/$r" "$log"; done
+          if grep -q "$(brew --prefix)/" "$log"; then exit 1; fi
+      - name: tarball
+        env:
+          NOTE: ${{ github.event.inputs.ref_note }}
+        run: |
+          set -o pipefail
+          name="hostlibs-x86_64-$(date -u +%Y%m%dT%H%M%SZ)-$(printf %s "$NOTE" | tr -c 'A-Za-z0-9_-' -)"
+          cd out
+          { echo "$name"; echo "runner image: $ImageOS $ImageVersion"; brew list --versions; ls engine/lib/wine/x86_64-unix/*.dylib; } >hostlibs.txt
+          tar -czf "../$name.tar.gz" hostlibs.txt engine/lib/wine/x86_64-unix/*.dylib
+          cd ..
+          if tar -tzf "$name.tar.gz" | grep -E '/$|^\./'; then exit 1; fi
+          shasum -a 256 "$name.tar.gz" | tee "$name.tar.gz.sha256"
+          ls -la "$name.tar.gz"
+          test "$(stat -f %z "$name.tar.gz")" -lt $((30 * 1024 * 1024))
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hostlibs
+          path: |
+            hostlibs-*.tar.gz
+            hostlibs-*.tar.gz.sha256
+          retention-days: 14
+      - name: publish
+        if: ${{ github.event.inputs.publish_release == 'true' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          f=$(ls hostlibs-*.tar.gz)
+          tag="${f%.tar.gz}"
+          gh release create "$tag" "$f" "$f.sha256" --title "$tag" --notes "FreeType, GnuTLS and MoltenVK with what they link, from the runner's Intel Homebrew, for engine/lib/wine/x86_64-unix. Built by run ${{ github.run_id }}. Versions in hostlibs.txt inside, checksum in the .sha256 file."
