@@ -86,7 +86,8 @@ Se lanza con `Process.start('/bin/sh', ['-c', S, 'bodega', log, wine, programa, 
 - **`.exit` atómico.** Se escribe en un temporal y se mueve dentro de la misma carpeta; el rename es atómico. `exitOf(log)` lo consulta cada 250 ms y nunca lee un archivo a medio escribir.
 - **Qué vale el código.**
   - `bin/wine` hace `execv` al loader sin cambiar de PID (`CX/dlls/ntdll/unix/loader.c:2523-2547`). Por eso `$?` es el código de Windows truncado a 8 bits: 1638 llega como 102 (`HBK/WineRunner.swift#L46-L57`).
-  - Si el proceso muere por una señal, `$?` vale 128 + la señal, por ejemplo después de `stop`.
+  - Si el proceso muere por una señal, `$?` vale 128 + la señal.
+  - Tras `bodega stop`, el `run` que esperaba termina con 0: al apagarse el wineserver, los clientes de Wine salen limpiamente con `_exit(0)` (`CX/dlls/ntdll/unix/server.c:266-267`, `CX/dlls/ntdll/unix/thread.c:1499-1512`). Decisión del usuario: se acepta; un `run` detenido no se distingue de una salida normal por su código.
   - `wine: failed to open` termina con `STATUS_DLL_NOT_FOUND`, que truncado da 53 (`CX/dlls/ntdll/unix/env.c:1920-1926`): es el exit 53 de la trampa 11.
 - **Sin tuberías de Dart hacia Wine.** Por la trampa 1 (`CX/server/request.c:869-871`) y porque `Process.run` espera al EOF (`DSDK/lib/_internal/vm/bin/process_patch.dart:649`). `Process.run` solo se usa con herramientas que terminan: `tar`, `shasum`, `xattr`, `arch` y `wine --version`, que no arranca el servidor (`CX/dlls/ntdll/unix/loader.c:2555-2604`).
 

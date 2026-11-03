@@ -101,7 +101,7 @@ Los ejecuta el agente, sin ventanas (decisión 6).
   9. `rm -rf "$H"` (~1,4 GB).
 
   **Comprobación:** la salida se pega en `verify`.
-- [ ] **T17 (USUARIO)** Commit en `bodega`, en tu Terminal. El mensaje lo prepara el agente, sin atribución de IA:
+- [x] **T17 (USUARIO)** Commit en `bodega`, en tu Terminal. El mensaje lo prepara el agente, sin atribución de IA:
   ```sh
   git -C /Users/quasar/Documents/GitHub/Bodega/bodega add .gitignore packages/engine .sdd
   git -C /Users/quasar/Documents/GitHub/Bodega/bodega commit -m 'engine: prototype Dart engine package and bodega CLI (SDD prototipo-motor)'
@@ -112,21 +112,21 @@ Los ejecuta el agente, sin ventanas (decisión 6).
 ## Aceptación del usuario
 En el M2 Pro, con ventanas. Requiere T4 y `build/bodega` en el PATH o con ruta completa.
 
-- [ ] **U1** `bodega install <engine…tar.gz> <hostlibs…tar.gz>`.
+- [x] **U1** `bodega install <engine…tar.gz> <hostlibs…tar.gz>`.
   **Se espera:** en menos de 2 min imprime `…/Application Support/Bodega/runtimes/engine-wine-11.0-20261030T202616Z-primer-build`, y `ls "$HOME/Library/Application Support/Bodega/runtimes/current/engine/lib/wine/x86_64-unix/"*.dylib` muestra `libfreetype.6`, `libgnutls.30`, `libMoltenVK` y su cierre. Después, **no borres** `/Users/quasar/Documents/GitHub/Bodega/runtimes/engine-wine-11.0-20261030T202616Z-primer-build/` (tarball y `.sha256`): cambiar las hostlibs es reinstalar desde ahí (R6), y sin él serían 335 MB de descarga.
-- [ ] **U2** `time bodega create prueba`.
+- [x] **U2** `time bodega create prueba`.
   **Se espera:** sale con 0 y sin líneas `pista:`. Anota el tiempo (Highball tarda unos 90 s con `-u`). `du -sh` de la botella da unos 300 MB. Si macOS avisa de una app Intel o de Rosetta, no es un fallo.
-- [ ] **U3** `bodega run prueba notepad` y escribe «Caña, acción, pingüino». Con notepad abierto, en otra Terminal: `lsof -p $(pgrep -n -f notepad) | grep -E 'libfreetype|libgnutls|libMoltenVK'`.
+- [x] **U3** `bodega run prueba notepad` y escribe «Caña, acción, pingüino». Con notepad abierto, en otra Terminal: `lsof -p $(pgrep -n -f notepad) | grep -E 'libfreetype|libgnutls|libMoltenVK'`.
   **Se espera:** los menús y los glifos se ven bien, lo que prueba FreeType. `lsof` muestra al menos `libfreetype.6.dylib`, y todas sus líneas están bajo `…/Bodega/runtimes/<id>/engine/lib/wine/x86_64-unix/`: es la prueba directa del `LC_RPATH` bajo Rosetta en tu macOS. Al cerrar notepad, `echo $?` da 0 y el log impreso contiene `# exit=0` y la cabecera de 3 líneas (`# cwd …/prefix/drive_c`), sin variables de tu entorno.
-- [ ] **U4** `bodega run prueba winecfg`.
+- [x] **U4** `bodega run prueba winecfg`.
   **Se espera:** se abre, muestra Windows 10 y se cierra sin errores.
 - [ ] **U5** Cave Story freeware (`Doukutsu.exe`, unos 2 MB, 32 bits, DirectDraw), en una carpeta con espacio y tilde a propósito: `bodega run prueba "$HOME/Juegos/Cave Story ñ/Doukutsu.exe"`.
   **Se espera:** se abre la ventana con imagen y sonido y responde al teclado; la cabecera `# cwd` termina en `Cave Story ñ`. Al salir, `bodega run` termina con su código.
-- [ ] **U6** Desacople, con notepad o Cave Story:
+- [x] **U6** Desacople, con notepad o Cave Story:
   1. Pulsa Ctrl-C en la Terminal donde corre `bodega run`. **Se espera:** el programa sigue abierto.
   2. Cierra el programa, vuelve a lanzarlo con `bodega run` y cierra esa ventana de Terminal (⌘W y «Terminar»). **Se espera:** el programa sigue abierto.
   3. En otra Terminal lanza `bodega wait prueba` y cierra el programa. **Se espera:** `wait` vuelve unos 3 s después.
-- [ ] **U7** Parada: `bodega run prueba notepad` en una Terminal y `bodega stop prueba` en otra.
-  **Se espera:** `stop` sale con 0, notepad se cierra en unos 11 s como mucho y el primer `run` termina. Después, `pgrep -fl wine` no muestra procesos de esa botella; si queda alguno, anótalo, porque no hay reaper.
+- [x] **U7** Parada: `bodega run prueba notepad` en una Terminal y `bodega stop prueba` en otra.
+  **Se espera:** `stop` sale con 0, notepad se cierra en unos 11 s como mucho y el primer `run` termina. El `run` sale con 0 (design §2). Después, `lsof 2>/dev/null | grep "Application Support/Bodega" | awk '{print $2}' | sort -u` no imprime nada; si queda algún PID, anótalo, porque no hay reaper. `pgrep -fl wine` no sirve: no ve los procesos de la botella, que llevan nombres de Windows, y lista los de CrossOver.
 - [ ] **U8** Opcional: un juego DX9 o DX11 tuyo, como `.exe` suelto y sin launcher.
   **Se espera:** arranca con wined3d. Anota los FPS y los errores para el cambio de DXMT.
