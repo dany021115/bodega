@@ -31,14 +31,14 @@ Cada uno con un `BODEGA_HOME` nuevo en el scratchpad; primero `stop`, luego `rm 
   **Comprobación:** todos los casos `OK` y salida 0, y no deja procesos colgados.
 - [x] **T12** `backend set t dxmt --exe probe.exe` más un `run` sin opción, y comprobar `# backend dxmt (exe)`; `run --backend dxvk` da `(opcion)`; con `backends/d3dmetal` borrado, `--backend d3dmetal` falla con la instrucción (S5).
   **Comprobación:** salida pegada en `verify`.
-- [ ] **T13 (USUARIO)** Commit en `bodega`. El agente deja `~/Documents/GitHub/Bodega/t13.sh`, sin atribución de IA y sin push.
+- [x] **T13 (USUARIO)** Commit en `bodega`. El agente deja `~/Documents/GitHub/Bodega/t13.sh`, sin atribución de IA y sin push.
   **Comprobación:** `git -C bodega log --oneline -1`.
 
 ## Aceptación del usuario
 Con ventanas, en tu Mac, sobre tu botella.
 
-- [ ] **U1** Instalar los tres backends en tu carpeta real (D3DMetal desde tu Whisky) y `backend test prueba d3dmetal`. **Se espera:** `OK`.
-- [ ] **U2** `run --backend wine --hud prueba ".../Blur.exe"`. **Se espera:** Blur igual que antes y, si el contador aparece, anota los FPS. Con wined3d (OpenGL) puede no aparecer.
-- [ ] **U3** Un juego DX11 con `--backend dxmt --hud`. **Se espera:** arranca, se ve bien y el log dice `dxmt`.
-- [ ] **U4** Un juego DX12 con `--backend d3dmetal --hud`. **Se espera:** arranca y se ve bien.
-- [ ] **U5** Comparar la misma escena de U3 o U4 con CrossOver, usando el mismo backend. **Se espera:** una tabla de FPS. Esto es lo que dirá si vamos a la par, por encima o por debajo.
+- [x] **U1** Instalar los tres backends en tu carpeta real (D3DMetal desde tu Whisky) y `backend test prueba d3dmetal`. **Se espera:** `OK`.
+- [~] **U2 (corrió; contador no visto)** `run --backend wine --hud prueba ".../Blur.exe"`. **Se espera:** Blur igual que antes y, si el contador aparece, anota los FPS. Con wined3d (OpenGL) puede no aparecer.
+- [ ] **U3 (aplazada)** Un juego DX11 con `--backend dxmt --hud`. **Se espera:** arranca, se ve bien y el log dice `dxmt`.
+- [ ] **U4 (aplazada)** Un juego DX12 con `--backend d3dmetal --hud`. **Se espera:** arranca y se ve bien.
+- [ ] **U5 (aplazada)** Comparar la misma escena de U3 o U4 con CrossOver, usando el mismo backend. **Se espera:** una tabla de FPS. Esto es lo que dirá si vamos a la par, por encima o por debajo.
