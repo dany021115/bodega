@@ -12,7 +12,13 @@ uso: bodega install <engine.tar.gz> <hostlibs.tar.gz>
      bodega backend install <dxmt|dxvk> [tarball]
      bodega backend import d3dmetal <carpeta>
      bodega backend set <botella> <backend> [--exe <nombre.exe>]
-     bodega backend test <botella> <backend>''';
+     bodega backend test <botella> <backend>
+     bodega sync <botella> <msync|none>
+     bodega catalog list [texto]
+     bodega catalog show <id>
+     bodega catalog install <id> [botella]
+     bodega apps
+     bodega open [--backend <b>] [--hud] <botella>''';
 
 Future<void> main(List<String> args) async {
   final Future<int> Function(String home)? verb = switch (args) {
@@ -45,12 +51,51 @@ Future<void> main(List<String> args) async {
         backend: run.backend,
         hud: run.hud,
       );
-      stdout.writeln(backendOf(log));
-      stdout.writeln('log: $log');
-      final code = await exitOf(log);
-      await _hints(log);
-      return code;
+      return _follow(log);
     },
+    ['open', ...final rest] when parseOpen(rest) != null => (home) async {
+      final open = parseOpen(rest)!;
+      final log = await openApp(
+        home,
+        open.bottle,
+        backend: open.backend,
+        hud: open.hud,
+      );
+      return _follow(log);
+    },
+    ['apps'] => (home) async {
+      for (final app in installedApps(home)) {
+        stdout.writeln('${app.bottle}  ${app.title}  ${app.exe}');
+      }
+      return 0;
+    },
+    ['sync', final bottle, final mode] => (home) async {
+      if (await setSync(home, bottle, mode)) stdout.writeln('botella detenida');
+      return 0;
+    },
+    ['catalog', 'list'] => (home) async {
+      _list(catalogEntries());
+      return 0;
+    },
+    ['catalog', 'list', final text] => (home) async {
+      _list(catalogEntries(text));
+      return 0;
+    },
+    ['catalog', 'show', final id] => (home) async {
+      _show(catalogEntry(id));
+      return 0;
+    },
+    ['catalog', 'install', final id, ...final rest] when rest.length < 2 =>
+      (home) async {
+        final entry = catalogEntry(id);
+        final bottle = rest.firstOrNull ?? id;
+        stdout.writeln(
+          'instalada en: ${await installEntry(home, entry, bottle: bottle, onStep: stdout.writeln)}',
+        );
+        entry.notes.forEach((note) => stdout.writeln('nota: $note'));
+        stdout.writeln('ábrela con: bodega open $bottle');
+        return 0;
+      },
     ['wait', final bottle] => (home) => waitBottle(home, bottle),
     ['stop', final bottle] => (home) => stopBottle(home, bottle),
     ['backend', 'list'] => (home) async {
@@ -115,6 +160,43 @@ Future<void> main(List<String> args) async {
     stderr.writeln('bodega: ${e is FormatException ? e.message : e}');
     exitCode = 1;
   }
+}
+
+/// What `run` and `open` share: says what was chosen and waits for the exit.
+Future<int> _follow(String log) async {
+  stdout
+    ..writeln(backendOf(log))
+    ..writeln('log: $log');
+  final code = await exitOf(log);
+  await _hints(log);
+  return code;
+}
+
+void _list(List<CatalogEntry> entries) {
+  for (final entry in entries) {
+    stdout.writeln(
+      '${entry.id.padRight(16)}  ${entry.title.padRight(24)}  ${entry.status}',
+    );
+  }
+}
+
+void _show(CatalogEntry entry) {
+  stdout
+    ..writeln('${entry.title} (${entry.id})')
+    ..writeln('estado: ${entry.status}: ${entry.statusNote}')
+    ..writeln('backend: ${entry.backend}, sync: ${entry.sync}');
+  if (entry.flaky case final flaky?) stdout.writeln('inestable: $flaky');
+  for (final note in entry.notes) {
+    stdout.writeln('nota: $note');
+  }
+  for (final issue in entry.knownIssues) {
+    stdout.writeln('problema: ${issue.symptom} -> ${issue.fix}');
+  }
+  stdout.writeln(
+    'fuente: ${entry.source['repo']} ${entry.source['commit']}, '
+    '${entry.source['path']} (${entry.source['license']}); '
+    'verificado: ${entry.source['verified']}',
+  );
 }
 
 Future<void> _hints(String log) async {

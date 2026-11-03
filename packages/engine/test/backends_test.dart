@@ -1,8 +1,11 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:engine/engine.dart';
 import 'package:test/test.dart';
+
+import 'engine_test.dart' show fakeRuntime;
 
 /// A pinned-style tarball: one top folder holding the layer.
 Future<(String, String)> fakeLayer(String dir, List<String> files) async {
@@ -63,6 +66,7 @@ void main() {
     expect(backendEnv(home, 'dxmt'), {
       'CX_ACTIVE_GRAPHICS_BACKEND': 'dxmt',
       'WINEDLLPATH_PREPEND': '$layer/dxmt/wine',
+      'DXMT_ALLOW_CROSS_PROCESS_SWAPCHAIN': '1',
     });
     expect(backendEnv(home, 'dxvk'), {
       'CX_ACTIVE_GRAPHICS_BACKEND': 'dxvk',
@@ -80,6 +84,7 @@ void main() {
     expect(backendEnv(home, 'd3dmetal'), {
       ...d3dmetal,
       'WINEDLLPATH_PREPEND': '$layer/d3dmetal/wine:$layer/dxmt/wine',
+      'DXMT_ALLOW_CROSS_PROCESS_SWAPCHAIN': '1',
     });
     expect(backendEnv(home, 'wine', hud: true)['MTL_HUD_ENABLED'], '1');
     for (final name in backendNames) {
@@ -244,6 +249,45 @@ void main() {
     await expectLater(origin(), throwsA(contains('settings.json')));
     File('$dir/settings.json').writeAsStringSync('{"backend":"foo"}');
     await expectLater(origin(), throwsA(contains('settings.json')));
+    File('$dir/settings.json').writeAsStringSync('{"sync":"foo"}');
+    await expectLater(origin(), throwsA(contains('settings.json')));
+
+    // A2: an exception goes, but the program's variables stay.
+    File('$dir/settings.json').writeAsStringSync(
+      '{"backend":"wine","programs":{"blur.exe":'
+      '{"backend":"dxmt","env":{"FOO":"1"}},"a.exe":{"backend":"dxmt"}}}',
+    );
+    setBackend(home, 't', 'auto', exe: 'Blur.exe');
+    setBackend(home, 't', 'auto', exe: 'a.exe');
+    final kept = jsonDecode(File('$dir/settings.json').readAsStringSync());
+    expect(kept['programs'], {
+      'blur.exe': {
+        'env': {'FOO': '1'},
+      },
+    });
+    setBackend(home, 't', 'dxmt', exe: 'blur.exe');
+    expect(await origin(), 'dxmt exe');
+    final both = jsonDecode(File('$dir/settings.json').readAsStringSync());
+    expect(both['programs']['blur.exe']['env'], {'FOO': '1'});
+
+    // A1: a change stops the bottle first; the same value touches nothing.
+    final (engine, hostlibs) = await fakeRuntime(tmp, 'engine-s');
+    await installRuntime(home, engine, hostlibs);
+    Directory('$dir/prefix').createSync();
+    final server = File('$dir/prefix/server.log');
+    expect(await setSync(home, 't', 'msync'), isFalse);
+    expect(server.existsSync(), isFalse);
+    expect(await setSync(home, 't', 'none'), isTrue);
+    expect(server.readAsStringSync(), contains('k'));
+    final saved = jsonDecode(File('$dir/settings.json').readAsStringSync());
+    expect(saved['sync'], 'none');
+    expect(saved['backend'], 'wine');
+    expect(saved['programs']['blur.exe']['backend'], 'dxmt');
+    await expectLater(setSync(home, 't', 'foo'), throwsA(contains('foo')));
+    expect(
+      jsonDecode(File('$dir/settings.json').readAsStringSync())['sync'],
+      'none',
+    );
   });
 
   test('resolve', () async {
@@ -296,6 +340,11 @@ void main() {
     Directory('$home/backends/dxmt').deleteSync(recursive: true);
     expect(await auto(0x8664, 'x d3d10.dll y'), 'dxvk');
     expect(await auto(0x8664, 'sin nada'), 'wine');
+    // A4: D3D9 games that mention newer DLLs.
+    install(home, 'dxmt');
+    expect(await auto(0x14C, 'd3d9.dll d3d10 dxgi.dll'), 'wine');
+    expect(await auto(0x8664, 'd3d9.dll d3d11.dll'), 'dxmt');
+    expect(await auto(0x8664, 'solo d3d10.dll'), 'dxmt');
     final notPe = File('$tmp/n.exe')..writeAsStringSync('d3d12.dll');
     expect(
       (await resolveBackend(home, dir, notPe.path, notPe.path)).name,

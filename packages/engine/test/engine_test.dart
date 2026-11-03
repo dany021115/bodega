@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:engine/engine.dart';
+import 'package:engine/probe_data.dart';
 import 'package:test/test.dart';
 
 const fakeWine = r'''#!/bin/sh
@@ -11,12 +12,21 @@ wineboot)
   case $WINEPREFIX in */broken/*) exit 0 ;; esac
   d=$WINEPREFIX/drive_c/windows/syswow64
   mkdir -p "$d" && touch "$d/kernel32.dll" "$WINEPREFIX/system.reg" ;;
-*) echo "$@"; sleep 5 & exit 7 ;;
+reg)
+  case "$*" in *FAIL*) exit 3 ;; esac
+  echo "$@" >>"$WINEPREFIX/reg.log" ;;
+msiexec) echo "$@" >"$WINEPREFIX/msi-args"; . "$3" ;;
+*-setup.exe) echo "$@" >"$WINEPREFIX/setup-args"; . "$1" ;;
+*) env >"$WINEPREFIX/last-env"; echo "$@"; sleep 5 & exit 7 ;;
 esac
 ''';
 
 const fakeWineserver = r'''#!/bin/sh
-case $1 in -k) exit 1 ;; esac
+case $1 in
+-k) { echo k >>"$WINEPREFIX/server.log"; } 2>/dev/null
+  rm -f "$WINEPREFIX/hang"; exit 1 ;;
+-w) while [ -e "$WINEPREFIX/hang" ]; do sleep 0.1; done ;;
+esac
 ''';
 
 /// A fake runtime packed like the real one (design §6): `<id>.tar.gz` with
@@ -265,6 +275,10 @@ void main() {
     final byExe = await runInBottle(home, 't', r'C:\Juegos\Mi Juego.exe', []);
     await exitOf(byExe);
     expect(backendOf(byExe), 'backend wine (exe)');
+    expect(
+      File('$prefix/last-env').readAsStringSync(),
+      contains('WINEMSYNC=1\n'),
+    );
     await expectLater(
       runInBottle(home, 't', 'notepad', [], backend: 'dxmt'),
       throwsA(contains('bodega backend install dxmt')),
@@ -325,8 +339,10 @@ void main() {
         Link('$home/runtimes/current').createSync(target);
       });
       tearDownAll(() async {
-        if (Directory('$home/bottles/t').existsSync()) {
-          await stopBottle(home, 't');
+        for (final bottle in ['t', 'sonda']) {
+          if (Directory('$home/bottles/$bottle').existsSync()) {
+            await stopBottle(home, bottle);
+          }
         }
         Directory(home).deleteSync(recursive: true);
       });
@@ -366,6 +382,62 @@ void main() {
           expect(hints, hostlibs ? isNot(hint) : hint, reason: lib);
         }
         expect(await stopBottle(home, 't'), 0);
+      });
+
+      // The probe stands in for an installer: it exits at once, so this checks
+      // the flow, not a real installer (T9).
+      test('installEntry', () async {
+        final setup = File('$home/setup.exe')
+          ..writeAsBytesSync(base64.decode(probe64Base64));
+        final entry = CatalogEntry.fromJson({
+          'id': 'sonda',
+          'title': 'Sonda',
+          'status': 'reported',
+          'statusNote': '',
+          'installer': {
+            'url': 'file://${setup.path}',
+            'sha256': null,
+            'args': ['11'],
+            'msi': false,
+          },
+          'exe': 'windows/system32/notepad.exe',
+          'args': <String>[],
+          'backend': 'wine',
+          'sync': 'none',
+          'env': {'BODEGA_PRUEBA': '1'},
+          'registry': [
+            {
+              'key': r'HKCU\Software\Bodega',
+              'name': 'Prueba',
+              'type': 'REG_SZ',
+              'data': 'ok',
+            },
+          ],
+          'notes': <String>[],
+          'knownIssues': <Map<String, String>>[],
+          'source': <String, String>{},
+        });
+        final clock = Stopwatch()..start();
+        final dir = await installEntry(home, entry);
+        print('install: ${clock.elapsed}');
+        expect(installedApps(home).single.bottle, 'sonda');
+
+        final query = await runInBottle(home, 'sonda', 'reg', [
+          'query',
+          r'HKCU\Software\Bodega',
+          '/v',
+          'Prueba',
+        ]);
+        expect(await exitOf(query), 0);
+        expect(File(query).readAsStringSync(encoding: latin1), contains('ok'));
+
+        final set = await runInBottle(home, 'sonda', 'cmd', ['/c', 'set']);
+        expect(await exitOf(set), 0);
+        final lines = File(set).readAsLinesSync(encoding: latin1);
+        expect(lines.map((line) => line.trim()), contains('WINEMSYNC=0'));
+        final logs = Directory('$dir/logs').listSync().map((e) => e.path);
+        expect(logs, contains(endsWith('-sonda-setup.log')));
+        expect(await stopBottle(home, 'sonda'), 0);
       });
     },
     skip: runtime == null ? 'BODEGA_TEST_RUNTIME no está definida' : false,

@@ -5,12 +5,15 @@ part of 'engine.dart';
 const backendNames = ['wine', 'dxmt', 'dxvk', 'd3dmetal'];
 
 /// Pinned downloads (B1). D3DMetal is never here: the user imports it (B2).
+/// `dxmt` is Highball's fork, because launchers need its cross-process
+/// swapchain and the official v0.80 does not have it (A3).
 const _pinned = {
   'dxmt': (
     url:
-        'https://github.com/3Shain/dxmt/releases/download/v0.80/'
-        'dxmt-v0.80-builtin.tar.gz',
-    sha256: '8f260e36b5739e68f3bad613381441385c4dc7b85b78ba8de653d5a6a264529d',
+        'https://github.com/gauthierpiarrette/highball-engine/releases/download/'
+        'dxmt-highball-20261017T231707Z-331c552/'
+        'dxmt-highball-20261017T231707Z-331c552.tar.gz',
+    sha256: '89e731b81cc1ef741accb2e707159f121ed822a083f14f16da445cd8dbbf4703',
   ),
   'dxvk': (
     url:
@@ -20,6 +23,8 @@ const _pinned = {
     sha256: '810b1e5caf8ce975b784fae866a130ad23fa0ea233b0e5609cbc4a45f3ef6f00',
   ),
 };
+
+const _crossProcess = {'DXMT_ALLOW_CROSS_PROCESS_SWAPCHAIN': '1'};
 
 String _layer(String home, String name) => '$home/backends/$name/wine';
 
@@ -40,7 +45,7 @@ Map<String, String> backendEnv(
 }) => {
   'CX_ACTIVE_GRAPHICS_BACKEND': backend == 'wine' ? 'wined3d' : backend,
   ...switch (backend) {
-    'dxmt' => {'WINEDLLPATH_PREPEND': _layer(home, 'dxmt')},
+    'dxmt' => {'WINEDLLPATH_PREPEND': _layer(home, 'dxmt'), ..._crossProcess},
     'dxvk' => {
       'WINEDLLPATH_PREPEND': _layer(home, 'dxvk'),
       'WINEDLLOVERRIDES': '$_overrides;d3d10core,d3d11=n,b',
@@ -53,6 +58,7 @@ Map<String, String> backendEnv(
       ].join(':'),
       'CX_APPLEGPTK_LIBD3DSHARED_PATH':
           '$home/backends/d3dmetal/external/libd3dshared.dylib',
+      if (_installed(home, 'dxmt')) ..._crossProcess,
     },
     _ => const <String, String>{},
   },
@@ -189,21 +195,45 @@ Future<String> _intoSlot(
   return dest;
 }
 
-/// A resumable download (slow links); a finished file is not fetched again.
-Future<String> _download(String home, String url, String sha256) async {
+/// A resumable download (slow links) to `downloads/`, HTTPS only, redirects
+/// included; `file` only serves tests. With [sha256] it is checked, and a file
+/// that already matches is not fetched again (B1, I3).
+Future<String> _download(
+  String home,
+  String url,
+  String? sha256, {
+  String? name,
+}) async {
   final dir = Directory('$home/downloads')..createSync(recursive: true);
-  final file = File('${dir.path}/${url.split('/').last}');
-  if (file.existsSync() && await _sha256(file.path) == sha256) return file.path;
+  final file = File('${dir.path}/${name ?? url.split('/').last}');
+  if (sha256 != null &&
+      file.existsSync() &&
+      await _sha256(file.path) == sha256) {
+    return file.path;
+  }
+  final part = File('${file.path}.part');
   await _run('/usr/bin/curl', [
     '-fLsS',
+    '--proto',
+    '=https,file',
+    '--proto-redir',
+    '=https',
     '-C',
     '-',
     '--retry',
     '5',
     '-o',
-    file.path,
+    part.path,
     url,
   ]);
+  part.renameSync(file.path);
+  if (sha256 != null) {
+    final got = await _sha256(file.path);
+    if (got != sha256) {
+      file.deleteSync();
+      throw 'checksum incorrecto en ${file.path}: $got, se esperaba $sha256';
+    }
+  }
   return file.path;
 }
 
@@ -222,51 +252,109 @@ void _checkChoice(String backend) {
   }
 }
 
-/// `bottles/<b>/settings.json` (S1). A missing file means `auto`; a broken one
-/// is an error, never ignored.
-({String backend, Map<String, String> programs}) _settings(String dir) {
+void _checkSync(String sync) {
+  if (sync != 'msync' && sync != 'none') {
+    throw 'sync desconocido: $sync (msync, none)';
+  }
+}
+
+typedef _Settings = ({
+  String backend,
+  String sync,
+  Map<String, ({String? backend, Map<String, String> env})> programs,
+});
+
+/// `bottles/<b>/settings.json` (S1, A1, A2). A missing file means `auto` with
+/// msync; a broken one is an error, never ignored.
+_Settings _settings(String dir) {
   final file = File('$dir/settings.json');
-  if (!file.existsSync()) return (backend: 'auto', programs: {});
+  if (!file.existsSync()) return (backend: 'auto', sync: 'msync', programs: {});
   try {
     final json = jsonDecode(file.readAsStringSync()) as Map<String, dynamic>;
     final programs = (json['programs'] ?? <String, dynamic>{}) as Map;
-    final settings = (
+    final _Settings settings = (
       backend: (json['backend'] ?? 'auto') as String,
+      sync: (json['sync'] ?? 'msync') as String,
       programs: {
         for (final MapEntry(:key, :value) in programs.entries)
-          key as String: (value as Map)['backend'] as String,
+          key as String: (
+            backend: (value as Map)['backend'] as String?,
+            env: Map<String, String>.from((value['env'] ?? const {}) as Map),
+          ),
       },
     );
-    [settings.backend, ...settings.programs.values].forEach(_checkChoice);
+    _checkChoice(settings.backend);
+    _checkSync(settings.sync);
+    for (final program in settings.programs.values) {
+      if (program.backend case final backend?) _checkChoice(backend);
+    }
     return settings;
   } on Object catch (e) {
     throw '${file.path} no es válido: $e';
   }
 }
 
+/// Atomic, like every JSON the engine keeps.
+void _writeJson(String path, Object value) {
+  File('$path.tmp')
+    ..writeAsStringSync(const JsonEncoder.withIndent('  ').convert(value))
+    ..renameSync(path);
+}
+
+void _saveSettings(String dir, _Settings settings) {
+  _writeJson('$dir/settings.json', {
+    'backend': settings.backend,
+    'sync': settings.sync,
+    'programs': {
+      for (final MapEntry(:key, :value) in settings.programs.entries)
+        key: {
+          if (value.backend case final backend?) 'backend': backend,
+          if (value.env.isNotEmpty) 'env': value.env,
+        },
+    },
+  });
+}
+
 /// Sets the bottle's backend or, with [exe], that program's exception; `auto`
-/// removes an exception (S1).
+/// removes the exception and keeps the program's variables (S1, A2).
 void setBackend(String home, String name, String backend, {String? exe}) {
   final dir = _existing(home, name);
   _checkChoice(backend);
   final settings = _settings(dir);
   final programs = settings.programs;
   if (exe != null) {
-    backend == 'auto'
-        ? programs.remove(_exeKey(exe))
-        : programs[_exeKey(exe)] = backend;
+    final key = _exeKey(exe);
+    final env = programs[key]?.env ?? const <String, String>{};
+    if (backend != 'auto') {
+      programs[key] = (backend: backend, env: env);
+    } else if (env.isEmpty) {
+      programs.remove(key);
+    } else {
+      programs[key] = (backend: null, env: env);
+    }
   }
-  final tmp = File('$dir/settings.json.tmp')
-    ..writeAsStringSync(
-      const JsonEncoder.withIndent('  ').convert({
-        'backend': exe == null ? backend : settings.backend,
-        'programs': {
-          for (final MapEntry(:key, :value) in programs.entries)
-            key: {'backend': value},
-        },
-      }),
-    );
-  tmp.renameSync('$dir/settings.json');
+  _saveSettings(dir, (
+    backend: exe == null ? backend : settings.backend,
+    sync: settings.sync,
+    programs: programs,
+  ));
+}
+
+/// Sets the bottle's sync mode (A1). The mode is fixed while the bottle runs
+/// and a process with the other one exits with 1, so a change stops the bottle
+/// first. Returns whether it did.
+Future<bool> setSync(String home, String name, String sync) async {
+  final dir = _existing(home, name);
+  _checkSync(sync);
+  final settings = _settings(dir);
+  if (settings.sync == sync) return false;
+  await stopBottle(home, name);
+  _saveSettings(dir, (
+    backend: settings.backend,
+    sync: sync,
+    programs: settings.programs,
+  ));
+  return true;
 }
 
 /// Applies S2: option, then the program's exception, then the bottle, then
@@ -281,7 +369,7 @@ Future<({String name, String origin})> resolveBackend(
 }) async {
   if (option != null) _checkChoice(option);
   final settings = _settings(dir);
-  final exception = settings.programs[_exeKey(program)];
+  final exception = settings.programs[_exeKey(program)]?.backend;
   final bottle = settings.backend == 'auto' ? null : settings.backend;
   final (name, origin) = option == 'auto'
       ? (null, 'auto')
@@ -295,12 +383,13 @@ Future<({String name, String origin})> resolveBackend(
   if (name == null) {
     return (name: await _autoBackend(home, exePath), origin: origin);
   }
-  if (!_installed(home, name)) {
-    throw '$name no está instalado: bodega backend '
-        '${name == 'd3dmetal' ? 'import d3dmetal <carpeta>' : 'install $name'}';
-  }
+  if (!_installed(home, name)) throw _notInstalled(name);
   return (name: name, origin: origin);
 }
+
+String _notInstalled(String name) =>
+    '$name no está instalado: bodega backend '
+    '${name == 'd3dmetal' ? 'import d3dmetal <carpeta>' : 'install $name'}';
 
 /// S3: looks for the DLL names anywhere in the exe, because imports alone miss
 /// LoadLibrary (design §4). NULs are dropped to catch UTF-16 strings too.
@@ -315,7 +404,13 @@ Future<String> _autoBackend(String home, String? exePath) async {
   ).openRead().transform(latin1.decoder)) {
     final text = tail + chunk.replaceAll('\x00', '').toLowerCase();
     found.addAll(
-      ['d3d12.dll', 'd3d11.dll', 'd3d10', 'dxgi.dll'].where(text.contains),
+      [
+        'd3d12.dll',
+        'd3d11.dll',
+        'd3d10',
+        'dxgi.dll',
+        'd3d9.dll',
+      ].where(text.contains),
     );
     if (found.contains('d3d12.dll')) break;
     tail = text.substring(text.length < 16 ? 0 : text.length - 16);
@@ -323,7 +418,11 @@ Future<String> _autoBackend(String home, String? exePath) async {
   if (found.contains('d3d12.dll')) {
     return bits == 64 && _installed(home, 'd3dmetal') ? 'd3dmetal' : 'wine';
   }
-  if (found.isEmpty) return 'wine';
+  // A D3D9 game can mention d3d10 or dxgi just to probe them, as Blur does (A4).
+  if (!found.contains('d3d11.dll') &&
+      (found.isEmpty || found.contains('d3d9.dll'))) {
+    return 'wine';
+  }
   return ['dxmt', 'dxvk'].where((b) => _installed(home, b)).firstOrNull ??
       'wine';
 }
@@ -348,10 +447,10 @@ int? _peBits(String path) {
   }
 }
 
-/// The options of `run`, which only count before the bottle (S7), or null for
-/// a bad usage.
-({String? backend, bool hud, String bottle, String program, List<String> args})?
-parseRun(List<String> args) {
+/// Options before the bottle (S7), and what follows them; null for a bad one.
+({String? backend, bool hud, List<String> rest})? _parseOptions(
+  List<String> args,
+) {
   String? backend;
   var hud = false;
   var i = 0;
@@ -364,13 +463,31 @@ parseRun(List<String> args) {
       return null;
     }
   }
-  if (args.length - i < 2) return null;
+  return (backend: backend, hud: hud, rest: args.sublist(i));
+}
+
+/// The arguments of `run`, or null for a bad usage.
+({String? backend, bool hud, String bottle, String program, List<String> args})?
+parseRun(List<String> args) {
+  final options = _parseOptions(args);
+  if (options == null || options.rest.length < 2) return null;
   return (
-    backend: backend,
-    hud: hud,
-    bottle: args[i],
-    program: args[i + 1],
-    args: args.sublist(i + 2),
+    backend: options.backend,
+    hud: options.hud,
+    bottle: options.rest[0],
+    program: options.rest[1],
+    args: options.rest.sublist(2),
+  );
+}
+
+/// The arguments of `open`, or null for a bad usage.
+({String? backend, bool hud, String bottle})? parseOpen(List<String> args) {
+  final options = _parseOptions(args);
+  if (options == null || options.rest.length != 1) return null;
+  return (
+    backend: options.backend,
+    hud: options.hud,
+    bottle: options.rest.single,
   );
 }
 

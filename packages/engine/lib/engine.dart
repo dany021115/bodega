@@ -6,9 +6,11 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'catalog_data.dart';
 import 'probe_data.dart';
 
 part 'backends.dart';
+part 'catalog.dart';
 
 /// The data root (R1): `BODEGA_HOME`, or else
 /// `~/Library/Application Support/Bodega`, created and canonical.
@@ -231,6 +233,7 @@ Future<String> _launchIn(
   List<String> args, {
   String? backend,
   bool hud = false,
+  String? label,
   Map<String, String> extra = const {},
 }) async {
   final dir = _existing(home, name);
@@ -261,15 +264,18 @@ Future<String> _launchIn(
     scan,
     option: backend,
   );
-  final label = program
-      .split(RegExp(r'[/\\]'))
-      .last
-      .replaceFirst(RegExp(r'\.exe$', caseSensitive: false), '')
-      .replaceAll(RegExp(r'[^A-Za-z0-9._-]'), '_');
+  final tag =
+      label ??
+      program
+          .split(RegExp(r'[/\\]'))
+          .last
+          .replaceFirst(RegExp(r'\.exe$', caseSensitive: false), '')
+          .replaceAll(RegExp(r'[^A-Za-z0-9._-]'), '_');
   final argv = [exe, ...args];
+  final settings = _settings(dir);
   final log = _newLog(
     dir,
-    label.length > 40 ? label.substring(0, 40) : label,
+    tag.length > 40 ? tag.substring(0, 40) : tag,
     rt,
     cwd,
     argv,
@@ -284,6 +290,8 @@ Future<String> _launchIn(
     detached: true,
     extra: {
       ...backendEnv(home, choice.name, hud: hud),
+      ...?settings.programs[_exeKey(program)]?.env,
+      if (settings.sync == 'none') 'WINEMSYNC': '0',
       ...extra,
     },
   );
