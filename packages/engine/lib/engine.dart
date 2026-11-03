@@ -4,6 +4,11 @@ library;
 
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
+
+import 'probe_data.dart';
+
+part 'backends.dart';
 
 /// The data root (R1): `BODEGA_HOME`, or else
 /// `~/Library/Application Support/Bodega`, created and canonical.
@@ -48,9 +53,15 @@ String bottleDir(String home, String name) {
   return '$home/bottles/$name';
 }
 
+const _overrides = 'winemenubuilder.exe=d';
+
 /// The whole environment of every process the engine starts (R12): nothing
-/// else from [parent] gets in.
-Map<String, String> wineEnv(String prefix, Map<String, String> parent) => {
+/// else from [parent] gets in; [extra] is what the backend adds (S4).
+Map<String, String> wineEnv(
+  String prefix,
+  Map<String, String> parent, [
+  Map<String, String> extra = const {},
+]) => {
   for (final key in const [
     'HOME',
     'USER',
@@ -62,12 +73,13 @@ Map<String, String> wineEnv(String prefix, Map<String, String> parent) => {
   'PATH': '/usr/bin:/bin:/usr/sbin:/sbin',
   'WINEPREFIX': prefix,
   'WINEMSYNC': '1',
-  'WINEDLLOVERRIDES': 'winemenubuilder.exe=d',
+  'WINEDLLOVERRIDES': _overrides,
   'ROSETTA_ADVERTISE_AVX': '1',
   'DOTNET_EnableWriteXorExecute': '0',
   'MVK_CONFIG_LOG_LEVEL': '2',
   // ponytail: BODEGA_WINEDEBUG is the only knob read from the caller.
   'WINEDEBUG': parent['BODEGA_WINEDEBUG'] ?? 'fixme-all',
+  ...extra,
 };
 
 /// What an installed runtime must contain (R5): the six files of
@@ -201,13 +213,26 @@ Future<String> createBottle(String home, String name) async {
 }
 
 /// Starts [program] detached, so it outlives the CLI and the Terminal, and
-/// returns its log (R13–R15); [exitOf] gives its exit code.
+/// returns its log (R13–R15); [exitOf] gives its exit code. [backend] is the
+/// `run --backend` option (S2), and [hud] turns on the Metal HUD (S4).
 Future<String> runInBottle(
   String home,
   String name,
   String program,
-  List<String> args,
-) async {
+  List<String> args, {
+  String? backend,
+  bool hud = false,
+}) => _launchIn(home, name, program, args, backend: backend, hud: hud);
+
+Future<String> _launchIn(
+  String home,
+  String name,
+  String program,
+  List<String> args, {
+  String? backend,
+  bool hud = false,
+  Map<String, String> extra = const {},
+}) async {
   final dir = _existing(home, name);
   final rt = currentRuntime(home);
   final prefix = '$dir/prefix';
@@ -217,15 +242,25 @@ Future<String> runInBottle(
         'rm -rf "$dir" y bodega create $name';
   }
   var exe = program, cwd = drive;
+  String? scan;
   if (program.contains('/')) {
     exe = File(program).resolveSymbolicLinksSync();
     if (winPathProblem(exe) case final problem?) throw FormatException(problem);
     cwd = File(exe).parent.path;
+    scan = exe;
   } else if (program.toLowerCase().startsWith(r'c:\')) {
     final folder = File('$drive/${program.substring(3).replaceAll(r'\', '/')}')
         .parent;
     if (folder.existsSync()) cwd = folder.path;
+    scan = '$drive/${program.substring(3).replaceAll(r'\', '/')}';
   }
+  final choice = await resolveBackend(
+    home,
+    dir,
+    program,
+    scan,
+    option: backend,
+  );
   final label = program
       .split(RegExp(r'[/\\]'))
       .last
@@ -238,8 +273,20 @@ Future<String> runInBottle(
     rt,
     cwd,
     argv,
+    backend: '${choice.name} (${choice.origin})',
   );
-  await _start(rt, prefix, log, cwd, argv, detached: true);
+  await _start(
+    rt,
+    prefix,
+    log,
+    cwd,
+    argv,
+    detached: true,
+    extra: {
+      ...backendEnv(home, choice.name, hud: hud),
+      ...extra,
+    },
+  );
   return log;
 }
 
@@ -323,11 +370,12 @@ Future<Process> _start(
   String cwd,
   List<String> args, {
   bool detached = false,
+  Map<String, String> extra = const {},
 }) => Process.start(
   '/bin/sh',
   ['-c', _launch, 'bodega', log, '$rt/engine/bin/wine', ...args],
   workingDirectory: cwd,
-  environment: wineEnv(prefix, Platform.environment),
+  environment: wineEnv(prefix, Platform.environment, extra),
   includeParentEnvironment: false,
   mode: detached ? ProcessStartMode.detached : ProcessStartMode.inheritStdio,
 );
@@ -350,8 +398,9 @@ String _newLog(
   String label,
   String rt,
   String cwd,
-  List<String> argv,
-) {
+  List<String> argv, {
+  String? backend,
+}) {
   final now = DateTime.now().toUtc();
   final iso = now.toIso8601String();
   // toIso8601String leaves the microseconds out when they are 000.
@@ -363,6 +412,7 @@ String _newLog(
     ..createSync(exclusive: true)
     ..writeAsStringSync(
       '# runtime ${rt.split('/').last}\n'
+      '${backend == null ? '' : '# backend $backend\n'}'
       '# cwd $cwd\n'
       '# argv ${argv.join(' ')}\n',
     );

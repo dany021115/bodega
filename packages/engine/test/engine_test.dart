@@ -257,6 +257,29 @@ void main() {
     final text = File(run).readAsStringSync();
     expect(text, contains('# exit=7\n'));
     expect(text, contains('# cwd $prefix/drive_c/Juegos\n'));
+    expect(text, contains('# backend wine (auto)\n'));
+    expect(backendOf(run), 'backend wine (auto)');
+    expect(File(log).readAsStringSync(), isNot(contains('# backend')));
+
+    setBackend(home, 't', 'wine', exe: 'Mi Juego.exe');
+    final byExe = await runInBottle(home, 't', r'C:\Juegos\Mi Juego.exe', []);
+    await exitOf(byExe);
+    expect(backendOf(byExe), 'backend wine (exe)');
+    await expectLater(
+      runInBottle(home, 't', 'notepad', [], backend: 'dxmt'),
+      throwsA(contains('bodega backend install dxmt')),
+    );
+    await expectLater(
+      backendTest(home, 't', 'dxmt'),
+      throwsA(contains('bodega backend install dxmt')),
+    );
+    final probes = await backendTest(home, 't', 'wine');
+    expect(probes.map((p) => (p.bits, p.d3d)), [(64, '11'), (64, '12')]);
+    expect(probes.every((p) => !p.ok), isTrue, reason: 'fake wine exits 7');
+    expect(
+      File('$home/backends/probe/probe-64.exe').lengthSync(),
+      greaterThan(0),
+    );
     expect(await stopBottle(home, 't'), 0);
     expect(await waitBottle(home, 't'), 0);
 
