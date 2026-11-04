@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:bodega/app/bloc/setup/setup_bloc.dart';
 import 'package:bodega/app/presentation/backends/backends_page.dart';
+import 'package:bodega/app/presentation/bottles/bottle_detail_page.dart';
 import 'package:bodega/app/presentation/bottles/bottles_page.dart';
 import 'package:bodega/app/presentation/catalog/catalog_detail_page.dart';
 import 'package:bodega/app/presentation/catalog/catalog_page.dart';
@@ -90,7 +91,20 @@ GoRouter createRouter(SetupBloc setup) {
               ),
             ],
           ),
-          _section(AppRoute.bottles, const BottlesPage()),
+          _section(
+            AppRoute.bottles,
+            const BottlesPage(),
+            routes: [
+              GoRoute(
+                path: ':name',
+                name: AppRoute.bottleDetail.name,
+                pageBuilder: (context, state) => NoTransitionPage(
+                  key: state.pageKey,
+                  child: BottleDetailPage(name: state.pathParameters['name']!),
+                ),
+              ),
+            ],
+          ),
           _section(AppRoute.backends, const BackendsPage()),
         ],
       ),

@@ -5,8 +5,14 @@ import 'package:fpdart/fpdart.dart';
 abstract class LibraryRepository {
   Future<Either<AppError, List<LibraryApp>>> apps();
 
+  /// Every bottle by name, with or without an app.
+  Future<List<String>> bottleNames();
+
   /// Launches the bottle's app and returns the log of its first process.
   Future<Either<AppError, String>> open(String bottle);
+
+  /// Launches [program], an absolute path, in the bottle.
+  Future<Either<AppError, String>> run(String bottle, String program);
 
   Future<Either<AppError, Unit>> stop(String bottle);
 

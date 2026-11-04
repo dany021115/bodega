@@ -22,22 +22,22 @@
   **Comprobación:** test `LibraryBloc`.
 - [x] **T9** `AntiCheat`: `RestClient`, DTO, caché y sección en el catálogo (P5).
   **Comprobación:** test `AntiCheatRepository`.
-- [ ] **T10 (USUARIO)** Commit del hito 2, y abre la app. **Se espera:** ves tu Steam, lo abres y lo paras desde la Biblioteca; el Catálogo busca y muestra fichas.
+- [x] **T10 (USUARIO)** Commit del hito 2, y abre la app. **Se espera:** ves tu Steam, lo abres y lo paras desde la Biblioteca; el Catálogo busca y muestra fichas.
 
 ## Hito 3: botellas, backends y otra aplicación
-- [ ] **T11** `Bottle`: lista y detalle (P10, P11).
+- [x] **T11** `Bottle`: lista y detalle (P10, P11).
   **Comprobación:** test `BottleDetailBloc`.
-- [ ] **T12** `Backend`: lista, instalar, D3DMetal y comprobar (P12–P14).
+- [x] **T12** `Backend`: lista, instalar, D3DMetal y comprobar (P12–P14).
   **Comprobación:** test `BackendsBloc`.
-- [ ] **T13** Agregar otra aplicación (P9).
+- [x] **T13** Agregar otra aplicación (P9).
   **Comprobación:** test `AddAppBloc`.
-- [ ] **T14** `.claude/CLAUDE.md` y `rules/` (B9).
+- [x] **T14** `.claude/CLAUDE.md` y `rules/` (B9).
   **Comprobación:** existen y nombran las versiones y las reglas de capas.
 
 ## Cierre
-- [ ] **T15** Comprobación de capas (B2) con un script en `tool/check_layers.sh`, que falla si se rompe una regla.
+- [x] **T15** Comprobación de capas (B2) con un script en `tool/check_layers.sh`, que falla si se rompe una regla.
   **Comprobación:** pasa; y falla si se añade a propósito un import prohibido, en una copia temporal.
-- [ ] **T16** Compilación final: `flutter build macos`, abrirla con `open` y confirmar en un log temporal que arranca.
+- [x] **T16** Compilación final: `flutter build macos`, abrirla con `open` y confirmar en un log temporal que arranca.
   **Comprobación:** salida pegada en `verify`. El agente no juzga cómo se ve.
 - [ ] **T17 (USUARIO)** Commit final con el script que deja el agente.
 

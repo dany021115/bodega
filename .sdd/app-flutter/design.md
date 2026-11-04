@@ -44,7 +44,7 @@ Resuelve el `exit=42` de Steam: lo que importa es la botella, no el primer proce
 
 ## 6. La interfaz no es dueña de los programas
 
-Los programas corren desacoplados: cerrar Bodega no los cierra, y volver a abrirla reconstruye el estado desde `listBottles` y `waitBottle`. Si se cierra durante una instalación, el instalador sigue, pero queda una botella sin `app.json`, que aparece como `Incompleta` y se puede borrar.
+Los programas corren desacoplados: cerrar Bodega no los cierra, y volver a abrirla reconstruye el estado desde `listBottles` y `waitBottle`. Si se cierra durante una instalación, el instalador sigue, pero queda una botella sin `app.json`, que aparece sin aplicación y se puede borrar en su detalle. `Incompleta` queda para un prefijo sin terminar (`ready` falso, E2).
 
 Lecturas síncronas en la interfaz: `antiCheatHints` lee un log de unos 600 KB cada 5 s como mucho, y solo si cambió. Si se notara en U, se pasa a `Isolate.run`. No se hace antes de medir.
 

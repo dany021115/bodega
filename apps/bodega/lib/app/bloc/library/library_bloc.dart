@@ -26,9 +26,10 @@ class LibraryBloc extends Bloc<LibraryEvent, LibraryState> {
         (error) => emit(state.copyWith(isLoading: false, error: error)),
         (apps) {
           emit(state.copyWith(isLoading: false, apps: apps, error: null));
-          apps.map((app) => app.bottle).forEach(_watch);
         },
       );
+      // Bottles without an app count too: Botellas shows them open.
+      (await _repository.bottleNames()).forEach(_watch);
     });
 
     on<LibraryOpenEvent>((event, emit) async {
@@ -46,6 +47,17 @@ class LibraryBloc extends Bloc<LibraryEvent, LibraryState> {
             error: null,
           ),
         );
+        _follow(bottle, log);
+      });
+    });
+
+    on<LibraryRunEvent>((event, emit) async {
+      final bottle = event.bottle;
+      final since = _runs[bottle]?.since ?? DateTime.now();
+      final result = await _repository.run(bottle, event.program);
+      result.match((error) => emit(state.copyWith(error: error)), (log) {
+        _begin(bottle, since, log);
+        emit(state.copyWith(open: {...state.open, bottle}, error: null));
         _follow(bottle, log);
       });
     });

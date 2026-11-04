@@ -10,7 +10,6 @@ import 'package:mocktail/mocktail.dart';
 
 class _MockLibrary extends Mock implements LibraryRepository {}
 
-const _steam = LibraryApp(bottle: 'steam', id: 'steam', title: 'Steam');
 const _blur = LibraryApp(bottle: 'blur', id: 'custom', title: 'Blur');
 
 void main() {
@@ -30,6 +29,7 @@ void main() {
         .thenAnswer((_) => firstExit.future);
     when(() => repository.waitBottle('steam'))
         .thenAnswer((_) => bottleEmpty.future);
+    when(() => repository.bottleNames()).thenAnswer((_) async => const []);
     when(() => repository.antiCheatHints(any(), any())).thenReturn(const []);
     when(() => repository.hintsIn(any())).thenAnswer((_) async => const []);
   });
@@ -41,7 +41,6 @@ void main() {
     build: () {
       when(() => repository.apps())
           .thenAnswer((_) async => right(const [_blur]));
-      when(() => repository.waitBottle('blur')).thenAnswer((_) async {});
       return LibraryBloc(repository);
     },
     act: (bloc) => bloc.add(const LibraryEvent.load()),
@@ -81,6 +80,22 @@ void main() {
     await bloc.close();
   });
 
+  test('a program run in a bottle keeps it open until it empties', () async {
+    when(() => repository.run('steam', '/g/tool.exe'))
+        .thenAnswer((_) async => right('/l/a.log'));
+    final bloc = LibraryBloc(repository)
+      ..add(const LibraryEvent.run('steam', '/g/tool.exe'));
+    await settle();
+    expect(bloc.state.open, {'steam'});
+
+    firstExit.complete();
+    bottleEmpty.complete();
+    await settle();
+    await settle();
+    expect(bloc.state.open, isEmpty);
+    await bloc.close();
+  });
+
   blocTest<LibraryBloc, LibraryState>(
     'a double click launches it once',
     build: () => LibraryBloc(repository),
@@ -94,7 +109,10 @@ void main() {
     'rebuilds what is running when it starts',
     build: () {
       when(() => repository.apps())
-          .thenAnswer((_) async => right(const [_steam, _blur]));
+          .thenAnswer((_) async => right(const [_blur]));
+      // steam has no app here: a running bottle counts just the same.
+      when(() => repository.bottleNames())
+          .thenAnswer((_) async => const ['steam', 'blur']);
       when(() => repository.waitBottle('blur')).thenAnswer((_) async {});
       return LibraryBloc(repository);
     },

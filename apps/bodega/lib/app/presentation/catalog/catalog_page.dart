@@ -1,4 +1,5 @@
 import 'package:bodega/app/bloc/catalog/catalog_bloc.dart';
+import 'package:bodega/app/presentation/add_app/add_app_dialog.dart';
 import 'package:bodega/app/presentation/catalog/widgets/anti_cheat_section.dart';
 import 'package:bodega/app/presentation/catalog/widgets/catalog_card.dart';
 import 'package:bodega/app/shared/widgets/custom_loading.dart';
@@ -47,7 +48,18 @@ class _CatalogPageState extends State<CatalogPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Catálogo', style: styles.screenTitle),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text('Catálogo', style: styles.screenTitle),
+                          ),
+                          TextButton.icon(
+                            onPressed: () => showAddAppDialog(context),
+                            icon: const Icon(Icons.add_rounded, size: 18),
+                            label: const Text('Agregar otra aplicación'),
+                          ),
+                        ],
+                      ),
                       const SizedBox(height: AppSpacing.lg),
                       TextFormField(
                         initialValue: state.query,

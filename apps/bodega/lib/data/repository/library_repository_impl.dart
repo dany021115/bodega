@@ -22,6 +22,19 @@ class LibraryRepositoryImpl implements LibraryRepository {
   );
 
   @override
+  Future<List<String>> bottleNames() async {
+    try {
+      return [for (final b in engine.listBottles(_home.path)) b.name];
+    } on Object {
+      return const [];
+    }
+  }
+
+  @override
+  Future<Either<AppError, String>> run(String bottle, String program) =>
+      repositoryCall(() => engine.runInBottle(_home.path, bottle, program, []));
+
+  @override
   Future<Either<AppError, String>> open(String bottle) =>
       repositoryCall(() => engine.openApp(_home.path, bottle));
 
