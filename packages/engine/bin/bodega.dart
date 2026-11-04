@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:engine/engine.dart';
@@ -43,6 +44,7 @@ Future<void> main(List<String> args) async {
     },
     ['run', ...final rest] when parseRun(rest) != null => (home) async {
       final run = parseRun(rest)!;
+      final since = DateTime.now();
       final log = await runInBottle(
         home,
         run.bottle,
@@ -51,17 +53,18 @@ Future<void> main(List<String> args) async {
         backend: run.backend,
         hud: run.hud,
       );
-      return _follow(log);
+      return _follow(home, run.bottle, log, since);
     },
     ['open', ...final rest] when parseOpen(rest) != null => (home) async {
       final open = parseOpen(rest)!;
+      final since = DateTime.now();
       final log = await openApp(
         home,
         open.bottle,
         backend: open.backend,
         hud: open.hud,
       );
-      return _follow(log);
+      return _follow(home, open.bottle, log, since);
     },
     ['apps'] => (home) async {
       for (final app in installedApps(home)) {
@@ -163,11 +166,29 @@ Future<void> main(List<String> args) async {
 }
 
 /// What `run` and `open` share: says what was chosen and waits for the exit.
-Future<int> _follow(String log) async {
+/// A launcher starts its game while this waits, so Easy Anti-Cheat's failure
+/// is looked for during the wait too (I11). ponytail: nothing watches once a
+/// launcher that relaunches itself has exited, as Steam does when it updates.
+Future<int> _follow(
+  String home,
+  String bottle,
+  String log,
+  DateTime since,
+) async {
   stdout
     ..writeln(backendOf(log))
     ..writeln('log: $log');
+  final told = <String>{};
+  void antiCheat() {
+    for (final hint in antiCheatHints(home, bottle, since: since)) {
+      if (told.add(hint)) stderr.writeln('pista: $hint');
+    }
+  }
+
+  final watch = Timer.periodic(const Duration(seconds: 5), (_) => antiCheat());
   final code = await exitOf(log);
+  watch.cancel();
+  antiCheat();
   await _hints(log);
   return code;
 }

@@ -31,7 +31,8 @@ Valores iniciales:
 
 | Entrada | Estado |
 |---|---|
-| `steam`, `rockstar`, `ubisoft-connect` | `reported` |
+| `steam` | `tested`, tras U3 (al principio, `reported`) |
+| `rockstar`, `ubisoft-connect` | `reported` |
 | `ea-app` | `reported`, con `flaky` |
 | `battle-net` | `untested`, con `flaky` |
 | `epic-games`, `gog-galaxy` | `blocked` |

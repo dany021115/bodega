@@ -243,3 +243,43 @@ Future<String> openApp(
     hud: hud,
   );
 }
+
+/// Easy Anti-Cheat's failure under Wine on macOS, one hint per game (I11). It
+/// fails outside any log of ours: a launcher starts the game, and EAC writes
+/// to its own folder. [since] leaves out what older runs wrote.
+List<String> antiCheatHints(String home, String bottle, {DateTime? since}) {
+  final users = Directory('${_existing(home, bottle)}/prefix/drive_c/users');
+  if (!users.existsSync()) return [];
+  return [
+    for (final user in users.listSync().whereType<Directory>())
+      if (Directory('${user.path}/AppData/Roaming/EasyAntiCheat') case final eac
+          when eac.existsSync())
+        // Never follow links inside a bottle: z: points to /.
+        for (final file
+            in eac
+                .listSync(recursive: true, followLinks: false)
+                .whereType<File>())
+          if (file.path.endsWith('/anticheatlauncher.log') &&
+              (since == null || !file.lastModifiedSync().isBefore(since)))
+            ?_eacFailure(file),
+  ];
+}
+
+String? _eacFailure(File log) {
+  String? title, finished;
+  for (final line in log.readAsLinesSync(encoding: latin1)) {
+    if (line.contains('- ProcessTitle: ')) {
+      title = line
+          .split('- ProcessTitle: ')
+          .last
+          .replaceFirst(RegExp(r'\.$'), '');
+    } else if (line.contains('Launcher finished with: ')) {
+      finished = line;
+    }
+  }
+  if (finished == null || !finished.contains('finished with: 206,'))
+    return null;
+  return '${title ?? 'Este juego'} usa Easy Anti-Cheat y no pudo cargarlo con '
+      'Wine en Mac (error 206). No es un fallo de tu instalación: depende de '
+      'los desarrolladores del juego y de Epic.';
+}

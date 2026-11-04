@@ -25,18 +25,22 @@ Con un `BODEGA_HOME` temporal: primero `stop`, luego `rm -rf`.
 
 - [x] **T9** Runtime, `create t`, `backend install dxmt T/dxmt-highball-20261017T231707Z-331c552.tar.gz` y `backend test t dxmt`. `sync t none`; `run --backend dxmt t cmd /c set`: el log tiene `WINEMSYNC=0` y `DXMT_ALLOW_CROSS_PROCESS_SWAPCHAIN=1`. `sync t msync`: otro `run` va bien. Una prueba del grupo `real runtime` llama a `installEntry` con la sonda como "instalador" (`file://`), un valor de registro y `exe` `windows/system32/notepad.exe`: queda `app.json`, el valor está en el registro con `reg query` y no quedan procesos.
   **Comprobación:** salida pegada en `verify`. La sonda sale de inmediato, así que no ejercita un instalador real; eso es U3.
-- [ ] **T10 (USUARIO)** Commit en `bodega`. El agente deja `~/Documents/GitHub/Bodega/catalogo-commit.sh`, sin atribución de IA y sin push.
+- [x] **T10 (USUARIO)** Commit en `bodega`. El agente deja `~/Documents/GitHub/Bodega/catalogo-commit.sh`, sin atribución de IA y sin push.
   **Comprobación:** `git -C bodega log --oneline -1`.
 
 ## Aceptación del usuario
 Con ventanas, en tu Mac. Te pasaré los comandos listos para copiar.
 
-- [ ] **U1** Cambiar DXMT en tu carpeta real: `rm -rf ".../Bodega/backends/dxmt"`, `backend install dxmt T/dxmt-highball-…tar.gz` y `backend test prueba dxmt`. **Se espera:** `OK` en 64 y 32 bits.
-- [ ] **U2** Blur sin opciones: `run prueba ".../Blur.exe"`. **Se espera:** imprime `backend wine (auto)` y va como antes.
-- [ ] **U3** **La prueba que decide:** `catalog install steam` y `open steam`. El primer arranque puede tardar 15–25 min y parecer colgado. **Se espera:** instala, y se abre la ventana de Steam sin quedar en negro; puedes iniciar sesión. Si puedes, instala un juego gratis pequeño y ábrelo.
-- [ ] **U4** Opcional: `catalog install rockstar` o `ea-app`, y `open`. **Se espera:** ventana de inicio de sesión visible.
+- [x] **U1** Cambiar DXMT en tu carpeta real: `rm -rf ".../Bodega/backends/dxmt"`, `backend install dxmt T/dxmt-highball-…tar.gz` y `backend test prueba dxmt`. **Se espera:** `OK` en 64 y 32 bits.
+- [~] **U2 (backend correcto y salida 0; falta que confirmes que se juega igual)** Blur sin opciones: `run prueba ".../Blur.exe"`. **Se espera:** imprime `backend wine (auto)` y va como antes.
+- [x] **U3** **La prueba que decide:** `catalog install steam` y `open steam`. El primer arranque puede tardar 15–25 min y parecer colgado. **Se espera:** instala, y se abre la ventana de Steam sin quedar en negro; puedes iniciar sesión. Si puedes, instala un juego gratis pequeño y ábrelo.
+- [ ] **U4 (opcional, no hecha)** Opcional: `catalog install rockstar` o `ea-app`, y `open`. **Se espera:** ventana de inicio de sesión visible.
 - [ ] **U5** `catalog list`, `catalog show steam` y `apps`. **Se espera:** la información se entiende y `apps` lista lo instalado.
 
+## Añadido tras U3
+- [x] **T12** Aviso de Easy Anti-Cheat (I11): `antiCheatHints`, comprobación en `run` y `open`, y test `antiCheatHints`.
+  **Comprobación:** `dart test -N antiCheatHints`; con un `BODEGA_HOME` temporal, un log escrito durante un `run` imprime `pista:` antes de que termine.
+
 ## Tras las pruebas
-- [ ] **T11** Con el resultado de U3 y U4, actualizar `status` y `statusNote` en `lib/catalog_data.dart` (`tested` con fecha, o la causa si falló), y dejar el script de commit.
+- [x] **T11** Con el resultado de U3 y U4, actualizar `status` y `statusNote` en `lib/catalog_data.dart` (`tested` con fecha, o la causa si falló), y dejar el script de commit.
   **Comprobación:** `dart test -N 'catalog data'`.

@@ -78,3 +78,20 @@ Después hace `wineserver -k`, para que el primer arranque sea en frío, con sus
 
 ## I10 · Avance y notas
 `installEntry` recibe `onStep(String)`, que la app usará para mostrar el avance, y el CLI imprime. Al terminar, el CLI imprime las `notes` de la entrada, porque avisan de cosas como los 15–25 min del primer arranque de Steam.
+
+## I11 · Aviso de Easy Anti-Cheat
+Añadido tras U3: POLYGON no arranca, ni aquí ni en CrossOver. El fallo solo queda en `AppData/Roaming/EasyAntiCheat/**/anticheatlauncher.log`, dentro de la botella.
+
+- `antiCheatHints(home, botella, since:)` devuelve un aviso por juego si la última línea `Launcher finished with:` de ese log es la 206. Da el título del juego (`ProcessTitle`) y dice que no es un fallo de la instalación.
+- `run` y `open` lo comprueban cada 5 s mientras esperan, y al terminar, porque el juego lo abre el launcher. Cada aviso sale una vez, como `pista:`, y solo con logs escritos después de lanzar.
+- No recorre enlaces dentro de la botella.
+
+**Escenarios (test `antiCheatHints`):**
+- **Dado** un log con la 206, **entonces** un aviso con el título.
+- **Dado** un log que termina con otro código, o sin esa línea, **entonces** ninguno.
+- **Dado** un `since` posterior al log, **entonces** ninguno.
+- **Dado** una botella sin esa carpeta, **entonces** ninguno.
+
+**Comprobación real (T12):** con el CLI, un log escrito durante un `run` lo imprime antes de que termine, y uno anterior no. El log real de POLYGON ya no existe, porque Steam borró EAC al desinstalar el juego: el test usa sus líneas, copiadas de la salida del 2026-11-03.
+
+**Límite:** si `open` ya volvió, como en el primer arranque de Steam, que se relanza a sí mismo, el CLI no avisa. La app podrá llamar a `antiCheatHints` cuando quiera.

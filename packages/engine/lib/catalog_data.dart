@@ -6,8 +6,8 @@ const catalogJson = r'''
   {
     "id": "steam",
     "title": "Steam",
-    "status": "reported",
-    "statusNote": "Highball lo verificó en su motor Wine 10 (inicio de sesión y tienda, sin msync), y otros proyectos lo reportan en este árbol de Wine. Sin probar en Bodega.",
+    "status": "tested",
+    "statusNote": "Probado en Bodega el 2026-11-04 (M2 Pro, macOS 27.0.1): instala, abre, inicia sesión, descarga y lanza juegos. Muck (D3D11) corrió con DXMT. Los juegos con Easy Anti-Cheat, como POLYGON, no arrancan.",
     "installer": {
       "url": "https://cdn.akamai.steamstatic.com/client/installer/SteamSetup.exe",
       "sha256": null,
@@ -30,6 +30,10 @@ const catalogJson = r'''
       {
         "symptom": "NO CONNECTION justo después de iniciar sesión",
         "fix": "Cierra el Steam nativo de Mac."
+      },
+      {
+        "symptom": "Un juego con Easy Anti-Cheat no arranca: error 206, Failed to load the anti-cheat module",
+        "fix": "Sin solución en Bodega: depende de los desarrolladores del juego y de Epic. Comprobado con POLYGON, que tampoco arranca en CrossOver."
       },
       {
         "symptom": "Un cliente recién instalado se cierra unos tres minutos después de su primera actualización, antes de iniciar sesión",

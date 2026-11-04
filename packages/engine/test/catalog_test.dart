@@ -97,7 +97,7 @@ void main() {
       }
     }
     String status(String id) => catalogEntry(id).status;
-    expect(status('steam'), 'reported');
+    expect(status('steam'), 'tested');
     expect(status('battle-net'), 'untested');
     expect(status('epic-games'), 'blocked');
     expect(status('gog-galaxy'), 'blocked');
@@ -268,6 +268,37 @@ void main() {
         throwsA(contains('no está')),
       );
     });
+  });
+
+  test('antiCheatHints', () async {
+    await createBottle(home, 'b');
+    expect(antiCheatHints(home, 'b'), isEmpty);
+    final eac =
+        '$home/bottles/b/prefix/drive_c/users/q/AppData/Roaming/EasyAntiCheat';
+    // Lines as the launcher writes them, CRLF included.
+    const failed =
+        '[21:33:53:436] [Windows] [EAC Launcher] [Info]  - ProcessTitle: POLYGON.\r\n'
+        '[21:34:06:645] [Windows] [EAC Launcher] [Err!] Failed to map the '
+        'anti-cheat module.\r\n'
+        "[21:34:06:648] [Windows] [EAC Launcher] [Info] Launcher finished with: "
+        "206, 'Failed to load the anti-cheat module.'.\r\n";
+    final log = File('$eac/product/deployment/anticheatlauncher.log')
+      ..createSync(recursive: true)
+      ..writeAsStringSync(failed);
+
+    final hints = antiCheatHints(home, 'b');
+    expect(hints, hasLength(1));
+    expect(hints.single, startsWith('POLYGON usa Easy Anti-Cheat'));
+    expect(hints.single, contains('No es un fallo de tu instalación'));
+
+    final after = log.lastModifiedSync().add(const Duration(seconds: 2));
+    expect(antiCheatHints(home, 'b', since: after), isEmpty);
+
+    log.writeAsStringSync('${failed}Launcher finished with: 0, \'ok\'.\r\n');
+    expect(antiCheatHints(home, 'b'), isEmpty);
+    log.writeAsStringSync('- ProcessTitle: POLYGON.\r\n');
+    expect(antiCheatHints(home, 'b'), isEmpty);
+    expect(() => antiCheatHints(home, 'nope'), throwsA(contains('nope')));
   });
 
   test('installedApps', () async {
