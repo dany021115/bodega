@@ -136,7 +136,9 @@ void catalog() {
         'backend': 'wine',
         'env': {'FOO': '1'},
       });
-      final app = jsonDecode(File('$dir/app.json').readAsStringSync());
+      final app = jsonDecode(
+        File('$dir/apps.json').readAsStringSync(),
+      )['apps'][0];
       expect(app['id'], 'x');
       expect(app['exe'], 'Prog/x.exe');
       expect(File('$prefix/server.log').readAsStringSync(), contains('k'));
@@ -197,13 +199,13 @@ void catalog() {
 
     test('exit codes', () async {
       await installEntry(home, fake('$makeExe; exit 194', id: 'ok'));
-      expect(File('$home/bottles/ok/app.json').existsSync(), isTrue);
+      expect(File('$home/bottles/ok/apps.json').existsSync(), isTrue);
 
       await expectLater(
         installEntry(home, fake('$makeExe; exit 5', id: 'bad')),
         throwsA(allOf(contains('salió con 5'), contains('-bad-setup.log'))),
       );
-      expect(File('$home/bottles/bad/app.json').existsSync(), isFalse);
+      expect(File('$home/bottles/bad/apps.json').existsSync(), isFalse);
       expect(Directory('$home/bottles/bad/logs').existsSync(), isTrue);
       expect(
         File('$home/bottles/bad/prefix/server.log').readAsStringSync(),
@@ -216,7 +218,7 @@ void catalog() {
         installEntry(home, fake('true')),
         throwsA(contains('no está Prog/x.exe')),
       );
-      expect(File('$home/bottles/x/app.json').existsSync(), isFalse);
+      expect(File('$home/bottles/x/apps.json').existsSync(), isFalse);
     });
 
     test('registry', () async {
@@ -347,8 +349,8 @@ void catalog() {
       contains('WINEMSYNC=0'),
     );
 
-    File('$home/bottles/b/app.json').writeAsStringSync('{roto');
-    expect(() => installedApps(home), throwsA(contains('app.json')));
+    File('$home/bottles/b/apps.json').writeAsStringSync('{roto');
+    expect(() => installedApps(home), throwsA(contains('apps.json')));
   });
 }
 
@@ -406,7 +408,7 @@ void engineForApp() {
     await runtime();
     final setup = File('$tmp/x-setup.exe')..writeAsStringSync(makeExe);
     final dir = await installEntry(home, fake(), setup: setup.path);
-    expect(File('$dir/app.json').existsSync(), isTrue);
+    expect(File('$dir/apps.json').existsSync(), isTrue);
     expect(setup.existsSync(), isFalse);
 
     final again = File('$tmp/y-setup.exe')..writeAsStringSync(makeExe);
@@ -432,7 +434,7 @@ void engineForApp() {
     final list = listBottles(home);
     expect(list.map((b) => b.name), ['rota', 'sola', 'x']);
     expect(list.map((b) => b.ready), [false, true, true]);
-    expect(list.map((b) => b.app?.title), [null, null, 'X']);
+    expect(list.map((b) => b.apps.firstOrNull?.title), [null, null, 'X']);
     expect(installedApps(home).map((a) => a.bottle), ['x']);
   });
 

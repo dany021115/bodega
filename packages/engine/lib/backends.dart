@@ -481,13 +481,18 @@ parseRun(List<String> args) {
 }
 
 /// The arguments of `open`, or null for a bad usage.
-({String? backend, bool hud, String bottle})? parseOpen(List<String> args) {
+({String? backend, bool hud, String bottle, String? key})? parseOpen(
+  List<String> args,
+) {
   final options = _parseOptions(args);
-  if (options == null || options.rest.length != 1) return null;
+  if (options == null || options.rest.isEmpty || options.rest.length > 2) {
+    return null;
+  }
   return (
     backend: options.backend,
     hud: options.hud,
-    bottle: options.rest.single,
+    bottle: options.rest.first,
+    key: options.rest.length == 2 ? options.rest.last : null,
   );
 }
 

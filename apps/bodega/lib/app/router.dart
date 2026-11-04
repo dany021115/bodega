@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:bodega/app/bloc/setup/setup_bloc.dart';
 import 'package:bodega/app/presentation/backends/backends_page.dart';
 import 'package:bodega/app/presentation/bottles/bottle_detail_page.dart';
-import 'package:bodega/app/presentation/bottles/bottles_page.dart';
 import 'package:bodega/app/presentation/catalog/catalog_detail_page.dart';
 import 'package:bodega/app/presentation/catalog/catalog_page.dart';
 import 'package:bodega/app/presentation/library/library_page.dart';
@@ -91,9 +90,11 @@ GoRouter createRouter(SetupBloc setup) {
               ),
             ],
           ),
-          _section(
-            AppRoute.bottles,
-            const BottlesPage(),
+          GoRoute(
+            path: RouterManager.path(AppRoute.bottles),
+            name: AppRoute.bottles.name,
+            // Bottles are in the sidebar: this path only leads onward.
+            redirect: (context, state) => RouterManager.path(AppRoute.library),
             routes: [
               GoRoute(
                 path: ':name',

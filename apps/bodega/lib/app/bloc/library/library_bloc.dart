@@ -13,6 +13,8 @@ part 'library_bloc.freezed.dart';
 
 @lazySingleton
 class LibraryBloc extends Bloc<LibraryEvent, LibraryState> {
+  static const _launchPause = Duration(seconds: 2);
+
   final LibraryRepository _repository;
   final Map<String, ({DateTime since, String? log})> _runs = {};
   final Set<String> _watching = {};
@@ -34,16 +36,20 @@ class LibraryBloc extends Bloc<LibraryEvent, LibraryState> {
 
     on<LibraryOpenEvent>((event, emit) async {
       final bottle = event.bottle;
-      if (state.open.contains(bottle) || !_opening.add(bottle)) return;
-      final since = DateTime.now();
-      final result = await _repository.open(bottle);
-      _opening.remove(bottle);
+      // Another of its applications may open; this one, not twice in a row: a
+      // launch takes milliseconds, and so a double click would get past it.
+      final launch = '$bottle ${event.key}';
+      if (!_opening.add(launch)) return;
+      Timer(_launchPause, () => _opening.remove(launch));
+      final wasOpen = state.open.contains(bottle);
+      final since = _runs[bottle]?.since ?? DateTime.now();
+      final result = await _repository.open(bottle, key: event.key);
       result.match((error) => emit(state.copyWith(error: error)), (log) {
         _begin(bottle, since, log);
         emit(
           state.copyWith(
             open: {...state.open, bottle},
-            hints: {...state.hints}..remove(bottle),
+            hints: wasOpen ? state.hints : ({...state.hints}..remove(bottle)),
             error: null,
           ),
         );

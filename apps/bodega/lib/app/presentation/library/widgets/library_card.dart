@@ -11,6 +11,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 class LibraryCard extends StatelessWidget {
   final LibraryApp app;
+
+  /// Open is said of the bottle, as a game inside Steam can't be told apart.
   final bool isOpen;
   final List<String> hints;
 
@@ -25,7 +27,7 @@ class LibraryCard extends StatelessWidget {
     final bloc = context.read<LibraryBloc>();
     final confirmed = await confirm(
       context,
-      title: 'Parar ${app.title}',
+      title: 'Parar la botella ${app.bottle}',
       message:
           'Se cerrará todo lo que esté abierto en la botella ${app.bottle}. '
           'Lo que no hayas guardado se perderá.',
@@ -47,7 +49,7 @@ class LibraryCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                AppIcon(id: app.id, title: app.title),
+                AppIcon(id: app.id, title: app.title, iconPath: app.iconPath),
                 const SizedBox(width: AppSpacing.md),
                 Expanded(
                   child: Column(
@@ -59,10 +61,16 @@ class LibraryCard extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                         style: styles.cardTitle,
                       ),
+                      Text(
+                        'Botella ${app.bottle}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: styles.caption,
+                      ),
                       const SizedBox(height: AppSpacing.xs),
                       if (isOpen)
                         const StatusChip(
-                          label: 'Abierta',
+                          label: 'Botella abierta',
                           color: AppColor.statusTested,
                         )
                       else
@@ -74,18 +82,19 @@ class LibraryCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: AppSpacing.md),
-                if (isOpen)
+                if (isOpen) ...[
                   OutlinedButton(
                     onPressed: () => _stop(context),
-                    child: const Text('Parar'),
-                  )
-                else
-                  FilledButton(
-                    onPressed: () => context.read<LibraryBloc>().add(
-                      LibraryEvent.open(app.bottle),
-                    ),
-                    child: const Text('Abrir'),
+                    child: const Text('Parar botella'),
                   ),
+                  const SizedBox(width: AppSpacing.sm),
+                ],
+                FilledButton(
+                  onPressed: () => context.read<LibraryBloc>().add(
+                    LibraryEvent.open(app.bottle, app.key),
+                  ),
+                  child: const Text('Abrir'),
+                ),
               ],
             ),
             for (final hint in hints) ...[

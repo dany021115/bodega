@@ -1,13 +1,14 @@
 import 'dart:collection';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:isolate';
 
+import 'package:bodega/data/service/app_mapper.dart';
 import 'package:bodega/data/service/engine_home.dart';
 import 'package:bodega/data/service/repository_call.dart';
 import 'package:bodega/domain/entities/app_error.dart';
 import 'package:bodega/domain/entities/bottle.dart';
 import 'package:bodega/domain/entities/bottle_detail.dart';
-import 'package:bodega/domain/entities/library_app.dart';
 import 'package:bodega/domain/repository/bottle_repository.dart';
 import 'package:engine/engine.dart' as engine;
 import 'package:fpdart/fpdart.dart';
@@ -25,50 +26,15 @@ class BottleRepositoryImpl implements BottleRepository {
   Future<Either<AppError, List<Bottle>>> list() => repositoryCall(
     () => [
       for (final bottle in engine.listBottles(_home.path))
-        Bottle(
-          name: bottle.name,
-          ready: bottle.ready,
-          app: switch (bottle.app) {
-            final app? => LibraryApp(
-              bottle: app.bottle,
-              id: app.id,
-              title: app.title,
-            ),
-            null => null,
-          },
-        ),
+        Bottle(name: bottle.name, ready: bottle.ready),
     ],
   );
 
   @override
-  Future<Either<AppError, BottleDetail>> detail(String name) =>
-      repositoryCall(() {
-        final settings = engine.bottleSettings(_home.path, name);
-        return BottleDetail(
-          name: name,
-          backend: settings.backend,
-          sync: settings.sync,
-          exceptions: [
-            for (final MapEntry(:key, :value) in settings.programs.entries)
-              if (value.backend case final backend?)
-                ProgramBackend(exe: key, backend: backend),
-          ],
-          logs: [
-            for (final log in engine.bottleLogs(_home.path, name))
-              BottleLogEntry(
-                path: log.path,
-                name: log.name,
-                modified: log.modified,
-                exitCode: log.exitCode,
-              ),
-          ],
-          installedBackends: [
-            for (final MapEntry(:key, :value)
-                in engine.listBackends(_home.path).entries)
-              if (value) key,
-          ],
-        );
-      });
+  Future<Either<AppError, BottleDetail>> detail(String name) {
+    final home = _home.path;
+    return repositoryCall(() => Isolate.run(() => _detail(home, name)));
+  }
 
   @override
   Future<Either<AppError, Unit>> setBackend(
@@ -95,6 +61,13 @@ class BottleRepositoryImpl implements BottleRepository {
       });
 
   @override
+  Future<Either<AppError, Unit>> hideApp(String name, String key) =>
+      repositoryCall(() {
+        engine.hideApp(_home.path, name, key);
+        return unit;
+      });
+
+  @override
   Future<Either<AppError, List<String>>> logLines(String path) =>
       repositoryCall(() async {
         final lines = ListQueue<String>();
@@ -108,4 +81,33 @@ class BottleRepositoryImpl implements BottleRepository {
         }
         return lines.toList();
       });
+}
+
+BottleDetail _detail(String home, String name) {
+  final settings = engine.bottleSettings(home, name);
+  return BottleDetail(
+    name: name,
+    ready: engine.listBottles(home).any((b) => b.name == name && b.ready),
+    backend: settings.backend,
+    sync: settings.sync,
+    apps: libraryApps(home, engine.bottleApps(home, name)),
+    exceptions: [
+      for (final MapEntry(:key, :value) in settings.programs.entries)
+        if (value.backend case final backend?)
+          ProgramBackend(exe: key, backend: backend),
+    ],
+    logs: [
+      for (final log in engine.bottleLogs(home, name))
+        BottleLogEntry(
+          path: log.path,
+          name: log.name,
+          modified: log.modified,
+          exitCode: log.exitCode,
+        ),
+    ],
+    installedBackends: [
+      for (final MapEntry(:key, :value) in engine.listBackends(home).entries)
+        if (value) key,
+    ],
+  );
 }

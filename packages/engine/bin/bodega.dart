@@ -19,7 +19,7 @@ uso: bodega install <engine.tar.gz> <hostlibs.tar.gz>
      bodega catalog show <id>
      bodega catalog install <id> [botella]
      bodega apps
-     bodega open [--backend <b>] [--hud] <botella>''';
+     bodega open [--backend <b>] [--hud] <botella> [clave]''';
 
 Future<void> main(List<String> args) async {
   final Future<int> Function(String home)? verb = switch (args) {
@@ -61,6 +61,7 @@ Future<void> main(List<String> args) async {
       final log = await openApp(
         home,
         open.bottle,
+        key: open.key,
         backend: open.backend,
         hud: open.hud,
       );
@@ -68,7 +69,7 @@ Future<void> main(List<String> args) async {
     },
     ['apps'] => (home) async {
       for (final app in installedApps(home)) {
-        stdout.writeln('${app.bottle}  ${app.title}  ${app.exe}');
+        stdout.writeln('${app.bottle}  ${app.title}  ${app.key}');
       }
       return 0;
     },

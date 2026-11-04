@@ -3,6 +3,7 @@ import 'package:bodega/app/bloc/bottles/bottles_bloc.dart';
 import 'package:bodega/app/bloc/catalog/catalog_bloc.dart';
 import 'package:bodega/app/bloc/install/install_bloc.dart';
 import 'package:bodega/app/bloc/library/library_bloc.dart';
+import 'package:bodega/app/bloc/sections/sections_bloc.dart';
 import 'package:bodega/app/bloc/setup/setup_bloc.dart';
 import 'package:bodega/app/bloc/theme/theme_bloc.dart';
 import 'package:bodega/app/router.dart';
@@ -42,6 +43,7 @@ class _BodegaAppState extends State<BodegaApp> {
         BlocProvider.value(value: getIt<CatalogBloc>()),
         BlocProvider.value(value: getIt<InstallBloc>()),
         BlocProvider.value(value: getIt<LibraryBloc>()),
+        BlocProvider(create: (_) => getIt<SectionsBloc>()),
         BlocProvider(create: (_) => getIt<ThemeBloc>()),
       ],
       child: BlocBuilder<ThemeBloc, ThemeState>(

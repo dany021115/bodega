@@ -21,6 +21,9 @@ abstract class BottleRepository {
 
   Future<Either<AppError, Unit>> delete(String name);
 
+  /// Takes the application out of the bottle's list.
+  Future<Either<AppError, Unit>> hideApp(String name, String key);
+
   /// The last 2,000 lines of a log.
   Future<Either<AppError, List<String>>> logLines(String path);
 }

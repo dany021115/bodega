@@ -9,7 +9,12 @@ import 'package:mocktail/mocktail.dart';
 
 class _MockBottles extends Mock implements BottleRepository {}
 
-const _detail = BottleDetail(name: 'steam', backend: 'auto', sync: 'msync');
+const _detail = BottleDetail(
+  name: 'steam',
+  ready: true,
+  backend: 'auto',
+  sync: 'msync',
+);
 
 void main() {
   late _MockBottles repository;
@@ -71,6 +76,25 @@ void main() {
     verify: (_) =>
         verify(() => repository.setBackend('steam', 'auto', exe: 'steam.exe'))
             .called(1),
+  );
+
+  blocTest<BottleDetailBloc, BottleDetailState>(
+    'hiding an application reloads the bottle',
+    build: () {
+      when(() => repository.hideApp('steam', 'steam:9'))
+          .thenAnswer((_) async => right(unit));
+      return build();
+    },
+    act: (bloc) async {
+      bloc.add(load);
+      await bloc.stream.first;
+      bloc.add(const BottleDetailEvent.hideApp('steam:9'));
+    },
+    wait: const Duration(milliseconds: 10),
+    verify: (_) {
+      verify(() => repository.hideApp('steam', 'steam:9')).called(1);
+      verify(() => repository.detail('steam')).called(2);
+    },
   );
 
   blocTest<BottleDetailBloc, BottleDetailState>(

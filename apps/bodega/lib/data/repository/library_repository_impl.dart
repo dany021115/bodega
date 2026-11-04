@@ -1,3 +1,6 @@
+import 'dart:isolate';
+
+import 'package:bodega/data/service/app_mapper.dart';
 import 'package:bodega/data/service/engine_home.dart';
 import 'package:bodega/data/service/repository_call.dart';
 import 'package:bodega/domain/entities/app_error.dart';
@@ -14,12 +17,12 @@ class LibraryRepositoryImpl implements LibraryRepository {
   LibraryRepositoryImpl(this._home);
 
   @override
-  Future<Either<AppError, List<LibraryApp>>> apps() => repositoryCall(
-    () => [
-      for (final app in engine.installedApps(_home.path))
-        LibraryApp(bottle: app.bottle, id: app.id, title: app.title),
-    ],
-  );
+  Future<Either<AppError, List<LibraryApp>>> apps() {
+    final home = _home.path;
+    return repositoryCall(
+      () => Isolate.run(() => libraryApps(home, engine.installedApps(home))),
+    );
+  }
 
   @override
   Future<List<String>> bottleNames() async {
@@ -35,8 +38,8 @@ class LibraryRepositoryImpl implements LibraryRepository {
       repositoryCall(() => engine.runInBottle(_home.path, bottle, program, []));
 
   @override
-  Future<Either<AppError, String>> open(String bottle) =>
-      repositoryCall(() => engine.openApp(_home.path, bottle));
+  Future<Either<AppError, String>> open(String bottle, {String? key}) =>
+      repositoryCall(() => engine.openApp(_home.path, bottle, key: key));
 
   @override
   Future<Either<AppError, Unit>> stop(String bottle) =>

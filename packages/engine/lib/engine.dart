@@ -9,6 +9,7 @@ import 'dart:typed_data';
 import 'catalog_data.dart';
 import 'probe_data.dart';
 
+part 'apps.dart';
 part 'backends.dart';
 part 'catalog.dart';
 

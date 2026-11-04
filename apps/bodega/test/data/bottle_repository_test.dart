@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:bodega/data/repository/bottle_repository_impl.dart';
+import 'package:bodega/domain/entities/app_error.dart';
 import 'package:bodega/domain/entities/bottle_detail.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -47,6 +48,8 @@ void main() {
     expect(detail.logs.single.name, 'a.log');
     expect(detail.logs.single.exitCode, 42);
     expect(detail.installedBackends, ['wine']);
+    expect(detail.ready, isFalse);
+    expect(detail.apps, isEmpty);
   });
 
   test('removing an exception leaves the others', () async {
@@ -75,8 +78,46 @@ void main() {
     expect(lines[lines.length - 2], 'line 2499');
   });
 
-  test('an unknown bottle is an error, not an exception', () async {
-    final result = await repository.detail('no-existe');
-    expect(result.isLeft(), isTrue);
+  test('an unknown bottle is an engine error, with its text', () async {
+    final error = (await repository.detail('no-existe')).getLeft().toNullable();
+    expect(error, isA<EngineError>());
+    expect(error!.message, contains('no existe'));
+  });
+
+  test('the detail brings the applications of the bottle', () async {
+    File('${bottle.path}/prefix/drive_c/A/a.exe').createSync(recursive: true);
+    File('${bottle.path}/prefix/drive_c/B/b.exe').createSync(recursive: true);
+    File('${bottle.path}/apps.json').writeAsStringSync(
+      jsonEncode({
+        'apps': [
+          {'id': 'custom', 'title': 'A', 'exe': 'A/a.exe', 'args': []},
+          {'id': 'custom', 'title': 'B', 'exe': 'B/b.exe', 'args': []},
+        ],
+      }),
+    );
+
+    final detail = (await repository.detail('steam'))
+        .getOrElse((error) => fail(error.message));
+
+    expect(detail.apps.map((app) => app.key), ['a/a.exe', 'b/b.exe']);
+    expect(detail.apps.first.bottle, 'steam');
+    expect(detail.apps.first.iconPath, isNull);
+  });
+
+  test('hiding an application takes it out', () async {
+    File('${bottle.path}/prefix/drive_c/A/a.exe').createSync(recursive: true);
+    File('${bottle.path}/apps.json').writeAsStringSync(
+      jsonEncode({
+        'apps': [
+          {'id': 'custom', 'title': 'A', 'exe': 'A/a.exe', 'args': []},
+        ],
+      }),
+    );
+
+    await repository.hideApp('steam', 'a/a.exe');
+
+    final detail = (await repository.detail('steam'))
+        .getOrElse((error) => fail(error.message));
+    expect(detail.apps, isEmpty);
   });
 }

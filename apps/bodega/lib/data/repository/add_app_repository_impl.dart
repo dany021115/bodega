@@ -31,10 +31,10 @@ class AddAppRepositoryImpl implements AddAppRepository {
   AddAppRepositoryImpl(this._home);
 
   @override
-  Future<Either<AppError, List<String>>> freeBottles() => repositoryCall(
+  Future<Either<AppError, List<String>>> readyBottles() => repositoryCall(
     () => [
       for (final bottle in engine.listBottles(_home.path))
-        if (bottle.ready && bottle.app == null) bottle.name,
+        if (bottle.ready) bottle.name,
     ],
   );
 

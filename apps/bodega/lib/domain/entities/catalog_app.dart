@@ -29,8 +29,9 @@ abstract class CatalogApp with _$CatalogApp {
     @Default([]) List<KnownIssue> knownIssues,
     @Default({}) Map<String, String> source,
 
-    /// The bottle it is installed in.
+    /// The bottle it is installed in, and its key there.
     String? bottle,
+    String? appKey,
   }) = _CatalogApp;
 
   bool get isInstalled => bottle != null;

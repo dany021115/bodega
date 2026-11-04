@@ -16,7 +16,7 @@ class CatalogRepositoryImpl implements CatalogRepository {
   @override
   Future<Either<AppError, List<CatalogApp>>> apps() => repositoryCall(() {
     final installed = {
-      for (final app in installedApps(_home.path)) app.id: app.bottle,
+      for (final app in installedApps(_home.path)) app.id: app,
     };
     final backends = listBackends(_home.path);
     return [
@@ -38,7 +38,8 @@ class CatalogRepositoryImpl implements CatalogRepository {
               KnownIssue(symptom: issue.symptom, fix: issue.fix),
           ],
           source: entry.source,
-          bottle: installed[entry.id],
+          bottle: installed[entry.id]?.bottle,
+          appKey: installed[entry.id]?.key,
         ),
     ];
   });

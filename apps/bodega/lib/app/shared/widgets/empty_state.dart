@@ -26,7 +26,7 @@ class EmptyState extends StatelessWidget {
     final colors = Theme.of(context).colorScheme;
 
     return Center(
-      child: Padding(
+      child: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 40),
         child: Column(
           mainAxisSize: MainAxisSize.min,

@@ -1,3 +1,4 @@
+import 'package:bodega/app/bloc/bottles/bottles_bloc.dart';
 import 'package:bodega/app/bloc/catalog/catalog_bloc.dart';
 import 'package:bodega/app/bloc/install/install_bloc.dart';
 import 'package:bodega/app/bloc/library/library_bloc.dart';
@@ -34,6 +35,7 @@ class ShellBody extends StatelessWidget {
               (current.phase == InstallPhase.done ||
                   current.phase == InstallPhase.idle),
           listener: (context, state) {
+            context.read<BottlesBloc>().add(const BottlesEvent.load());
             context.read<CatalogBloc>().add(const CatalogEvent.load());
             context.read<LibraryBloc>().add(const LibraryEvent.load());
           },

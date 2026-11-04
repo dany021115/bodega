@@ -9,6 +9,8 @@ sealed class BottleDetailEvent with _$BottleDetailEvent {
       BottleDetailSetSyncEvent;
   const factory BottleDetailEvent.removeException(String exe) =
       BottleDetailRemoveExceptionEvent;
+  const factory BottleDetailEvent.hideApp(String key) =
+      BottleDetailHideAppEvent;
   const factory BottleDetailEvent.delete() = BottleDetailDeleteEvent;
   const factory BottleDetailEvent.openLog(String path) =
       BottleDetailOpenLogEvent;

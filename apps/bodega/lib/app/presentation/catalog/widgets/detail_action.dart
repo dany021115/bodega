@@ -23,7 +23,9 @@ class DetailAction extends StatelessWidget {
     if (bottle != null) {
       return FilledButton(
         onPressed: () {
-          context.read<LibraryBloc>().add(LibraryEvent.open(bottle));
+          context.read<LibraryBloc>().add(
+            LibraryEvent.open(bottle, app.appKey),
+          );
           RouterManager.go(AppRoute.library, context: context);
         },
         child: const Text('Abrir'),

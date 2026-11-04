@@ -10,7 +10,12 @@ import 'package:mocktail/mocktail.dart';
 
 class _MockLibrary extends Mock implements LibraryRepository {}
 
-const _blur = LibraryApp(bottle: 'blur', id: 'custom', title: 'Blur');
+const _blur = LibraryApp(
+  bottle: 'blur',
+  key: 'blur.exe',
+  id: 'custom',
+  title: 'Blur',
+);
 
 void main() {
   late _MockLibrary repository;
@@ -93,6 +98,45 @@ void main() {
     await settle();
     await settle();
     expect(bloc.state.open, isEmpty);
+    await bloc.close();
+  });
+
+  test('two applications of a bottle open one after the other', () async {
+    when(() => repository.open('steam', key: 'a'))
+        .thenAnswer((_) async => right('/l/a.log'));
+    when(() => repository.open('steam', key: 'b'))
+        .thenAnswer((_) async => right('/l/a.log'));
+    final bloc = LibraryBloc(repository)
+      ..add(const LibraryEvent.open('steam', 'a'));
+    await settle();
+    bloc.add(const LibraryEvent.open('steam', 'b'));
+    await settle();
+
+    verify(() => repository.open('steam', key: 'a')).called(1);
+    verify(() => repository.open('steam', key: 'b')).called(1);
+    expect(bloc.state.open, {'steam'});
+
+    firstExit.complete();
+    bottleEmpty.complete();
+    await settle();
+    await settle();
+    expect(bloc.state.open, isEmpty);
+    await bloc.close();
+  });
+
+  test('opening a second one keeps the hints of the first', () async {
+    when(() => repository.open('steam', key: 'b'))
+        .thenAnswer((_) async => right('/l/a.log'));
+    when(() => repository.antiCheatHints('steam', any()))
+        .thenReturn(const ['EAC falló']);
+    final bloc = LibraryBloc(repository)..add(const LibraryEvent.open('steam'));
+    await settle();
+    bloc.add(const LibraryEvent.checkHints());
+    await settle();
+    bloc.add(const LibraryEvent.open('steam', 'b'));
+    await settle();
+
+    expect(bloc.state.hints['steam'], ['EAC falló']);
     await bloc.close();
   });
 

@@ -15,7 +15,7 @@ class AddAppBloc extends Bloc<AddAppEvent, AddAppState> {
 
   AddAppBloc(this._repository) : super(const AddAppState()) {
     on<AddAppLoadEvent>((event, emit) async {
-      final result = await _repository.freeBottles();
+      final result = await _repository.readyBottles();
       result.match(
         (error) => emit(state.copyWith(error: error)),
         (bottles) => emit(state.copyWith(bottles: bottles)),

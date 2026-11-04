@@ -1,3 +1,4 @@
+import 'package:bodega/domain/entities/library_app.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 part 'bottle_detail.freezed.dart';
@@ -22,8 +23,10 @@ abstract class BottleLogEntry with _$BottleLogEntry {
 abstract class BottleDetail with _$BottleDetail {
   const factory BottleDetail({
     required String name,
+    required bool ready,
     required String backend,
     required String sync,
+    @Default([]) List<LibraryApp> apps,
     @Default([]) List<ProgramBackend> exceptions,
     @Default([]) List<BottleLogEntry> logs,
     @Default([]) List<String> installedBackends,

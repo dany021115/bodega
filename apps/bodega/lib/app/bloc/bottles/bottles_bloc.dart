@@ -9,27 +9,20 @@ part 'bottles_event.dart';
 part 'bottles_state.dart';
 part 'bottles_bloc.freezed.dart';
 
+/// The bottles of the sidebar.
 @lazySingleton
 class BottlesBloc extends Bloc<BottlesEvent, BottlesState> {
   final BottleRepository _repository;
 
   BottlesBloc(this._repository) : super(const BottlesState()) {
-    on<BottlesLoadEvent>((event, emit) => _load(emit));
-    on<BottlesDeleteEvent>((event, emit) async {
-      final result = await _repository.delete(event.name);
-      await result.match(
-        (error) async => emit(state.copyWith(error: error)),
-        (_) => _load(emit),
+    on<BottlesLoadEvent>((event, emit) async {
+      final result = await _repository.list();
+      result.match(
+        (error) => emit(state.copyWith(isLoading: false, error: error)),
+        (bottles) => emit(
+          state.copyWith(isLoading: false, bottles: bottles, error: null),
+        ),
       );
     });
-  }
-
-  Future<void> _load(Emitter<BottlesState> emit) async {
-    final result = await _repository.list();
-    result.match(
-      (error) => emit(state.copyWith(isLoading: false, error: error)),
-      (bottles) =>
-          emit(state.copyWith(isLoading: false, bottles: bottles, error: null)),
-    );
   }
 }

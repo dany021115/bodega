@@ -34,9 +34,14 @@ void main() {
       Directory(drive).createSync(recursive: true);
     });
 
-    Map<String, dynamic> app() => jsonDecode(
-      File('${home.path}/bottles/blur/app.json').readAsStringSync(),
-    ) as Map<String, dynamic>;
+    Map<String, dynamic> app() =>
+        ((jsonDecode(
+                      File('${home.path}/bottles/blur/apps.json')
+                          .readAsStringSync(),
+                    ) as Map<String, dynamic>)['apps']
+                    as List)
+                .single
+            as Map<String, dynamic>;
 
     test('a program inside the bottle is kept relative to drive_c', () async {
       File('$drive/Blur/Blur.exe').createSync(recursive: true);
@@ -57,6 +62,16 @@ void main() {
       await repository.addApp('blur', 'Blur', exe.path);
 
       expect(app()['exe'], exe.path);
+    });
+
+    test('a bottle that already has an application takes another', () async {
+      File('$drive/A/a.exe').createSync(recursive: true);
+      File('$drive/B/b.exe').createSync(recursive: true);
+
+      await repository.addApp('blur', 'A', '$drive/A/a.exe');
+      final second = await repository.addApp('blur', 'B', '$drive/B/b.exe');
+
+      expect(second.isRight(), isTrue);
     });
 
     test('pathProblem catches what Wine would not open', () {

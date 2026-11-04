@@ -51,7 +51,7 @@ class _CatalogPageState extends State<CatalogPage> {
                       Row(
                         children: [
                           Expanded(
-                            child: Text('Catálogo', style: styles.screenTitle),
+                            child: Text('Instalar', style: styles.screenTitle),
                           ),
                           TextButton.icon(
                             onPressed: () => showAddAppDialog(context),

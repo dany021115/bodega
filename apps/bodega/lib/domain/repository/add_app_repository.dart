@@ -2,8 +2,8 @@ import 'package:bodega/domain/entities/app_error.dart';
 import 'package:fpdart/fpdart.dart';
 
 abstract class AddAppRepository {
-  /// The bottles that are ready and have no app.
-  Future<Either<AppError, List<String>>> freeBottles();
+  /// The bottles an application can go into.
+  Future<Either<AppError, List<String>>> readyBottles();
 
   /// What makes [path] unusable, or null if it can be used.
   String? pathProblem(String path);

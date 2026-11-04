@@ -62,7 +62,7 @@ const _installerOk = {0, 102, 194, 105};
 
 /// Installs [entry] in a bottle of its own (I1, I2) and returns the bottle's
 /// folder. A failure after the bottle exists leaves it, with its logs, and
-/// without the `app.json` that would make it count as installed. A [setup]
+/// without the entry in `apps.json` that would make it count as installed. A [setup]
 /// that is already on disk replaces the download, so that a UI can show its
 /// progress (E6).
 Future<String> installEntry(
@@ -161,37 +161,9 @@ Future<String> installEntry(
   if (!exe.existsSync()) {
     throw 'el instalador terminó pero no está ${entry.exe}; log: $log';
   }
-  _writeApp(dir, entry.id, entry.title, entry.exe, entry.args);
+  _registerApp(dir, entry.id, entry.title, entry.exe, entry.args);
   if (entry.sha256 == null) File(file).deleteSync();
   return dir;
-}
-
-void _writeApp(
-  String dir,
-  String id,
-  String title,
-  String exe,
-  List<String> args,
-) {
-  _writeJson('$dir/app.json', {
-    'id': id,
-    'title': title,
-    'exe': exe,
-    'args': args,
-    'installedAt': DateTime.now().toUtc().toIso8601String(),
-  });
-}
-
-/// Registers the user's own program as the bottle's app (E8). [exe] is relative
-/// to `drive_c`, or an absolute Unix path for a program kept outside the bottle.
-void addApp(String home, String bottle, String title, String exe) {
-  final dir = _existing(home, bottle);
-  if (File('$dir/app.json').existsSync()) {
-    throw 'la botella $bottle ya tiene una aplicación';
-  }
-  final path = exe.startsWith('/') ? exe : '$dir/prefix/drive_c/$exe';
-  if (!File(path).existsSync()) throw 'no existe $path';
-  _writeApp(dir, 'custom', title, exe, const []);
 }
 
 /// I6: waits for the server to end by itself, but no longer than [grace] once
@@ -221,77 +193,6 @@ Future<void> _settle(
   }
   await _wineserver(rt, prefix, '-k');
   await server;
-}
-
-typedef InstalledApp = ({
-  String bottle,
-  String id,
-  String title,
-  String exe,
-  List<String> args,
-});
-
-InstalledApp _readApp(String bottle, File file) {
-  try {
-    final json = jsonDecode(file.readAsStringSync()) as Map<String, dynamic>;
-    return (
-      bottle: bottle,
-      id: json['id'] as String,
-      title: json['title'] as String,
-      exe: json['exe'] as String,
-      args: List<String>.from(json['args'] as List),
-    );
-  } on Object catch (e) {
-    throw '${file.path} no es válido: $e';
-  }
-}
-
-typedef BottleInfo = ({String name, bool ready, InstalledApp? app});
-
-/// Every bottle by name, with its app if it has one (E2).
-List<BottleInfo> listBottles(String home) {
-  final bottles = Directory('$home/bottles').listSync().whereType<Directory>();
-  return [for (final dir in bottles) _bottleInfo(dir.path)]
-    ..sort((a, b) => a.name.compareTo(b.name));
-}
-
-BottleInfo _bottleInfo(String dir) {
-  final name = dir.split('/').last;
-  final app = File('$dir/app.json');
-  return (
-    name: name,
-    ready: _ready('$dir/prefix'),
-    app: app.existsSync() ? _readApp(name, app) : null,
-  );
-}
-
-/// Bottles with an `app.json`, by name (I8).
-List<InstalledApp> installedApps(String home) => [
-  for (final bottle in listBottles(home))
-    if (bottle.app case final app?) app,
-];
-
-/// Launches the bottle's app like [runInBottle] (I9).
-Future<String> openApp(
-  String home,
-  String bottle, {
-  String? backend,
-  bool hud = false,
-}) async {
-  final file = File('${_existing(home, bottle)}/app.json');
-  if (!file.existsSync()) {
-    throw '$bottle no tiene una aplicación instalada; usa bodega run $bottle '
-        '<programa>';
-  }
-  final app = _readApp(bottle, file);
-  return _launchIn(
-    home,
-    bottle,
-    app.exe.startsWith('/') ? app.exe : 'C:\\${app.exe.replaceAll('/', r'\')}',
-    app.args,
-    backend: backend,
-    hud: hud,
-  );
 }
 
 /// Easy Anti-Cheat's failure under Wine on macOS, one hint per game (I11). It

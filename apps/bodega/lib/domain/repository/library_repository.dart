@@ -8,8 +8,9 @@ abstract class LibraryRepository {
   /// Every bottle by name, with or without an app.
   Future<List<String>> bottleNames();
 
-  /// Launches the bottle's app and returns the log of its first process.
-  Future<Either<AppError, String>> open(String bottle);
+  /// Launches the application with that [key], or else the bottle's first, and
+  /// returns the log of its first process.
+  Future<Either<AppError, String>> open(String bottle, {String? key});
 
   /// Launches [program], an absolute path, in the bottle.
   Future<Either<AppError, String>> run(String bottle, String program);

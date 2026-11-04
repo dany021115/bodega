@@ -33,8 +33,8 @@ class _LibraryPageState extends State<LibraryPage> {
             return EmptyState(
               icon: Icons.apps_rounded,
               title: 'Tu biblioteca está vacía',
-              message: 'Instala algo desde el Catálogo y aparecerá aquí.',
-              actionLabel: 'Ir al Catálogo',
+              message: 'Instala algo y aparecerá aquí.',
+              actionLabel: 'Instalar',
               actionIcon: Icons.storefront_rounded,
               onAction: () =>
                   RouterManager.go(AppRoute.catalog, context: context),
@@ -54,10 +54,13 @@ class _LibraryPageState extends State<LibraryPage> {
                 );
               }
               final app = state.apps[index - 1];
+              // The hints are of the bottle: once, on its first application.
+              final first =
+                  index == 1 || state.apps[index - 2].bottle != app.bottle;
               return LibraryCard(
                 app: app,
                 isOpen: state.open.contains(app.bottle),
-                hints: state.hints[app.bottle] ?? const [],
+                hints: first ? state.hints[app.bottle] ?? const [] : const [],
               );
             },
           );

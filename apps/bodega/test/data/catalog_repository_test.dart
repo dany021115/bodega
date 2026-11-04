@@ -7,6 +7,28 @@ import 'package:flutter_test/flutter_test.dart';
 import '_home.dart';
 
 void main() {
+  test('with several applications in the bottle, it still marks it', () async {
+    final home = Directory.systemTemp.createTempSync('bodega-catalog');
+    addTearDown(() => home.deleteSync(recursive: true));
+    final bottle = Directory('${home.path}/bottles/steam')
+      ..createSync(recursive: true);
+    File('${bottle.path}/apps.json').writeAsStringSync(
+      '{"apps": ['
+      '{"id": "custom", "title": "Otra", "exe": "o.exe", "args": []},'
+      '{"id": "steam", "title": "Steam", "exe": "S/Steam.exe", "args": []}'
+      ']}',
+    );
+
+    final apps = (await CatalogRepositoryImpl(
+      TestHome(home.path),
+    ).apps()).getOrElse((error) => fail(error.message));
+
+    final steam = apps.first;
+    expect(steam.bottle, 'steam');
+    expect(steam.appKey, 's/steam.exe');
+    expect(apps.where((app) => app.isInstalled), hasLength(1));
+  });
+
   test('the 7 of the catalog, with the installed one marked', () async {
     final home = Directory.systemTemp.createTempSync('bodega-catalog');
     addTearDown(() => home.deleteSync(recursive: true));

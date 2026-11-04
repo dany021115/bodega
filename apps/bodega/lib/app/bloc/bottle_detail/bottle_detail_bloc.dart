@@ -30,6 +30,10 @@ class BottleDetailBloc extends Bloc<BottleDetailEvent, BottleDetailState> {
         (name) => _repository.setBackend(name, 'auto', exe: event.exe),
       ),
     );
+    on<BottleDetailHideAppEvent>(
+      (event, emit) =>
+          _change(emit, (name) => _repository.hideApp(name, event.key)),
+    );
     on<BottleDetailDeleteEvent>((event, emit) async {
       final name = state.detail?.name;
       if (name == null) return;

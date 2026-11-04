@@ -1,4 +1,5 @@
 import 'package:bodega/app/bloc/add_app/add_app_bloc.dart';
+import 'package:bodega/app/bloc/bottles/bottles_bloc.dart';
 import 'package:bodega/app/bloc/library/library_bloc.dart';
 import 'package:bodega/app/router.dart';
 import 'package:bodega/app/shared/widgets/custom_loading.dart';
@@ -55,6 +56,7 @@ class _AddAppDialogState extends State<AddAppDialog> {
   }
 
   void _finish(BuildContext context, String title) {
+    context.read<BottlesBloc>().add(const BottlesEvent.load());
     context.read<LibraryBloc>().add(const LibraryEvent.load());
     AppToast.success(context, '$title ya está en tu Biblioteca');
     // Close the dialog first: this context goes with it.
