@@ -41,4 +41,9 @@ abstract class AppColor {
   static const Color statusUntested = Color(0xFF9E9EA6);
   static const Color statusBlocked = Color(0xFFEF5350);
   static const Color statusFlaky = Color(0xFFFFB300);
+
+  // === CATALOG BRANDS (simple-icons); the black ones use the theme's color ===
+  static const Color brandRockstar = Color(0xFFFCAF17);
+  static const Color brandBattleNet = Color(0xFF4381C3);
+  static const Color brandGog = Color(0xFF86328A);
 }

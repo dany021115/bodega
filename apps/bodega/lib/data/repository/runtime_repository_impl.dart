@@ -1,5 +1,5 @@
 import 'package:bodega/data/service/engine_home.dart';
-import 'package:bodega/data/service/engine_call.dart';
+import 'package:bodega/data/service/repository_call.dart';
 import 'package:bodega/domain/entities/app_error.dart';
 import 'package:bodega/domain/entities/runtime_status.dart';
 import 'package:bodega/domain/repository/runtime_repository.dart';
@@ -14,7 +14,7 @@ class RuntimeRepositoryImpl implements RuntimeRepository {
   RuntimeRepositoryImpl(this._home);
 
   @override
-  Future<Either<AppError, RuntimeStatus>> status() => engineCall(
+  Future<Either<AppError, RuntimeStatus>> status() => repositoryCall(
     () async => RuntimeStatus(
       rosetta: await rosettaInstalled(),
       runtime: hasRuntime(_home.path),
@@ -25,7 +25,7 @@ class RuntimeRepositoryImpl implements RuntimeRepository {
   Future<Either<AppError, Unit>> install({
     required String engine,
     required String hostlibs,
-  }) => engineCall(() async {
+  }) => repositoryCall(() async {
     await installRuntime(_home.path, engine, hostlibs);
     return unit;
   });

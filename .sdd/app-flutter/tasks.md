@@ -11,16 +11,16 @@
   **Comprobación:** test `ThemeBloc`; `flutter analyze`.
 - [x] **T4** `MainShell` con barra lateral (B5) y `SetupBloc` con su pantalla (P1), con `Runtime` en `domain` y `data`. Redirección (B4).
   **Comprobación:** tests `SetupBloc`, `router` y de widget `MainShell`.
-- [ ] **T5 (USUARIO)** Commit del hito 1 con el script que deja el agente, y abre la app: `flutter run -d macos`. **Se espera:** barra lateral, tema oscuro, y que al estrechar la ventana pase a iconos.
+- [x] **T5 (USUARIO)** Commit del hito 1 con el script que deja el agente, y abre la app: `flutter run -d macos`. **Se espera:** barra lateral, tema oscuro, y que al estrechar la ventana pase a iconos.
 
 ## Hito 2: catálogo y biblioteca
-- [ ] **T6** `Catalog`: entidades, repositorio, `CatalogBloc`, lista y ficha (P2, P3).
+- [x] **T6** `Catalog`: entidades, repositorio, `CatalogBloc`, lista y ficha (P2, P3).
   **Comprobación:** test `CatalogBloc`.
-- [ ] **T7** `Install`: descarga con `dio`, `InstallBloc` y progreso (P4; `design.md` §4).
+- [x] **T7** `Install`: descarga con `dio`, `InstallBloc` y progreso (P4; `design.md` §4).
   **Comprobación:** test `InstallBloc`; test de repositorio con un servidor HTTP local: progreso, cancelar y `Range`.
-- [ ] **T8** `Library`: `LibraryBloc`, abierta o cerrada, avisos y pantalla (P6–P8; `design.md` §5).
+- [x] **T8** `Library`: `LibraryBloc`, abierta o cerrada, avisos y pantalla (P6–P8; `design.md` §5).
   **Comprobación:** test `LibraryBloc`.
-- [ ] **T9** `AntiCheat`: `RestClient`, DTO, caché y sección en el catálogo (P5).
+- [x] **T9** `AntiCheat`: `RestClient`, DTO, caché y sección en el catálogo (P5).
   **Comprobación:** test `AntiCheatRepository`.
 - [ ] **T10 (USUARIO)** Commit del hito 2, y abre la app. **Se espera:** ves tu Steam, lo abres y lo paras desde la Biblioteca; el Catálogo busca y muestra fichas.
 

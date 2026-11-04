@@ -33,7 +33,7 @@ Cada bloc se prueba con `bloc_test` y repositorios falsos (`mocktail`). Lo visua
 **Escenarios (test `InstallBloc`):** progreso; cancelar; error de red sin botella; error del instalador con log; segunda instalación rechazada mientras hay una en marcha.
 
 ### P5 · Aviso de anti-cheat
-En el catálogo, buscar un juego consulta la lista `db/anticheat.json` de `highball-db` en `f0bf6a2`, con `retrofit`, cacheada en `cache/anticheat.json`. Muestra el juego, su anti-cheat y su veredicto. Aclara que no aparecer no garantiza nada: POLYGON no está en la lista.
+En el catálogo, buscar un juego consulta la lista `db/anticheat.json` de `highball-db` en `f0bf6a2`, con `retrofit`, cacheada en `cache/anticheat.json`. Muestra el juego, su anti-cheat y su veredicto. Aclara que no aparecer no garantiza nada, y que `warning` ("Puede fallar") puede querer decir que no arranca: POLYGON sale así y en Mac no pasa de Easy Anti-Cheat.
 
 **Escenarios (test `AntiCheatRepository`):** descarga y guarda; sin red usa la caché; sin red ni caché da `NetworkError`, y el catálogo sigue funcionando.
 

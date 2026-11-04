@@ -1,22 +1,16 @@
 import 'dart:io';
 
 import 'package:bodega/data/repository/runtime_repository_impl.dart';
-import 'package:bodega/data/service/engine_home.dart';
 import 'package:bodega/domain/entities/app_error.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-class _Home implements EngineHome {
-  @override
-  final String path;
-
-  _Home(this.path);
-}
+import '_home.dart';
 
 void main() {
   test('an engine error arrives as Left(EngineError) with its text', () async {
     final home = Directory.systemTemp.createTempSync('bodega-repo');
     addTearDown(() => home.deleteSync(recursive: true));
-    final repository = RuntimeRepositoryImpl(_Home(home.path));
+    final repository = RuntimeRepositoryImpl(TestHome(home.path));
 
     final result = await repository.install(
       engine: '${home.path}/no-existe-engine.tar.xz',

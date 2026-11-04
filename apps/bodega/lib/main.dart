@@ -1,3 +1,6 @@
+import 'package:bodega/app/bloc/catalog/catalog_bloc.dart';
+import 'package:bodega/app/bloc/install/install_bloc.dart';
+import 'package:bodega/app/bloc/library/library_bloc.dart';
 import 'package:bodega/app/bloc/setup/setup_bloc.dart';
 import 'package:bodega/app/bloc/theme/theme_bloc.dart';
 import 'package:bodega/app/router.dart';
@@ -32,6 +35,9 @@ class _BodegaAppState extends State<BodegaApp> {
     return MultiBlocProvider(
       providers: [
         BlocProvider.value(value: _setup),
+        BlocProvider.value(value: getIt<CatalogBloc>()),
+        BlocProvider.value(value: getIt<InstallBloc>()),
+        BlocProvider.value(value: getIt<LibraryBloc>()),
         BlocProvider(create: (_) => getIt<ThemeBloc>()),
       ],
       child: BlocBuilder<ThemeBloc, ThemeState>(

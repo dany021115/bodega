@@ -3,11 +3,13 @@ import 'dart:async';
 import 'package:bodega/app/bloc/setup/setup_bloc.dart';
 import 'package:bodega/app/presentation/backends/backends_page.dart';
 import 'package:bodega/app/presentation/bottles/bottles_page.dart';
+import 'package:bodega/app/presentation/catalog/catalog_detail_page.dart';
 import 'package:bodega/app/presentation/catalog/catalog_page.dart';
 import 'package:bodega/app/presentation/library/library_page.dart';
 import 'package:bodega/app/presentation/setup/setup_page.dart';
 import 'package:bodega/app/shared/widgets/custom_loading.dart';
 import 'package:bodega/app/shared/widgets/main_shell.dart';
+import 'package:bodega/app/shared/widgets/shell_body.dart';
 import 'package:bodega/device/router/manager.dart';
 import 'package:bodega/device/router/observer.dart';
 import 'package:bodega/device/router/transitions.dart';
@@ -69,12 +71,25 @@ GoRouter createRouter(SetupBloc setup) {
       ShellRoute(
         navigatorKey: shellNavigatorKey,
         pageBuilder: (context, state, child) => PageTransitions.fadeTransition(
-          child: MainShell(child: child),
+          child: MainShell(child: ShellBody(child: child)),
           state: state,
         ),
         routes: [
           _section(AppRoute.library, const LibraryPage()),
-          _section(AppRoute.catalog, const CatalogPage()),
+          _section(
+            AppRoute.catalog,
+            const CatalogPage(),
+            routes: [
+              GoRoute(
+                path: ':id',
+                name: AppRoute.catalogDetail.name,
+                pageBuilder: (context, state) => NoTransitionPage(
+                  key: state.pageKey,
+                  child: CatalogDetailPage(id: state.pathParameters['id']!),
+                ),
+              ),
+            ],
+          ),
           _section(AppRoute.bottles, const BottlesPage()),
           _section(AppRoute.backends, const BackendsPage()),
         ],
@@ -83,9 +98,14 @@ GoRouter createRouter(SetupBloc setup) {
   );
 }
 
-GoRoute _section(AppRoute route, Widget page) => GoRoute(
+GoRoute _section(
+  AppRoute route,
+  Widget page, {
+  List<RouteBase> routes = const [],
+}) => GoRoute(
   path: RouterManager.path(route),
   name: route.name,
+  routes: routes,
   pageBuilder: (context, state) =>
       NoTransitionPage(key: state.pageKey, child: page),
 );

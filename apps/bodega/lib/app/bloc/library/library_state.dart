@@ -1,0 +1,16 @@
+part of 'library_bloc.dart';
+
+@freezed
+abstract class LibraryState with _$LibraryState {
+  const factory LibraryState({
+    @Default(true) bool isLoading,
+    @Default([]) List<LibraryApp> apps,
+    @Default({}) Set<String> open,
+    @Default({}) Map<String, List<String>> hints,
+
+    /// The latest hint; [toastId] tells apart two with the same text.
+    String? toast,
+    @Default(0) int toastId,
+    AppError? error,
+  }) = _LibraryState;
+}
