@@ -39,17 +39,17 @@
   **Comprobación:** pasa; y falla si se añade a propósito un import prohibido, en una copia temporal.
 - [x] **T16** Compilación final: `flutter build macos`, abrirla con `open` y confirmar en un log temporal que arranca.
   **Comprobación:** salida pegada en `verify`. El agente no juzga cómo se ve.
-- [ ] **T17 (USUARIO)** Commit final con el script que deja el agente.
+- [x] **T17 (USUARIO)** Commit final con el script que deja el agente.
 
 ## Aceptación del usuario
 En tu Mac, con `flutter run -d macos` o la app compilada.
 
-- [ ] **U1** Biblioteca: Steam aparece; ábrelo y párala. **Se espera:** `Abierta` hasta que se cierra de verdad, también si Steam se actualiza. Unos 3 s de retraso son normales.
-- [ ] **U2** Catálogo: busca, abre fichas y comprueba los estados. **Se espera:** Epic y GOG no se pueden instalar.
+- [x] **U1** Biblioteca: Steam aparece; ábrelo y párala. **Se espera:** `Abierta` hasta que se cierra de verdad, también si Steam se actualiza. Unos 3 s de retraso son normales.
+- [x] **U2** Catálogo: busca, abre fichas y comprueba los estados. **Se espera:** Epic y GOG no se pueden instalar.
 - [ ] **U3** Instala una aplicación nueva, por ejemplo Rockstar. **Se espera:** barra de progreso real, botón de cancelar durante la descarga, y que siga aunque cambies de pantalla. Si Rockstar falla, debe verse el motivo y poder borrar la botella.
-- [ ] **U4** Cancela una descarga. **Se espera:** no queda botella.
-- [ ] **U5** Agregar otra aplicación con Blur, en una botella nueva o en `prueba`, y ábrelo. **Se espera:** aparece en Biblioteca y abre.
+- [x] **U4** Cancela una descarga. **Se espera:** no queda botella.
+- [x] **U5** Agregar otra aplicación con Blur, en una botella nueva o en `prueba`, y ábrelo. **Se espera:** aparece en Biblioteca y abre.
 - [ ] **U6** Botellas: cambia el backend de una, cambia msync, mira un log y borra una botella de prueba. **Se espera:** aviso antes de cerrar o borrar.
-- [ ] **U7** Backends: lee las instrucciones de D3DMetal y pulsa `Comprobar` en una botella cerrada. **Se espera:** `OK` por caso.
+- [x] **U7** Backends: lee las instrucciones de D3DMetal y pulsa `Comprobar` en una botella cerrada. **Se espera:** `OK` por caso.
 - [ ] **U8** Abre un juego con anti-cheat si tienes alguno. **Se espera:** aviso claro, sin bloquear la interfaz.
-- [ ] **U9** General: cierra Bodega con un juego abierto y vuelve a abrirla. **Se espera:** el juego sigue y aparece `Abierta`. Dime qué mejorarías del aspecto.
+- [x] **U9** General: cierra Bodega con un juego abierto y vuelve a abrirla. **Se espera:** el juego sigue y aparece `Abierta`. Dime qué mejorarías del aspecto.

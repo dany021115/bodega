@@ -18,9 +18,12 @@ TeeShot escribe `@freezed class X with _$X`. Con `freezed` 4 es `abstract class`
 
 ## 4. Descargas con `dio`
 
+**Cambio en `apply`:** se pensó en `dio.download`, pero hay que ver el estado y la URL final antes de escribir nada, así que `Downloader` lee el stream a mano. Pide los bytes sin comprimir porque, con gzip, `Content-Length` y `Range` cuentan otra cosa: contra HTTPS real, una descarga buena fallaba con "se cortó en 251114 de 30766 bytes".
+
 ```
-dio.download(url, '<dest>.part', onReceiveProgress, cancelToken, Range si hay .part)
-→ rename → installEntry(setup: ruta) o installBackend(tarball: ruta)
+Downloader.fetch(url, dest, cancel, onProgress)
+  dio.get en stream, con Accept-Encoding: identity y Range si hay .part → <dest>.part → rename
+→ installEntry(setup: ruta) o installBackend(tarball: ruta)
 ```
 
 - **El motor sigue con `curl`** para el CLI, y comprueba el SHA en ambos caminos.
@@ -46,7 +49,7 @@ Resuelve el `exit=42` de Steam: lo que importa es la botella, no el primer proce
 
 Los programas corren desacoplados: cerrar Bodega no los cierra, y volver a abrirla reconstruye el estado desde `listBottles` y `waitBottle`. Si se cierra durante una instalación, el instalador sigue, pero queda una botella sin `app.json`, que aparece sin aplicación y se puede borrar en su detalle. `Incompleta` queda para un prefijo sin terminar (`ready` falso, E2).
 
-Lecturas síncronas en la interfaz: `antiCheatHints` lee un log de unos 600 KB cada 5 s como mucho, y solo si cambió. Si se notara en U, se pasa a `Isolate.run`. No se hace antes de medir.
+Lecturas síncronas en la interfaz: `antiCheatHints` lee un log de unos 600 KB cada 5 s como mucho, mientras sea más nuevo que la hora de abrir (medido con 614 KB: mediana de 3,8 ms y máximo de 12,5 ms, por debajo de un fotograma). Si se notara en U, se pasa a `Isolate.run`. No se hace antes de medir.
 
 ## 7. Comprobado antes de escribir esto
 
