@@ -1,0 +1,4 @@
+groups:
+  - path: assets/icons/catalog
+    class_name: AssetsCatalogIcons
+    package: bodega

@@ -438,3 +438,58 @@ Future<String> _run(String exe, List<String> args, [String? cwd]) async {
 
 String _tag(String tarball) =>
     tarball.split('/').last.replaceFirst(RegExp(r'\.tar\.gz$'), '');
+
+/// Whether this Mac can run x86_64 programs (E5).
+Future<bool> rosettaInstalled() async {
+  final result = await Process.run('/usr/bin/arch', [
+    '-x86_64',
+    '/usr/bin/true',
+  ]);
+  return result.exitCode == 0;
+}
+
+/// Like [currentRuntime], without the error (E5).
+bool hasRuntime(String home) =>
+    Directory('$home/runtimes/current').existsSync();
+
+/// Stops the bottle and deletes its folder. `deleteSync` removes links without
+/// following them, which matters because `dosdevices/z:` points to / (E4).
+Future<void> removeBottle(String home, String name) async {
+  final dir = _existing(home, name);
+  if (hasRuntime(home)) {
+    final rt = currentRuntime(home);
+    await _wineserver(rt, '$dir/prefix', '-k');
+    await _wineserver(rt, '$dir/prefix', '-w');
+  }
+  Directory(dir).deleteSync(recursive: true);
+}
+
+typedef BottleLog = ({
+  String path,
+  String name,
+  DateTime modified,
+  int? exitCode,
+});
+
+/// The bottle's run logs, newest first (E7).
+List<BottleLog> bottleLogs(String home, String name) {
+  final dir = Directory('${_existing(home, name)}/logs');
+  if (!dir.existsSync()) return [];
+  return [
+    for (final file in dir.listSync().whereType<File>())
+      if (file.path.endsWith('.log'))
+        (
+          path: file.path,
+          name: file.path.split('/').last,
+          modified: file.lastModifiedSync(),
+          exitCode: switch (File(
+            file.path.replaceFirst(RegExp(r'\.log$'), '.exit'),
+          )) {
+            final exit when exit.existsSync() => int.tryParse(
+              exit.readAsStringSync().trim(),
+            ),
+            _ => null,
+          },
+        ),
+  ]..sort((a, b) => b.name.compareTo(a.name));
+}

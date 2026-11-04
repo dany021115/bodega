@@ -93,6 +93,9 @@ void main() {
         isEmpty,
       );
     }
+    expect(pinnedBackend('dxmt')!.url, contains('dxmt-highball'));
+    expect(pinnedBackend('dxmt')!.sha256, startsWith('89e731b8'));
+    expect(pinnedBackend('d3dmetal'), isNull);
     final env = wineEnv('/p', const {}, backendEnv(home, 'dxvk'));
     expect(env['WINEDLLOVERRIDES'], startsWith(base));
     expect(env['WINEPREFIX'], '/p');
@@ -283,6 +286,10 @@ void main() {
     expect(saved['sync'], 'none');
     expect(saved['backend'], 'wine');
     expect(saved['programs']['blur.exe']['backend'], 'dxmt');
+    final read = bottleSettings(home, 't');
+    expect(read.sync, 'none');
+    expect(read.backend, 'wine');
+    expect(read.programs['blur.exe']?.env, {'FOO': '1'});
     await expectLater(setSync(home, 't', 'foo'), throwsA(contains('foo')));
     expect(
       jsonDecode(File('$dir/settings.json').readAsStringSync())['sync'],

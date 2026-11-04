@@ -258,7 +258,7 @@ void _checkSync(String sync) {
   }
 }
 
-typedef _Settings = ({
+typedef BottleSettings = ({
   String backend,
   String sync,
   Map<String, ({String? backend, Map<String, String> env})> programs,
@@ -266,13 +266,13 @@ typedef _Settings = ({
 
 /// `bottles/<b>/settings.json` (S1, A1, A2). A missing file means `auto` with
 /// msync; a broken one is an error, never ignored.
-_Settings _settings(String dir) {
+BottleSettings _settings(String dir) {
   final file = File('$dir/settings.json');
   if (!file.existsSync()) return (backend: 'auto', sync: 'msync', programs: {});
   try {
     final json = jsonDecode(file.readAsStringSync()) as Map<String, dynamic>;
     final programs = (json['programs'] ?? <String, dynamic>{}) as Map;
-    final _Settings settings = (
+    final BottleSettings settings = (
       backend: (json['backend'] ?? 'auto') as String,
       sync: (json['sync'] ?? 'msync') as String,
       programs: {
@@ -301,7 +301,7 @@ void _writeJson(String path, Object value) {
     ..renameSync(path);
 }
 
-void _saveSettings(String dir, _Settings settings) {
+void _saveSettings(String dir, BottleSettings settings) {
   _writeJson('$dir/settings.json', {
     'backend': settings.backend,
     'sync': settings.sync,
@@ -555,3 +555,10 @@ Future<List<({int bits, String d3d, bool ok, String log})>> backendTest(
       }(),
   ];
 }
+
+/// The bottle's settings, for a UI (E3).
+BottleSettings bottleSettings(String home, String name) =>
+    _settings(_existing(home, name));
+
+/// Where a backend's pinned tarball comes from, or null if it has none (E9).
+({String url, String sha256})? pinnedBackend(String name) => _pinned[name];

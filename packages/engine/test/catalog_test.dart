@@ -8,6 +8,11 @@ import 'package:test/test.dart';
 import 'engine_test.dart' show fakeRuntime;
 
 void main() {
+  group('engine for the app', engineForApp);
+  catalog();
+}
+
+void catalog() {
   late String tmp, home;
 
   /// An entry whose installer is [script]: the fake wine sources it.
@@ -344,5 +349,145 @@ void main() {
 
     File('$home/bottles/b/app.json').writeAsStringSync('{roto');
     expect(() => installedApps(home), throwsA(contains('app.json')));
+  });
+}
+
+void engineForApp() {
+  late String tmp, home;
+  const makeExe =
+      r'mkdir -p "$WINEPREFIX/drive_c/Prog"; '
+      r'touch "$WINEPREFIX/drive_c/Prog/x.exe"';
+
+  CatalogEntry fake({String? sha256, String id = 'x'}) =>
+      CatalogEntry.fromJson({
+        'id': id,
+        'title': 'X',
+        'status': 'reported',
+        'statusNote': '',
+        'installer': {
+          'url': 'http://no-se-usa/x.exe',
+          'sha256': sha256,
+          'args': <String>[],
+          'msi': false,
+        },
+        'exe': 'Prog/x.exe',
+        'args': <String>[],
+        'backend': 'wine',
+        'sync': 'none',
+        'env': <String, String>{},
+        'registry': <Map<String, String>>[],
+        'notes': <String>[],
+        'knownIssues': <Map<String, String>>[],
+        'source': <String, String>{},
+      });
+
+  setUp(() async {
+    tmp = Directory.systemTemp
+        .createTempSync('bodega')
+        .resolveSymbolicLinksSync();
+    home = bodegaHome({'BODEGA_HOME': '$tmp/home'});
+  });
+  tearDown(() => Directory(tmp).deleteSync(recursive: true));
+
+  Future<void> runtime() async {
+    final (engine, hostlibs) = await fakeRuntime(tmp, 'engine-e');
+    await installRuntime(home, engine, hostlibs);
+  }
+
+  test('hasRuntime', () async {
+    expect(hasRuntime(home), isFalse);
+    await runtime();
+    expect(hasRuntime(home), isTrue);
+    Directory(currentRuntime(home)).deleteSync(recursive: true);
+    expect(hasRuntime(home), isFalse);
+  });
+
+  test('installEntry with a downloaded setup', () async {
+    await runtime();
+    final setup = File('$tmp/x-setup.exe')..writeAsStringSync(makeExe);
+    final dir = await installEntry(home, fake(), setup: setup.path);
+    expect(File('$dir/app.json').existsSync(), isTrue);
+    expect(setup.existsSync(), isFalse);
+
+    final again = File('$tmp/y-setup.exe')..writeAsStringSync(makeExe);
+    await expectLater(
+      installEntry(
+        home,
+        fake(id: 'y', sha256: '0' * 64),
+        setup: again.path,
+      ),
+      throwsA(contains('checksum incorrecto')),
+    );
+    expect(Directory('$home/bottles/y').existsSync(), isFalse);
+    expect(again.existsSync(), isTrue);
+  });
+
+  test('listBottles', () async {
+    await runtime();
+    expect(listBottles(home), isEmpty);
+    await createBottle(home, 'sola');
+    final setup = File('$tmp/x-setup.exe')..writeAsStringSync(makeExe);
+    await installEntry(home, fake(), setup: setup.path);
+    Directory('$home/bottles/rota').createSync();
+    final list = listBottles(home);
+    expect(list.map((b) => b.name), ['rota', 'sola', 'x']);
+    expect(list.map((b) => b.ready), [false, true, true]);
+    expect(list.map((b) => b.app?.title), [null, null, 'X']);
+    expect(installedApps(home).map((a) => a.bottle), ['x']);
+  });
+
+  test('removeBottle', () async {
+    await runtime();
+    await createBottle(home, 't');
+    final outside = File('$tmp/fuera/dato.txt')..createSync(recursive: true);
+    Link('$home/bottles/t/prefix/z').createSync('$tmp/fuera');
+    await removeBottle(home, 't');
+    expect(Directory('$home/bottles/t').existsSync(), isFalse);
+    expect(outside.existsSync(), isTrue);
+    await expectLater(
+      removeBottle(home, 't'),
+      throwsA(contains('no existe la botella')),
+    );
+  });
+
+  test('bottleLogs', () async {
+    await runtime();
+    await createBottle(home, 't');
+    final run = await runInBottle(home, 't', 'notepad', []);
+    await exitOf(run);
+    final logs = bottleLogs(home, 't');
+    expect(logs.first.path, run);
+    expect(logs.first.exitCode, 7);
+    expect(logs.last.name, endsWith('-wineboot.log'));
+    File(logs.last.path.replaceFirst(RegExp(r'\.log$'), '.exit')).deleteSync();
+    expect(bottleLogs(home, 't').last.exitCode, isNull);
+  });
+
+  test('addApp', () async {
+    await runtime();
+    await createBottle(home, 'a');
+    await createBottle(home, 'b');
+    final drive = '$home/bottles/a/prefix/drive_c';
+    File('$drive/Juego/j.exe').createSync(recursive: true);
+    addApp(home, 'a', 'Dentro', 'Juego/j.exe');
+    expect(installedApps(home).single.title, 'Dentro');
+    expect(
+      () => addApp(home, 'a', 'Otra', 'Juego/j.exe'),
+      throwsA(contains('ya tiene')),
+    );
+    expect(
+      () => addApp(home, 'b', 'Nada', 'Juego/j.exe'),
+      throwsA(contains('no existe')),
+    );
+
+    final inside = await openApp(home, 'a');
+    await exitOf(inside);
+    expect(File(inside).readAsStringSync(), contains(r'C:\Juego\j.exe'));
+
+    final free = File('$tmp/Fuera/libre.exe')..createSync(recursive: true);
+    addApp(home, 'b', 'Fuera', free.path);
+    final outside = await openApp(home, 'b');
+    await exitOf(outside);
+    expect(File(outside).readAsStringSync(), contains('# cwd $tmp/Fuera\n'));
   });
 }

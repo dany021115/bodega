@@ -150,11 +150,7 @@ Future<void> main(List<String> args) async {
     return;
   }
   try {
-    final rosetta = await Process.run('/usr/bin/arch', [
-      '-x86_64',
-      '/usr/bin/true',
-    ]);
-    if (rosetta.exitCode != 0) {
+    if (!await rosettaInstalled()) {
       throw 'falta Rosetta: '
           'softwareupdate --install-rosetta --agree-to-license';
     }

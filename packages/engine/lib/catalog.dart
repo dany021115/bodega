@@ -62,11 +62,14 @@ const _installerOk = {0, 102, 194, 105};
 
 /// Installs [entry] in a bottle of its own (I1, I2) and returns the bottle's
 /// folder. A failure after the bottle exists leaves it, with its logs, and
-/// without the `app.json` that would make it count as installed.
+/// without the `app.json` that would make it count as installed. A [setup]
+/// that is already on disk replaces the download, so that a UI can show its
+/// progress (E6).
 Future<String> installEntry(
   String home,
   CatalogEntry entry, {
   String? bottle,
+  String? setup,
   void Function(String step)? onStep,
   Duration grace = const Duration(seconds: 60),
   Duration limit = const Duration(minutes: 30),
@@ -82,21 +85,31 @@ Future<String> installEntry(
         'bodega stop $name y rm -rf "$dir"';
   }
   final rt = currentRuntime(home);
-  final uri = Uri.parse(entry.url);
-  if (uri.scheme != 'https' && uri.scheme != 'file') {
-    throw 'la URL no es https: ${entry.url}';
+  final String file;
+  if (setup == null) {
+    final uri = Uri.parse(entry.url);
+    if (uri.scheme != 'https' && uri.scheme != 'file') {
+      throw 'la URL no es https: ${entry.url}';
+    }
+    if (entry.sha256 == null) {
+      onStep?.call('sin checksum fijo: se confía en HTTPS y en ${uri.host}');
+    }
+    onStep?.call('Descargando el instalador');
+    file = await _download(
+      home,
+      entry.url,
+      entry.sha256,
+      name: '${entry.id}-setup.${entry.msi ? 'msi' : 'exe'}',
+    );
+  } else {
+    file = setup;
+    if (entry.sha256 case final want?) {
+      final got = await _sha256(file);
+      if (got != want) {
+        throw 'checksum incorrecto en $file: $got, se esperaba $want';
+      }
+    }
   }
-
-  if (entry.sha256 == null) {
-    onStep?.call('sin checksum fijo: se confía en HTTPS y en ${uri.host}');
-  }
-  onStep?.call('Descargando el instalador');
-  final setup = await _download(
-    home,
-    entry.url,
-    entry.sha256,
-    name: '${entry.id}-setup.${entry.msi ? 'msi' : 'exe'}',
-  );
 
   onStep?.call('Creando la botella $name');
   await createBottle(home, name);
@@ -127,9 +140,9 @@ Future<String> installEntry(
   final log = await _launchIn(
     home,
     name,
-    entry.msi ? 'msiexec' : setup,
+    entry.msi ? 'msiexec' : file,
     [
-      if (entry.msi) ...['/i', setup, '/qn'],
+      if (entry.msi) ...['/i', file, '/qn'],
       ...entry.installerArgs,
     ],
     backend: 'wine',
@@ -148,15 +161,37 @@ Future<String> installEntry(
   if (!exe.existsSync()) {
     throw 'el instalador terminó pero no está ${entry.exe}; log: $log';
   }
+  _writeApp(dir, entry.id, entry.title, entry.exe, entry.args);
+  if (entry.sha256 == null) File(file).deleteSync();
+  return dir;
+}
+
+void _writeApp(
+  String dir,
+  String id,
+  String title,
+  String exe,
+  List<String> args,
+) {
   _writeJson('$dir/app.json', {
-    'id': entry.id,
-    'title': entry.title,
-    'exe': entry.exe,
-    'args': entry.args,
+    'id': id,
+    'title': title,
+    'exe': exe,
+    'args': args,
     'installedAt': DateTime.now().toUtc().toIso8601String(),
   });
-  if (entry.sha256 == null) File(setup).deleteSync();
-  return dir;
+}
+
+/// Registers the user's own program as the bottle's app (E8). [exe] is relative
+/// to `drive_c`, or an absolute Unix path for a program kept outside the bottle.
+void addApp(String home, String bottle, String title, String exe) {
+  final dir = _existing(home, bottle);
+  if (File('$dir/app.json').existsSync()) {
+    throw 'la botella $bottle ya tiene una aplicación';
+  }
+  final path = exe.startsWith('/') ? exe : '$dir/prefix/drive_c/$exe';
+  if (!File(path).existsSync()) throw 'no existe $path';
+  _writeApp(dir, 'custom', title, exe, const []);
 }
 
 /// I6: waits for the server to end by itself, but no longer than [grace] once
@@ -211,15 +246,30 @@ InstalledApp _readApp(String bottle, File file) {
   }
 }
 
-/// Bottles with an `app.json`, by name (I8).
-List<InstalledApp> installedApps(String home) {
+typedef BottleInfo = ({String name, bool ready, InstalledApp? app});
+
+/// Every bottle by name, with its app if it has one (E2).
+List<BottleInfo> listBottles(String home) {
   final bottles = Directory('$home/bottles').listSync().whereType<Directory>();
-  return [
-    for (final dir in bottles)
-      if (File('${dir.path}/app.json').existsSync())
-        _readApp(dir.path.split('/').last, File('${dir.path}/app.json')),
-  ]..sort((a, b) => a.bottle.compareTo(b.bottle));
+  return [for (final dir in bottles) _bottleInfo(dir.path)]
+    ..sort((a, b) => a.name.compareTo(b.name));
 }
+
+BottleInfo _bottleInfo(String dir) {
+  final name = dir.split('/').last;
+  final app = File('$dir/app.json');
+  return (
+    name: name,
+    ready: _ready('$dir/prefix'),
+    app: app.existsSync() ? _readApp(name, app) : null,
+  );
+}
+
+/// Bottles with an `app.json`, by name (I8).
+List<InstalledApp> installedApps(String home) => [
+  for (final bottle in listBottles(home))
+    if (bottle.app case final app?) app,
+];
 
 /// Launches the bottle's app like [runInBottle] (I9).
 Future<String> openApp(
@@ -237,7 +287,7 @@ Future<String> openApp(
   return _launchIn(
     home,
     bottle,
-    'C:\\${app.exe.replaceAll('/', r'\')}',
+    app.exe.startsWith('/') ? app.exe : 'C:\\${app.exe.replaceAll('/', r'\')}',
     app.args,
     backend: backend,
     hud: hud,
