@@ -1,3 +1,4 @@
+# La receta y los parches están en wine/; este workflow solo se lanza a mano.
 # Builds the engine from the pinned CrossOver sources. Manual dispatch only until the first
 # build is green and boots a bottle through Highball; nothing in the app points here yet.
 name: build-engine
