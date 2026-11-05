@@ -1,3 +1,4 @@
+# Se lanza al cambiar wine/renderers-arm64, o a mano.
 name: build-renderers-arm64
 
 # The Direct3D-to-Vulkan renderers for the arm64 engine line: vkd3d-proton (Direct3D 12) and DXVK (DXGI, Direct3D 11
@@ -13,7 +14,6 @@ on:
   push:
     paths:
       - "wine/renderers-arm64/**"
-      - ".github/workflows/build-renderers-arm64.yml"
   workflow_dispatch:
     inputs:
       publish_release:

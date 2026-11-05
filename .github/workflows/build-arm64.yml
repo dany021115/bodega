@@ -1,3 +1,4 @@
+# La receta y los parches están en wine/; este workflow solo se lanza a mano.
 # The arm64 engine line: upstream Wine built natively for Apple silicon, with ARM64X builtins and
 # FEX for x86 programs, for the day macOS 28 drops Rosetta (Highball's
 # private/notes/rosetta-transition-plan.md; the spike that measured every step ran on an M4 on

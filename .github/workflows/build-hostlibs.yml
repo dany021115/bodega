@@ -1,3 +1,4 @@
+# No usa archivos del repo: empaqueta librerías de Homebrew; solo se lanza a mano.
 # FreeType, GnuTLS and MoltenVK from the runner's Intel Homebrew, with what they link, in a tarball of their own
 # that extracts over the engine: the libraries land in engine/lib/wine/x86_64-unix, where the modules'
 # LC_RPATH @loader_path/ finds them by leaf name with no DYLD variables. Nothing is checked out and Wine is not built.
