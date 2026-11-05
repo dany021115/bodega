@@ -94,3 +94,18 @@ Tu mando de Xbox no funcionaba en Blur, y en CrossOver sí. **Causa, medida en l
 El motor lo pone una vez por botella: al crearla, o en el primer lanzamiento de una que ya existía. Queda guardado como `gamepads: 1` en `settings.json`.
 
 **Sin vibración:** `bus_iohid` no la tiene. Llevar SDL2, como CrossOver, es la mejora, y queda para el SDD de motor como versión 2.
+
+**Seguimiento (2026-11-05):** el mando no iba la primera vez porque los `reg add` arrancaban el servicio de mandos de Wine antes de que los valores existieran, y ese servicio los conserva toda la sesión. Ahora `_ensureGamepads` espera hasta 5 s a que esa sesión termine. Comprobado: un programa lanzado justo después de crear la botella ya ve el mando. Tú confirmaste que el mando funciona en Blur.
+
+**SDL2, comprobado y no aplicado:** la oficial 2.32.10 (`SDL2-2.32.10.dmg`, SHA-256 `4a7ac31640d70214e848f994be8a12849c0f97918a7e6c2e27a40036166d1a7f`, zlib) se extrae a x86_64. En una copia temporal del runtime, Wine la carga (`SDL main loop started`) y añade el mando por SDL (`sdl_add_device … 045e 02fd`). Queda para el SDD de motor, por la vibración.
+
+## 11. Red local (2026-11-05)
+
+- **Blur en PC** (PCGamingWiki): LAN para 20 jugadores, pantalla partida para 4, TCP 3074 y UDP 3074 y 50001. Su online cerró; Amax Emu lo devuelve.
+- **macOS** (TN3179): bloquea la red local de una app hasta darle el permiso de «Red local», y lo que lanza la app cuenta como suyo. Los programas lanzados desde Terminal lo tienen de serie.
+- **Arreglo:** `NSLocalNetworkUsageDescription` en el `Info.plist` de Bodega. El permiso va por firma de código, y la nuestra es ad hoc, así que puede volver a pedirse tras recompilar.
+- **El firewall de este Mac** está apagado.
+
+**SDL2 aplicado (2026-11-05):** con la vía directa de macOS (IOHID) el mando aparecía, pero con los controles mal en Blur, porque llega sin traducir al esquema de Xbox. `installSdl` descarga la SDL2 oficial con su SHA fijado, guarda solo su parte x86_64 junto a `winebus.so` y la firma en local. `_ensureGamepads` usa ahora la versión 2 (SDL, los valores por defecto de Wine) si el runtime tiene SDL2, y la 1 (IOHID) si no. Comprobado en una copia del runtime: la botella pasa sola a la 2, y Wine añade el mando por SDL (`sdl_add_device … 045e 02fd`). Instalada también en el runtime del usuario con `bodega sdl install`.
+
+**Pendiente:** una pantalla en la app para instalarla, porque un runtime nuevo no la trae. Mientras no la tenga, ese runtime vuelve solo a la versión 1.

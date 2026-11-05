@@ -505,6 +505,34 @@ void main() {
         expect(regLogs('b'), hasLength(2));
       });
 
+      test('with SDL2 in the runtime, the bottle goes back to SDL', () async {
+        await createBottle(home, 'b');
+        expect(bottleSettings(home, 'b').gamepads, 1);
+        final sdl = File(
+          '$home/runtimes/current/engine/lib/wine/x86_64-unix/'
+          'libSDL2-2.0.0.dylib',
+        )..createSync(recursive: true);
+        expect(hasSdl(home), isTrue);
+
+        await exitOf(await runInBottle(home, 'b', 'cmd', ['/c', 'exit']));
+        final reg = File('$home/bottles/b/prefix/reg.log')
+            .readAsLinesSync()
+            .where((l) => l.contains('WineBus'))
+            .toList();
+        expect(reg.skip(2), [
+          allOf(contains('Enable SDL'), endsWith('/d 1 /f')),
+          allOf(contains('DisableInput'), endsWith('/d 0 /f')),
+        ]);
+        expect(bottleSettings(home, 'b').gamepads, 2);
+
+        // Once is enough; and without SDL it goes back to the raw way.
+        await exitOf(await runInBottle(home, 'b', 'cmd', ['/c', 'exit']));
+        expect(regLogs('b'), hasLength(4));
+        sdl.deleteSync();
+        await exitOf(await runInBottle(home, 'b', 'cmd', ['/c', 'exit']));
+        expect(bottleSettings(home, 'b').gamepads, 1);
+      });
+
       test('the bottle keeps it when other settings change', () async {
         await createBottle(home, 'b');
         setBackend(home, 'b', 'wine');
@@ -681,6 +709,85 @@ void main() {
       final hash = 'a123e3d10527fbdf3fea7ea235e11b41da3754dc.jpg';
       touch('$cache/$hash');
       expect(appIcon(home, game), endsWith(hash));
+    });
+  });
+
+  group('x86Slice', () {
+    Uint8List fat(List<(int, List<int>)> parts, {bool wide = false}) {
+      final entry = wide ? 32 : 20;
+      final head = 8 + entry * parts.length;
+      final out = BytesBuilder();
+      final header = ByteData(head)
+        ..setUint32(0, wide ? 0xcafebabf : 0xcafebabe)
+        ..setUint32(4, parts.length);
+      var offset = head;
+      for (final (i, (cpu, data)) in parts.indexed) {
+        final at = 8 + entry * i;
+        header.setUint32(at, cpu);
+        if (wide) {
+          header
+            ..setUint64(at + 8, offset)
+            ..setUint64(at + 16, data.length);
+        } else {
+          header
+            ..setUint32(at + 8, offset)
+            ..setUint32(at + 12, data.length);
+        }
+        offset += data.length;
+      }
+      out.add(header.buffer.asUint8List());
+      for (final (_, data) in parts) {
+        out.add(data);
+      }
+      return out.toBytes();
+    }
+
+    const x86 = 0x01000007, arm = 0x0100000c;
+
+    test('takes the x86_64 part of a universal binary', () {
+      expect(
+        x86Slice(
+          fat([
+            (arm, [1, 1]),
+            (x86, [2, 3, 4]),
+          ]),
+        ),
+        [2, 3, 4],
+      );
+      expect(
+        x86Slice(
+          fat([
+            (x86, [5]),
+          ], wide: true),
+        ),
+        [5],
+      );
+    });
+
+    test('a thin one is itself if x86_64', () {
+      final thin = Uint8List(16);
+      ByteData.sublistView(thin)
+        ..setUint32(0, 0xfeedfacf, Endian.little)
+        ..setUint32(4, x86, Endian.little);
+      expect(x86Slice(thin), thin);
+      ByteData.sublistView(thin).setUint32(4, arm, Endian.little);
+      expect(x86Slice(thin), isNull);
+    });
+
+    test('anything else is null', () {
+      expect(
+        x86Slice(
+          fat([
+            (arm, [1]),
+          ]),
+        ),
+        isNull,
+      );
+      expect(x86Slice(Uint8List(4)), isNull);
+      final cut = fat([
+        (x86, [1, 2, 3]),
+      ]);
+      expect(x86Slice(cut.sublist(0, cut.length - 1)), isNull);
     });
   });
 

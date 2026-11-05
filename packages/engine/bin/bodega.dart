@@ -15,6 +15,7 @@ uso: bodega install <engine.tar.gz> <hostlibs.tar.gz>
      bodega backend set <botella> <backend> [--exe <nombre.exe>]
      bodega backend test <botella> <backend>
      bodega sync <botella> <msync|none>
+     bodega sdl install [archivo.dmg]
      bodega catalog list [texto]
      bodega catalog show <id>
      bodega catalog install <id> [botella]
@@ -25,6 +26,13 @@ Future<void> main(List<String> args) async {
   final Future<int> Function(String home)? verb = switch (args) {
     ['install', final engine, final hostlibs] => (home) async {
       stdout.writeln(await installRuntime(home, engine, hostlibs));
+      return 0;
+    },
+    ['sdl', 'install', ...final rest] when rest.length < 2 => (home) async {
+      stdout.writeln(
+        await installSdl(home, dmg: rest.isEmpty ? null : rest.single),
+      );
+      stdout.writeln('Las botellas usarán SDL2 al volver a abrirlas.');
       return 0;
     },
     ['create', final bottle] => (home) async {

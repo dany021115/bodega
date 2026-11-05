@@ -216,22 +216,22 @@ Future<String> createBottle(String home, String name) async {
   return log;
 }
 
-/// Without SDL2 in the runtime, Wine ignores an Xbox pad and most others: it
-/// only takes them straight from macOS (IOHID) with these two values. Measured
-/// with an Xbox One S pad, 045e:02fd: from "ignoring hidraw device" to an
-/// XInput device. It runs once per bottle, and best-effort: a failure is tried
-/// again on the next launch. A running bottle sees it after it restarts.
-// ponytail: no vibration this way, as bus_iohid has no haptics. Bundling SDL2,
-// as CrossOver does, would bring it; then this becomes version 2, with the
-// opposite values.
-const _gamepads = 1;
-
+/// How a bottle takes gamepads (design §10). With SDL2 in the runtime, as in
+/// CrossOver, Wine's defaults: SDL maps each pad to the Xbox layout, so games
+/// get the right controls. Without it Wine ignores an Xbox pad, unless these
+/// values make it take it raw from macOS (IOHID); measured with an Xbox One S
+/// pad, 045e:02fd, it then shows up, but with its controls wrong in Blur.
+/// Version 1 is the raw way and 2 is SDL. It runs once per bottle and per way,
+/// and best-effort: a failure is tried again on the next launch. A running
+/// bottle sees it after it restarts.
 Future<void> _ensureGamepads(String home, String name) async {
   final dir = _existing(home, name);
-  if (_settings(dir).gamepads >= _gamepads || !_ready('$dir/prefix')) return;
-  for (final (value, data) in const [
-    ('Enable SDL', '0'),
-    ('DisableInput', '1'),
+  final sdl = hasSdl(home);
+  final want = sdl ? 2 : 1;
+  if (_settings(dir).gamepads == want || !_ready('$dir/prefix')) return;
+  for (final (value, data) in [
+    ('Enable SDL', sdl ? '1' : '0'),
+    ('DisableInput', sdl ? '0' : '1'),
   ]) {
     final log = await _launchIn(
       home,
@@ -253,7 +253,27 @@ Future<void> _ensureGamepads(String home, String name) async {
     );
     if (await exitOf(log) != 0) return;
   }
-  _saveSettings(dir, _with(_settings(dir), gamepads: _gamepads));
+  _saveSettings(dir, _with(_settings(dir), gamepads: want));
+
+  // Those runs started Wine's services, the gamepad one among them, before the
+  // values existed, and it keeps what it read for as long as the session
+  // lasts. Measured: Blur opened right after had no pad until the bottle was
+  // reopened. So let that session end; something else keeping it up only
+  // costs this wait, and then it sees them after it restarts.
+  final rt = currentRuntime(home);
+  final wait = await Process.start(
+    '$rt/engine/bin/wineserver',
+    ['-w'],
+    environment: wineEnv('$dir/prefix', Platform.environment),
+    includeParentEnvironment: false,
+  );
+  await wait.exitCode.timeout(
+    const Duration(seconds: 5),
+    onTimeout: () {
+      wait.kill();
+      return -1;
+    },
+  );
 }
 
 /// Starts [program] detached, so it outlives the CLI and the Terminal, and
@@ -463,6 +483,86 @@ Future<int> _wineserver(String rt, String prefix, String flag) async {
     mode: ProcessStartMode.inheritStdio,
   );
   return server.exitCode;
+}
+
+/// The official SDL2 release (zlib licence): its universal framework, from
+/// which only the x86_64 part is kept. Checked: Wine loads it and maps an Xbox
+/// pad through SDL (design §10).
+const _sdl = (
+  url:
+      'https://github.com/libsdl-org/SDL/releases/download/release-2.32.10/'
+      'SDL2-2.32.10.dmg',
+  sha256: '4a7ac31640d70214e848f994be8a12849c0f97918a7e6c2e27a40036166d1a7f',
+);
+
+/// Where Wine's winebus looks for SDL2: beside itself, as for FreeType.
+String _sdlPath(String home) =>
+    '${currentRuntime(home)}/engine/lib/wine/x86_64-unix/libSDL2-2.0.0.dylib';
+
+/// Whether the current runtime has SDL2, so that gamepads go through it.
+bool hasSdl(String home) =>
+    hasRuntime(home) && File(_sdlPath(home)).existsSync();
+
+/// Downloads the pinned SDL2, or takes [dmg], checks its SHA-256, and puts its
+/// x86_64 part in the current runtime. Bottles switch to it on their next
+/// launch. Returns where it went.
+Future<String> installSdl(String home, {String? dmg}) async {
+  final dest = _sdlPath(home);
+  final file = dmg ?? await _download(home, _sdl.url, _sdl.sha256);
+  final got = await _sha256(file);
+  if (got != _sdl.sha256) {
+    throw 'checksum incorrecto en $file: $got, se esperaba ${_sdl.sha256}';
+  }
+  final mount = Directory.systemTemp.createTempSync('bodega-sdl');
+  await _run('/usr/bin/hdiutil', [
+    'attach',
+    '-nobrowse',
+    '-readonly',
+    '-mountpoint',
+    mount.path,
+    file,
+  ]);
+  try {
+    final framework = File('${mount.path}/SDL2.framework/Versions/A/SDL2');
+    final slice = x86Slice(framework.readAsBytesSync());
+    if (slice == null) throw 'SDL2 sin parte x86_64 en $file';
+    // The part alone keeps the framework's signature, which names files it
+    // no longer has beside it: Wine loads it anyway, but a local signature
+    // leaves nothing to object to.
+    File('$dest.tmp').writeAsBytesSync(slice);
+    await _run('/usr/bin/codesign', ['--force', '--sign', '-', '$dest.tmp']);
+    File('$dest.tmp').renameSync(dest);
+  } finally {
+    await _run('/usr/bin/hdiutil', ['detach', mount.path]);
+    mount.deleteSync();
+  }
+  return dest;
+}
+
+/// The x86_64 part of a Mach-O, universal or not, or null if it has none.
+Uint8List? x86Slice(Uint8List bytes) {
+  if (bytes.length < 8) return null;
+  final data = ByteData.sublistView(bytes);
+  const x86_64 = 0x01000007;
+  // A thin 64-bit Mach-O, little-endian.
+  if (data.getUint32(0, Endian.little) == 0xfeedfacf) {
+    return data.getUint32(4, Endian.little) == x86_64 ? bytes : null;
+  }
+  final magic = data.getUint32(0);
+  if (magic != 0xcafebabe && magic != 0xcafebabf) return null;
+  final wide = magic == 0xcafebabf;
+  final entry = wide ? 32 : 20;
+  final count = data.getUint32(4);
+  for (var i = 0; i < count; i++) {
+    final at = 8 + i * entry;
+    if (at + entry > bytes.length) return null;
+    if (data.getUint32(at) != x86_64) continue;
+    final offset = wide ? data.getUint64(at + 8) : data.getUint32(at + 8);
+    final size = wide ? data.getUint64(at + 16) : data.getUint32(at + 12);
+    if (offset + size > bytes.length) return null;
+    return bytes.sublist(offset, offset + size);
+  }
+  return null;
 }
 
 /// A new `logs/<UTC>-<label>.log` with the R15 header, which never includes
