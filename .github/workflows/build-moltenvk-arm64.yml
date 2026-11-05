@@ -8,7 +8,7 @@ name: build-moltenvk-arm64
 on:
   push:
     paths:
-      - "moltenvk-arm64/**"
+      - "wine/moltenvk-arm64/**"
       - ".github/workflows/build-moltenvk-arm64.yml"
   workflow_dispatch:
     inputs:
@@ -22,6 +22,10 @@ on:
 
 permissions:
   contents: write
+
+defaults:
+  run:
+    working-directory: wine
 
 jobs:
   build:

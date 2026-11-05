@@ -33,6 +33,10 @@ on:
         default: source
 permissions:
   contents: write
+defaults:
+  run:
+    working-directory: wine
+
 jobs:
   build:
     # Apple silicon runner on purpose: the Unix side is native arm64.
@@ -141,7 +145,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/Library/Caches/ccache
-          key: ccache-arm64-${{ runner.os }}-${{ hashFiles('inputs-arm64.json', 'patches-arm64/**') }}
+          key: ccache-arm64-${{ runner.os }}-${{ hashFiles('wine/inputs-arm64.json', 'wine/patches-arm64/**') }}
           restore-keys: ccache-arm64-${{ runner.os }}-
       # The host compiler is Apple's by absolute path: llvm-mingw is first on PATH for the PE
       # cross compilers and ships a plain `clang` that knows no macOS SDK (first dispatch,
@@ -332,8 +336,8 @@ jobs:
         with:
           name: engine-arm64
           path: |
-            engine-arm64-*.tar.gz
-            engine-arm64-*.tar.gz.sha256
+            wine/engine-arm64-*.tar.gz
+            wine/engine-arm64-*.tar.gz.sha256
           retention-days: 14
       - name: publish release
         if: ${{ github.event.inputs.publish_release == 'true' }}

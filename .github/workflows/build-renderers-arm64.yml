@@ -12,7 +12,7 @@ name: build-renderers-arm64
 on:
   push:
     paths:
-      - "renderers-arm64/**"
+      - "wine/renderers-arm64/**"
       - ".github/workflows/build-renderers-arm64.yml"
   workflow_dispatch:
     inputs:
@@ -26,6 +26,10 @@ on:
 
 permissions:
   contents: write
+
+defaults:
+  run:
+    working-directory: wine
 
 jobs:
   build:

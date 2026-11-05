@@ -14,6 +14,10 @@ on:
         default: "manual"
 permissions:
   contents: write   # the optional release step creates a release and uploads the tarball
+defaults:
+  run:
+    working-directory: wine
+
 jobs:
   build:
     # Intel runner on purpose: the Unix side of this tree is x86_64 only (the Mac driver's
@@ -50,7 +54,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/Library/Caches/ccache
-          key: ccache-${{ runner.os }}-${{ hashFiles('inputs.json', 'patches/**') }}
+          key: ccache-${{ runner.os }}-${{ hashFiles('wine/inputs.json', 'wine/patches/**') }}
           restore-keys: ccache-${{ runner.os }}-
       # OpenGL is not passed explicitly: configure then treats the missing EGL headers
       # (there is no EGL on macOS) as a notice, and the Mac driver links OpenGL.framework.
@@ -122,8 +126,8 @@ jobs:
         with:
           name: engine
           path: |
-            engine-*.tar.gz
-            engine-*.tar.gz.sha256
+            wine/engine-*.tar.gz
+            wine/engine-*.tar.gz.sha256
           retention-days: 14
       - name: publish release
         if: ${{ github.event.inputs.publish_release == 'true' }}

@@ -8,9 +8,10 @@ Pub workspace (root `pubspec.yaml`):
 
 - `packages/engine`: pure Dart. The engine and the `bodega` CLI. Knows nothing about Flutter.
 - `apps/bodega`: the macOS app, with TeeShot's clean architecture.
+- `wine/`: the recipe, patches and inputs that build Wine and its host libraries.
 - `.sdd/`: specs, in Spanish. They are the source of truth: if one is wrong, say so and change it, don't code around it. Finished ones are in `.sdd/archive/`.
 
-The engine (Wine build) is in the private repo `bodega-engine`, next to this one, and its tarballs in `../runtimes/`.
+The Wine build lives in `wine/` (it was the `bodega-engine` repo, history included): its recipe and patches there, its GitHub Actions in `.github/workflows/`, where only the jobs that check out this repo run inside `wine/`. Its tarballs are in `../runtimes/`.
 
 ## Stack
 
