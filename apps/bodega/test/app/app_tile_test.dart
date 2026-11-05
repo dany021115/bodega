@@ -19,10 +19,12 @@ const _app = LibraryApp(
 void main() {
   group('AppTile', () {
     late int opened;
+    late int options;
     late int hidden;
 
     Future<void> pumpTile(WidgetTester tester) async {
       opened = 0;
+      options = 0;
       hidden = 0;
       await tester.pumpWidget(
         MaterialApp(
@@ -34,6 +36,7 @@ void main() {
                 child: AppTile(
                   app: _app,
                   onOpen: () => opened++,
+                  onOptions: () => options++,
                   onHide: () => hidden++,
                 ),
               ),
@@ -78,6 +81,16 @@ void main() {
       await tester.tap(find.text('Ocultar'));
       await tester.pumpAndSettle();
       expect(hidden, 1);
+      expect(opened, 0);
+    });
+
+    testWidgets('the menu also runs it with options', (tester) async {
+      await pumpTile(tester);
+      await tester.tap(find.byIcon(Icons.more_horiz_rounded));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Ejecutar con opciones…'));
+      await tester.pumpAndSettle();
+      expect(options, 1);
       expect(opened, 0);
     });
 

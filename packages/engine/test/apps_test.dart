@@ -469,6 +469,50 @@ void main() {
       expect(File(log).readAsStringSync(), contains(r'Steam\steam.exe'));
     });
 
+    group('gamepads', () {
+      List<String> regLogs(String name) => [
+        for (final log in bottleLogs(home, name))
+          if (log.name.endsWith('-mandos.log')) log.path,
+      ];
+
+      test('a new bottle takes them straight from macOS', () async {
+        await createBottle(home, 'b');
+        final logs = regLogs('b');
+        expect(logs, hasLength(2));
+        final text = logs.map((log) => File(log).readAsStringSync()).join();
+        expect(
+          text,
+          contains(r'HKLM\System\CurrentControlSet\Services\WineBus'),
+        );
+        expect(text, contains('Enable SDL'));
+        expect(text, contains('DisableInput'));
+        expect(bottleSettings(home, 'b').gamepads, 1);
+      });
+
+      test('a bottle from before gets it once, on its next launch', () async {
+        await createBottle(home, 'b');
+        File('$home/bottles/b/settings.json').deleteSync();
+        for (final log in regLogs('b')) {
+          File(log).deleteSync();
+        }
+        touch('$home/bottles/b/prefix/drive_c/P/a.exe');
+        addApp(home, 'b', 'A', 'P/a.exe');
+
+        await exitOf(await openApp(home, 'b'));
+        expect(regLogs('b'), hasLength(2));
+        await exitOf(await runInBottle(home, 'b', 'cmd', ['/c', 'exit']));
+        await exitOf(await openApp(home, 'b'));
+        expect(regLogs('b'), hasLength(2));
+      });
+
+      test('the bottle keeps it when other settings change', () async {
+        await createBottle(home, 'b');
+        setBackend(home, 'b', 'wine');
+        await setSync(home, 'b', 'none');
+        expect(bottleSettings(home, 'b').gamepads, 1);
+      });
+    });
+
     test('an empty bottle says what to do', () async {
       await createBottle(home, 'b');
       await expectLater(

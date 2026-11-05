@@ -28,6 +28,9 @@ class CatalogBloc extends Bloc<CatalogEvent, CatalogState> {
             emit(state.copyWith(isLoading: false, apps: apps, error: null)),
       );
     });
+    on<CatalogTargetEvent>(
+      (event, emit) => emit(state.copyWith(targetBottle: event.bottle)),
+    );
     on<CatalogSearchEvent>((event, emit) async {
       emit(state.copyWith(query: event.query));
       if (event.query.trim().length < CatalogState.minAntiCheatQuery ||

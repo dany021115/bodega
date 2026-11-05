@@ -54,6 +54,32 @@ class BottleRepositoryImpl implements BottleRepository {
       });
 
   @override
+  Future<Either<AppError, Unit>> setHighRes(String name, bool value) =>
+      repositoryCall(() async {
+        await engine.setHighRes(_home.path, name, value);
+        return unit;
+      });
+
+  @override
+  Future<Either<AppError, Unit>> setWindowsVersion(
+    String name,
+    String version,
+  ) => repositoryCall(() async {
+    await engine.setWindowsVersion(_home.path, name, version);
+    return unit;
+  });
+
+  @override
+  Future<Either<AppError, Unit>> setOptions(
+    String name, {
+    bool? dlss,
+    bool? avx,
+  }) => repositoryCall(() {
+    engine.setBottleOptions(_home.path, name, dlss: dlss, avx: avx);
+    return unit;
+  });
+
+  @override
   Future<Either<AppError, Unit>> delete(String name) =>
       repositoryCall(() async {
         await engine.removeBottle(_home.path, name);
@@ -90,6 +116,11 @@ BottleDetail _detail(String home, String name) {
     ready: engine.listBottles(home).any((b) => b.name == name && b.ready),
     backend: settings.backend,
     sync: settings.sync,
+    highRes: settings.highRes,
+    dlss: settings.dlss,
+    avx: settings.avx,
+    windows: settings.windows,
+    driveC: '${engine.bottleDir(home, name)}/prefix/drive_c',
     apps: libraryApps(home, engine.bottleApps(home, name)),
     exceptions: [
       for (final MapEntry(:key, :value) in settings.programs.entries)

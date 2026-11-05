@@ -12,6 +12,7 @@ abstract class CatalogState with _$CatalogState {
     @Default('') String query,
     @Default([]) List<AntiCheatGame> antiCheat,
     AppError? antiCheatError,
+    String? targetBottle,
     AppError? error,
   }) = _CatalogState;
 

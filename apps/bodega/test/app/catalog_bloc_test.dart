@@ -59,6 +59,15 @@ void main() {
   );
 
   blocTest<CatalogBloc, CatalogState>(
+    'remembers the bottle to install into',
+    build: () => CatalogBloc(catalog, antiCheat),
+    act: (bloc) => bloc
+      ..add(const CatalogEvent.target('steam'))
+      ..add(const CatalogEvent.target(null)),
+    expect: () => const [CatalogState(targetBottle: 'steam'), CatalogState()],
+  );
+
+  blocTest<CatalogBloc, CatalogState>(
     'filters without minding case',
     build: () => CatalogBloc(catalog, antiCheat),
     act: (bloc) => bloc

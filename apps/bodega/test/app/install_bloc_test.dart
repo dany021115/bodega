@@ -32,7 +32,13 @@ void main() {
   });
 
   void downloads(Either<AppError, String?> result) {
-    when(() => repository.download(any(), any())).thenAnswer((call) async {
+    when(
+      () => repository.download(
+        any(),
+        any(),
+        intoExisting: any(named: 'intoExisting'),
+      ),
+    ).thenAnswer((call) async {
       final onProgress =
           call.positionalArguments[1] as void Function(int, int?);
       onProgress(50, 100);
@@ -48,37 +54,51 @@ void main() {
     'shows the progress, one state per percent, and finishes',
     build: () {
       downloads(right('/d/setup.exe'));
-      when(() => repository.install(any(), any(), any()))
-          .thenAnswer((call) async {
-            (call.positionalArguments[2] as void Function(String))('Creando');
-            return right(unit);
-          });
+      when(
+        () => repository.install(
+          any(),
+          any(),
+          any(),
+          bottle: any(named: 'bottle'),
+        ),
+      ).thenAnswer((call) async {
+        (call.positionalArguments[2] as void Function(String))('Creando');
+        return right(unit);
+      });
       return InstallBloc(repository);
     },
     act: (bloc) => bloc.add(const InstallEvent.start(_app)),
     expect: () => const [
-      InstallState(phase: InstallPhase.downloading, app: _app),
       InstallState(
         phase: InstallPhase.downloading,
         app: _app,
+        bottle: 'rockstar',
+      ),
+      InstallState(
+        phase: InstallPhase.downloading,
+        app: _app,
+        bottle: 'rockstar',
         received: 50,
         total: 100,
       ),
       InstallState(
         phase: InstallPhase.downloading,
         app: _app,
+        bottle: 'rockstar',
         received: 100,
         total: 100,
       ),
       InstallState(
         phase: InstallPhase.installing,
         app: _app,
+        bottle: 'rockstar',
         received: 100,
         total: 100,
       ),
       InstallState(
         phase: InstallPhase.installing,
         app: _app,
+        bottle: 'rockstar',
         received: 100,
         total: 100,
         step: 'Creando',
@@ -86,6 +106,7 @@ void main() {
       InstallState(
         phase: InstallPhase.done,
         app: _app,
+        bottle: 'rockstar',
         received: 100,
         total: 100,
         step: 'Creando',
@@ -97,8 +118,13 @@ void main() {
     'cancelling goes back to idle, without installing',
     build: () {
       final cancelled = Completer<Either<AppError, String?>>();
-      when(() => repository.download(any(), any()))
-          .thenAnswer((_) => cancelled.future);
+      when(
+        () => repository.download(
+          any(),
+          any(),
+          intoExisting: any(named: 'intoExisting'),
+        ),
+      ).thenAnswer((_) => cancelled.future);
       when(() => repository.cancelDownload()).thenAnswer((_) {
         cancelled.complete(right(null));
       });
@@ -110,7 +136,14 @@ void main() {
     verify: (bloc) {
       expect(bloc.state, const InstallState());
       verify(() => repository.cancelDownload()).called(1);
-      verifyNever(() => repository.install(any(), any(), any()));
+      verifyNever(
+        () => repository.install(
+          any(),
+          any(),
+          any(),
+          bottle: any(named: 'bottle'),
+        ),
+      );
     },
   );
 
@@ -125,7 +158,14 @@ void main() {
       expect(bloc.state.phase, InstallPhase.failed);
       expect(bloc.state.error, const AppError.network('sin red'));
       expect(bloc.state.bottleLeft, isFalse);
-      verifyNever(() => repository.install(any(), any(), any()));
+      verifyNever(
+        () => repository.install(
+          any(),
+          any(),
+          any(),
+          bottle: any(named: 'bottle'),
+        ),
+      );
     },
   );
 
@@ -133,7 +173,14 @@ void main() {
     'an installer error keeps the log in its message and offers deleting',
     build: () {
       downloads(right('/d/setup.exe'));
-      when(() => repository.install(any(), any(), any())).thenAnswer(
+      when(
+        () => repository.install(
+          any(),
+          any(),
+          any(),
+          bottle: any(named: 'bottle'),
+        ),
+      ).thenAnswer(
         (_) async => left(
           const AppError.engine('el instalador salió con 1; log: /l/a.log'),
         ),
@@ -157,10 +204,76 @@ void main() {
   );
 
   blocTest<InstallBloc, InstallState>(
+    'into an existing bottle with a local installer, nothing is downloaded',
+    build: () {
+      when(
+        () => repository.install(
+          any(),
+          any(),
+          any(),
+          bottle: any(named: 'bottle'),
+        ),
+      ).thenAnswer((_) async => right(unit));
+      return InstallBloc(repository);
+    },
+    act: (bloc) => bloc.add(
+      const InstallEvent.start(_app, bottle: 'steam', setup: '/d/local.exe'),
+    ),
+    verify: (bloc) {
+      expect(bloc.state.phase, InstallPhase.done);
+      expect(bloc.state.bottle, 'steam');
+      verifyNever(
+        () => repository.download(
+          any(),
+          any(),
+          intoExisting: any(named: 'intoExisting'),
+        ),
+      );
+      verify(
+        () => repository.install(
+          'rockstar',
+          '/d/local.exe',
+          any(),
+          bottle: 'steam',
+        ),
+      ).called(1);
+    },
+  );
+
+  blocTest<InstallBloc, InstallState>(
+    'a failure in an existing bottle never offers to delete it',
+    build: () {
+      downloads(right('/d/setup.exe'));
+      when(
+        () => repository.install(
+          any(),
+          any(),
+          any(),
+          bottle: any(named: 'bottle'),
+        ),
+      ).thenAnswer((_) async => left(const AppError.engine('falló')));
+      when(() => repository.bottleExists(any())).thenReturn(true);
+      return InstallBloc(repository);
+    },
+    act: (bloc) => bloc.add(const InstallEvent.start(_app, bottle: 'steam')),
+    verify: (bloc) {
+      expect(bloc.state.phase, InstallPhase.failed);
+      expect(bloc.state.bottleLeft, isFalse);
+      verify(() => repository.download('rockstar', any(), intoExisting: true))
+          .called(1);
+    },
+  );
+
+  blocTest<InstallBloc, InstallState>(
     'a second installation is refused while one is running',
     build: () {
-      when(() => repository.download(any(), any()))
-          .thenAnswer((_) => Completer<Either<AppError, String?>>().future);
+      when(
+        () => repository.download(
+          any(),
+          any(),
+          intoExisting: any(named: 'intoExisting'),
+        ),
+      ).thenAnswer((_) => Completer<Either<AppError, String?>>().future);
       return InstallBloc(repository);
     },
     act: (bloc) => bloc
@@ -168,8 +281,20 @@ void main() {
       ..add(InstallEvent.start(_app.copyWith(id: 'ea-app'))),
     verify: (bloc) {
       expect(bloc.state.app?.id, 'rockstar');
-      verify(() => repository.download('rockstar', any())).called(1);
-      verifyNever(() => repository.download('ea-app', any()));
+      verify(
+        () => repository.download(
+          'rockstar',
+          any(),
+          intoExisting: any(named: 'intoExisting'),
+        ),
+      ).called(1);
+      verifyNever(
+        () => repository.download(
+          'ea-app',
+          any(),
+          intoExisting: any(named: 'intoExisting'),
+        ),
+      );
     },
   );
 }

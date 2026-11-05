@@ -12,8 +12,34 @@ abstract class LibraryRepository {
   /// returns the log of its first process.
   Future<Either<AppError, String>> open(String bottle, {String? key});
 
-  /// Launches [program], an absolute path, in the bottle.
-  Future<Either<AppError, String>> run(String bottle, String program);
+  /// Launches [program], a path or a Wine program such as `winecfg`, in the
+  /// bottle.
+  Future<Either<AppError, String>> run(
+    String bottle,
+    String program, {
+    List<String> args = const [],
+  });
+
+  /// Launches with options (V11): variables, backend, HUD and AVX of this
+  /// launch only.
+  Future<Either<AppError, String>> launch(
+    String bottle,
+    String program, {
+    List<String> args = const [],
+    Map<String, String> env = const {},
+    String? backend,
+    bool hud = false,
+    bool avx = true,
+  });
+
+  /// Keeps [program] with [args] and [env] as an application of the bottle.
+  Future<Either<AppError, Unit>> saveLauncher(
+    String bottle,
+    String title,
+    String program, {
+    List<String> args = const [],
+    Map<String, String> env = const {},
+  });
 
   Future<Either<AppError, Unit>> stop(String bottle);
 

@@ -32,6 +32,9 @@ abstract class CatalogApp with _$CatalogApp {
     /// The bottle it is installed in, and its key there.
     String? bottle,
     String? appKey,
+
+    /// Its key once installed, wherever it goes.
+    @Default('') String installKey,
   }) = _CatalogApp;
 
   bool get isInstalled => bottle != null;

@@ -98,6 +98,59 @@ void main() {
   );
 
   blocTest<BottleDetailBloc, BottleDetailState>(
+    'each setting goes to the repository and reloads',
+    build: () {
+      when(() => repository.setHighRes('steam', true))
+          .thenAnswer((_) async => right(unit));
+      when(() => repository.setWindowsVersion('steam', 'win7'))
+          .thenAnswer((_) async => right(unit));
+      when(() => repository.setOptions('steam', dlss: true))
+          .thenAnswer((_) async => right(unit));
+      when(() => repository.setOptions('steam', avx: false))
+          .thenAnswer((_) async => right(unit));
+      return build();
+    },
+    act: (bloc) async {
+      bloc.add(load);
+      await bloc.stream.first;
+      bloc
+        ..add(const BottleDetailEvent.setHighRes(true))
+        ..add(const BottleDetailEvent.setWindows('win7'))
+        ..add(const BottleDetailEvent.setDlss(true))
+        ..add(const BottleDetailEvent.setAvx(false));
+    },
+    wait: const Duration(milliseconds: 20),
+    verify: (bloc) {
+      verify(() => repository.setHighRes('steam', true)).called(1);
+      verify(() => repository.setWindowsVersion('steam', 'win7')).called(1);
+      verify(() => repository.setOptions('steam', dlss: true)).called(1);
+      verify(() => repository.setOptions('steam', avx: false)).called(1);
+      verify(() => repository.detail('steam')).called(5);
+      expect(bloc.state.isBusy, isFalse);
+    },
+  );
+
+  blocTest<BottleDetailBloc, BottleDetailState>(
+    'a failed setting is shown and the bottle stays',
+    build: () {
+      when(() => repository.setWindowsVersion('steam', 'win7')).thenAnswer(
+        (_) async => left(const AppError.engine('winecfg salió con 1')),
+      );
+      return build();
+    },
+    act: (bloc) async {
+      bloc.add(load);
+      await bloc.stream.first;
+      bloc.add(const BottleDetailEvent.setWindows('win7'));
+    },
+    wait: const Duration(milliseconds: 10),
+    verify: (bloc) {
+      expect(bloc.state.error, const AppError.engine('winecfg salió con 1'));
+      expect(bloc.state.detail, _detail);
+    },
+  );
+
+  blocTest<BottleDetailBloc, BottleDetailState>(
     'deleting tells the page to go back to the list',
     build: () {
       when(() => repository.delete('steam'))

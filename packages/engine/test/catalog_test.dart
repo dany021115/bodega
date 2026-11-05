@@ -229,9 +229,17 @@ void catalog() {
         'data': '16',
       };
       await installEntry(home, fake(makeExe, registry: const [value]));
+      // The bottle's own values for gamepads go first (see _ensureGamepads).
       expect(
-        File('$home/bottles/x/prefix/reg.log').readAsStringSync().trim(),
-        r'reg add HKLM\Some Key /v Valor /t REG_DWORD /d 16 /f',
+        File('$home/bottles/x/prefix/reg.log')
+            .readAsStringSync()
+            .trim()
+            .split('\n'),
+        [
+          contains('Enable SDL'),
+          contains('DisableInput'),
+          r'reg add HKLM\Some Key /v Valor /t REG_DWORD /d 16 /f',
+        ],
       );
       await expectLater(
         installEntry(

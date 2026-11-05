@@ -212,7 +212,48 @@ Future<String> createBottle(String home, String name) async {
     throw 'la botella no quedó lista: falta syswow64/kernel32.dll o '
         'system.reg; log: $log';
   }
+  await _ensureGamepads(home, name);
   return log;
+}
+
+/// Without SDL2 in the runtime, Wine ignores an Xbox pad and most others: it
+/// only takes them straight from macOS (IOHID) with these two values. Measured
+/// with an Xbox One S pad, 045e:02fd: from "ignoring hidraw device" to an
+/// XInput device. It runs once per bottle, and best-effort: a failure is tried
+/// again on the next launch. A running bottle sees it after it restarts.
+// ponytail: no vibration this way, as bus_iohid has no haptics. Bundling SDL2,
+// as CrossOver does, would bring it; then this becomes version 2, with the
+// opposite values.
+const _gamepads = 1;
+
+Future<void> _ensureGamepads(String home, String name) async {
+  final dir = _existing(home, name);
+  if (_settings(dir).gamepads >= _gamepads || !_ready('$dir/prefix')) return;
+  for (final (value, data) in const [
+    ('Enable SDL', '0'),
+    ('DisableInput', '1'),
+  ]) {
+    final log = await _launchIn(
+      home,
+      name,
+      'reg',
+      [
+        'add',
+        r'HKLM\System\CurrentControlSet\Services\WineBus',
+        '/v',
+        value,
+        '/t',
+        'REG_DWORD',
+        '/d',
+        data,
+        '/f',
+      ],
+      backend: 'wine',
+      label: 'mandos',
+    );
+    if (await exitOf(log) != 0) return;
+  }
+  _saveSettings(dir, _with(_settings(dir), gamepads: _gamepads));
 }
 
 /// Starts [program] detached, so it outlives the CLI and the Terminal, and
@@ -225,7 +266,21 @@ Future<String> runInBottle(
   List<String> args, {
   String? backend,
   bool hud = false,
-}) => _launchIn(home, name, program, args, backend: backend, hud: hud);
+  Map<String, String> env = const {},
+  bool? avx,
+}) async {
+  await _ensureGamepads(home, name);
+  return _launchIn(
+    home,
+    name,
+    program,
+    args,
+    backend: backend,
+    hud: hud,
+    env: env,
+    avx: avx,
+  );
+}
 
 Future<String> _launchIn(
   String home,
@@ -235,6 +290,8 @@ Future<String> _launchIn(
   String? backend,
   bool hud = false,
   String? label,
+  Map<String, String> env = const {},
+  bool? avx,
   Map<String, String> extra = const {},
 }) async {
   final dir = _existing(home, name);
@@ -289,12 +346,17 @@ Future<String> _launchIn(
     cwd,
     argv,
     detached: true,
+    // Backend, then bottle, then program, then this launch (M8).
     extra: {
       ...backendEnv(home, choice.name, hud: hud),
+      if (settings.dlss) ..._dlssEnv,
+      ...settings.env,
       ...?settings.programs[_exeKey(program)]?.env,
       if (settings.sync == 'none') 'WINEMSYNC': '0',
+      ...env,
       ...extra,
     },
+    remove: {if (!(avx ?? settings.avx)) 'ROSETTA_ADVERTISE_AVX'},
   );
   return log;
 }
@@ -380,11 +442,14 @@ Future<Process> _start(
   List<String> args, {
   bool detached = false,
   Map<String, String> extra = const {},
+  Set<String> remove = const {},
 }) => Process.start(
   '/bin/sh',
   ['-c', _launch, 'bodega', log, '$rt/engine/bin/wine', ...args],
   workingDirectory: cwd,
-  environment: wineEnv(prefix, Platform.environment, extra),
+  // [extra] can change a variable but not take one out: [remove] does (§7).
+  environment: wineEnv(prefix, Platform.environment, extra)
+    ..removeWhere((key, _) => remove.contains(key)),
   includeParentEnvironment: false,
   mode: detached ? ProcessStartMode.detached : ProcessStartMode.inheritStdio,
 );

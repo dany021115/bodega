@@ -3,6 +3,7 @@ import 'package:bodega/app/bloc/bottles/bottles_bloc.dart';
 import 'package:bodega/app/bloc/library/library_bloc.dart';
 import 'package:bodega/app/presentation/bottles/widgets/app_tile.dart';
 import 'package:bodega/app/presentation/bottles/widgets/bottle_column.dart';
+import 'package:bodega/app/presentation/bottles/widgets/run_options_dialog.dart';
 import 'package:bodega/app/router.dart';
 import 'package:bodega/app/shared/widgets/custom_loading.dart';
 import 'package:bodega/app/shared/widgets/empty_state.dart';
@@ -130,6 +131,14 @@ class BottleDetailView extends StatelessWidget {
           app: app,
           onOpen: () =>
               context.read<LibraryBloc>().add(LibraryEvent.open(name, app.key)),
+          onOptions: () => showRunOptions(
+            context,
+            bottle: name,
+            backends: detail.installedBackends,
+            program: app.exe,
+            args: app.args,
+            title: app.title,
+          ),
           onHide: () {
             context.read<BottleDetailBloc>().add(
               BottleDetailEvent.hideApp(app.key),

@@ -26,6 +26,13 @@ abstract class BottleDetail with _$BottleDetail {
     required bool ready,
     required String backend,
     required String sync,
+    @Default(false) bool highRes,
+    @Default(false) bool dlss,
+    @Default(true) bool avx,
+    @Default('win10') String windows,
+
+    /// Where `C:` is, to show it in Finder.
+    @Default('') String driveC,
     @Default([]) List<LibraryApp> apps,
     @Default([]) List<ProgramBackend> exceptions,
     @Default([]) List<BottleLogEntry> logs,

@@ -262,13 +262,65 @@ typedef BottleSettings = ({
   String backend,
   String sync,
   Map<String, ({String? backend, Map<String, String> env})> programs,
+
+  /// Which version of [_ensureGamepads] the bottle has had; 0 for none.
+  int gamepads,
+  bool highRes,
+  bool dlss,
+
+  /// False takes `ROSETTA_ADVERTISE_AVX` out of every launch (M8).
+  bool avx,
+  String windows,
+  Map<String, String> env,
 });
 
-/// `bottles/<b>/settings.json` (S1, A1, A2). A missing file means `auto` with
-/// msync; a broken one is an error, never ignored.
+/// What [setWindowsVersion] admits, newest first.
+const windowsVersions = ['win11', 'win10', 'win81', 'win7'];
+
+/// The two names of DLSS: D3DMetal's and DXMT's (INFORME §5).
+const _dlssEnv = {'D3DM_ENABLE_METALFX': '1', 'DXMT_ENABLE_NVEXT': '1'};
+
+const BottleSettings _defaults = (
+  backend: 'auto',
+  sync: 'msync',
+  programs: {},
+  gamepads: 0,
+  highRes: false,
+  dlss: false,
+  avx: true,
+  windows: 'win10',
+  env: {},
+);
+
+/// [settings] with these fields changed: records have no `copyWith`.
+BottleSettings _with(
+  BottleSettings settings, {
+  String? backend,
+  String? sync,
+  Map<String, ({String? backend, Map<String, String> env})>? programs,
+  int? gamepads,
+  bool? highRes,
+  bool? dlss,
+  bool? avx,
+  String? windows,
+  Map<String, String>? env,
+}) => (
+  backend: backend ?? settings.backend,
+  sync: sync ?? settings.sync,
+  programs: programs ?? settings.programs,
+  gamepads: gamepads ?? settings.gamepads,
+  highRes: highRes ?? settings.highRes,
+  dlss: dlss ?? settings.dlss,
+  avx: avx ?? settings.avx,
+  windows: windows ?? settings.windows,
+  env: env ?? settings.env,
+);
+
+/// `bottles/<b>/settings.json` (S1, A1, A2, M8). A missing file or field means
+/// its default; a broken one is an error, never ignored.
 BottleSettings _settings(String dir) {
   final file = File('$dir/settings.json');
-  if (!file.existsSync()) return (backend: 'auto', sync: 'msync', programs: {});
+  if (!file.existsSync()) return _with(_defaults, programs: {}, env: {});
   try {
     final json = jsonDecode(file.readAsStringSync()) as Map<String, dynamic>;
     final programs = (json['programs'] ?? <String, dynamic>{}) as Map;
@@ -282,15 +334,29 @@ BottleSettings _settings(String dir) {
             env: Map<String, String>.from((value['env'] ?? const {}) as Map),
           ),
       },
+      gamepads: (json['gamepads'] ?? 0) as int,
+      highRes: (json['highRes'] ?? false) as bool,
+      dlss: (json['dlss'] ?? false) as bool,
+      avx: (json['avx'] ?? true) as bool,
+      windows: (json['windows'] ?? 'win10') as String,
+      env: Map<String, String>.from((json['env'] ?? const {}) as Map),
     );
     _checkChoice(settings.backend);
     _checkSync(settings.sync);
+    _checkWindows(settings.windows);
     for (final program in settings.programs.values) {
       if (program.backend case final backend?) _checkChoice(backend);
     }
     return settings;
   } on Object catch (e) {
     throw '${file.path} no es válido: $e';
+  }
+}
+
+void _checkWindows(String version) {
+  if (!windowsVersions.contains(version)) {
+    throw 'versión de Windows desconocida: $version '
+        '(${windowsVersions.join(', ')})';
   }
 }
 
@@ -301,6 +367,7 @@ void _writeJson(String path, Object value) {
     ..renameSync(path);
 }
 
+/// Only what differs from the defaults, besides backend and sync.
 void _saveSettings(String dir, BottleSettings settings) {
   _writeJson('$dir/settings.json', {
     'backend': settings.backend,
@@ -312,6 +379,12 @@ void _saveSettings(String dir, BottleSettings settings) {
           if (value.env.isNotEmpty) 'env': value.env,
         },
     },
+    if (settings.gamepads > 0) 'gamepads': settings.gamepads,
+    if (settings.highRes) 'highRes': true,
+    if (settings.dlss) 'dlss': true,
+    if (!settings.avx) 'avx': false,
+    if (settings.windows != _defaults.windows) 'windows': settings.windows,
+    if (settings.env.isNotEmpty) 'env': settings.env,
   });
 }
 
@@ -333,11 +406,14 @@ void setBackend(String home, String name, String backend, {String? exe}) {
       programs[key] = (backend: null, env: env);
     }
   }
-  _saveSettings(dir, (
-    backend: exe == null ? backend : settings.backend,
-    sync: settings.sync,
-    programs: programs,
-  ));
+  _saveSettings(
+    dir,
+    _with(
+      settings,
+      backend: exe == null ? backend : settings.backend,
+      programs: programs,
+    ),
+  );
 }
 
 /// Sets the bottle's sync mode (A1). The mode is fixed while the bottle runs
@@ -349,12 +425,74 @@ Future<bool> setSync(String home, String name, String sync) async {
   final settings = _settings(dir);
   if (settings.sync == sync) return false;
   await stopBottle(home, name);
-  _saveSettings(dir, (
-    backend: settings.backend,
-    sync: sync,
-    programs: settings.programs,
-  ));
+  _saveSettings(dir, _with(settings, sync: sync));
   return true;
+}
+
+/// DLSS, AVX and the bottle's own variables (M8): they apply from the next
+/// launch, so nothing is stopped.
+void setBottleOptions(
+  String home,
+  String name, {
+  bool? dlss,
+  bool? avx,
+  Map<String, String>? env,
+}) {
+  final dir = _existing(home, name);
+  _saveSettings(dir, _with(_settings(dir), dlss: dlss, avx: avx, env: env));
+}
+
+/// `RetinaMode` and the doubled `LogPixels` (M9, INFORME §6.1). Wine reads them
+/// when a process starts, and they apply to the whole prefix, so a change stops
+/// the bottle first. Returns whether it did.
+Future<bool> setHighRes(String home, String name, bool value) async {
+  final dir = _existing(home, name);
+  if (_settings(dir).highRes == value) return false;
+  await stopBottle(home, name);
+  for (final args in [
+    [
+      r'HKCU\Software\Wine\Mac Driver',
+      'RetinaMode',
+      'REG_SZ',
+      value ? 'y' : 'n',
+    ],
+    [
+      r'HKCU\Control Panel\Desktop',
+      'LogPixels',
+      'REG_DWORD',
+      value ? '192' : '96',
+    ],
+  ]) {
+    final log = await _launchIn(
+      home,
+      name,
+      'reg',
+      ['add', args[0], '/v', args[1], '/t', args[2], '/d', args[3], '/f'],
+      backend: 'wine',
+      label: 'resolucion',
+    );
+    final code = await exitOf(log);
+    if (code != 0) throw 'reg add salió con $code; log: $log';
+  }
+  _saveSettings(dir, _with(_settings(dir), highRes: value));
+  return true;
+}
+
+/// `winecfg -v` (M10): measured without a window, it answers what was set.
+Future<void> setWindowsVersion(String home, String name, String version) async {
+  final dir = _existing(home, name);
+  _checkWindows(version);
+  final log = await _launchIn(
+    home,
+    name,
+    'winecfg',
+    ['-v', version],
+    backend: 'wine',
+    label: 'windows',
+  );
+  final code = await exitOf(log);
+  if (code != 0) throw 'winecfg salió con $code; log: $log';
+  _saveSettings(dir, _with(_settings(dir), windows: version));
 }
 
 /// Applies S2: option, then the program's exception, then the bottle, then

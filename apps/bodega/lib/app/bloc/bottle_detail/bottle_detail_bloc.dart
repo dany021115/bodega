@@ -24,6 +24,28 @@ class BottleDetailBloc extends Bloc<BottleDetailEvent, BottleDetailState> {
       (event, emit) =>
           _change(emit, (name) => _repository.setSync(name, event.sync)),
     );
+    on<BottleDetailSetHighResEvent>(
+      (event, emit) =>
+          _change(emit, (name) => _repository.setHighRes(name, event.value)),
+    );
+    on<BottleDetailSetWindowsEvent>(
+      (event, emit) => _change(
+        emit,
+        (name) => _repository.setWindowsVersion(name, event.version),
+      ),
+    );
+    on<BottleDetailSetDlssEvent>(
+      (event, emit) => _change(
+        emit,
+        (name) => _repository.setOptions(name, dlss: event.value),
+      ),
+    );
+    on<BottleDetailSetAvxEvent>(
+      (event, emit) => _change(
+        emit,
+        (name) => _repository.setOptions(name, avx: event.value),
+      ),
+    );
     on<BottleDetailRemoveExceptionEvent>(
       (event, emit) => _change(
         emit,

@@ -125,7 +125,10 @@ class InstallPanel extends StatelessWidget {
                             FilledButton(
                               onPressed: () {
                                 context.read<LibraryBloc>().add(
-                                  LibraryEvent.open(app.id),
+                                  LibraryEvent.open(
+                                    state.bottle ?? app.id,
+                                    app.installKey,
+                                  ),
                                 );
                                 bloc.add(const InstallEvent.dismiss());
                                 RouterManager.go(

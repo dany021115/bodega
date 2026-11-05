@@ -80,6 +80,9 @@ void _registerApp(
   List<String> args,
 ) {
   final store = _readStore(dir);
+  final key = appKey(exe);
+  // Installing again over it replaces it.
+  store.apps.removeWhere((app) => _appOf('', app).key == key);
   store.apps.add({
     'id': id,
     'title': title,
@@ -87,13 +90,21 @@ void _registerApp(
     'args': args,
     'installedAt': DateTime.now().toUtc().toIso8601String(),
   });
-  store.hidden.remove(appKey(exe));
+  store.hidden.remove(key);
   _writeStore(dir, store);
 }
 
 /// Registers the user's own program in the bottle (E8, M6). [exe] is relative
 /// to `drive_c`, or an absolute Unix path for a program kept outside the bottle.
-void addApp(String home, String bottle, String title, String exe) {
+/// [env] goes to the program's settings, for every launch of that exe (M11).
+void addApp(
+  String home,
+  String bottle,
+  String title,
+  String exe, {
+  List<String> args = const [],
+  Map<String, String> env = const {},
+}) {
   final dir = _existing(home, bottle);
   final path = exe.startsWith('/') ? exe : '$dir/prefix/drive_c/$exe';
   if (!File(path).existsSync()) throw 'no existe $path';
@@ -101,7 +112,24 @@ void addApp(String home, String bottle, String title, String exe) {
   if (_readStore(dir).apps.any((app) => _appOf(bottle, app).key == key)) {
     throw 'la botella $bottle ya tiene esa aplicación';
   }
-  _registerApp(dir, 'custom', title, exe, const []);
+  _registerApp(dir, 'custom', title, exe, args);
+  if (env.isNotEmpty) {
+    final settings = _settings(dir);
+    final program = _exeKey(exe);
+    _saveSettings(
+      dir,
+      _with(
+        settings,
+        programs: {
+          ...settings.programs,
+          program: (
+            backend: settings.programs[program]?.backend,
+            env: {...?settings.programs[program]?.env, ...env},
+          ),
+        },
+      ),
+    );
+  }
 }
 
 /// Takes the application out of the list. A registered one is forgotten, and
@@ -245,12 +273,15 @@ Future<String> openApp(
   String? key,
   String? backend,
   bool hud = false,
+  Map<String, String> env = const {},
+  bool? avx,
 }) async {
   final apps = bottleApps(home, bottle);
   if (apps.isEmpty) {
     throw '$bottle no tiene una aplicación instalada; usa bodega run $bottle '
         '<programa>';
   }
+  await _ensureGamepads(home, bottle);
   final app = key == null
       ? apps.first
       : apps.where((app) => app.key == key).firstOrNull ??
@@ -262,6 +293,8 @@ Future<String> openApp(
     app.args,
     backend: backend,
     hud: hud,
+    env: env,
+    avx: avx,
   );
 }
 

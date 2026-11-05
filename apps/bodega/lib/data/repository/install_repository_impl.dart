@@ -21,10 +21,11 @@ class InstallRepositoryImpl implements InstallRepository {
   @override
   Future<Either<AppError, String?>> download(
     String id,
-    void Function(int received, int? total) onProgress,
-  ) => repositoryCall(() {
+    void Function(int received, int? total) onProgress, {
+    bool intoExisting = false,
+  }) => repositoryCall(() {
     final entry = engine.catalogEntry(id);
-    if (bottleExists(id)) {
+    if (!intoExisting && bottleExists(id)) {
       throw 'Ya existe la botella $id. Bórrala en Botellas para instalar de '
           'cero.';
     }
@@ -44,11 +45,14 @@ class InstallRepositoryImpl implements InstallRepository {
   Future<Either<AppError, Unit>> install(
     String id,
     String setup,
-    void Function(String step) onStep,
-  ) => repositoryCall(() async {
+    void Function(String step) onStep, {
+    String? bottle,
+  }) => repositoryCall(() async {
     await engine.installEntry(
       _home.path,
       engine.catalogEntry(id),
+      bottle: bottle,
+      intoExisting: bottle != null,
       setup: setup,
       onStep: onStep,
     );

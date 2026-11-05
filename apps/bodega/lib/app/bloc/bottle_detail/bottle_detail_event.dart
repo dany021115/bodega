@@ -7,6 +7,13 @@ sealed class BottleDetailEvent with _$BottleDetailEvent {
       BottleDetailSetBackendEvent;
   const factory BottleDetailEvent.setSync(String sync) =
       BottleDetailSetSyncEvent;
+  const factory BottleDetailEvent.setHighRes(bool value) =
+      BottleDetailSetHighResEvent;
+  const factory BottleDetailEvent.setWindows(String version) =
+      BottleDetailSetWindowsEvent;
+  const factory BottleDetailEvent.setDlss(bool value) =
+      BottleDetailSetDlssEvent;
+  const factory BottleDetailEvent.setAvx(bool value) = BottleDetailSetAvxEvent;
   const factory BottleDetailEvent.removeException(String exe) =
       BottleDetailRemoveExceptionEvent;
   const factory BottleDetailEvent.hideApp(String key) =

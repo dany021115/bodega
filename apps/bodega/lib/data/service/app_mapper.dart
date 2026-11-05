@@ -10,6 +10,10 @@ List<LibraryApp> libraryApps(String home, List<InstalledApp> apps) => [
       key: app.key,
       id: app.id,
       title: app.title,
+      exe: app.exe.startsWith('/')
+          ? app.exe
+          : 'C:\\${app.exe.replaceAll('/', r'\')}',
+      args: app.args,
       iconPath: appIcon(home, app),
     ),
 ];

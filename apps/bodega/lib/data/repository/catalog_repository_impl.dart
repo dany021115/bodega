@@ -40,6 +40,7 @@ class CatalogRepositoryImpl implements CatalogRepository {
           source: entry.source,
           bottle: installed[entry.id]?.bottle,
           appKey: installed[entry.id]?.key,
+          installKey: appKey(entry.exe),
         ),
     ];
   });

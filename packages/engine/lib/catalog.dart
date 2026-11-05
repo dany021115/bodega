@@ -60,8 +60,8 @@ CatalogEntry catalogEntry(String id) =>
 /// 0, and 1638, 3010 and 1641 truncated to 8 bits (`HB/Recipe.swift:154-156`).
 const _installerOk = {0, 102, 194, 105};
 
-/// Installs [entry] in a bottle of its own (I1, I2) and returns the bottle's
-/// folder. A failure after the bottle exists leaves it, with its logs, and
+/// Installs [entry] in a bottle of its own (I1, I2), or with [intoExisting]
+/// in [bottle], which must be ready (M12), and returns the bottle's folder. A failure after the bottle exists leaves it, with its logs, and
 /// without the entry in `apps.json` that would make it count as installed. A [setup]
 /// that is already on disk replaces the download, so that a UI can show its
 /// progress (E6).
@@ -69,6 +69,7 @@ Future<String> installEntry(
   String home,
   CatalogEntry entry, {
   String? bottle,
+  bool intoExisting = false,
   String? setup,
   void Function(String step)? onStep,
   Duration grace = const Duration(seconds: 60),
@@ -80,9 +81,13 @@ Future<String> installEntry(
     throw '${entry.title} está bloqueada: ${entry.statusNote}';
   }
   if (!_installed(home, entry.backend)) throw _notInstalled(entry.backend);
-  if (Directory(dir).existsSync()) {
+  final exists = Directory(dir).existsSync();
+  if (exists && !intoExisting) {
     throw 'ya existe $dir; para empezar de cero: '
         'bodega stop $name y rm -rf "$dir"';
+  }
+  if (intoExisting && !(exists && _ready('$dir/prefix'))) {
+    throw 'la botella $name no existe o no está lista';
   }
   final rt = currentRuntime(home);
   final String file;
@@ -111,13 +116,36 @@ Future<String> installEntry(
     }
   }
 
-  onStep?.call('Creando la botella $name');
-  await createBottle(home, name);
-  _saveSettings(dir, (
-    backend: 'auto',
-    sync: entry.sync,
-    programs: {_exeKey(entry.exe): (backend: entry.backend, env: entry.env)},
-  ));
+  final program = (backend: entry.backend, env: entry.env);
+  if (intoExisting) {
+    // The bottle keeps its backend and sync: other things live in it (M12).
+    final settings = _settings(dir);
+    if (settings.sync != entry.sync) {
+      onStep?.call(
+        'Esta botella usa ${settings.sync} y ${entry.title} pide '
+        '${entry.sync}. Se deja como está; cámbialo en la botella si falla.',
+      );
+    }
+    _saveSettings(
+      dir,
+      _with(
+        settings,
+        programs: {...settings.programs, _exeKey(entry.exe): program},
+      ),
+    );
+  } else {
+    onStep?.call('Creando la botella $name');
+    await createBottle(home, name);
+    _saveSettings(
+      dir,
+      _with(
+        _settings(dir),
+        backend: 'auto',
+        sync: entry.sync,
+        programs: {_exeKey(entry.exe): program},
+      ),
+    );
+  }
 
   for (final value in entry.registry) {
     onStep?.call('Registro: ${value.name}');

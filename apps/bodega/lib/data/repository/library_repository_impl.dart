@@ -34,8 +34,54 @@ class LibraryRepositoryImpl implements LibraryRepository {
   }
 
   @override
-  Future<Either<AppError, String>> run(String bottle, String program) =>
-      repositoryCall(() => engine.runInBottle(_home.path, bottle, program, []));
+  Future<Either<AppError, String>> run(
+    String bottle,
+    String program, {
+    List<String> args = const [],
+  }) => repositoryCall(
+    () => engine.runInBottle(_home.path, bottle, program, args),
+  );
+
+  @override
+  Future<Either<AppError, String>> launch(
+    String bottle,
+    String program, {
+    List<String> args = const [],
+    Map<String, String> env = const {},
+    String? backend,
+    bool hud = false,
+    bool avx = true,
+  }) => repositoryCall(
+    () => engine.runInBottle(
+      _home.path,
+      bottle,
+      program,
+      args,
+      backend: backend,
+      hud: hud,
+      env: env,
+      avx: avx,
+    ),
+  );
+
+  @override
+  Future<Either<AppError, Unit>> saveLauncher(
+    String bottle,
+    String title,
+    String program, {
+    List<String> args = const [],
+    Map<String, String> env = const {},
+  }) => repositoryCall(() {
+    engine.addApp(
+      _home.path,
+      bottle,
+      title,
+      launcherExe(engine.bottleDir(_home.path, bottle), program),
+      args: args,
+      env: env,
+    );
+    return unit;
+  });
 
   @override
   Future<Either<AppError, String>> open(String bottle, {String? key}) =>
@@ -74,4 +120,14 @@ class LibraryRepositoryImpl implements LibraryRepository {
       return const [];
     }
   }
+}
+
+/// How the engine keeps [program]: `C:\\X\\a.exe` and a path inside the
+/// bottle's `drive_c` go relative to it; anything else stays absolute.
+String launcherExe(String bottleDir, String program) {
+  final drive = '$bottleDir/prefix/drive_c/';
+  if (RegExp(r'^[A-Za-z]:\\').hasMatch(program)) {
+    return program.substring(3).replaceAll(r'\', '/');
+  }
+  return program.startsWith(drive) ? program.substring(drive.length) : program;
 }

@@ -6,16 +6,19 @@ abstract class InstallRepository {
   /// cancelled with [cancelDownload]. Fails if its bottle already exists.
   Future<Either<AppError, String?>> download(
     String id,
-    void Function(int received, int? total) onProgress,
-  );
+    void Function(int received, int? total) onProgress, {
+    bool intoExisting = false,
+  });
 
   void cancelDownload();
 
+  /// In a bottle of its own, or in [bottle] if given, which must be ready.
   Future<Either<AppError, Unit>> install(
     String id,
     String setup,
-    void Function(String step) onStep,
-  );
+    void Function(String step) onStep, {
+    String? bottle,
+  });
 
   bool bottleExists(String name);
 

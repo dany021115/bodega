@@ -140,6 +140,32 @@ void main() {
     await bloc.close();
   });
 
+  test('a panel runs with its arguments', () async {
+    when(() => repository.run('steam', 'control', args: ['joy.cpl']))
+        .thenAnswer((_) async => right('/l/a.log'));
+    final bloc = LibraryBloc(repository)
+      ..add(const LibraryEvent.run('steam', 'control', ['joy.cpl']));
+    await settle();
+    expect(bloc.state.open, {'steam'});
+    await bloc.close();
+  });
+
+  test(
+    'a launch made elsewhere is followed until the bottle empties',
+    () async {
+      final bloc = LibraryBloc(repository)
+        ..add(const LibraryEvent.track('steam', '/l/a.log'));
+      await settle();
+      expect(bloc.state.open, {'steam'});
+      firstExit.complete();
+      bottleEmpty.complete();
+      await settle();
+      await settle();
+      expect(bloc.state.open, isEmpty);
+      await bloc.close();
+    },
+  );
+
   blocTest<LibraryBloc, LibraryState>(
     'a double click launches it once',
     build: () => LibraryBloc(repository),

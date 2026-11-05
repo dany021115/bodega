@@ -6,12 +6,14 @@ import 'package:bodega/app/bloc/bottles/bottles_bloc.dart';
 import 'package:bodega/app/bloc/catalog/catalog_bloc.dart';
 import 'package:bodega/app/bloc/install/install_bloc.dart';
 import 'package:bodega/app/bloc/library/library_bloc.dart';
+import 'package:bodega/app/bloc/run_options/run_options_bloc.dart';
 import 'package:bodega/app/bloc/sections/sections_bloc.dart';
 import 'package:bodega/app/bloc/setup/setup_bloc.dart';
 import 'package:bodega/app/bloc/theme/theme_bloc.dart';
 import 'package:bodega/app/presentation/add_app/add_app_dialog.dart';
 import 'package:bodega/app/presentation/backends/backends_page.dart';
 import 'package:bodega/app/presentation/bottles/bottle_detail_page.dart';
+import 'package:bodega/app/presentation/bottles/widgets/run_options_dialog.dart';
 import 'package:bodega/app/presentation/catalog/catalog_detail_page.dart';
 import 'package:bodega/app/presentation/catalog/catalog_page.dart';
 import 'package:bodega/app/presentation/library/library_page.dart';
@@ -57,6 +59,9 @@ class _MockLibrary extends MockBloc<LibraryEvent, LibraryState>
 
 class _MockSections extends MockBloc<SectionsEvent, SectionsState>
     implements SectionsBloc {}
+
+class _MockRunOptions extends MockBloc<RunOptionsEvent, RunOptionsState>
+    implements RunOptionsBloc {}
 
 class _MockSetup extends MockBloc<SetupEvent, SetupState>
     implements SetupBloc {}
@@ -319,6 +324,29 @@ void main() {
       await pump(tester, width, bottleView());
     });
 
+    testWidgets('running with options fits at $width px', (tester) async {
+      final options = _MockRunOptions();
+      whenListen(
+        options,
+        const Stream<RunOptionsState>.empty(),
+        initialState: RunOptionsState(
+          bottle: 'steam',
+          program: '/g/$_longName$_longName.exe',
+          env: 'A=1',
+          save: true,
+          error: AppError.engine(_long),
+        ),
+      );
+      await pump(
+        tester,
+        width,
+        BlocProvider<RunOptionsBloc>.value(
+          value: options,
+          child: const RunOptionsDialog(backends: ['dxmt', 'dxvk']),
+        ),
+      );
+    });
+
     for (final step in [
       AddAppStep.form,
       AddAppStep.creating,
@@ -427,6 +455,45 @@ void main() {
       await pump(tester, 1150, const BottleDetailView(name: 'nope'));
       expect(find.text('no existe la botella nope'), findsOneWidget);
       expect(find.text('Volver a Biblioteca'), findsOneWidget);
+    });
+
+    testWidgets('each control panel runs its program', (tester) async {
+      await pump(tester, 1150, bottleView(), height: 2400);
+      await tester.tap(find.text('Mandos'));
+      await tester.tap(find.text('Configuración de Wine'));
+      await tester.tap(find.text('Abrir terminal'));
+      await tester.pump();
+      verify(
+        () => library.add(LibraryEvent.run(_longName, 'control', ['joy.cpl'])),
+      ).called(1);
+      verify(() => library.add(LibraryEvent.run(_longName, 'winecfg', [])))
+          .called(1);
+      verify(
+        () => library.add(LibraryEvent.run(_longName, 'wineconsole', ['cmd'])),
+      ).called(1);
+    });
+
+    testWidgets('the settings show what the bottle has', (tester) async {
+      await pump(tester, 1150, bottleView(), height: 2400);
+      expect(find.text('Windows 10'), findsOneWidget);
+      expect(find.text('Alta resolución'), findsOneWidget);
+      expect(find.text('DLSS'), findsOneWidget);
+      expect(find.text('Anunciar AVX'), findsOneWidget);
+    });
+
+    testWidgets('an incomplete bottle offers only to delete it', (
+      tester,
+    ) async {
+      showBottle(_bottle(ready: false));
+      await pump(tester, 1150, bottleView(), height: 2400);
+      final run = tester.widget<TextButton>(
+        find.widgetWithText(TextButton, 'Ejecutar con opciones…'),
+      );
+      expect(run.onPressed, isNull);
+      final delete = tester.widget<TextButton>(
+        find.widgetWithText(TextButton, 'Borrar botella'),
+      );
+      expect(delete.onPressed, isNotNull);
     });
 
     testWidgets('a folded section hides its content', (tester) async {

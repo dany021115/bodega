@@ -5,19 +5,21 @@ import 'package:bodega/device/theme/typography.dart';
 import 'package:bodega/domain/entities/library_app.dart';
 import 'package:flutter/material.dart';
 
-enum _Action { open, hide }
+enum _Action { open, options, hide }
 
 /// An application in its bottle. A double click or Enter opens it; a single
 /// click only selects, so that a game doesn't start by mistake.
 class AppTile extends StatefulWidget {
   final LibraryApp app;
   final VoidCallback onOpen;
+  final VoidCallback onOptions;
   final VoidCallback onHide;
 
   const AppTile({
     super.key,
     required this.app,
     required this.onOpen,
+    required this.onOptions,
     required this.onHide,
   });
 
@@ -37,6 +39,10 @@ class _AppTileState extends State<AppTile> {
 
   List<PopupMenuEntry<_Action>> _items() => const [
     PopupMenuItem(value: _Action.open, child: Text('Abrir')),
+    PopupMenuItem(
+      value: _Action.options,
+      child: Text('Ejecutar con opciones…'),
+    ),
     PopupMenuItem(value: _Action.hide, child: Text('Ocultar')),
   ];
 
@@ -44,6 +50,8 @@ class _AppTileState extends State<AppTile> {
     switch (action) {
       case _Action.open:
         widget.onOpen();
+      case _Action.options:
+        widget.onOptions();
       case _Action.hide:
         widget.onHide();
       case null:

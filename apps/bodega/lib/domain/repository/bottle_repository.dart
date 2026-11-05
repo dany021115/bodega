@@ -19,6 +19,17 @@ abstract class BottleRepository {
   /// Closes what is open in the bottle.
   Future<Either<AppError, Unit>> setSync(String name, String sync);
 
+  /// Closes what is open in the bottle.
+  Future<Either<AppError, Unit>> setHighRes(String name, bool value);
+
+  Future<Either<AppError, Unit>> setWindowsVersion(String name, String version);
+
+  Future<Either<AppError, Unit>> setOptions(
+    String name, {
+    bool? dlss,
+    bool? avx,
+  });
+
   Future<Either<AppError, Unit>> delete(String name);
 
   /// Takes the application out of the bottle's list.

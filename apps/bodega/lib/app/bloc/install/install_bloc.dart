@@ -40,41 +40,53 @@ class InstallBloc extends Bloc<InstallEvent, InstallState> {
   ) async {
     if (state.isRunning) return;
     final app = event.app;
-    emit(InstallState(phase: InstallPhase.downloading, app: app));
+    final existing = event.bottle;
+    emit(
+      InstallState(
+        phase: InstallPhase.downloading,
+        app: app,
+        bottle: existing ?? app.id,
+      ),
+    );
 
-    // Progress arrives per chunk; one state per percent is enough.
-    var shown = -1;
-    final download = await _repository.download(app.id, (received, total) {
-      final mark = total == null ? received >> 20 : received * 100 ~/ total;
-      if (mark == shown) return;
-      shown = mark;
-      emit(state.copyWith(received: received, total: total));
-    });
+    final String? setup;
+    if (event.setup case final local?) {
+      setup = local;
+    } else {
+      // Progress arrives per chunk; one state per percent is enough.
+      var shown = -1;
+      final download = await _repository.download(app.id, (received, total) {
+        final mark = total == null ? received >> 20 : received * 100 ~/ total;
+        if (mark == shown) return;
+        shown = mark;
+        emit(state.copyWith(received: received, total: total));
+      }, intoExisting: existing != null);
+      final failed = download.getLeft().toNullable();
+      if (failed != null) {
+        return emit(state.copyWith(phase: InstallPhase.failed, error: failed));
+      }
+      setup = download.getRight().toNullable();
+      if (setup == null) return emit(const InstallState());
+    }
 
-    await download.match(
-      (error) async =>
-          emit(state.copyWith(phase: InstallPhase.failed, error: error)),
-      (setup) async {
-        if (setup == null) return emit(const InstallState());
-
-        emit(state.copyWith(phase: InstallPhase.installing));
-        final result = await _repository.install(
-          app.id,
-          setup,
-          (step) => emit(state.copyWith(step: step)),
-        );
-        result.match(
-          (error) => emit(
-            state.copyWith(
-              phase: InstallPhase.failed,
-              error: error,
-              // download() refused an existing bottle, so this one is ours.
-              bottleLeft: _repository.bottleExists(app.id),
-            ),
-          ),
-          (_) => emit(state.copyWith(phase: InstallPhase.done)),
-        );
-      },
+    emit(state.copyWith(phase: InstallPhase.installing));
+    final result = await _repository.install(
+      app.id,
+      setup,
+      (step) => emit(state.copyWith(step: step)),
+      bottle: existing,
+    );
+    result.match(
+      (error) => emit(
+        state.copyWith(
+          phase: InstallPhase.failed,
+          error: error,
+          // Only a bottle of its own, which download() made sure was new: an
+          // existing one has other things in it.
+          bottleLeft: existing == null && _repository.bottleExists(app.id),
+        ),
+      ),
+      (_) => emit(state.copyWith(phase: InstallPhase.done)),
     );
   }
 }

@@ -84,3 +84,13 @@ Con un test temporal, ya borrado, y una botella temporal, también borrada. Nada
 | Renombrar y lanzar | Correcto |
 
 **Sin comprobar:** `-applaunch`, el efecto visual de alta resolución, DLSS, y el HUD con DXMT. Todo tiene ventana y lo pruebas tú.
+
+## 10. Mandos, arreglo fuera de los hitos (2026-11-05)
+
+Tu mando de Xbox no funcionaba en Blur, y en CrossOver sí. **Causa, medida en los logs de Wine:** sin `libSDL2` (CrossOver la trae, nosotros no), `winebus` ve el mando por IOHID como `is_hidraw`, y `is_hidraw_enabled` lo descarta: `ignoring hidraw device 045e:02fd`.
+
+**Arreglo:** `HKLM\System\CurrentControlSet\Services\WineBus` con `Enable SDL=0` y `DisableInput=1` hace que Wine prefiera IOHID para todo mando. El log pasa a `Adding device … WINEXINPUT\VID_045E&PID_02FD&XI_00`.
+
+El motor lo pone una vez por botella: al crearla, o en el primer lanzamiento de una que ya existía. Queda guardado como `gamepads: 1` en `settings.json`.
+
+**Sin vibración:** `bus_iohid` no la tiene. Llevar SDL2, como CrossOver, es la mejora, y queda para el SDD de motor como versión 2.

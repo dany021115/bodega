@@ -60,13 +60,25 @@ class LibraryBloc extends Bloc<LibraryEvent, LibraryState> {
     on<LibraryRunEvent>((event, emit) async {
       final bottle = event.bottle;
       final since = _runs[bottle]?.since ?? DateTime.now();
-      final result = await _repository.run(bottle, event.program);
-      result.match((error) => emit(state.copyWith(error: error)), (log) {
-        _begin(bottle, since, log);
-        emit(state.copyWith(open: {...state.open, bottle}, error: null));
-        _follow(bottle, log);
-      });
+      final result = await _repository.run(
+        bottle,
+        event.program,
+        args: event.args,
+      );
+      result.match(
+        (error) => emit(state.copyWith(error: error)),
+        (log) => _track(bottle, since, log, emit),
+      );
     });
+
+    on<LibraryTrackEvent>(
+      (event, emit) => _track(
+        event.bottle,
+        _runs[event.bottle]?.since ?? DateTime.now(),
+        event.log,
+        emit,
+      ),
+    );
 
     on<LibraryStopEvent>((event, emit) async {
       final result = await _repository.stop(event.bottle);
@@ -101,6 +113,17 @@ class LibraryBloc extends Bloc<LibraryEvent, LibraryState> {
         _addHints(bottle, _repository.antiCheatHints(bottle, run.since), emit);
       }
     });
+  }
+
+  void _track(
+    String bottle,
+    DateTime since,
+    String log,
+    Emitter<LibraryState> emit,
+  ) {
+    _begin(bottle, since, log);
+    emit(state.copyWith(open: {...state.open, bottle}, error: null));
+    _follow(bottle, log);
   }
 
   void _begin(String bottle, DateTime since, String? log) {

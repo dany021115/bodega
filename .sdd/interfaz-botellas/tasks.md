@@ -13,14 +13,14 @@
   **Comprobación:** tests de `SideBar` y `router`.
 - [x] **T5** Pantalla de botella (V3), `AppTile` y `AppIcon` (V4), logs en diálogo. Biblioteca (V5).
   **Comprobación:** tests de widget y `pages_test.dart` a los 4 anchos.
-- [ ] **T6 (USUARIO)** Commit del hito 1 con el script que deja el agente, y `flutter run -d macos`. **Se espera:** `steam` con Steam y Muck y sus iconos; `games` con su aplicación; Biblioteca con las de todas. **Prueba U1 a U4.**
+- [x] **T6 (USUARIO)** Commit del hito 1 con el script que deja el agente, y `flutter run -d macos`. **Se espera:** `steam` con Steam y Muck y sus iconos; `games` con su aplicación; Biblioteca con las de todas. **Prueba U1 a U4.**
 
 ## Hito 2: ajustes y opciones
-- [ ] **T7** Ajustes (M8), alta resolución (M9), versión de Windows (M10), lanzar con opciones (M11) e instalar en existente (M12).
+- [x] **T7** Ajustes (M8), alta resolución (M9), versión de Windows (M10), lanzar con opciones (M11) e instalar en existente (M12).
   **Comprobación:** sus tests; y en una botella temporal real, sin ventana, `winecfg -v` responde lo puesto y `reg query` devuelve `RetinaMode` y `LogPixels`.
-- [ ] **T8** Acciones (V8), configuración avanzada (V9) y paneles de control (V10).
+- [x] **T8** Acciones (V8), configuración avanzada (V9) y paneles de control (V10).
   **Comprobación:** tests de `BottleDetailBloc` y de widget; `pages_test.dart`.
-- [ ] **T9** Ejecutar con opciones (V11) e instalar con opciones (V12).
+- [x] **T9** Ejecutar con opciones (V11) e instalar con opciones (V12).
   **Comprobación:** tests de `RunOptionsBloc` e `InstallBloc`; `pages_test.dart`.
 - [ ] **T10 (USUARIO)** Commit del hito 2, y **prueba U5 a U8.**
 

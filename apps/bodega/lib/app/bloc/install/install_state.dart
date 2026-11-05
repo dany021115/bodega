@@ -9,6 +9,9 @@ abstract class InstallState with _$InstallState {
   const factory InstallState({
     @Default(InstallPhase.idle) InstallPhase phase,
     CatalogApp? app,
+
+    /// Where it goes: its own bottle, named as the app, or an existing one.
+    String? bottle,
     @Default(0) int received,
     int? total,
     String? step,
