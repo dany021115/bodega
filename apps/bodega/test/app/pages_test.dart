@@ -19,9 +19,11 @@ import 'package:bodega/app/presentation/catalog/catalog_page.dart';
 import 'package:bodega/app/presentation/library/library_page.dart';
 import 'package:bodega/app/router.dart';
 import 'package:bodega/app/shared/widgets/install_panel.dart';
+import 'package:bodega/app/shared/widgets/side_bar.dart';
 import 'package:bodega/data/service/preference.dart';
 import 'package:bodega/device/helpers/breakpoints.dart';
 import 'package:bodega/device/theme/theme.dart';
+import 'package:bodega/di.dart';
 import 'package:bodega/domain/entities/anti_cheat_game.dart';
 import 'package:bodega/domain/entities/app_error.dart';
 import 'package:bodega/domain/entities/backend_info.dart';
@@ -705,6 +707,22 @@ void main() {
       final router = await pumpRouter(tester);
       expect(router.state.matchedLocation, '/library');
       expect(find.byType(LibraryPage), findsOneWidget);
+    });
+
+    testWidgets('a bottle of the sidebar opens it, and marks it', (
+      tester,
+    ) async {
+      getIt.registerFactory<BottleDetailBloc>(() => bottle);
+      addTearDown(() => getIt.unregister<BottleDetailBloc>());
+      final router = await pumpRouter(tester);
+      await tester.tap(find.text(_longName));
+      await tester.pumpAndSettle();
+      expect(router.state.matchedLocation, '/bottles/$_longName');
+      expect(find.byType(BottleDetailView), findsOneWidget);
+      expect(
+        tester.widget<SideBar>(find.byType(SideBar)).location,
+        '/bottles/$_longName',
+      );
     });
 
     testWidgets('/bottles leads to the library', (tester) async {

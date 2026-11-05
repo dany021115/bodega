@@ -90,21 +90,20 @@ GoRouter createRouter(SetupBloc setup) {
               ),
             ],
           ),
+          // Siblings, not parent and child: a parent's redirect would also
+          // apply to every bottle, and send them all to the library.
           GoRoute(
             path: RouterManager.path(AppRoute.bottles),
             name: AppRoute.bottles.name,
-            // Bottles are in the sidebar: this path only leads onward.
             redirect: (context, state) => RouterManager.path(AppRoute.library),
-            routes: [
-              GoRoute(
-                path: ':name',
-                name: AppRoute.bottleDetail.name,
-                pageBuilder: (context, state) => NoTransitionPage(
-                  key: state.pageKey,
-                  child: BottleDetailPage(name: state.pathParameters['name']!),
-                ),
-              ),
-            ],
+          ),
+          GoRoute(
+            path: '${RouterManager.path(AppRoute.bottles)}/:name',
+            name: AppRoute.bottleDetail.name,
+            pageBuilder: (context, state) => NoTransitionPage(
+              key: state.pageKey,
+              child: BottleDetailPage(name: state.pathParameters['name']!),
+            ),
           ),
           _section(AppRoute.backends, const BackendsPage()),
         ],
