@@ -126,6 +126,9 @@ jobs:
 
   release:
     needs: [check, package]
+    # The implicit success() also looks at engine and hostlibs, which are skipped when they are not built,
+    # so without this the release job would be skipped too.
+    if: ${{ always() && needs.check.result == 'success' && needs.package.result == 'success' }}
     runs-on: ubuntu-24.04
     env:
       GH_TOKEN: ${{ github.token }}
