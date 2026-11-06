@@ -121,7 +121,7 @@ class LinuxPlatform extends HostPlatform {
           command: _installCommand(
             'libvulkan1 mesa-vulkan-drivers',
             'vulkan-loader mesa-vulkan-drivers',
-            'vulkan-icd-loader vulkan-radeon',
+            archVulkanPackages(_gpuVendors()),
           ),
         ),
       if (libs != null && !libs.contains('libpulse.so.0'))
@@ -277,6 +277,35 @@ bool _vulkanIcd() => ['/usr/share/vulkan/icd.d', '/etc/vulkan/icd.d'].any(
       Directory(dir).existsSync() &&
       Directory(dir).listSync().any((entity) => entity.path.endsWith('.json')),
 );
+
+/// The PCI vendor ids (`0x10de`) of the GPUs, from /sys/class/drm.
+List<String> _gpuVendors() {
+  final drm = Directory('/sys/class/drm');
+  if (!drm.existsSync()) return const [];
+  return [
+    for (final entity in drm.listSync(followLinks: false))
+      if (RegExp(r'card\d+$').hasMatch(entity.path) &&
+          File('${entity.path}/device/vendor').existsSync())
+        File('${entity.path}/device/vendor').readAsStringSync().trim(),
+  ];
+}
+
+/// The pacman packages that give Vulkan on this hardware: the loader plus the
+/// driver of each GPU vendor (`nvidia-utils`, `vulkan-radeon`, `vulkan-intel`).
+/// With no known GPU (a VM) it is the software renderer.
+String archVulkanPackages(Iterable<String> vendors) {
+  const drivers = {
+    '0x10de': 'nvidia-utils',
+    '0x1002': 'vulkan-radeon',
+    '0x8086': 'vulkan-intel',
+  };
+  final found = {
+    for (final vendor in vendors)
+      if (drivers[vendor.toLowerCase()] case final driver?) driver,
+  };
+  return ['vulkan-icd-loader', ...found.isEmpty ? ['vulkan-swrast'] : found]
+      .join(' ');
+}
 
 /// The install command for this distro, read from ID and ID_LIKE in
 /// /etc/os-release, or null if it is not Debian-like, Fedora or Arch.

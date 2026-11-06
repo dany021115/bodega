@@ -256,6 +256,18 @@ void main() {
     expect(file.readAsStringSync(), isNot(contains('gamemode')));
   });
 
+  test('Arch suggests the Vulkan driver of each GPU vendor, once', () {
+    expect(archVulkanPackages(['0x10de']), 'vulkan-icd-loader nvidia-utils');
+    expect(archVulkanPackages(['0x1002']), 'vulkan-icd-loader vulkan-radeon');
+    expect(
+      archVulkanPackages(['0x8086', '0x10DE', '0x8086']),
+      'vulkan-icd-loader vulkan-intel nvidia-utils',
+    );
+    // A VM, or a vendor Bodega does not know: the software renderer.
+    expect(archVulkanPackages(['0x1af4']), 'vulkan-icd-loader vulkan-swrast');
+    expect(archVulkanPackages([]), 'vulkan-icd-loader vulkan-swrast');
+  });
+
   group('the Mac, under the same host', () {
     test('keeps msync and its own environment', () {
       hostPlatform = const TestMac();
