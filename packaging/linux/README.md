@@ -8,6 +8,13 @@ cd packaging/linux && ./fetch_assets.sh
 
 Requiere `curl`, `sha256sum` y `python3`.
 
+## Portabilidad del binario (CPU)
+
+`tool/check_isa.sh` revisa con `readelf -n` el ejecutable `bodega`, la CLI y las `.so` del bundle, y falla si alguno declara `x86-64-v3` o `x86-64-v4` como ISA necesaria. Esa marca la ponen las librerías de una distro tuneada para CPUs nuevas (CachyOS): aunque compiles con `-march=x86-64`, el enlazado hereda la marca de los objetos del sistema. El resultado es un `bodega` que en un equipo más viejo muere con `CPU ISA level is lower than required` (pasó en Manjaro).
+
+- Los releases se construyen en `ubuntu-24.04`, que no la lleva. Pasa de ahí a los demás.
+- Un paquete que solo correrá en la máquina que lo construyó: `BODEGA_ALLOW_NATIVE=1 tool/package_linux.sh`.
+
 ## Versiones
 
 | name | versión | archivo | bytes (descarga) | sha256 |

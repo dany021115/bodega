@@ -50,6 +50,9 @@ mkdir -p "$stage"
 dart compile exe packages/engine/bin/bodega.dart -o "$stage/bodega-cli"
 cp -a apps/bodega/build/linux/x64/release/bundle/. "$stage/"
 
+# A runner built on a distro tuned for new CPUs would not start on older ones (tool/check_isa.sh).
+tool/check_isa.sh "$stage/bodega" "$stage/bodega-cli" "$stage"/lib/*.so
+
 wine_dir="$stage/runtime/wine-$wine_ver"
 mkdir -p "$wine_dir/engine"
 tar -xJf "$cache/wine/$wine_file" -C "$wine_dir/engine" --strip-components=1
