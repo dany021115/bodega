@@ -489,7 +489,7 @@ void main() {
     testWidgets('the settings show what the bottle has', (tester) async {
       await pump(tester, 1150, bottleView(), height: 2400);
       expect(find.text('Windows 10'), findsOneWidget);
-      expect(find.text('Alta resolución'), findsOneWidget);
+      expect(find.text('Pantalla de alta densidad'), findsOneWidget);
       expect(find.text('DLSS'), findsOneWidget);
       expect(find.text('Anunciar AVX'), findsOneWidget);
     });

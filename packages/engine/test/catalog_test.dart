@@ -175,14 +175,12 @@ void catalog() {
 
     test('keeps a pinned installer', () async {
       final entry = fake(makeExe);
-      final sum = await Process.run('/usr/bin/shasum', [
-        '-a',
-        '256',
-        '$tmp/src-x',
-      ]);
       await installEntry(
         home,
-        fake(makeExe, sha256: '${sum.stdout}'.split(' ').first),
+        fake(
+          makeExe,
+          sha256: (await sha256Line('$tmp/src-x')).split(' ').first,
+        ),
       );
       expect(
         File('$home/downloads/${entry.id}-setup.exe').existsSync(),

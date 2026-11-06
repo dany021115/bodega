@@ -21,7 +21,7 @@ void main() {
     Directory('${bottle.path}/logs').createSync();
     File('${bottle.path}/settings.json').writeAsStringSync(
       jsonEncode({
-        'backend': 'dxmt',
+        'backend': 'wine',
         'sync': 'none',
         'programs': {
           'steam.exe': {'backend': 'dxvk'},
@@ -40,7 +40,7 @@ void main() {
     final detail = (await repository.detail('steam'))
         .getOrElse((error) => fail(error.message));
 
-    expect(detail.backend, 'dxmt');
+    expect(detail.backend, 'wine');
     expect(detail.sync, 'none');
     expect(detail.exceptions, const [
       ProgramBackend(exe: 'steam.exe', backend: 'dxvk'),
@@ -58,7 +58,7 @@ void main() {
     final detail = (await repository.detail('steam'))
         .getOrElse((error) => fail(error.message));
     expect(detail.exceptions, isEmpty);
-    expect(detail.backend, 'dxmt');
+    expect(detail.backend, 'wine');
   });
 
   test('a log gives its last 2,000 lines, whatever bytes it has', () async {
