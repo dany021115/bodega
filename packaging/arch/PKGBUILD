@@ -1,0 +1,40 @@
+# Maintainer: roilanrodriguez55
+# Not for the AUR: it packs the tarball that tool/package_linux.sh builds.
+# Use packaging/arch/build_arch.sh, which puts the files next to this PKGBUILD
+# and sets BODEGA_VERSION.
+pkgname=bodega
+pkgver=${BODEGA_VERSION:?use packaging/arch/build_arch.sh}
+pkgrel=1
+pkgdesc='Launcher to play Windows games with Wine, DXVK and vkd3d-proton'
+arch=('x86_64')
+url='https://github.com/dany021115/bodega'
+license=('custom')
+depends=('gtk3' 'vulkan-icd-loader' 'libpulse')
+optdepends=(
+  'nvidia-utils: Vulkan driver for Nvidia GPUs'
+  'vulkan-radeon: Vulkan driver for AMD GPUs'
+  'vulkan-intel: Vulkan driver for Intel GPUs'
+  'gamemode: per-bottle GameMode'
+  'mangohud: performance HUD and logs'
+)
+install=bodega.install
+# Wine's PE files and the Flutter bundle must reach the disk as built.
+options=('!strip' '!debug' '!emptydirs' '!lto')
+source=("Bodega-$pkgver-linux-x86_64.tar.gz" 'bodega.desktop' 'bodega.png')
+noextract=("Bodega-$pkgver-linux-x86_64.tar.gz")
+sha256sums=('SKIP' 'SKIP' 'SKIP')
+
+package() {
+  install -d "$pkgdir/opt/bodega" "$pkgdir/usr/bin"
+  tar -xzf "$srcdir/Bodega-$pkgver-linux-x86_64.tar.gz" -C "$pkgdir/opt/bodega" --no-same-owner
+  ln -s /opt/bodega/bodega-cli "$pkgdir/usr/bin/bodega"
+
+  install -Dm644 "$srcdir/bodega.desktop" "$pkgdir/usr/share/applications/bodega.desktop"
+  sed -i 's|^Exec=.*|Exec=/opt/bodega/bodega|' "$pkgdir/usr/share/applications/bodega.desktop"
+  install -Dm644 "$srcdir/bodega.png" "$pkgdir/usr/share/icons/hicolor/512x512/apps/bodega.png"
+
+  # ntsync: load the module at boot and give the session user access to /dev/ntsync.
+  install -d "$pkgdir/usr/lib/modules-load.d" "$pkgdir/usr/lib/udev/rules.d"
+  echo ntsync > "$pkgdir/usr/lib/modules-load.d/bodega-ntsync.conf"
+  echo 'KERNEL=="ntsync", MODE="0660", TAG+="uaccess"' > "$pkgdir/usr/lib/udev/rules.d/70-bodega-ntsync.rules"
+}

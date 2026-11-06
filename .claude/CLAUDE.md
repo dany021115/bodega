@@ -45,7 +45,7 @@ cd packages/engine
 dart analyze && dart test
 dart compile exe bin/bodega.dart -o ../../build/bodega
 
-tool/package_linux.sh   # .deb, .tar.gz and AppImage in dist/ (releases: workflow release-linux, manual only)
+tool/package_linux.sh   # .deb (needs dpkg-deb), .tar.gz, AppImage and Arch .pkg.tar.zst (needs makepkg) in dist/ (releases: workflow release-linux, manual only)
 tool/version.sh get|bump|check   # SemVer in apps/bodega/pubspec.yaml
 ```
 

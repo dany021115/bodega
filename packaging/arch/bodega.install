@@ -1,0 +1,10 @@
+# The install must never fail: a kernel may lack ntsync, or udevadm may be missing.
+post_install() {
+  modprobe ntsync || true
+  udevadm control --reload-rules || true
+  udevadm trigger --sysname-match=ntsync || true
+}
+
+post_upgrade() {
+  post_install
+}
