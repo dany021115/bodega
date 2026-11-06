@@ -15,8 +15,7 @@ Future<(String, String)> fakeLayer(String dir, List<String> files) async {
   }
   final tarball = '$dir/layer.tar.gz';
   await Process.run('/usr/bin/tar', ['-czf', tarball, '-C', '$dir/src', 'v9']);
-  final sum = await Process.run('/usr/bin/shasum', ['-a', '256', tarball]);
-  return (tarball, '${sum.stdout}'.split(' ').first);
+  return (tarball, (await sha256Line(tarball)).split(' ').first);
 }
 
 /// A D3DMetal folder in the `wine/+external/` layout, under [root].

@@ -75,12 +75,8 @@ Future<(String, String)> fakeRuntime(
     ...hostFiles,
   ]);
   for (final name in ['$id.tar.gz', 'hostlibs-$id.tar.gz']) {
-    final sum = await Process.run('/usr/bin/shasum', [
-      '-a',
-      '256',
-      name,
-    ], workingDirectory: dir);
-    File('$dir/$name.sha256').writeAsStringSync('${sum.stdout}');
+    File('$dir/$name.sha256')
+        .writeAsStringSync(await sha256Line(name, dir: dir));
   }
   return ('$dir/$id.tar.gz', '$dir/hostlibs-$id.tar.gz');
 }
