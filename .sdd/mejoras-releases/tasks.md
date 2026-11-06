@@ -32,13 +32,15 @@ P1 y P2 son independientes y se pueden hacer a la vez. P7 a P11 no dependen de l
 
 ## P2. SHA256SUMS y procedencia
 
-- [ ] **T2** En el job `release` de `release-linux.yml` y de `release-macos.yml`: generar `SHA256SUMS` en `dist/`, subirlo, y añadir `actions/attest-build-provenance` con los permisos `id-token` y `attestations`.
-  **Comprobación:** en un release real, `sha256sum -c SHA256SUMS` pasa y `gh attestation verify` valida un archivo.
+- [x] **T2** En el job `release` de `release-linux.yml` y de `release-macos.yml`: `SHA256SUMS-linux` y `SHA256SUMS-macos` en `dist/`, subidos con los paquetes, y `actions/attest@v4` (con `continue-on-error`) y sus permisos.
+  **Comprobación (hecha):** el fragmento de checksums corre bien contra un `dist/` de prueba (`sha256sum -c` da OK en los tres archivos) y los YAML son válidos. **Pendiente del primer release:** que `SHA256SUMS-*` aparezca en el release y que el paso de attest pase en un repo privado; si falla, el release sale igual con los checksums.
+- [x] **T2b** El paquete de Arch pasa de `bodega-X.Y.Z-1-x86_64.pkg.tar.zst` a `Bodega-X.Y.Z-arch-x86_64.pkg.tar.zst`, para que en el release se vea que es el de Arch (`packaging/arch/build_arch.sh` lo renombra; `AGENTS.md` y la spec de `soporte-arch` actualizados).
+  **Comprobación (hecha):** `build_arch.sh` en CachyOS con el `.tar.gz` real da `Bodega-1.1.0-arch-x86_64.pkg.tar.zst`, y `pacman -Qip` sigue mostrando `Name: bodega`, `Version: 1.1.0-1` y las dependencias. Por el camino salió un fallo: `PKGDEST` no puede ser `./pkg`, que es la carpeta de trabajo de makepkg.
 
 ## P3 y P4. Prueba de humo
 
-- [ ] **T3 (P3)** Job `smoke` en `release-linux.yml` para `.deb` (Ubuntu limpio), `.pkg.tar.zst` (`archlinux`) y AppImage, antes de `release`.
-  **Comprobación:** con un paquete roto a propósito, el job falla y no se publica; con uno bueno, pasa.
+- [x] **T3 (P3)** `tool/smoke_linux.sh <deb|arch|appimage> <dist>` y un job `smoke` en `release-linux.yml`, **opcional** (input `smoke`, apagado por defecto por los límites de GitHub Free). `release` corre igual si `smoke` se salta, y no corre si falla.
+  **Comprobación (hecha en CachyOS, con docker):** AppImage en `ubuntu:24.04` → `wine: instalado`, `dxvk: instalado`, OK. `.deb` (construido en un contenedor Ubuntu con `build_deb.sh`) instalado con `apt` → OK, y su `postinst` no falla. Un paquete sin la capa DXVK hace fallar la comprobación (`dxvk: no instalado`). **No verificado:** el caso Arch (`pacman -U` en `archlinux:base`): `pacman -Syu` no pudo bajar paquetes del mirror desde esta red ("Operation too slow"), así que ese tramo solo lo probará el primer `release-linux` con `smoke` encendido. Tampoco se probó el job en GitHub.
 - [ ] **T4 (P4)** Job `smoke` en `release-macos.yml`: montar el DMG y ejecutar `bodega-cli --help` y `bodega create prueba`.
   **Comprobación:** igual que T3.
 

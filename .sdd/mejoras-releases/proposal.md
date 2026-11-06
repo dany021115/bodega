@@ -33,13 +33,28 @@ Diez mejoras, independientes salvo donde se indica. Cada una es una PR propia (o
 
 Fuera: Flatpak, más tiendas (Heroic: Epic, GOG, Amazon), gestor de varias versiones de Wine por botella, DMG con fondo, y todo lo relacionado con anti-cheat (las reglas del proyecto lo prohíben).
 
+## Límites de GitHub Free
+
+La cuenta es GitHub Free y el repositorio es privado. Según la documentación de GitHub (*GitHub Actions billing*):
+
+- **Cómputo incluido:** 12 USD al mes. Un runner Linux de 2 núcleos cuesta 0,006 USD/min (unos 2 000 min); uno de macOS, 0,062 USD/min (unos 190 min). Sin método de pago registrado, al agotarlo los workflows se bloquean.
+- **Artefactos:** 500 MB, compartidos con GitHub Packages. Un release de Linux los pasa entre jobs: `.tar.gz` (247 MB) y AppImage (220 MB), más el `.deb`, y 167 MB del paquete de Arch. Es más que la cuota.
+
+Reglas para todo workflow nuevo o cambiado:
+
+1. Lo que se pueda queda **opcional y apagado por defecto**, con un input booleano de `workflow_dispatch` (como `build_engine` en `release-macos`).
+2. **macOS solo a mano**: cuesta diez veces más que Linux. Nada lo encadena a otro workflow.
+3. Los artefactos llevan `retention-days: 1`.
+4. Las pruebas de PR cancelan la corrida anterior de la misma rama (`concurrency`) y tienen un `timeout-minutes` corto.
+5. Idea sin decidir (M11): subir los paquetes como assets de un release en borrador desde `build`, en vez de pasarlos entre jobs como artefactos. Según tengo entendido, los assets de un release no cuentan en el almacenamiento de Actions.
+
 ## Requisitos (EARS)
 
 | ID | Requisito |
 |---|---|
 | X1 | Cuando `package_linux.sh` construya el ejecutable `bodega`, lo rechazará con un error claro si `readelf -n` declara `x86-64-v3` o `x86-64-v4` como ISA necesaria. |
-| X2 | Cuando se publique un release, subirá `SHA256SUMS` con el sha256 de cada archivo, y una attestation de procedencia (`actions/attest-build-provenance`) por archivo. |
-| X3 | Antes de publicar, el workflow instalará el `.deb` en Ubuntu 24.04, el `.pkg.tar.zst` en `archlinux`, y abrirá el DMG en macOS, y en cada uno ejecutará `bodega` (CLI) y la comprobación del equipo. Si falla, no se publica. |
+| X2 | Cuando se publique un release, subirá `SHA256SUMS-linux` o `SHA256SUMS-macos` con el sha256 de cada archivo, y una attestation de procedencia (`actions/attest`) por archivo, si el repositorio lo permite. |
+| X3 | Cuando se pida (`smoke` en `release-linux`; en macOS, un input igual), antes de publicar el workflow instalará el `.deb` en Ubuntu 24.04, el `.pkg.tar.zst` en `archlinux` y desempacará el AppImage, y en cada uno ejecutará `bodega backend list` (CLI, sin ventana). Si falla, no se publica. Por defecto está apagado. |
 | X4 | Cuando `tag-version` cree un tag, lanzará `release-linux` con ese tag por `workflow_dispatch`. El release de macOS sigue a mano mientras dependa de tags `engine-*` y `hostlibs-*`. |
 | X5 | Cada semana, un workflow comparará `packaging/linux/assets.json` con las últimas releases estables y abrirá una PR con la versión nueva y su sha256, o un issue si no puede calcularlo. Nunca fijará un pre-release. |
 | X6 | El motor aplicará, al crear o lanzar, los arreglos de `packages/engine/lib/fixes_data.dart` del juego detectado por ID, sin sobrescribir lo que el usuario puso por programa. |

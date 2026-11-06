@@ -13,19 +13,20 @@ Cada sección cubre una mejora de `proposal.md`. Las firmas y rutas son las prop
 
 ## M2. Checksums y procedencia (X2)
 
-- En el job `release` de `release-linux.yml` y de `release-macos.yml`: después de descargar los artefactos a `dist/`, `cd dist && sha256sum * > SHA256SUMS`, y subir `SHA256SUMS` junto con los demás.
-- Procedencia: `actions/attest-build-provenance@v2` con `subject-path: dist/*`. Requiere `permissions: id-token: write, attestations: write` en ese job.
-- Verificación del usuario: `sha256sum -c SHA256SUMS` y `gh attestation verify <archivo> -R dany021115/bodega`.
+- En el job `release` de `release-linux.yml` y de `release-macos.yml`: después de descargar los artefactos a `dist/`, se escribe `SHA256SUMS-linux` o `SHA256SUMS-macos` (un archivo por plataforma, porque los dos workflows suben al mismo release y un nombre común se pisaría con `--clobber`). Se genera fuera de `dist/` y se mueve dentro, para que no se liste a sí mismo.
+- Procedencia: `actions/attest@v4` (el que recomienda la documentación de GitHub; `attest-build-provenance` es su envoltorio) con `subject-path: dist/*`, y `permissions: contents: write, id-token: write, attestations: write` en ese job.
+- El paso de attest lleva `continue-on-error: true`: la procedencia se suma a los checksums y no debe tumbar un release. El repositorio es **privado**: la documentación dice que los privados usan la instancia Sigstore de GitHub (sin registro público de transparencia), pero no confirma si el plan actual lo permite. Se sabrá en el primer release; si falla, quedan los checksums y se anota aquí.
+- Verificación del usuario: `sha256sum -c SHA256SUMS-linux --ignore-missing` y, si la procedencia se generó, `gh attestation verify <archivo> -R dany021115/bodega` (con `gh` autenticado, porque el repo es privado).
 - Esto no firma el DMG para Gatekeeper (eso es M10); solo prueba qué workflow produjo el archivo.
 
 ## M3. Prueba de humo de paquetes (X3)
 
-Un job `smoke` que depende de `build`/`arch`/`package` y bloquea a `release`:
+Un job `smoke` que depende de `build`/`arch`/`package` y, cuando está encendido, bloquea a `release`. **Opcional y apagado por defecto** (input `smoke` de `workflow_dispatch`, ver "Límites de GitHub Free" en `proposal.md`): son unos 20 min de Linux por release, y en macOS diez veces más caros. `release` corre igual si `smoke` se salta (`always()` con una comprobación explícita de que no falló). El script es `tool/smoke_linux.sh <deb|arch|appimage> <dist>`, que también se corre en local con docker.
 
 | Paquete | Entorno | Comando |
 |---|---|---|
 | `.deb` | `ubuntu:24.04` limpio | `apt install ./Bodega-*.deb`; `bodega --help`; `BODEGA_HOME=$(mktemp -d) bodega backend list` |
-| `.pkg.tar.zst` | `archlinux:base` | `pacman -U --noconfirm bodega-*.pkg.tar.zst`; los mismos dos comandos |
+| `.pkg.tar.zst` | `archlinux:base` | `pacman -U --noconfirm Bodega-*-arch-x86_64.pkg.tar.zst`; los mismos dos comandos |
 | `.AppImage` | `ubuntu:24.04` | `APPIMAGE_EXTRACT_AND_RUN=1 ./Bodega-*.AppImage --version` si existe; si no, solo que arranque y salga |
 | `.dmg` | `macos-15` | `hdiutil attach`; `Bodega.app/Contents/MacOS/bodega-cli --help`; `bodega create prueba` (sin ventana) |
 
