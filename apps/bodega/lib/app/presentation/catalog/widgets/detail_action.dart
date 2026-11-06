@@ -35,7 +35,10 @@ class _DetailActionState extends State<DetailAction> {
   Future<void> _pickSetup() async {
     final file = await openFile(
       acceptedTypeGroups: const [
-        XTypeGroup(label: 'Instaladores', extensions: ['exe', 'msi']),
+        XTypeGroup(
+          label: 'Instaladores',
+          extensions: ['exe', 'msi', 'EXE', 'MSI'],
+        ),
       ],
     );
     if (file != null) setState(() => _setup = file.path);

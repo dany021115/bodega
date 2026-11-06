@@ -1,5 +1,7 @@
 import 'package:bloc/bloc.dart';
 import 'package:bodega/domain/entities/app_error.dart';
+import 'package:bodega/domain/entities/host_capabilities.dart';
+import 'package:bodega/domain/entities/host_issue.dart';
 import 'package:bodega/domain/repository/runtime_repository.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:injectable/injectable.dart';
@@ -46,7 +48,8 @@ class SetupBloc extends Bloc<SetupEvent, SetupState> {
       (status) => emit(
         state.copyWith(
           isChecking: false,
-          rosetta: status.rosetta,
+          issues: status.issues,
+          capabilities: status.capabilities,
           runtime: status.runtime,
         ),
       ),

@@ -12,13 +12,14 @@ import 'probe_data.dart';
 part 'apps.dart';
 part 'backends.dart';
 part 'catalog.dart';
+part 'platform.dart';
+part 'platform_linux.dart';
+part 'platform_mac.dart';
 
-/// The data root (R1): `BODEGA_HOME`, or else
-/// `~/Library/Application Support/Bodega`, created and canonical.
+/// The data root (R1): `BODEGA_HOME`, or else the host's default, created and
+/// canonical.
 String bodegaHome(Map<String, String> env) {
-  final dir = Directory(
-    env['BODEGA_HOME'] ?? '${env['HOME']!}/Library/Application Support/Bodega',
-  );
+  final dir = Directory(env['BODEGA_HOME'] ?? hostPlatform.defaultHome(env));
   // Also before creating it, so that a bad root is not left on disk.
   if (winPathProblem(dir.absolute.path) case final problem?) {
     throw FormatException(problem);
@@ -28,6 +29,7 @@ String bodegaHome(Map<String, String> env) {
   for (final sub in ['runtimes', 'bottles']) {
     Directory('$home/$sub').createSync();
   }
+  hostPlatform.prepareHome(home);
   return home;
 }
 
@@ -65,38 +67,22 @@ Map<String, String> wineEnv(
   Map<String, String> parent, [
   Map<String, String> extra = const {},
 ]) => {
-  for (final key in const [
-    'HOME',
-    'USER',
-    'LOGNAME',
-    'TMPDIR',
-    '__CF_USER_TEXT_ENCODING',
-  ])
-    if (parent[key] case final value?) key: value,
-  'PATH': '/usr/bin:/bin:/usr/sbin:/sbin',
+  ...hostPlatform.baseEnv(parent),
   'WINEPREFIX': prefix,
-  'WINEMSYNC': '1',
   'WINEDLLOVERRIDES': _overrides,
-  'ROSETTA_ADVERTISE_AVX': '1',
-  'DOTNET_EnableWriteXorExecute': '0',
-  'MVK_CONFIG_LOG_LEVEL': '2',
   // ponytail: BODEGA_WINEDEBUG is the only knob read from the caller.
-  'WINEDEBUG': parent['BODEGA_WINEDEBUG'] ?? 'fixme-all',
+  'WINEDEBUG': parent['BODEGA_WINEDEBUG'] ?? hostPlatform.defaultWineDebug,
   ...extra,
 };
 
-/// What an installed runtime must contain (R5): the six files of
-/// `HBK/EngineStore.swift#L637-L646` plus the two host libraries.
-const requiredFiles = [
-  'engine/bin/wine',
-  'engine/bin/wineserver',
-  'engine/lib/wine/x86_64-windows/kernel32.dll',
-  'engine/lib/wine/x86_64-windows/ntdll.dll',
-  'engine/lib/wine/i386-windows/kernel32.dll',
-  'engine/lib/wine/x86_64-unix/ntdll.so',
-  'engine/lib/wine/x86_64-unix/libfreetype.6.dylib',
-  'engine/lib/wine/x86_64-unix/libgnutls.30.dylib',
-];
+/// What an installed runtime must contain (R5), for this host.
+List<String> get requiredFiles => hostPlatform.requiredFiles;
+
+/// Whether the host can run Windows programs, and what is missing (R10).
+Future<List<HostIssue>> checkHost() => hostPlatform.checkHost();
+
+/// What the host offers, so that a UI hides the rest (R11).
+HostCapabilities hostCapabilities() => hostPlatform.capabilities;
 
 /// Checks both tarballs, unpacks them into one staging dir that becomes
 /// `runtimes/<id>`, and points `runtimes/current` at it (R4–R7).
@@ -115,16 +101,12 @@ Future<String> installRuntime(
   for (final tarball in [engine, hostlibs]) {
     if (!File('$tarball.sha256').existsSync()) {
       throw 'falta $tarball.sha256: gh release download ${_tag(tarball)} '
-          '-R dany021115/bodega-engine';
+          '-R dany021115/bodega';
     }
     final name = tarball.split('/').last, dir = File(tarball).parent.path;
     // -c checks whatever file the .sha256 names, so it must name this one.
-    final out = await _run('/usr/bin/shasum', [
-      '-a',
-      '256',
-      '-c',
-      '$name.sha256',
-    ], dir);
+    final (shasum, shaArgs) = hostPlatform.sha256Tool;
+    final out = await _run(shasum, [...shaArgs, '-c', '$name.sha256'], dir);
     if (out != '$name: OK\n') {
       throw '$name.sha256 no corresponde a $name: ${out.trim()}';
     }
@@ -134,13 +116,9 @@ Future<String> installRuntime(
   tmp.createSync();
   try {
     for (final tarball in [engine, hostlibs]) {
-      await _run('/usr/bin/tar', ['-xzf', tarball, '-C', tmp.path]);
+      await _run(hostPlatform.tool('tar'), ['-xzf', tarball, '-C', tmp.path]);
     }
-    await Process.run('/usr/bin/xattr', [
-      '-dr',
-      'com.apple.quarantine',
-      tmp.path,
-    ]);
+    await hostPlatform.afterExtract(tmp.path);
     for (final file in requiredFiles) {
       if (!File('${tmp.path}/$file').existsSync()) {
         throw 'runtime incompleto: falta $file';
@@ -212,68 +190,8 @@ Future<String> createBottle(String home, String name) async {
     throw 'la botella no quedó lista: falta syswow64/kernel32.dll o '
         'system.reg; log: $log';
   }
-  await _ensureGamepads(home, name);
+  await hostPlatform.prepareBottle(home, name);
   return log;
-}
-
-/// How a bottle takes gamepads (design §10). With SDL2 in the runtime, as in
-/// CrossOver, Wine's defaults: SDL maps each pad to the Xbox layout, so games
-/// get the right controls. Without it Wine ignores an Xbox pad, unless these
-/// values make it take it raw from macOS (IOHID); measured with an Xbox One S
-/// pad, 045e:02fd, it then shows up, but with its controls wrong in Blur.
-/// Version 1 is the raw way and 2 is SDL. It runs once per bottle and per way,
-/// and best-effort: a failure is tried again on the next launch. A running
-/// bottle sees it after it restarts.
-Future<void> _ensureGamepads(String home, String name) async {
-  final dir = _existing(home, name);
-  final sdl = hasSdl(home);
-  final want = sdl ? 2 : 1;
-  if (_settings(dir).gamepads == want || !_ready('$dir/prefix')) return;
-  for (final (value, data) in [
-    ('Enable SDL', sdl ? '1' : '0'),
-    ('DisableInput', sdl ? '0' : '1'),
-  ]) {
-    final log = await _launchIn(
-      home,
-      name,
-      'reg',
-      [
-        'add',
-        r'HKLM\System\CurrentControlSet\Services\WineBus',
-        '/v',
-        value,
-        '/t',
-        'REG_DWORD',
-        '/d',
-        data,
-        '/f',
-      ],
-      backend: 'wine',
-      label: 'mandos',
-    );
-    if (await exitOf(log) != 0) return;
-  }
-  _saveSettings(dir, _with(_settings(dir), gamepads: want));
-
-  // Those runs started Wine's services, the gamepad one among them, before the
-  // values existed, and it keeps what it read for as long as the session
-  // lasts. Measured: Blur opened right after had no pad until the bottle was
-  // reopened. So let that session end; something else keeping it up only
-  // costs this wait, and then it sees them after it restarts.
-  final rt = currentRuntime(home);
-  final wait = await Process.start(
-    '$rt/engine/bin/wineserver',
-    ['-w'],
-    environment: wineEnv('$dir/prefix', Platform.environment),
-    includeParentEnvironment: false,
-  );
-  await wait.exitCode.timeout(
-    const Duration(seconds: 5),
-    onTimeout: () {
-      wait.kill();
-      return -1;
-    },
-  );
 }
 
 /// Starts [program] detached, so it outlives the CLI and the Terminal, and
@@ -289,7 +207,7 @@ Future<String> runInBottle(
   Map<String, String> env = const {},
   bool? avx,
 }) async {
-  await _ensureGamepads(home, name);
+  await hostPlatform.prepareBottle(home, name);
   return _launchIn(
     home,
     name,
@@ -330,10 +248,9 @@ Future<String> _launchIn(
     cwd = File(exe).parent.path;
     scan = exe;
   } else if (program.toLowerCase().startsWith(r'c:\')) {
-    final folder = File('$drive/${program.substring(3).replaceAll(r'\', '/')}')
-        .parent;
+    scan = findCI(drive, program.substring(3).replaceAll(r'\', '/'));
+    final folder = File(scan).parent;
     if (folder.existsSync()) cwd = folder.path;
-    scan = '$drive/${program.substring(3).replaceAll(r'\', '/')}';
   }
   final choice = await resolveBackend(
     home,
@@ -366,13 +283,16 @@ Future<String> _launchIn(
     cwd,
     argv,
     detached: true,
+    wrapper: hostPlatform.launchWrapper(gamemode: settings.gamemode),
     // Backend, then bottle, then program, then this launch (M8).
     extra: {
       ...backendEnv(home, choice.name, hud: hud),
+      if (hud) ...hostPlatform.perfEnv(dir),
       if (settings.dlss) ..._dlssEnv,
+      ...hostPlatform.gpuEnv(settings.gpu),
       ...settings.env,
       ...?settings.programs[_exeKey(program)]?.env,
-      if (settings.sync == 'none') 'WINEMSYNC': '0',
+      ...hostPlatform.syncEnv(settings.sync),
       ...env,
       ...extra,
     },
@@ -443,6 +363,31 @@ String _existing(String home, String name) {
   return dir;
 }
 
+/// Wine keeps the case a program gave each name, so a name from a `.lnk`, the
+/// catalog or the user may differ from the disk. Returns the real path if it
+/// finds one, else `root/relative`. Never follows a link: `dosdevices/z:`
+/// points to `/`.
+String findCI(String root, String relative) {
+  final direct = '$root/$relative';
+  if (FileSystemEntity.typeSync(direct, followLinks: false) !=
+      FileSystemEntityType.notFound) {
+    return direct;
+  }
+  var current = root;
+  for (final segment in relative.split(RegExp(r'[/\\]'))) {
+    if (segment.isEmpty) continue;
+    if (!_isRealDirectory(current)) return direct;
+    final wanted = segment.toLowerCase();
+    final match = Directory(current)
+        .listSync(followLinks: false)
+        .where((entity) => entity.path.split('/').last.toLowerCase() == wanted)
+        .firstOrNull;
+    if (match == null) return direct;
+    current = match.path;
+  }
+  return current;
+}
+
 bool _ready(String prefix) =>
     File('$prefix/drive_c/windows/syswow64/kernel32.dll').existsSync() &&
     File('$prefix/system.reg').existsSync();
@@ -463,9 +408,10 @@ Future<Process> _start(
   bool detached = false,
   Map<String, String> extra = const {},
   Set<String> remove = const {},
+  List<String> wrapper = const [],
 }) => Process.start(
   '/bin/sh',
-  ['-c', _launch, 'bodega', log, '$rt/engine/bin/wine', ...args],
+  ['-c', _launch, 'bodega', log, ...wrapper, '$rt/engine/bin/wine', ...args],
   workingDirectory: cwd,
   // [extra] can change a variable but not take one out: [remove] does (§7).
   environment: wineEnv(prefix, Platform.environment, extra)
@@ -507,6 +453,9 @@ bool hasSdl(String home) =>
 /// x86_64 part in the current runtime. Bottles switch to it on their next
 /// launch. Returns where it went.
 Future<String> installSdl(String home, {String? dmg}) async {
+  if (!hostPlatform.capabilities.sdl) {
+    throw 'SDL no disponible en ${hostPlatform.displayName}';
+  }
   final dest = _sdlPath(home);
   final file = dmg ?? await _download(home, _sdl.url, _sdl.sha256);
   final got = await _sha256(file);

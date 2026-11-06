@@ -80,7 +80,8 @@ Future<String> installEntry(
   if (entry.status == 'blocked') {
     throw '${entry.title} está bloqueada: ${entry.statusNote}';
   }
-  if (!_installed(home, entry.backend)) throw _notInstalled(entry.backend);
+  final backend = hostPlatform.mapBackend(entry.backend);
+  if (!_installed(home, backend)) throw _notInstalled(backend);
   final exists = Directory(dir).existsSync();
   if (exists && !intoExisting) {
     throw 'ya existe $dir; para empezar de cero: '
@@ -116,7 +117,7 @@ Future<String> installEntry(
     }
   }
 
-  final program = (backend: entry.backend, env: entry.env);
+  final program = (backend: backend, env: entry.env);
   if (intoExisting) {
     // The bottle keeps its backend and sync: other things live in it (M12).
     final settings = _settings(dir);
@@ -184,9 +185,10 @@ Future<String> installEntry(
   }
 
   onStep?.call('Esperando a que termine la instalación');
-  final exe = File('$prefix/drive_c/${entry.exe}');
+  // Looked up each time: the installer may write it with another case.
+  File exe() => File(findCI('$prefix/drive_c', entry.exe));
   await _settle(rt, prefix, exe, grace, limit);
-  if (!exe.existsSync()) {
+  if (!exe().existsSync()) {
     throw 'el instalador terminó pero no está ${entry.exe}; log: $log';
   }
   _registerApp(dir, entry.id, entry.title, entry.exe, entry.args);
@@ -201,7 +203,7 @@ Future<String> installEntry(
 Future<void> _settle(
   String rt,
   String prefix,
-  File exe,
+  File Function() exe,
   Duration grace,
   Duration limit,
 ) async {
@@ -213,7 +215,7 @@ Future<void> _settle(
   final clock = Stopwatch()..start();
   while (!ended &&
       clock.elapsed < limit &&
-      !(clock.elapsed >= grace && exe.existsSync())) {
+      !(clock.elapsed >= grace && exe().existsSync())) {
     await Future.any<Object?>([
       server,
       Future<void>.delayed(const Duration(milliseconds: 500)),
@@ -227,11 +229,14 @@ Future<void> _settle(
 /// fails outside any log of ours: a launcher starts the game, and EAC writes
 /// to its own folder. [since] leaves out what older runs wrote.
 List<String> antiCheatHints(String home, String bottle, {DateTime? since}) {
-  final users = Directory('${_existing(home, bottle)}/prefix/drive_c/users');
+  final drive = '${_existing(home, bottle)}/prefix/drive_c';
+  final users = Directory(findCI(drive, 'users'));
   if (!users.existsSync()) return [];
   return [
     for (final user in users.listSync().whereType<Directory>())
-      if (Directory('${user.path}/AppData/Roaming/EasyAntiCheat') case final eac
+      if (Directory(
+            findCI(user.path, 'AppData/Roaming/EasyAntiCheat'),
+          ) case final eac
           when eac.existsSync())
         // Never follow links inside a bottle: z: points to /.
         for (final file
@@ -259,6 +264,7 @@ String? _eacFailure(File log) {
   if (finished == null || !finished.contains('finished with: 206,'))
     return null;
   return '${title ?? 'Este juego'} usa Easy Anti-Cheat y no pudo cargarlo con '
-      'Wine en Mac (error 206). No es un fallo de tu instalación: depende de '
+      'Wine en ${hostPlatform.displayName} (error 206). No es un fallo de tu '
+      'instalación: depende de '
       'los desarrolladores del juego y de Epic.';
 }

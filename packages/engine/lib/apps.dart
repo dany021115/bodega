@@ -106,7 +106,7 @@ void addApp(
   Map<String, String> env = const {},
 }) {
   final dir = _existing(home, bottle);
-  final path = exe.startsWith('/') ? exe : '$dir/prefix/drive_c/$exe';
+  final path = exe.startsWith('/') ? exe : findCI('$dir/prefix/drive_c', exe);
   if (!File(path).existsSync()) throw 'no existe $path';
   final key = appKey(exe);
   if (_readStore(dir).apps.any((app) => _appOf(bottle, app).key == key)) {
@@ -168,16 +168,19 @@ bool _isRealDirectory(String path) =>
 /// `users/<user>/Documents` and others point to the Mac's own folders, and
 /// `dosdevices/z:` to `/`: nothing here may follow a link.
 List<File> _shortcutFiles(String drive) {
-  final users = '$drive/users';
+  final users = findCI(drive, 'users');
   final roots = [
     if (_isRealDirectory(users))
       for (final user in Directory(
         users,
       ).listSync().whereType<Directory>()) ...[
-        '${user.path}/Desktop',
-        '${user.path}/AppData/Roaming/Microsoft/Windows/Start Menu/Programs',
+        findCI(user.path, 'Desktop'),
+        findCI(
+          user.path,
+          'AppData/Roaming/Microsoft/Windows/Start Menu/Programs',
+        ),
       ],
-    '$drive/ProgramData/Microsoft/Windows/Start Menu/Programs',
+    findCI(drive, 'ProgramData/Microsoft/Windows/Start Menu/Programs'),
   ];
   return [
     for (final root in roots)
@@ -196,7 +199,7 @@ Iterable<InstalledApp> _shortcutApps(String bottle, String drive) sync* {
     final exe = lnk.target.substring(3).replaceAll(r'\', '/');
     final name = exe.split('/').last.toLowerCase();
     if (!name.endsWith('.exe') || name.startsWith('unins')) continue;
-    if (!File('$drive/$exe').existsSync()) continue;
+    if (!File(findCI(drive, exe)).existsSync()) continue;
     // ponytail: the working folder is the exe's, not the shortcut's; a game
     // that needs another one won't start until `workingDir` reaches _launchIn.
     yield (
@@ -221,8 +224,9 @@ Iterable<InstalledApp> _shortcutApps(String bottle, String drive) sync* {
 // ponytail: only the library inside the prefix; `libraryfolders.vdf` lists the
 // others, for when a bottle has one.
 Iterable<InstalledApp> _steamGames(String bottle, String drive) sync* {
-  final apps = '$drive/Program Files (x86)/Steam/steamapps';
-  if (!File('$drive/$_steamExe').existsSync() || !_isRealDirectory(apps)) {
+  final apps = findCI(drive, 'Program Files (x86)/Steam/steamapps');
+  if (!File(findCI(drive, _steamExe)).existsSync() ||
+      !_isRealDirectory(apps)) {
     return;
   }
   final manifest = RegExp(r'/appmanifest_\d+\.acf$');
@@ -281,7 +285,7 @@ Future<String> openApp(
     throw '$bottle no tiene una aplicación instalada; usa bodega run $bottle '
         '<programa>';
   }
-  await _ensureGamepads(home, bottle);
+  await hostPlatform.prepareBottle(home, bottle);
   final app = key == null
       ? apps.first
       : apps.where((app) => app.key == key).firstOrNull ??
@@ -355,7 +359,9 @@ String? appIcon(String home, InstalledApp app) {
       return _steamIcon(dir, app.key.substring('steam:'.length));
     }
     final exe = File(
-      app.exe.startsWith('/') ? app.exe : '$dir/prefix/drive_c/${app.exe}',
+      app.exe.startsWith('/')
+          ? app.exe
+          : findCI('$dir/prefix/drive_c', app.exe),
     );
     final hash = app.key.codeUnits.fold<int>(
       0xcbf29ce484222325,
@@ -383,7 +389,10 @@ String? appIcon(String home, InstalledApp app) {
 /// Steam keeps a small icon named by its hash, beside its other pictures.
 String? _steamIcon(String dir, String id) {
   final cache = Directory(
-    '$dir/prefix/drive_c/Program Files (x86)/Steam/appcache/librarycache/$id',
+    findCI(
+      '$dir/prefix/drive_c',
+      'Program Files (x86)/Steam/appcache/librarycache/$id',
+    ),
   );
   if (!cache.existsSync()) return null;
   final hashed = RegExp(r'/[0-9a-f]{40}\.jpg$');

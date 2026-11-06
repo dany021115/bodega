@@ -1,5 +1,6 @@
 import 'package:bodega/app/bloc/library/library_bloc.dart';
 import 'package:bodega/app/bloc/run_options/run_options_bloc.dart';
+import 'package:bodega/app/bloc/setup/setup_bloc.dart';
 import 'package:bodega/app/shared/widgets/custom_loading.dart';
 import 'package:bodega/device/theme/spacing.dart';
 import 'package:bodega/device/theme/typography.dart';
@@ -62,7 +63,10 @@ class _RunOptionsDialogState extends State<RunOptionsDialog> {
   }
 
   Future<void> _pick() async {
-    const programs = XTypeGroup(label: 'Programas', extensions: ['exe']);
+    const programs = XTypeGroup(
+      label: 'Programas',
+      extensions: ['exe', 'EXE'],
+    );
     final file = await openFile(acceptedTypeGroups: const [programs]);
     if (file == null) return;
     _program.text = file.path;
@@ -91,6 +95,7 @@ class _RunOptionsDialogState extends State<RunOptionsDialog> {
         _title.text = state.title;
       },
       builder: (context, state) {
+        final caps = context.read<SetupBloc>().state.capabilities;
         return AlertDialog(
           title: const Text('Ejecutar con opciones'),
           content: SizedBox(
@@ -158,7 +163,7 @@ class _RunOptionsDialogState extends State<RunOptionsDialog> {
                   ),
                   SwitchListTile.adaptive(
                     contentPadding: EdgeInsets.zero,
-                    title: Text('HUD de Metal', style: styles.body),
+                    title: Text('HUD de rendimiento', style: styles.body),
                     subtitle: Text(
                       'Muestra los FPS. Con wined3d puede no salir.',
                       style: styles.caption,
@@ -167,17 +172,18 @@ class _RunOptionsDialogState extends State<RunOptionsDialog> {
                     onChanged: (value) =>
                         _change((s) => s.copyWith(hud: value)),
                   ),
-                  SwitchListTile.adaptive(
-                    contentPadding: EdgeInsets.zero,
-                    title: Text('Anunciar AVX', style: styles.body),
-                    subtitle: Text(
-                      'Apágalo si un juego se cierra al empezar.',
-                      style: styles.caption,
+                  if (caps.avx)
+                    SwitchListTile.adaptive(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text('Anunciar AVX', style: styles.body),
+                      subtitle: Text(
+                        'Apágalo si un juego se cierra al empezar.',
+                        style: styles.caption,
+                      ),
+                      value: state.avx,
+                      onChanged: (value) =>
+                          _change((s) => s.copyWith(avx: value)),
                     ),
-                    value: state.avx,
-                    onChanged: (value) =>
-                        _change((s) => s.copyWith(avx: value)),
-                  ),
                   SwitchListTile.adaptive(
                     contentPadding: EdgeInsets.zero,
                     title: Text('Guardar como lanzador', style: styles.body),

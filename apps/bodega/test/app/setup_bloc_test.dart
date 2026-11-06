@@ -1,6 +1,8 @@
 import 'package:bloc_test/bloc_test.dart';
 import 'package:bodega/app/bloc/setup/setup_bloc.dart';
 import 'package:bodega/domain/entities/app_error.dart';
+import 'package:bodega/domain/entities/host_capabilities.dart';
+import 'package:bodega/domain/entities/host_issue.dart';
 import 'package:bodega/domain/entities/runtime_status.dart';
 import 'package:bodega/domain/repository/runtime_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -12,32 +14,56 @@ class _MockRuntime extends Mock implements RuntimeRepository {}
 void main() {
   late _MockRuntime runtime;
 
-  void statusIs({required bool rosetta, required bool installed}) {
+  void statusIs({List<HostIssue> issues = const [], required bool installed}) {
     when(() => runtime.status()).thenAnswer(
-      (_) async => right(RuntimeStatus(rosetta: rosetta, runtime: installed)),
+      (_) async => right(
+        RuntimeStatus(
+          issues: issues,
+          runtime: installed,
+          capabilities: const HostCapabilities(),
+        ),
+      ),
     );
   }
 
   setUp(() => runtime = _MockRuntime());
 
   blocTest<SetupBloc, SetupState>(
-    'without Rosetta it is not ready',
+    'with a host issue it is not ready',
     build: () {
-      statusIs(rosetta: false, installed: true);
+      statusIs(
+        issues: const [
+          HostIssue(title: 'Falta Rosetta', detail: 'x', command: 'cmd'),
+        ],
+        installed: true,
+      );
       return SetupBloc(runtime);
     },
     act: (bloc) => bloc.add(const SetupEvent.check()),
     verify: (bloc) {
       expect(bloc.state.isChecking, isFalse);
-      expect(bloc.state.rosetta, isFalse);
+      expect(bloc.state.issues.single.title, 'Falta Rosetta');
       expect(bloc.state.isReady, isFalse);
+    },
+  );
+
+  blocTest<SetupBloc, SetupState>(
+    'without issues and with the runtime it is ready',
+    build: () {
+      statusIs(installed: true);
+      return SetupBloc(runtime);
+    },
+    act: (bloc) => bloc.add(const SetupEvent.check()),
+    verify: (bloc) {
+      expect(bloc.state.issues, isEmpty);
+      expect(bloc.state.isReady, isTrue);
     },
   );
 
   blocTest<SetupBloc, SetupState>(
     'without the runtime it is not ready',
     build: () {
-      statusIs(rosetta: true, installed: false);
+      statusIs(installed: false);
       return SetupBloc(runtime);
     },
     act: (bloc) => bloc.add(const SetupEvent.check()),
@@ -50,7 +76,7 @@ void main() {
   blocTest<SetupBloc, SetupState>(
     'installing correctly makes it ready',
     build: () {
-      statusIs(rosetta: true, installed: true);
+      statusIs(installed: true);
       when(() => runtime.install(engine: 'e.tar.xz', hostlibs: 'h.tar.xz'))
           .thenAnswer((_) async => right(unit));
       return SetupBloc(runtime);

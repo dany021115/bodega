@@ -1,2 +1,5 @@
 .dart_tool/
 build/
+packaging/linux/cache/
+dist/
+packaging/macos/cache/

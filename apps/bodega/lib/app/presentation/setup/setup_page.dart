@@ -1,5 +1,5 @@
 import 'package:bodega/app/bloc/setup/setup_bloc.dart';
-import 'package:bodega/app/presentation/setup/widgets/rosetta_card.dart';
+import 'package:bodega/app/presentation/setup/widgets/requirement_card.dart';
 import 'package:bodega/app/presentation/setup/widgets/runtime_card.dart';
 import 'package:bodega/app/shared/widgets/custom_loading.dart';
 import 'package:bodega/device/theme/spacing.dart';
@@ -30,8 +30,8 @@ class SetupPage extends StatelessWidget {
                     if (state.isChecking)
                       const CustomLoading()
                     else ...[
-                      if (!state.rosetta) ...[
-                        const RosettaCard(),
+                      for (final issue in state.issues) ...[
+                        RequirementCard(issue: issue),
                         const SizedBox(height: AppSpacing.lg),
                       ],
                       if (!state.runtime) ...[

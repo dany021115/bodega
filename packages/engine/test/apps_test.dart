@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:engine/engine.dart';
 import 'package:test/test.dart';
 
+import '_mac.dart';
 import 'engine_test.dart' show fakeRuntime;
 
 /// A `.lnk` with the shape of the real `Steam.lnk`: a local path in LinkInfo,
@@ -158,6 +159,7 @@ Uint8List pe(List<(int, List<int>)> icons) {
 }
 
 void main() {
+  useMac();
   late String tmp, home;
 
   setUp(() {

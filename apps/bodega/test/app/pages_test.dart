@@ -30,6 +30,7 @@ import 'package:bodega/domain/entities/backend_info.dart';
 import 'package:bodega/domain/entities/bottle.dart';
 import 'package:bodega/domain/entities/bottle_detail.dart';
 import 'package:bodega/domain/entities/catalog_app.dart';
+import 'package:bodega/domain/entities/host_capabilities.dart';
 import 'package:bodega/domain/entities/library_app.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -173,10 +174,17 @@ void main() {
   late _MockBottle bottle;
   late _MockAddApp addApp;
   late _MockSections sections;
+  late _MockSetup setup;
 
   void showBottle(BottleDetailState state) => whenListen(
     bottle,
     const Stream<BottleDetailState>.empty(),
+    initialState: state,
+  );
+
+  void showSetup(SetupState state) => whenListen(
+    setup,
+    const Stream<SetupState>.empty(),
     initialState: state,
   );
 
@@ -195,6 +203,8 @@ void main() {
     install = _MockInstall();
     library = _MockLibrary();
     sections = _MockSections();
+    setup = _MockSetup();
+    showSetup(const SetupState(isChecking: false, runtime: true));
     whenListen(
       backends,
       const Stream<BackendsState>.empty(),
@@ -260,6 +270,7 @@ void main() {
     BlocProvider<BottleDetailBloc>.value(value: bottle),
     BlocProvider<AddAppBloc>.value(value: addApp),
     BlocProvider<SectionsBloc>.value(value: sections),
+    BlocProvider<SetupBloc>.value(value: setup),
   ];
 
   // [width] is the window's: the sidebar takes its part, as in the app.
@@ -483,6 +494,45 @@ void main() {
       expect(find.text('Anunciar AVX'), findsOneWidget);
     });
 
+    testWidgets('a host without AVX or DLSS does not offer them', (
+      tester,
+    ) async {
+      showSetup(
+        const SetupState(
+          isChecking: false,
+          runtime: true,
+          capabilities: HostCapabilities(avx: false, dlss: false),
+        ),
+      );
+      await pump(tester, 1150, bottleView(), height: 2400);
+      expect(find.text('Anunciar AVX'), findsNothing);
+      expect(find.text('DLSS'), findsNothing);
+    });
+
+    testWidgets('a host with one sync mode does not offer msync', (
+      tester,
+    ) async {
+      await pump(tester, 1150, bottleView(), height: 2400);
+      expect(
+        find.text('Cambiarlo cierra lo que esté abierto.'),
+        findsOneWidget,
+      );
+
+      showSetup(
+        const SetupState(
+          isChecking: false,
+          runtime: true,
+          capabilities: HostCapabilities(syncModes: ['none']),
+        ),
+      );
+      await tester.pumpWidget(const SizedBox());
+      await pump(tester, 1150, bottleView(), height: 2400);
+      expect(
+        find.text('Cambiarlo cierra lo que esté abierto.'),
+        findsNothing,
+      );
+    });
+
     testWidgets('an incomplete bottle offers only to delete it', (
       tester,
     ) async {
@@ -670,16 +720,6 @@ void main() {
       tester.view.devicePixelRatio = 1;
       tester.view.physicalSize = const Size(1150, 800);
       addTearDown(tester.view.reset);
-      final setup = _MockSetup();
-      whenListen(
-        setup,
-        const Stream<SetupState>.empty(),
-        initialState: const SetupState(
-          isChecking: false,
-          rosetta: true,
-          runtime: true,
-        ),
-      );
       final preferences = _MockPreferences();
       when(() => preferences.getDarkTheme()).thenReturn(null);
       final router = createRouter(setup);

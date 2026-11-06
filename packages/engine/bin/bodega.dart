@@ -15,6 +15,8 @@ uso: bodega install <engine.tar.gz> <hostlibs.tar.gz>
      bodega backend set <botella> <backend> [--exe <nombre.exe>]
      bodega backend test <botella> <backend>
      bodega sync <botella> <msync|none>
+     bodega option <botella> gpu auto|discrete
+     bodega option <botella> gamemode on|off
      bodega sdl install [archivo.dmg]
      bodega catalog list [texto]
      bodega catalog show <id>
@@ -85,6 +87,18 @@ Future<void> main(List<String> args) async {
       if (await setSync(home, bottle, mode)) stdout.writeln('botella detenida');
       return 0;
     },
+    ['option', final bottle, 'gpu', final mode]
+        when mode == 'auto' || mode == 'discrete' =>
+      (home) async {
+        setBottleOptions(home, bottle, gpu: mode);
+        return 0;
+      },
+    ['option', final bottle, 'gamemode', final mode]
+        when mode == 'on' || mode == 'off' =>
+      (home) async {
+        setBottleOptions(home, bottle, gamemode: mode == 'on');
+        return 0;
+      },
     ['catalog', 'list'] => (home) async {
       _list(catalogEntries());
       return 0;
@@ -159,9 +173,11 @@ Future<void> main(List<String> args) async {
     return;
   }
   try {
-    if (!await rosettaInstalled()) {
-      throw 'falta Rosetta: '
-          'softwareupdate --install-rosetta --agree-to-license';
+    final issues = await checkHost();
+    if (issues.isNotEmpty) {
+      throw issues
+          .map((i) => '${i.title}: ${i.command ?? i.detail}')
+          .join('\n');
     }
     exitCode = await verb(bodegaHome(Platform.environment));
   } catch (e) {

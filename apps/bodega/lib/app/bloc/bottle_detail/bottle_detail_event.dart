@@ -14,6 +14,9 @@ sealed class BottleDetailEvent with _$BottleDetailEvent {
   const factory BottleDetailEvent.setDlss(bool value) =
       BottleDetailSetDlssEvent;
   const factory BottleDetailEvent.setAvx(bool value) = BottleDetailSetAvxEvent;
+  const factory BottleDetailEvent.setGpu(String gpu) = BottleDetailSetGpuEvent;
+  const factory BottleDetailEvent.setGamemode(bool value) =
+      BottleDetailSetGamemodeEvent;
   const factory BottleDetailEvent.removeException(String exe) =
       BottleDetailRemoveExceptionEvent;
   const factory BottleDetailEvent.hideApp(String key) =

@@ -131,6 +131,31 @@ void main() {
   );
 
   blocTest<BottleDetailBloc, BottleDetailState>(
+    'gpu and gamemode go to the repository and reload',
+    build: () {
+      when(() => repository.setOptions('steam', gpu: 'discrete'))
+          .thenAnswer((_) async => right(unit));
+      when(() => repository.setOptions('steam', gamemode: true))
+          .thenAnswer((_) async => right(unit));
+      return build();
+    },
+    act: (bloc) async {
+      bloc.add(load);
+      await bloc.stream.first;
+      bloc
+        ..add(const BottleDetailEvent.setGpu('discrete'))
+        ..add(const BottleDetailEvent.setGamemode(true));
+    },
+    wait: const Duration(milliseconds: 20),
+    verify: (bloc) {
+      verify(() => repository.setOptions('steam', gpu: 'discrete')).called(1);
+      verify(() => repository.setOptions('steam', gamemode: true)).called(1);
+      verify(() => repository.detail('steam')).called(3);
+      expect(bloc.state.isBusy, isFalse);
+    },
+  );
+
+  blocTest<BottleDetailBloc, BottleDetailState>(
     'a failed setting is shown and the bottle stays',
     build: () {
       when(() => repository.setWindowsVersion('steam', 'win7')).thenAnswer(

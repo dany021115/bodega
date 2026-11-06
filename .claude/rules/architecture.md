@@ -44,3 +44,11 @@ paths:
 ## DI
 - Everything is registered with Injectable annotations, not by hand
 - After adding one, run build_runner
+
+## Host platform
+- `HostPlatform` lives in `packages/engine/lib/platform.dart`. `MacPlatform` and `LinuxPlatform` are `part of 'engine.dart'`
+- The engine uses the global `hostPlatform`. Tests replace it
+- Anything that depends on the system (paths, env, tools, backends, sync, checks) goes in the platform, not in engine constants
+- The app reads `HostCapabilities` and `HostIssue` through `RuntimeStatus`, and never imports the engine outside `data/`
+- On Linux, Wine and the dxvk layer ship in the package, at `/opt/bodega/runtime` and `/opt/bodega/backends`. `LinuxPlatform.prepareHome` registers them in `~/.local/share/bodega` by link, or by copy when running from an AppImage
+- D3D layers are copied into each prefix. A launch enables them per process with `WINEDLLOVERRIDES`

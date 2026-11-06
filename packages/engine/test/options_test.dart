@@ -3,9 +3,11 @@ import 'dart:io';
 import 'package:engine/engine.dart';
 import 'package:test/test.dart';
 
+import '_mac.dart';
 import 'engine_test.dart' show fakeRuntime;
 
 void main() {
+  useMac();
   late String tmp, home;
 
   setUp(() async {

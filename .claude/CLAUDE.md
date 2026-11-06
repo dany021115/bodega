@@ -6,7 +6,7 @@ Personal macOS launcher to play Windows games on Apple Silicon (M1-M4): Wine x86
 
 Pub workspace (root `pubspec.yaml`):
 
-- `packages/engine`: pure Dart. The engine and the `bodega` CLI. Knows nothing about Flutter.
+- `packages/engine`: pure Dart. The engine and the `bodega` CLI. Knows nothing about Flutter. Runs on macOS and on Linux (x86_64, Ubuntu/Debian 24.04+).
 - `apps/bodega`: the macOS app, with TeeShot's clean architecture.
 - `wine/`: the recipe, patches and inputs that build Wine and its host libraries.
 - `.sdd/`: specs, in Spanish. They are the source of truth: if one is wrong, say so and change it, don't code around it. Finished ones are in `.sdd/archive/`.
@@ -44,6 +44,9 @@ flutter run -d macos
 cd packages/engine
 dart analyze && dart test
 dart compile exe bin/bodega.dart -o ../../build/bodega
+
+tool/package_linux.sh   # .deb, .tar.gz and AppImage in dist/ (releases: workflow release-linux, manual only)
+tool/version.sh get|bump|check   # SemVer in apps/bodega/pubspec.yaml
 ```
 
 Generated files (`*.g.dart`, `*.freezed.dart`, `*.config.dart`) are gitignored: run build_runner after cloning.
@@ -66,3 +69,4 @@ See `rules/architecture.md`. The short version: `domain/` is pure Dart, **only `
 - Never follow symlinks inside a bottle: `dosdevices/z:` points to `/`. Stop a bottle before deleting it.
 - Don't delete `../runtimes/`: 335 MB over a slow Starlink link, from Cuba.
 - Check against the real thing, not only mocks: real HTTPS and real bottles found what mocks and local servers didn't.
+- Versioning and release rules are in `AGENTS.md`: run the `bump-version` skill before any commit.

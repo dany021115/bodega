@@ -25,7 +25,7 @@ class BackendCard extends StatelessWidget {
 
   Future<void> _pickFile(BuildContext context) async {
     final bloc = context.read<BackendsBloc>();
-    const tarballs = XTypeGroup(label: 'Tarball', extensions: ['gz']);
+    const tarballs = XTypeGroup(label: 'Tarball', extensions: ['gz', 'GZ']);
     final file = await openFile(acceptedTypeGroups: const [tarballs]);
     if (file != null) {
       bloc.add(BackendsEvent.installFile(backend.name, file.path));

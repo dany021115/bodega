@@ -1,0 +1,144 @@
+# Builds the macOS installer (.dmg) for a version tag and uploads it to that tag's GitHub release.
+# Manual dispatch only. The engine and host libraries come from this repository's releases,
+# or are built first when build_engine / build_hostlibs are on.
+name: release-macos
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Version tag to build, e.g. v1.0.0 (created by tag-version)"
+        type: string
+        required: true
+      engine_tag:
+        description: "engine-* release to package (empty = the most recent engine-* release of this repository)"
+        type: string
+        required: false
+        default: ""
+      hostlibs_tag:
+        description: "hostlibs-* release to package (empty = the most recent hostlibs-* release of this repository)"
+        type: string
+        required: false
+        default: ""
+      build_engine:
+        description: "builds Wine from the branch this workflow runs on (main) and publishes it first; hours of macOS runner time"
+        type: boolean
+        default: false
+      build_hostlibs:
+        description: "builds the host libraries from the branch this workflow runs on (main) and publishes them first; minutes of macOS runner time"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.check.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ inputs.tag }}
+
+      - name: Check the tag
+        id: check
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::'$TAG' is not a version tag (vX.Y.Z)."
+            exit 1
+          fi
+          if ! git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
+            echo "::error::tag $TAG does not exist. tag-version creates it on push to main."
+            exit 1
+          fi
+          if ! git merge-base --is-ancestor "$TAG" origin/main; then
+            echo "::error::tag $TAG is not in the history of main."
+            exit 1
+          fi
+          version=$(tool/version.sh get)
+          if [ "$version" != "${TAG#v}" ]; then
+            echo "::error::tag $TAG does not match apps/bodega/pubspec.yaml (version $version)."
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+  engine:
+    needs: check
+    if: ${{ inputs.build_engine }}
+    uses: ./.github/workflows/build.yml
+    with:
+      publish_release: true
+      ref_note: release
+    permissions:
+      contents: write
+
+  hostlibs:
+    needs: check
+    if: ${{ inputs.build_hostlibs }}
+    uses: ./.github/workflows/build-hostlibs.yml
+    with:
+      publish_release: true
+      ref_note: release
+    permissions:
+      contents: write
+
+  package:
+    needs: [check, engine, hostlibs]
+    # Runs even when engine or hostlibs were skipped, but not when one of them failed or was cancelled.
+    if: ${{ always() && needs.check.result == 'success' && needs.engine.result != 'failure' && needs.hostlibs.result != 'failure' && needs.engine.result != 'cancelled' && needs.hostlibs.result != 'cancelled' }}
+    # macos-15 is the arm64 runner.
+    runs-on: macos-15
+    timeout-minutes: 120
+    env:
+      GH_TOKEN: ${{ github.token }}
+      ENGINE_TAG: ${{ inputs.engine_tag }}
+      HOSTLIBS_TAG: ${{ inputs.hostlibs_tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
+      - name: Install Rosetta
+        run: softwareupdate --install-rosetta --agree-to-license || true
+      # The project needs Dart ^3.13, which ships with Flutter 3.47.
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.47.x
+      - name: package
+        run: |
+          set -euo pipefail
+          # bash 3.2 (the runner's) fails on "${args[@]}" when the array is empty under set -u.
+          args=()
+          if [ -n "$ENGINE_TAG" ]; then args+=(--engine-tag "$ENGINE_TAG"); fi
+          if [ -n "$HOSTLIBS_TAG" ]; then args+=(--hostlibs-tag "$HOSTLIBS_TAG"); fi
+          ./tool/package_macos.sh ${args[@]+"${args[@]}"}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-installer
+          path: dist/*
+          if-no-files-found: error
+
+  release:
+    needs: [check, package]
+    runs-on: ubuntu-24.04
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: ${{ inputs.tag }}
+    steps:
+      # Only so that gh knows the repository.
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: macos-installer
+          path: dist/
+      - name: Create the release if missing and upload the installer
+        run: |
+          set -euo pipefail
+          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --title "Bodega ${TAG#v}" --generate-notes
+          gh release upload "$TAG" dist/* --clobber
