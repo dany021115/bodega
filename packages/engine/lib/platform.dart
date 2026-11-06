@@ -28,6 +28,9 @@ abstract class HostPlatform {
 
   /// `Mac` or `Linux`, for texts.
   String get displayName;
+
+  /// `mac` or `linux`: what a fix step names in its `platforms`.
+  String get id;
   String defaultHome(Map<String, String> env);
   void prepareHome(String home);
   Map<String, String> baseEnv(Map<String, String> parent);

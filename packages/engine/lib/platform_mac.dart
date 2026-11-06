@@ -33,6 +33,9 @@ class MacPlatform extends HostPlatform {
   String get displayName => 'Mac';
 
   @override
+  String get id => 'mac';
+
+  @override
   String defaultHome(Map<String, String> env) =>
       '${env['HOME']!}/Library/Application Support/Bodega';
 

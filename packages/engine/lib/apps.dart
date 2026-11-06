@@ -290,6 +290,8 @@ Future<String> openApp(
       ? apps.first
       : apps.where((app) => app.key == key).firstOrNull ??
             (throw '$bottle no tiene la aplicación $key');
+  final fix = fixForApp(app.key);
+  if (fix != null) await _applyFixRegistry(home, bottle, fix);
   return _launchIn(
     home,
     bottle,
@@ -299,6 +301,7 @@ Future<String> openApp(
     hud: hud,
     env: env,
     avx: avx,
+    fix: fix,
   );
 }
 
