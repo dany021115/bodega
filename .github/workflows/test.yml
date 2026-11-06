@@ -1,0 +1,43 @@
+# Runs the engine and app tests on Linux for every pull request; also by hand.
+name: test
+
+on:
+  pull_request:
+    paths:
+      - "packages/**"
+      - "apps/**"
+      - "pubspec.yaml"
+      - "pubspec.lock"
+      - ".github/workflows/test.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      # The project needs Dart ^3.13, which ships with Flutter 3.47.
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.47.x
+      - name: engine
+        working-directory: packages/engine
+        run: |
+          set -euo pipefail
+          dart pub get
+          dart analyze
+          dart test
+      - name: app
+        working-directory: apps/bodega
+        run: |
+          set -euo pipefail
+          flutter pub get
+          dart run build_runner build --delete-conflicting-outputs
+          flutter analyze
+          flutter test
+          tool/check_layers.sh
