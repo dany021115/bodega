@@ -74,8 +74,17 @@ class BottleRepositoryImpl implements BottleRepository {
     String name, {
     bool? dlss,
     bool? avx,
+    String? gpu,
+    bool? gamemode,
   }) => repositoryCall(() {
-    engine.setBottleOptions(_home.path, name, dlss: dlss, avx: avx);
+    engine.setBottleOptions(
+      _home.path,
+      name,
+      dlss: dlss,
+      avx: avx,
+      gpu: gpu,
+      gamemode: gamemode,
+    );
     return unit;
   });
 
@@ -119,6 +128,8 @@ BottleDetail _detail(String home, String name) {
     highRes: settings.highRes,
     dlss: settings.dlss,
     avx: settings.avx,
+    gpu: settings.gpu,
+    gamemode: settings.gamemode,
     windows: settings.windows,
     driveC: '${engine.bottleDir(home, name)}/prefix/drive_c',
     apps: libraryApps(home, engine.bottleApps(home, name)),

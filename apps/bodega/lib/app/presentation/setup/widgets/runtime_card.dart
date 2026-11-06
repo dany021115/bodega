@@ -13,7 +13,7 @@ class RuntimeCard extends StatelessWidget {
   const RuntimeCard({super.key, required this.state});
 
   Future<String?> _pick() async {
-    const tarballs = XTypeGroup(label: 'Tarball', extensions: ['gz']);
+    const tarballs = XTypeGroup(label: 'Tarball', extensions: ['gz', 'GZ']);
     final file = await openFile(acceptedTypeGroups: const [tarballs]);
     return file?.path;
   }

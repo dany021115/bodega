@@ -29,9 +29,11 @@ abstract class BottleDetail with _$BottleDetail {
     @Default(false) bool highRes,
     @Default(false) bool dlss,
     @Default(true) bool avx,
+    @Default('auto') String gpu,
+    @Default(false) bool gamemode,
     @Default('win10') String windows,
 
-    /// Where `C:` is, to show it in Finder.
+    /// Where `C:` is, to show it in the file manager.
     @Default('') String driveC,
     @Default([]) List<LibraryApp> apps,
     @Default([]) List<ProgramBackend> exceptions,

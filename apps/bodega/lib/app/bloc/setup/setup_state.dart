@@ -7,12 +7,13 @@ abstract class SetupState with _$SetupState {
   const factory SetupState({
     @Default(true) bool isChecking,
     @Default(false) bool isInstalling,
-    @Default(false) bool rosetta,
+    @Default([]) List<HostIssue> issues,
+    @Default(HostCapabilities()) HostCapabilities capabilities,
     @Default(false) bool runtime,
     String? engine,
     String? hostlibs,
     AppError? error,
   }) = _SetupState;
 
-  bool get isReady => rosetta && runtime;
+  bool get isReady => issues.isEmpty && runtime;
 }

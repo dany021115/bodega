@@ -1,4 +1,4 @@
-# No usa archivos del repo: empaqueta librerías de Homebrew; solo se lanza a mano.
+# No usa archivos del repo: empaqueta librerías de Homebrew; se lanza a mano o lo llama release-macos.
 # FreeType, GnuTLS and MoltenVK from the runner's Intel Homebrew, with what they link, in a tarball of their own
 # that extracts over the engine: the libraries land in engine/lib/wine/x86_64-unix, where the modules'
 # LC_RPATH @loader_path/ finds them by leaf name with no DYLD variables. Nothing is checked out and Wine is not built.
@@ -13,6 +13,14 @@ on:
       ref_note:
         description: "why this build (free text, goes in the artifact name)"
         required: false
+        default: "manual"
+  workflow_call:
+    inputs:
+      publish_release:
+        type: boolean
+        default: false
+      ref_note:
+        type: string
         default: "manual"
 permissions:
   contents: write
@@ -108,7 +116,7 @@ jobs:
           if grep -q "$(brew --prefix)/" "$log"; then exit 1; fi
       - name: tarball
         env:
-          NOTE: ${{ github.event.inputs.ref_note }}
+          NOTE: ${{ inputs.ref_note }}
         run: |
           set -o pipefail
           name="hostlibs-x86_64-$(date -u +%Y%m%dT%H%M%SZ)-$(printf %s "$NOTE" | tr -c 'A-Za-z0-9_-' -)"
@@ -128,7 +136,7 @@ jobs:
             hostlibs-*.tar.gz.sha256
           retention-days: 14
       - name: publish
-        if: ${{ github.event.inputs.publish_release == 'true' }}
+        if: ${{ inputs.publish_release }}
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}

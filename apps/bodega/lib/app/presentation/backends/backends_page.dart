@@ -1,4 +1,5 @@
 import 'package:bodega/app/bloc/backends/backends_bloc.dart';
+import 'package:bodega/app/bloc/setup/setup_bloc.dart';
 import 'package:bodega/app/presentation/backends/widgets/backend_card.dart';
 import 'package:bodega/app/shared/widgets/custom_loading.dart';
 import 'package:bodega/device/theme/spacing.dart';
@@ -23,6 +24,7 @@ class _BackendsPageState extends State<BackendsPage> {
   @override
   Widget build(BuildContext context) {
     final styles = AppTextStyle(context);
+    final caps = context.read<SetupBloc>().state.capabilities;
 
     return Scaffold(
       body: BlocBuilder<BackendsBloc, BackendsState>(
@@ -42,10 +44,11 @@ class _BackendsPageState extends State<BackendsPage> {
                   ),
                 ),
               ],
-              for (final backend in state.backends) ...[
-                const SizedBox(height: AppSpacing.md),
-                BackendCard(backend: backend, state: state),
-              ],
+              for (final backend in state.backends)
+                if (backend.name != 'd3dmetal' || caps.d3dmetal) ...[
+                  const SizedBox(height: AppSpacing.md),
+                  BackendCard(backend: backend, state: state),
+                ],
             ],
           );
         },

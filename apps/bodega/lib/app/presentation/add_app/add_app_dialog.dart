@@ -12,7 +12,7 @@ import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-const _programs = XTypeGroup(label: 'Programas', extensions: ['exe']);
+const _programs = XTypeGroup(label: 'Programas', extensions: ['exe', 'EXE']);
 
 Future<void> showAddAppDialog(BuildContext context) => showDialog<void>(
   context: context,

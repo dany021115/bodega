@@ -1,0 +1,99 @@
+# Builds the Linux packages for a version tag and uploads them to that tag's GitHub release.
+# Manual dispatch only. The tag is created by tag-version on push to main.
+name: release-linux
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Version tag to build, e.g. v1.0.0 (created by tag-version)"
+        type: string
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.check.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ inputs.tag }}
+
+      - name: Check the tag
+        id: check
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::'$TAG' is not a version tag (vX.Y.Z)."
+            exit 1
+          fi
+          if ! git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
+            echo "::error::tag $TAG does not exist. tag-version creates it on push to main."
+            exit 1
+          fi
+          if ! git merge-base --is-ancestor "$TAG" origin/main; then
+            echo "::error::tag $TAG is not in the history of main."
+            exit 1
+          fi
+          version=$(tool/version.sh get)
+          if [ "$version" != "${TAG#v}" ]; then
+            echo "::error::tag $TAG does not match apps/bodega/pubspec.yaml (version $version)."
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: check
+    # ubuntu-24.04 on purpose: its glibc (2.39) is the oldest one the packages should need.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
+      - name: system packages
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev \
+            dpkg-dev zstd xz-utils squashfs-tools
+      # The project needs Dart ^3.13, which ships with Flutter 3.47.
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.47.x
+      - name: package
+        run: ./tool/package_linux.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-installers
+          path: dist/*
+          if-no-files-found: error
+
+  release:
+    needs: build
+    runs-on: ubuntu-24.04
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: ${{ inputs.tag }}
+    steps:
+      # Only so that gh knows the repository.
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: linux-installers
+          path: dist/
+      - name: Create the release if missing and upload the packages
+        run: |
+          set -euo pipefail
+          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --title "Bodega ${TAG#v}" --generate-notes
+          gh release upload "$TAG" dist/* --clobber

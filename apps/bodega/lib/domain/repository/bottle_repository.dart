@@ -28,6 +28,8 @@ abstract class BottleRepository {
     String name, {
     bool? dlss,
     bool? avx,
+    String? gpu,
+    bool? gamemode,
   });
 
   Future<Either<AppError, Unit>> delete(String name);

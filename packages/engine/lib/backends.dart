@@ -1,30 +1,7 @@
 part of 'engine.dart';
 
-/// Every backend, in the order a UI should offer them. `wine` is wined3d plus
-/// vkd3d and needs no layer.
-const backendNames = ['wine', 'dxmt', 'dxvk', 'd3dmetal'];
-
-/// Pinned downloads (B1). D3DMetal is never here: the user imports it (B2).
-/// `dxmt` is Highball's fork, because launchers need its cross-process
-/// swapchain and the official v0.80 does not have it (A3).
-const _pinned = {
-  'dxmt': (
-    url:
-        'https://github.com/gauthierpiarrette/highball-engine/releases/download/'
-        'dxmt-highball-20261017T231707Z-331c552/'
-        'dxmt-highball-20261017T231707Z-331c552.tar.gz',
-    sha256: '89e731b81cc1ef741accb2e707159f121ed822a083f14f16da445cd8dbbf4703',
-  ),
-  'dxvk': (
-    url:
-        'https://github.com/Gcenx/DXVK-macOS/releases/download/'
-        'v1.10.3-20230507-repack/'
-        'dxvk-macOS-async-v1.10.3-20230507-repack-builtin.tar.gz',
-    sha256: '810b1e5caf8ce975b784fae866a130ad23fa0ea233b0e5609cbc4a45f3ef6f00',
-  ),
-};
-
-const _crossProcess = {'DXMT_ALLOW_CROSS_PROCESS_SWAPCHAIN': '1'};
+/// Every backend, in the order a UI should offer them.
+List<String> get backendNames => hostPlatform.backendNames;
 
 String _layer(String home, String name) => '$home/backends/$name/wine';
 
@@ -36,34 +13,12 @@ Map<String, bool> listBackends(String home) => {
   for (final name in backendNames) name: _installed(home, name),
 };
 
-/// What [wineEnv] gains for [backend] (S4): one layer in front of Wine's own
-/// DLLs per process, with nothing copied into the prefix (design §1).
+/// What [wineEnv] gains for [backend] (S4).
 Map<String, String> backendEnv(
   String home,
   String backend, {
   bool hud = false,
-}) => {
-  'CX_ACTIVE_GRAPHICS_BACKEND': backend == 'wine' ? 'wined3d' : backend,
-  ...switch (backend) {
-    'dxmt' => {'WINEDLLPATH_PREPEND': _layer(home, 'dxmt'), ..._crossProcess},
-    'dxvk' => {
-      'WINEDLLPATH_PREPEND': _layer(home, 'dxvk'),
-      'WINEDLLOVERRIDES': '$_overrides;d3d10core,d3d11=n,b',
-    },
-    'd3dmetal' => {
-      // D3DMetal is 64-bit only: DXMT behind it serves 32-bit D3D10/11.
-      'WINEDLLPATH_PREPEND': [
-        _layer(home, 'd3dmetal'),
-        if (_installed(home, 'dxmt')) _layer(home, 'dxmt'),
-      ].join(':'),
-      'CX_APPLEGPTK_LIBD3DSHARED_PATH':
-          '$home/backends/d3dmetal/external/libd3dshared.dylib',
-      if (_installed(home, 'dxmt')) ..._crossProcess,
-    },
-    _ => const <String, String>{},
-  },
-  if (hud) 'MTL_HUD_ENABLED': '1',
-};
+}) => hostPlatform.backendEnv(home, backend, hud: hud);
 
 /// Downloads or takes [tarball], checks its pinned SHA-256 and installs the
 /// layer as `backends/<name>/wine` (B1). Returns its folder.
@@ -75,9 +30,12 @@ Future<String> installBackend(
   String? sha256,
 }) async {
   if (name == 'd3dmetal') {
+    if (!hostPlatform.capabilities.d3dmetal) {
+      throw 'd3dmetal no disponible en ${hostPlatform.displayName}';
+    }
     throw 'd3dmetal no se descarga: bodega backend import d3dmetal <carpeta>';
   }
-  final pin = _pinned[name];
+  final pin = hostPlatform.pinnedBackends[name];
   if (pin == null) throw 'backend sin instalador: $name';
   final dest = _backendSlot(home, name);
   final want = sha256 ?? pin.sha256;
@@ -87,15 +45,15 @@ Future<String> installBackend(
     throw 'checksum incorrecto en $file: $got, se esperaba $want';
   }
   return _intoSlot(home, name, dest, (tmp) async {
-    await _run('/usr/bin/tar', ['-xzf', file, '-C', tmp.path]);
+    await _run(hostPlatform.tool('tar'), ['-xzf', file, '-C', tmp.path]);
+    final check = hostPlatform.layerCheck;
     final root = tmp
         .listSync()
         .whereType<Directory>()
-        .where((dir) => Directory('${dir.path}/x86_64-windows').existsSync())
+        .where((dir) => Directory('${dir.path}/${check.dir}').existsSync())
         .firstOrNull;
-    if (root == null ||
-        !File('${root.path}/x86_64-windows/d3d11.dll').existsSync()) {
-      throw 'tarball sin x86_64-windows/d3d11.dll: $file';
+    if (root == null || !File('${root.path}/${check.file}').existsSync()) {
+      throw 'tarball sin ${check.file}: $file';
     }
     root.renameSync('${tmp.path}/wine');
   });
@@ -106,6 +64,9 @@ Future<String> installBackend(
 /// load as separate images and crash on device creation (design §2).
 /// Returns its folder.
 Future<String> importD3DMetal(String home, String folder) async {
+  if (!hostPlatform.capabilities.d3dmetal) {
+    throw 'd3dmetal no disponible en ${hostPlatform.displayName}';
+  }
   final real = Directory(folder).resolveSymbolicLinksSync();
   // ponytail: a guard against an easy mistake, not security; a manual copy of
   // the files gets past it (design §6).
@@ -182,11 +143,7 @@ Future<String> _intoSlot(
   tmp.createSync();
   try {
     await fill(tmp);
-    await Process.run('/usr/bin/xattr', [
-      '-dr',
-      'com.apple.quarantine',
-      tmp.path,
-    ]);
+    await hostPlatform.afterExtract(tmp.path);
     tmp.renameSync(dest);
   } catch (_) {
     tmp.deleteSync(recursive: true);
@@ -212,7 +169,7 @@ Future<String> _download(
     return file.path;
   }
   final part = File('${file.path}.part');
-  await _run('/usr/bin/curl', [
+  await _run(hostPlatform.tool('curl'), [
     '-fLsS',
     '--proto',
     '=https,file',
@@ -237,8 +194,10 @@ Future<String> _download(
   return file.path;
 }
 
-Future<String> _sha256(String file) async =>
-    (await _run('/usr/bin/shasum', ['-a', '256', file])).split(' ').first;
+Future<String> _sha256(String file) async {
+  final (tool, args) = hostPlatform.sha256Tool;
+  return (await _run(tool, [...args, file])).split(' ').first;
+}
 
 /// Lowercase `name.exe` without its path: the key of a per-program setting.
 String _exeKey(String program) {
@@ -252,9 +211,16 @@ void _checkChoice(String backend) {
   }
 }
 
+void _checkGpu(String gpu) {
+  if (gpu != 'auto' && gpu != 'discrete') {
+    throw 'gpu desconocida: $gpu (auto, discrete)';
+  }
+}
+
 void _checkSync(String sync) {
-  if (sync != 'msync' && sync != 'none') {
-    throw 'sync desconocido: $sync (msync, none)';
+  final modes = hostPlatform.capabilities.syncModes;
+  if (!modes.contains(sync)) {
+    throw 'sync desconocido: $sync (${modes.join(', ')})';
   }
 }
 
@@ -272,6 +238,10 @@ typedef BottleSettings = ({
   bool avx,
   String windows,
   Map<String, String> env,
+
+  /// `auto` or `discrete` (R14).
+  String gpu,
+  bool gamemode,
 });
 
 /// What [setWindowsVersion] admits, newest first.
@@ -280,9 +250,9 @@ const windowsVersions = ['win11', 'win10', 'win81', 'win7'];
 /// The two names of DLSS: D3DMetal's and DXMT's (INFORME §5).
 const _dlssEnv = {'D3DM_ENABLE_METALFX': '1', 'DXMT_ENABLE_NVEXT': '1'};
 
-const BottleSettings _defaults = (
+BottleSettings get _defaults => (
   backend: 'auto',
-  sync: 'msync',
+  sync: hostPlatform.defaultSync,
   programs: {},
   gamepads: 0,
   highRes: false,
@@ -290,6 +260,8 @@ const BottleSettings _defaults = (
   avx: true,
   windows: 'win10',
   env: {},
+  gpu: 'auto',
+  gamemode: hostPlatform.defaultGamemode,
 );
 
 /// [settings] with these fields changed: records have no `copyWith`.
@@ -304,6 +276,8 @@ BottleSettings _with(
   bool? avx,
   String? windows,
   Map<String, String>? env,
+  String? gpu,
+  bool? gamemode,
 }) => (
   backend: backend ?? settings.backend,
   sync: sync ?? settings.sync,
@@ -314,6 +288,8 @@ BottleSettings _with(
   avx: avx ?? settings.avx,
   windows: windows ?? settings.windows,
   env: env ?? settings.env,
+  gpu: gpu ?? settings.gpu,
+  gamemode: gamemode ?? settings.gamemode,
 );
 
 /// `bottles/<b>/settings.json` (S1, A1, A2, M8). A missing file or field means
@@ -326,7 +302,7 @@ BottleSettings _settings(String dir) {
     final programs = (json['programs'] ?? <String, dynamic>{}) as Map;
     final BottleSettings settings = (
       backend: (json['backend'] ?? 'auto') as String,
-      sync: (json['sync'] ?? 'msync') as String,
+      sync: (json['sync'] ?? hostPlatform.defaultSync) as String,
       programs: {
         for (final MapEntry(:key, :value) in programs.entries)
           key as String: (
@@ -340,9 +316,12 @@ BottleSettings _settings(String dir) {
       avx: (json['avx'] ?? true) as bool,
       windows: (json['windows'] ?? 'win10') as String,
       env: Map<String, String>.from((json['env'] ?? const {}) as Map),
+      gpu: (json['gpu'] ?? 'auto') as String,
+      gamemode: (json['gamemode'] ?? hostPlatform.defaultGamemode) as bool,
     );
     _checkChoice(settings.backend);
     _checkSync(settings.sync);
+    _checkGpu(settings.gpu);
     _checkWindows(settings.windows);
     for (final program in settings.programs.values) {
       if (program.backend case final backend?) _checkChoice(backend);
@@ -385,6 +364,9 @@ void _saveSettings(String dir, BottleSettings settings) {
     if (!settings.avx) 'avx': false,
     if (settings.windows != _defaults.windows) 'windows': settings.windows,
     if (settings.env.isNotEmpty) 'env': settings.env,
+    if (settings.gpu != _defaults.gpu) 'gpu': settings.gpu,
+    if (settings.gamemode != hostPlatform.defaultGamemode)
+      'gamemode': settings.gamemode,
   });
 }
 
@@ -429,17 +411,30 @@ Future<bool> setSync(String home, String name, String sync) async {
   return true;
 }
 
-/// DLSS, AVX and the bottle's own variables (M8): they apply from the next
-/// launch, so nothing is stopped.
+/// DLSS, AVX, GPU, GameMode and the bottle's own variables (M8): they apply
+/// from the next launch, so nothing is stopped.
 void setBottleOptions(
   String home,
   String name, {
   bool? dlss,
   bool? avx,
+  String? gpu,
+  bool? gamemode,
   Map<String, String>? env,
 }) {
   final dir = _existing(home, name);
-  _saveSettings(dir, _with(_settings(dir), dlss: dlss, avx: avx, env: env));
+  if (gpu != null) _checkGpu(gpu);
+  _saveSettings(
+    dir,
+    _with(
+      _settings(dir),
+      dlss: dlss,
+      avx: avx,
+      gpu: gpu,
+      gamemode: gamemode,
+      env: env,
+    ),
+  );
 }
 
 /// `RetinaMode` and the doubled `LogPixels` (M9, INFORME §6.1). Wine reads them
@@ -449,20 +444,7 @@ Future<bool> setHighRes(String home, String name, bool value) async {
   final dir = _existing(home, name);
   if (_settings(dir).highRes == value) return false;
   await stopBottle(home, name);
-  for (final args in [
-    [
-      r'HKCU\Software\Wine\Mac Driver',
-      'RetinaMode',
-      'REG_SZ',
-      value ? 'y' : 'n',
-    ],
-    [
-      r'HKCU\Control Panel\Desktop',
-      'LogPixels',
-      'REG_DWORD',
-      value ? '192' : '96',
-    ],
-  ]) {
+  for (final args in hostPlatform.highResRegistry(value)) {
     final log = await _launchIn(
       home,
       name,
@@ -519,7 +501,10 @@ Future<({String name, String origin})> resolveBackend(
       ? (bottle, 'botella')
       : (null, 'auto');
   if (name == null) {
-    return (name: await _autoBackend(home, exePath), origin: origin);
+    return (
+      name: await hostPlatform.autoBackend(home, exePath),
+      origin: origin,
+    );
   }
   if (!_installed(home, name)) throw _notInstalled(name);
   return (name: name, origin: origin);
@@ -528,42 +513,6 @@ Future<({String name, String origin})> resolveBackend(
 String _notInstalled(String name) =>
     '$name no está instalado: bodega backend '
     '${name == 'd3dmetal' ? 'import d3dmetal <carpeta>' : 'install $name'}';
-
-/// S3: looks for the DLL names anywhere in the exe, because imports alone miss
-/// LoadLibrary (design §4). NULs are dropped to catch UTF-16 strings too.
-Future<String> _autoBackend(String home, String? exePath) async {
-  if (exePath == null || !File(exePath).existsSync()) return 'wine';
-  final bits = _peBits(exePath);
-  if (bits == null) return 'wine';
-  final found = <String>{};
-  var tail = '';
-  await for (final chunk in File(
-    exePath,
-  ).openRead().transform(latin1.decoder)) {
-    final text = tail + chunk.replaceAll('\x00', '').toLowerCase();
-    found.addAll(
-      [
-        'd3d12.dll',
-        'd3d11.dll',
-        'd3d10',
-        'dxgi.dll',
-        'd3d9.dll',
-      ].where(text.contains),
-    );
-    if (found.contains('d3d12.dll')) break;
-    tail = text.substring(text.length < 16 ? 0 : text.length - 16);
-  }
-  if (found.contains('d3d12.dll')) {
-    return bits == 64 && _installed(home, 'd3dmetal') ? 'd3dmetal' : 'wine';
-  }
-  // A D3D9 game can mention d3d10 or dxgi just to probe them, as Blur does (A4).
-  if (!found.contains('d3d11.dll') &&
-      (found.isEmpty || found.contains('d3d9.dll'))) {
-    return 'wine';
-  }
-  return ['dxmt', 'dxvk'].where((b) => _installed(home, b)).firstOrNull ??
-      'wine';
-}
 
 /// 64 or 32 from the PE header, or null if [path] is not a PE on x86.
 int? _peBits(String path) {
@@ -664,15 +613,7 @@ Future<List<({int bits, String d3d, bool ok, String log})>> backendTest(
     32: File('${probes.path}/probe-32.exe')
       ..writeAsBytesSync(base64.decode(probe32Base64)),
   };
-  final cases = switch (backend) {
-    'wine' => [(64, '11'), (64, '12')],
-    'd3dmetal' => [
-      (64, '11'),
-      (64, '12'),
-      if (_installed(home, 'dxmt')) (32, '11'),
-    ],
-    _ => [(64, '11'), (32, '11')],
-  };
+  final cases = hostPlatform.probeCases(home, backend);
   // A crash must end the run, not wait on a debugger nobody can see.
   final overrides = backendEnv(home, backend)['WINEDLLOVERRIDES'] ?? _overrides;
   await stopBottle(home, name);
@@ -704,4 +645,5 @@ BottleSettings bottleSettings(String home, String name) =>
     _settings(_existing(home, name));
 
 /// Where a backend's pinned tarball comes from, or null if it has none (E9).
-({String url, String sha256})? pinnedBackend(String name) => _pinned[name];
+({String url, String sha256})? pinnedBackend(String name) =>
+    hostPlatform.pinnedBackends[name];

@@ -5,9 +5,11 @@ import 'package:engine/catalog_data.dart';
 import 'package:engine/engine.dart';
 import 'package:test/test.dart';
 
+import '_mac.dart';
 import 'engine_test.dart' show fakeRuntime;
 
 void main() {
+  useMac();
   group('engine for the app', engineForApp);
   catalog();
 }

@@ -1,9 +1,12 @@
 import 'package:bodega/data/service/engine_home.dart';
 import 'package:bodega/data/service/repository_call.dart';
 import 'package:bodega/domain/entities/app_error.dart';
+import 'package:bodega/domain/entities/host_capabilities.dart';
+import 'package:bodega/domain/entities/host_issue.dart';
 import 'package:bodega/domain/entities/runtime_status.dart';
 import 'package:bodega/domain/repository/runtime_repository.dart';
-import 'package:engine/engine.dart';
+import 'package:engine/engine.dart'
+    show checkHost, hasRuntime, hostCapabilities, installRuntime;
 import 'package:fpdart/fpdart.dart';
 import 'package:injectable/injectable.dart';
 
@@ -14,12 +17,31 @@ class RuntimeRepositoryImpl implements RuntimeRepository {
   RuntimeRepositoryImpl(this._home);
 
   @override
-  Future<Either<AppError, RuntimeStatus>> status() => repositoryCall(
-    () async => RuntimeStatus(
-      rosetta: await rosettaInstalled(),
+  Future<Either<AppError, RuntimeStatus>> status() => repositoryCall(() async {
+    final issues = await checkHost();
+    final caps = hostCapabilities();
+    return RuntimeStatus(
+      issues: [
+        for (final issue in issues)
+          HostIssue(
+            title: issue.title,
+            detail: issue.detail,
+            command: issue.command,
+          ),
+      ],
       runtime: hasRuntime(_home.path),
-    ),
-  );
+      capabilities: HostCapabilities(
+        highRes: caps.highRes,
+        avx: caps.avx,
+        dlss: caps.dlss,
+        d3dmetal: caps.d3dmetal,
+        sdl: caps.sdl,
+        gpu: caps.gpu,
+        gameMode: caps.gameMode,
+        syncModes: caps.syncModes,
+      ),
+    );
+  });
 
   @override
   Future<Either<AppError, Unit>> install({

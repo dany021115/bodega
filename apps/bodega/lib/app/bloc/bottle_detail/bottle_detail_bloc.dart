@@ -46,6 +46,18 @@ class BottleDetailBloc extends Bloc<BottleDetailEvent, BottleDetailState> {
         (name) => _repository.setOptions(name, avx: event.value),
       ),
     );
+    on<BottleDetailSetGpuEvent>(
+      (event, emit) => _change(
+        emit,
+        (name) => _repository.setOptions(name, gpu: event.gpu),
+      ),
+    );
+    on<BottleDetailSetGamemodeEvent>(
+      (event, emit) => _change(
+        emit,
+        (name) => _repository.setOptions(name, gamemode: event.value),
+      ),
+    );
     on<BottleDetailRemoveExceptionEvent>(
       (event, emit) => _change(
         emit,

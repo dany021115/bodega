@@ -5,6 +5,8 @@ import 'package:engine/engine.dart';
 import 'package:engine/probe_data.dart';
 import 'package:test/test.dart';
 
+import '_mac.dart';
+
 const fakeWine = r'''#!/bin/sh
 case $1 in
 --version) echo wine-11.0 ;;
@@ -84,6 +86,7 @@ Future<(String, String)> fakeRuntime(
 }
 
 void main() {
+  useMac();
   late String tmp;
   setUp(() {
     final dir = Directory.systemTemp.createTempSync('bodega');
@@ -202,7 +205,7 @@ void main() {
     await expectLater(
       installRuntime(home, b, bLibs),
       throwsA(
-        contains('gh release download engine-b -R dany021115/bodega-engine'),
+        contains('gh release download engine-b -R dany021115/bodega'),
       ),
     );
     expect(runtimes(), ['current', 'engine-a']);

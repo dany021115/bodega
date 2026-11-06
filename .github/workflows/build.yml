@@ -1,4 +1,4 @@
-# La receta y los parches están en wine/; este workflow solo se lanza a mano.
+# La receta y los parches están en wine/; este workflow se lanza a mano o lo llama release-macos.
 # Builds the engine from the pinned CrossOver sources. Manual dispatch only until the first
 # build is green and boots a bottle through Highball; nothing in the app points here yet.
 name: build-engine
@@ -12,6 +12,14 @@ on:
       ref_note:
         description: "why this build (free text, goes in the artifact name)"
         required: false
+        default: "manual"
+  workflow_call:
+    inputs:
+      publish_release:
+        type: boolean
+        default: false
+      ref_note:
+        type: string
         default: "manual"
 permissions:
   contents: write   # the optional release step creates a release and uploads the tarball
@@ -119,7 +127,7 @@ jobs:
           strip -x -S out/engine/bin/wine out/engine/bin/wineserver 2>/dev/null || true
           echo "engine size: ${before} MB -> $(du -sm out/engine | cut -f1) MB"
           out/engine/bin/wine --version
-          name="engine-$(out/engine/bin/wine --version | tr ' ()' '-' | tr -s '-' | sed 's/-$//')-$(date -u +%Y%m%dT%H%M%SZ)-${{ github.event.inputs.ref_note }}"
+          name="engine-$(out/engine/bin/wine --version | tr ' ()' '-' | tr -s '-' | sed 's/-$//')-$(date -u +%Y%m%dT%H%M%SZ)-${{ inputs.ref_note }}"
           tar -C out -czf "${name}.tar.gz" .
           shasum -a 256 "${name}.tar.gz" | tee "${name}.tar.gz.sha256"
           ls -la "${name}.tar.gz"
@@ -131,7 +139,7 @@ jobs:
             wine/engine-*.tar.gz.sha256
           retention-days: 14
       - name: publish release
-        if: ${{ github.event.inputs.publish_release == 'true' }}
+        if: ${{ inputs.publish_release }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: |

@@ -34,8 +34,8 @@ enum AppRoute {
   backends,
 }
 
-/// Without Rosetta or the runtime there is only `/setup`; with them, `/setup`
-/// leads to the library. While the first check runs, the splash waits.
+/// Without the host requirements or the runtime there is only `/setup`; with
+/// them, `/setup` leads to the library. While the first check runs, the splash waits.
 String? setupRedirect(SetupState setup, String location) {
   final splash = RouterManager.path(AppRoute.splash);
   final setupPage = RouterManager.path(AppRoute.setup);

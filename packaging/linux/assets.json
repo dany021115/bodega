@@ -1,0 +1,32 @@
+{
+  "assets": [
+    {
+      "name": "wine",
+      "version": "11.21",
+      "url": "https://github.com/Kron4ek/Wine-Builds/releases/download/11.21/wine-11.21-staging-amd64-wow64.tar.xz",
+      "sha256": "a70a9691c42e35f32bab8a8a2deb8f0321aa3081b393c73575727ca76fa503ab",
+      "size": 99958200
+    },
+    {
+      "name": "dxvk",
+      "version": "3.1.1",
+      "url": "https://github.com/doitsujin/dxvk/releases/download/v3.1.1/dxvk-3.1.1.tar.gz",
+      "sha256": "40565b4a724aadc4433fa4e010b4b23916d9b1f1baeee64e17186db94f54e608",
+      "size": 18041512
+    },
+    {
+      "name": "vkd3d-proton",
+      "version": "3.1",
+      "url": "https://github.com/HansKristian-Work/vkd3d-proton/releases/download/v3.1/vkd3d-proton-3.1.tar.zst",
+      "sha256": "b85ea8219b71093a3924913dd7aae6172333dc0c069983ed510816d67f02120b",
+      "size": 5665978
+    },
+    {
+      "name": "appimagetool",
+      "version": "1.9.1",
+      "url": "https://github.com/AppImage/appimagetool/releases/download/1.9.1/appimagetool-x86_64.AppImage",
+      "sha256": "ed4ce84f0d9caff66f50bcca6ff6f35aae54ce8135408b3fa33abfc3cb384eb0",
+      "size": 15092216
+    }
+  ]
+}

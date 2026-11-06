@@ -1,6 +1,7 @@
 import 'package:bodega/app/bloc/bottle_detail/bottle_detail_bloc.dart';
 import 'package:bodega/app/bloc/catalog/catalog_bloc.dart';
 import 'package:bodega/app/bloc/library/library_bloc.dart';
+import 'package:bodega/app/bloc/setup/setup_bloc.dart';
 import 'package:bodega/app/presentation/bottles/widgets/log_dialog.dart';
 import 'package:bodega/app/presentation/bottles/widgets/run_options_dialog.dart';
 import 'package:bodega/app/router.dart';
@@ -114,6 +115,7 @@ class BottleColumn extends StatelessWidget {
     final styles = AppTextStyle(context);
     final bloc = context.read<BottleDetailBloc>();
     final library = context.read<LibraryBloc>();
+    final caps = context.read<SetupBloc>().state.capabilities;
     final name = detail.name;
     // The current one too: it may have been uninstalled by hand.
     final backends = {'auto', ...detail.installedBackends, detail.backend};
@@ -205,48 +207,82 @@ class BottleColumn extends StatelessWidget {
                       }
                     },
             ),
-            _switch(
-              context,
-              'msync',
-              'Cambiarlo cierra lo que esté abierto.',
-              detail.sync == 'msync',
-              (value) async {
-                if (await _closes(
-                  context,
-                  value ? 'Activar msync' : 'Desactivar msync',
-                )) {
-                  bloc.add(BottleDetailEvent.setSync(value ? 'msync' : 'none'));
-                }
-              },
-            ),
-            _switch(
-              context,
-              'Alta resolución',
-              'Más nítido en pantallas Retina. Cierra lo que esté abierto.',
-              detail.highRes,
-              (value) async {
-                final title = value
-                    ? 'Activar alta resolución'
-                    : 'Desactivar alta resolución';
-                if (await _closes(context, title)) {
-                  bloc.add(BottleDetailEvent.setHighRes(value));
-                }
-              },
-            ),
-            _switch(
-              context,
-              'DLSS',
-              'Con D3DMetal o DXMT y un juego compatible. Sin probar.',
-              detail.dlss,
-              (value) => bloc.add(BottleDetailEvent.setDlss(value)),
-            ),
-            _switch(
-              context,
-              'Anunciar AVX',
-              'Apágalo si un juego se cierra al empezar.',
-              detail.avx,
-              (value) => bloc.add(BottleDetailEvent.setAvx(value)),
-            ),
+            if (caps.syncModes.length > 1)
+              _switch(
+                context,
+                'msync',
+                'Cambiarlo cierra lo que esté abierto.',
+                detail.sync == 'msync',
+                (value) async {
+                  if (await _closes(
+                    context,
+                    value ? 'Activar msync' : 'Desactivar msync',
+                  )) {
+                    bloc.add(
+                      BottleDetailEvent.setSync(value ? 'msync' : 'none'),
+                    );
+                  }
+                },
+              ),
+            if (caps.highRes)
+              _switch(
+                context,
+                'Pantalla de alta densidad',
+                'Más nítido en pantallas de alta densidad. Cierra lo que esté abierto.',
+                detail.highRes,
+                (value) async {
+                  final title = value
+                      ? 'Activar pantalla de alta densidad'
+                      : 'Desactivar pantalla de alta densidad';
+                  if (await _closes(context, title)) {
+                    bloc.add(BottleDetailEvent.setHighRes(value));
+                  }
+                },
+              ),
+            if (caps.dlss)
+              _switch(
+                context,
+                'DLSS',
+                'Con D3DMetal o DXMT y un juego compatible. Sin probar.',
+                detail.dlss,
+                (value) => bloc.add(BottleDetailEvent.setDlss(value)),
+              ),
+            if (caps.avx)
+              _switch(
+                context,
+                'Anunciar AVX',
+                'Apágalo si un juego se cierra al empezar.',
+                detail.avx,
+                (value) => bloc.add(BottleDetailEvent.setAvx(value)),
+              ),
+            if (caps.gpu) ...[
+              const SizedBox(height: AppSpacing.md),
+              DropdownButtonFormField<String>(
+                key: ValueKey('gpu ${detail.gpu}'),
+                initialValue: detail.gpu,
+                isExpanded: true,
+                decoration: const InputDecoration(labelText: 'GPU'),
+                items: const [
+                  DropdownMenuItem(value: 'auto', child: Text('Automática')),
+                  DropdownMenuItem(value: 'discrete', child: Text('Discreta')),
+                ],
+                onChanged: isBusy
+                    ? null
+                    : (gpu) {
+                        if (gpu != null) {
+                          bloc.add(BottleDetailEvent.setGpu(gpu));
+                        }
+                      },
+              ),
+            ],
+            if (caps.gameMode)
+              _switch(
+                context,
+                'GameMode',
+                'Usa gamemoderun si está instalado.',
+                detail.gamemode,
+                (value) => bloc.add(BottleDetailEvent.setGamemode(value)),
+              ),
           ],
         ),
         CollapsibleSection(

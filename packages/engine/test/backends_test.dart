@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:engine/engine.dart';
 import 'package:test/test.dart';
 
+import '_mac.dart';
 import 'engine_test.dart' show fakeRuntime;
 
 /// A pinned-style tarball: one top folder holding the layer.
@@ -50,6 +51,7 @@ void install(String home, String name) =>
     Directory('$home/backends/$name/wine').createSync(recursive: true);
 
 void main() {
+  useMac();
   late String tmp, home;
   setUp(() {
     tmp = Directory.systemTemp

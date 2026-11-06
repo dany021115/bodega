@@ -1,14 +1,20 @@
 import 'package:bodega/app/bloc/setup/setup_bloc.dart';
 import 'package:bodega/app/router.dart';
+import 'package:bodega/domain/entities/host_issue.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  const ready = SetupState(isChecking: false, rosetta: true, runtime: true);
+  const ready = SetupState(isChecking: false, runtime: true);
+  const issue = HostIssue(
+    title: 'Falta Rosetta',
+    detail: 'x',
+    command: 'cmd',
+  );
 
-  test('without the runtime or Rosetta, always to /setup', () {
+  test('without the runtime or with an issue, always to /setup', () {
     for (final state in [
       ready.copyWith(runtime: false),
-      ready.copyWith(rosetta: false),
+      ready.copyWith(issues: const [issue]),
     ]) {
       expect(setupRedirect(state, '/library'), '/setup');
       expect(setupRedirect(state, '/'), '/setup');
