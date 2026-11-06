@@ -12,6 +12,8 @@ name: build-renderers-arm64
 
 on:
   push:
+    # Branch filter: a tag push (the engine-* and hostlibs-* releases) ignores `paths` and would start this build.
+    branches: [main]
     paths:
       - "wine/renderers-arm64/**"
   workflow_dispatch:

@@ -8,6 +8,8 @@ name: build-moltenvk-arm64
 
 on:
   push:
+    # Branch filter: a tag push (the engine-* and hostlibs-* releases) ignores `paths` and would start this build.
+    branches: [main]
     paths:
       - "wine/moltenvk-arm64/**"
   workflow_dispatch:
@@ -54,7 +56,8 @@ jobs:
         run: |
           set -euo pipefail
           cd src/MoltenVK
-          ./fetchDependencies --macos --spirv-cross-root "$GITHUB_WORKSPACE/src/SPIRV-Cross"
+          # The clone above is in wine/src (working-directory), not at the workspace root.
+          ./fetchDependencies --macos --spirv-cross-root "$GITHUB_WORKSPACE/wine/src/SPIRV-Cross"
       - name: build
         run: |
           set -euo pipefail
