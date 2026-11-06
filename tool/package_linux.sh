@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Builds the Linux packages (.deb, .tar.gz, AppImage) into dist/.
+# Builds the Linux packages (.deb, .tar.gz, AppImage, and a pacman package) into dist/.
+# The .deb needs dpkg-deb and the pacman package needs makepkg; each is skipped, with a notice, where its tool is missing.
 # Run from the repo root. The release build is made on ubuntu-24.04 (see release-linux.yml).
 set -euo pipefail
 
@@ -69,9 +70,19 @@ cp -a packaging/linux/LICENSES "$stage/LICENSES"
 out="$root/dist"
 mkdir -p "$out"
 
-bash packaging/linux/build_deb.sh "$stage" "$ver" "$out/Bodega-$ver-linux-amd64.deb"
-
 tar -czf "$out/Bodega-$ver-linux-x86_64.tar.gz" -C "$stage" .
+
+if command -v dpkg-deb >/dev/null; then
+  bash packaging/linux/build_deb.sh "$stage" "$ver" "$out/Bodega-$ver-linux-amd64.deb"
+else
+  echo "aviso: no hay dpkg-deb; no se genera el .deb."
+fi
+
+if command -v makepkg >/dev/null && [ "$(id -u)" != 0 ]; then
+  bash packaging/arch/build_arch.sh "$out/Bodega-$ver-linux-x86_64.tar.gz" "$out"
+else
+  echo "aviso: no hay makepkg (o corre como root); no se genera el paquete de pacman."
+fi
 
 APPIMAGETOOL="$cache/appimagetool/$appimagetool_file" \
   bash packaging/linux/build_appimage.sh "$stage" "$ver" "$out/Bodega-$ver-linux-x86_64.AppImage"

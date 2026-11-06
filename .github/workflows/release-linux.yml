@@ -79,8 +79,37 @@ jobs:
           path: dist/*
           if-no-files-found: error
 
-  release:
+  # The pacman package wraps the .tar.gz that build made, so Arch's newer glibc does not matter.
+  arch:
     needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    container: archlinux:base-devel
+    steps:
+      - name: git
+        run: pacman -Syu --noconfirm --needed git
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: linux-installers
+          path: dist/
+      - name: package
+        run: |
+          set -euo pipefail
+          # makepkg refuses to run as root.
+          useradd -m builder
+          chown -R builder "$GITHUB_WORKSPACE"
+          su builder -c 'cd "$GITHUB_WORKSPACE" && packaging/arch/build_arch.sh dist/Bodega-*-linux-x86_64.tar.gz arch-dist'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: arch-installers
+          path: arch-dist/*.pkg.tar.zst
+          if-no-files-found: error
+
+  release:
+    needs: [build, arch]
     runs-on: ubuntu-24.04
     env:
       GH_TOKEN: ${{ github.token }}
@@ -90,7 +119,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
-          name: linux-installers
+          pattern: "*-installers"
+          merge-multiple: true
           path: dist/
       - name: Create the release if missing and upload the packages
         run: |

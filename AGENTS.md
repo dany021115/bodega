@@ -24,3 +24,4 @@ Bodega is a personal launcher for Windows games on Apple Silicon and Linux. For 
 - `Bodega-X.Y.Z-linux-amd64.deb`
 - `Bodega-X.Y.Z-linux-x86_64.tar.gz`
 - `Bodega-X.Y.Z-linux-x86_64.AppImage` (the Linux ones are built by `tool/package_linux.sh`)
+- `bodega-X.Y.Z-1-x86_64.pkg.tar.zst` (Arch; `packaging/arch/build_arch.sh` wraps the `.tar.gz`, and `package_linux.sh` calls it where `makepkg` exists)
