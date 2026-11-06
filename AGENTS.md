@@ -18,10 +18,19 @@ Bodega is a personal launcher for Windows games on Apple Silicon and Linux. For 
 - `release-linux` and `release-macos` upload the release files. Run them by hand, with the tag.
 - Commit and push still need the user's approval.
 
+## GitHub Actions budget
+
+The account is GitHub Free and the repository is private: about 12 USD a month of compute (roughly 2,000 Linux minutes, or 190 macOS minutes) and 500 MB of artifact storage. When you add or change a workflow:
+
+- Put whatever can be optional behind a boolean `workflow_dispatch` input, off by default (see `smoke` in `release-linux` and `build_engine` in `release-macos`).
+- Never chain a macOS job to another workflow: it costs ten times a Linux one.
+- Give `upload-artifact` `retention-days: 1`, and keep big files out of artifacts where you can.
+- Give PR workflows `concurrency` with `cancel-in-progress` and a short `timeout-minutes`.
+
 ## Installers
 
 - `Bodega-X.Y.Z-macos-arm64.dmg` (built by `tool/package_macos.sh`)
 - `Bodega-X.Y.Z-linux-amd64.deb`
 - `Bodega-X.Y.Z-linux-x86_64.tar.gz`
 - `Bodega-X.Y.Z-linux-x86_64.AppImage` (the Linux ones are built by `tool/package_linux.sh`)
-- `bodega-X.Y.Z-1-x86_64.pkg.tar.zst` (Arch; `packaging/arch/build_arch.sh` wraps the `.tar.gz`, and `package_linux.sh` calls it where `makepkg` exists)
+- `Bodega-X.Y.Z-arch-x86_64.pkg.tar.zst` (Arch; `packaging/arch/build_arch.sh` wraps the `.tar.gz`, and `package_linux.sh` calls it where `makepkg` exists)

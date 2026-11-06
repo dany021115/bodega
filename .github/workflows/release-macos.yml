@@ -121,6 +121,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: macos-installer
+          retention-days: 1
           path: dist/*
           if-no-files-found: error
 
@@ -130,6 +131,10 @@ jobs:
     # so without this the release job would be skipped too.
     if: ${{ always() && needs.check.result == 'success' && needs.package.result == 'success' }}
     runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
     env:
       GH_TOKEN: ${{ github.token }}
       TAG: ${{ inputs.tag }}
@@ -140,6 +145,19 @@ jobs:
         with:
           name: macos-installer
           path: dist/
+      - name: Checksums
+        run: |
+          set -euo pipefail
+          # Written outside dist/ first, so the file does not list itself.
+          (cd dist && sha256sum -- * > ../SHA256SUMS-macos)
+          mv SHA256SUMS-macos dist/
+          cat dist/SHA256SUMS-macos
+      # Provenance is on top of the checksums: if the plan or the repository does not allow it, the release goes out with the checksums only.
+      - name: Attest the installer
+        continue-on-error: true
+        uses: actions/attest@v4
+        with:
+          subject-path: dist/*
       - name: Create the release if missing and upload the installer
         run: |
           set -euo pipefail

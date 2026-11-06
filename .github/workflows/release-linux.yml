@@ -1,5 +1,7 @@
 # Builds the Linux packages for a version tag and uploads them to that tag's GitHub release.
 # Manual dispatch only. The tag is created by tag-version on push to main.
+# The account is on GitHub Free (included compute and 500 MB of artifact storage): the smoke tests are
+# off unless asked for, and the artifacts live one day.
 name: release-linux
 
 on:
@@ -9,6 +11,10 @@ on:
         description: "Version tag to build, e.g. v1.0.0 (created by tag-version)"
         type: string
         required: true
+      smoke:
+        description: "install each package in a clean container and run its CLI before publishing (about 20 min of Linux runner time)"
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -76,6 +82,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: linux-installers
+          retention-days: 1
           path: dist/*
           if-no-files-found: error
 
@@ -105,12 +112,41 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: arch-installers
+          retention-days: 1
           path: arch-dist/*.pkg.tar.zst
           if-no-files-found: error
 
-  release:
+  # Installs each package in a clean container and runs its CLI; a package that does not start blocks the release.
+  smoke:
     needs: [build, arch]
+    if: ${{ inputs.smoke }}
     runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        kind: [deb, arch, appimage]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: "*-installers"
+          merge-multiple: true
+          path: dist/
+      - name: ${{ matrix.kind }}
+        run: ./tool/smoke_linux.sh ${{ matrix.kind }} dist
+
+  release:
+    needs: [build, arch, smoke]
+    # smoke is skipped unless asked for, and a skipped need would skip this job too.
+    if: ${{ always() && needs.build.result == 'success' && needs.arch.result == 'success' && needs.smoke.result != 'failure' && needs.smoke.result != 'cancelled' }}
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
     env:
       GH_TOKEN: ${{ github.token }}
       TAG: ${{ inputs.tag }}
@@ -122,6 +158,19 @@ jobs:
           pattern: "*-installers"
           merge-multiple: true
           path: dist/
+      - name: Checksums
+        run: |
+          set -euo pipefail
+          # Written outside dist/ first, so the file does not list itself.
+          (cd dist && sha256sum -- * > ../SHA256SUMS-linux)
+          mv SHA256SUMS-linux dist/
+          cat dist/SHA256SUMS-linux
+      # Provenance is on top of the checksums: if the plan or the repository does not allow it, the release goes out with the checksums only.
+      - name: Attest the packages
+        continue-on-error: true
+        uses: actions/attest@v4
+        with:
+          subject-path: dist/*
       - name: Create the release if missing and upload the packages
         run: |
           set -euo pipefail
