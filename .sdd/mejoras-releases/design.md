@@ -56,14 +56,16 @@ Un job `smoke` que depende de `build`/`arch`/`package` y, cuando está encendido
 
 ## M6. Base de arreglos por juego (X6)
 
-- Datos: `packages/engine/lib/fixes_data.dart`, generado desde `packages/engine/data/fixes.json`, con la misma forma que usa hoy `catalog_data.dart`. Una entrada por juego:
-  `{ "id": "steam:1234", "title": "...", "platforms": ["linux","mac"], "env": {...}, "dllOverrides": "...", "winetricks": ["vcrun2022"], "backend": "dxvk", "notes": "..." }`.
-- Identificación: ID de Steam (de `steamapps/appmanifest_*.acf`, que `apps.dart` ya parsea para los juegos de Steam) o nombre del exe como respaldo.
-- Aplicación: al crear la botella (`createBottle`) y al lanzar (`_launchIn`), mezclando en este orden: valores por defecto, arreglo del juego, ajustes de la botella, ajustes del programa, opción de la línea de comandos. El último gana, así que el usuario nunca pierde lo que puso a mano.
-- `bodega fix show <botella> <programa>` muestra qué arreglo se aplicaría y por qué.
-- Fuente de datos: solo lo que se pruebe en equipos reales, o datos con licencia compatible. Cada entrada anota su origen en `notes`/`source`. No se copia nada propietario.
-- Cruce con M7: el campo `winetricks` se ejecuta con el mecanismo de M7.
-- Pruebas del motor: precedencia de la mezcla, y que una entrada de otra plataforma no se aplica.
+- Datos: `packages/engine/lib/fixes_data.dart`, **generado** por `tool/import_fixes.py` desde `recipes/games/` de `gauthierpiarrette/highball-db` (CC0-1.0) en un commit fijo (`7a008d5`), igual que `catalog_data.dart` es texto en Dart y no un archivo. Una entrada por juego: `id`, `title`, `steam` (appid, de `db/games/<id>.json`), `optIn`, `steps`, `notes`, `knownIssues`, `source`, `verified`.
+- Pasos (`steps`), cada uno con `platforms`: `env` (variable), `registry` (valor de registro bajo `HKCU\` o `HKLM\Software\`) y `dlloverride`. Un equipo aplica solo los pasos marcados para él (`hostPlatform.id`: `mac` o `linux`). El importador marca todo como `mac`, porque Highball solo lo verificó en Mac. No se importa lo que el motor no entiende (`file`, `copy`, `sync`, `renderer`, `dxvkconfig`) ni las variables ajenas (`HB_*` del motor de Highball, `FEX_*` y `MVK_*` de la línea arm64, `CX_*` de CrossOver): el script las cuenta y las lista. Variables permitidas: `ROSETTA_ADVERTISE_AVX`, `D3DM_*`, `VKD3D_*`, `DXVK_CONFIG`.
+- Identificación: la clave de la aplicación `steam:<appid>`, que `apps.dart` ya produce al leer `appmanifest_*.acf`. Solo se aplica al abrir un juego de Steam con `openApp`.
+- Aplicación: variables y overrides entran en `_launchIn` después del backend y la GPU y antes de los ajustes de la botella, del programa y del lanzamiento, así que lo que el usuario puso a mano gana (y `avx: false` sigue quitando `ROSETTA_ADVERTISE_AVX`). Los valores de registro se escriben con `reg add` antes de lanzar; si uno falla, el lanzamiento se detiene. Un arreglo `optIn` se muestra pero no se aplica solo.
+- Límite: el juego lo lanza Steam. Si Steam ya está abierto en la botella, `-applaunch` pasa el juego al Steam en marcha y las variables nuevas no le llegan: hay que cerrar la botella antes. El registro sí queda escrito.
+- CLI: `bodega fix list [texto]` y `bodega fix show <id|appid>` (qué pasos aplican en este equipo y cuáles no, con la fuente); `bodega open` avisa si el juego tiene arreglo.
+- Las notas y los problemas conocidos se guardan en inglés, como los escribió Highball, y la CLI lo dice.
+- Linux queda sin pasos hasta que haya arreglos verificados en Linux. `umu-database` (GPL-3.0) no se copia: su licencia no encaja con un proyecto cerrado.
+- Cruce con M7: un paso `winetricks` se añadiría con el mecanismo de M7.
+- Pruebas del motor (`fixes_test.dart`): los datos incluidos se parsean, sin ids ni appids repetidos; un paso desconocido se rechaza; cada equipo aplica solo sus pasos; precedencia con el entorno de la botella y del lanzamiento; `avx: false`; overrides añadidos; registro escrito antes de lanzar y fallo que detiene el lanzamiento; y que un arreglo opt-in, de otro equipo o de otro juego no hace nada. Prueba real en Linux con Wine sin ventana: un paso `linux` de registro se escribe y uno `mac` no.
 
 ## M7. Dependencias de Windows (X7)
 
