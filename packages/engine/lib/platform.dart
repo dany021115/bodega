@@ -36,6 +36,10 @@ abstract class HostPlatform {
   (String, List<String>) get sha256Tool;
   Future<void> afterExtract(String dir);
   Future<List<HostIssue>> checkHost();
+
+  /// The gamepads and what is wrong with them, or null where Bodega sets them
+  /// up itself and there is nothing to check (the Mac, design §10).
+  Future<GamepadReport?> gamepads();
   HostCapabilities get capabilities;
   String get defaultSync;
   Map<String, String> syncEnv(String mode);

@@ -12,8 +12,10 @@ import 'probe_data.dart';
 part 'apps.dart';
 part 'backends.dart';
 part 'catalog.dart';
+
 part 'platform.dart';
 part 'platform_linux.dart';
+part 'gamepads.dart';
 part 'platform_mac.dart';
 
 /// The data root (R1): `BODEGA_HOME`, or else the host's default, created and
