@@ -1,15 +1,13 @@
 # Builds the macOS installer (.dmg) for a version tag and uploads it to that tag's GitHub release.
-# Manual dispatch only. The engine and host libraries come from this repository's releases,
+# Manual dispatch only. The tag is created by tag-version on push to main. Pick it in
+# "Use workflow from" (the Tags tab) when running the workflow: that tag is what gets built.
+# The engine and host libraries come from this repository's releases,
 # or are built first when build_engine / build_hostlibs are on.
 name: release-macos
 
 on:
   workflow_dispatch:
     inputs:
-      tag:
-        description: "Version tag to build, e.g. v1.0.0 (created by tag-version)"
-        type: string
-        required: true
       engine_tag:
         description: "engine-* release to package (empty = the most recent engine-* release of this repository)"
         type: string
@@ -21,11 +19,11 @@ on:
         required: false
         default: ""
       build_engine:
-        description: "builds Wine from the branch this workflow runs on (main) and publishes it first; hours of macOS runner time"
+        description: "builds Wine from the tag this workflow runs on and publishes it first; hours of macOS runner time"
         type: boolean
         default: false
       build_hostlibs:
-        description: "builds the host libraries from the branch this workflow runs on (main) and publishes them first; minutes of macOS runner time"
+        description: "builds the host libraries from the tag this workflow runs on and publishes them first; minutes of macOS runner time"
         type: boolean
         default: false
 
@@ -41,14 +39,19 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          ref: ${{ inputs.tag }}
+          ref: ${{ github.ref_name }}
 
       - name: Check the tag
         id: check
         env:
-          TAG: ${{ inputs.tag }}
+          TAG: ${{ github.ref_name }}
+          REF_TYPE: ${{ github.ref_type }}
         run: |
           set -euo pipefail
+          if [ "$REF_TYPE" != "tag" ]; then
+            echo "::error::run this workflow from a version tag: pick it in 'Use workflow from' (now: $REF_TYPE '$TAG')."
+            exit 1
+          fi
           if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             echo "::error::'$TAG' is not a version tag (vX.Y.Z)."
             exit 1
@@ -102,7 +105,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.tag }}
+          ref: ${{ github.ref_name }}
       - name: Install Rosetta
         run: softwareupdate --install-rosetta --agree-to-license || true
       # The project needs Dart ^3.13, which ships with Flutter 3.47.
@@ -132,7 +135,7 @@ jobs:
     runs-on: ubuntu-24.04
     env:
       GH_TOKEN: ${{ github.token }}
-      TAG: ${{ inputs.tag }}
+      TAG: ${{ github.ref_name }}
     steps:
       # Only so that gh knows the repository.
       - uses: actions/checkout@v4
