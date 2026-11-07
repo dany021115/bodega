@@ -101,4 +101,5 @@ Un job `smoke` que depende de `build`/`arch`/`package` y bloquea a `release`:
 - `HostPlatform.gamepads()` devuelve `GamepadReport` (mandos, SDL2, avisos), o `null` en Mac. Un mando es un bloque de `/proc/bus/input/devices` con un `jsN`; su nodo es el `eventN` del mismo bloque, y se comprueba abriéndolo. Los avisos no entran en `checkHost`, porque no impiden jugar.
 - Paquetes: reglas udev, `steam-devices` (Debian y Ubuntu: multiverse/non-free; Arch: multilib; Fedora: sin comando); SDL2, `libsdl2-2.0-0`, `SDL2` y `sdl2-compat`.
 - CLI: `bodega pads` (sale con 1 si hay avisos).
-- Sin probar: la app (no hay pantalla), la ruta sin SDL2 en un equipo real, y un juego usando el mando.
+- App: la sección plegable "Mandos" de la columna de la botella (`GamepadsSection`, `id: 'gamepads'`) muestra cada mando con su estado ("Listo" o "Sin permiso"), cada aviso como `RequirementCard` con su comando copiable, y un botón "Volver a comprobar". En Mac, donde `gamepads()` devuelve `null`, no ocupa lugar. `GamepadsBloc` lo provee `BottleDetailPage` y lee `GamepadRepository` (`data/` llama a `checkGamepads()` del motor).
+- Sin probar: la app con un mando real conectado (probada con widgets a 380 px, el ancho del panel), la ruta sin SDL2 en un equipo real, y un juego usando el mando.
