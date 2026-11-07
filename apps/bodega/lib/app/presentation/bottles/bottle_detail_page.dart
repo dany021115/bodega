@@ -1,5 +1,6 @@
 import 'package:bodega/app/bloc/bottle_detail/bottle_detail_bloc.dart';
 import 'package:bodega/app/bloc/bottles/bottles_bloc.dart';
+import 'package:bodega/app/bloc/gamepads/gamepads_bloc.dart';
 import 'package:bodega/app/bloc/library/library_bloc.dart';
 import 'package:bodega/app/bloc/view_mode/view_mode_bloc.dart';
 import 'package:bodega/app/presentation/add_app/add_app_dialog.dart';
@@ -34,11 +35,18 @@ class BottleDetailPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
+    return MultiBlocProvider(
       // One bloc per bottle, even if the page is reused for another one.
       key: ValueKey(name),
-      create: (_) =>
-          getIt<BottleDetailBloc>()..add(BottleDetailEvent.load(name)),
+      providers: [
+        BlocProvider(
+          create: (_) =>
+              getIt<BottleDetailBloc>()..add(BottleDetailEvent.load(name)),
+        ),
+        BlocProvider(
+          create: (_) => getIt<GamepadsBloc>()..add(const GamepadsEvent.load()),
+        ),
+      ],
       child: BottleDetailView(name: name),
     );
   }

@@ -1,6 +1,7 @@
 import 'package:bloc_test/bloc_test.dart';
 import 'package:bodega/app/bloc/bottle_detail/bottle_detail_bloc.dart';
 import 'package:bodega/app/bloc/bottles/bottles_bloc.dart';
+import 'package:bodega/app/bloc/gamepads/gamepads_bloc.dart';
 import 'package:bodega/app/bloc/library/library_bloc.dart';
 import 'package:bodega/app/bloc/sections/sections_bloc.dart';
 import 'package:bodega/app/bloc/setup/setup_bloc.dart';
@@ -27,6 +28,9 @@ class _MockBottles extends MockBloc<BottlesEvent, BottlesState>
 
 class _MockSections extends MockBloc<SectionsEvent, SectionsState>
     implements SectionsBloc {}
+
+class _MockGamepads extends MockBloc<GamepadsEvent, GamepadsState>
+    implements GamepadsBloc {}
 
 class _MockSetup extends MockBloc<SetupEvent, SetupState>
     implements SetupBloc {}
@@ -57,6 +61,7 @@ void main() {
   late _MockBottleDetail bottle;
   late _MockLibrary library;
   late _MockBottles bottles;
+  late _MockGamepads gamepads;
   late _MockSections sections;
   late _MockSetup setup;
   late _MockViewMode viewMode;
@@ -79,11 +84,14 @@ void main() {
     bottles = _MockBottles();
     sections = _MockSections();
     setup = _MockSetup();
+    gamepads = _MockGamepads();
     viewMode = _MockViewMode();
 
     when(() => bottles.state).thenReturn(const BottlesState());
     when(() => sections.state).thenReturn(const SectionsState());
     when(() => setup.state).thenReturn(const SetupState(isChecking: false));
+    when(() => gamepads.state)
+        .thenReturn(const GamepadsState(isLoading: false));
     when(() => library.state).thenReturn(const LibraryState(isLoading: false));
     when(() => viewMode.state).thenReturn(const ViewModeState());
     showBottle(_detail());
@@ -106,6 +114,7 @@ void main() {
             BlocProvider<BottleDetailBloc>.value(value: bottle),
             BlocProvider<LibraryBloc>.value(value: library),
             BlocProvider<BottlesBloc>.value(value: bottles),
+            BlocProvider<GamepadsBloc>.value(value: gamepads),
             BlocProvider<SectionsBloc>.value(value: sections),
             BlocProvider<SetupBloc>.value(value: setup),
             BlocProvider<ViewModeBloc>.value(value: viewMode),

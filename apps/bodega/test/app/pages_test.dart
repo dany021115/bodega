@@ -4,6 +4,7 @@ import 'package:bodega/app/bloc/backends/backends_bloc.dart';
 import 'package:bodega/app/bloc/bottle_detail/bottle_detail_bloc.dart';
 import 'package:bodega/app/bloc/bottles/bottles_bloc.dart';
 import 'package:bodega/app/bloc/catalog/catalog_bloc.dart';
+import 'package:bodega/app/bloc/gamepads/gamepads_bloc.dart';
 import 'package:bodega/app/bloc/install/install_bloc.dart';
 import 'package:bodega/app/bloc/library/library_bloc.dart';
 import 'package:bodega/app/bloc/run_options/run_options_bloc.dart';
@@ -70,6 +71,9 @@ class _MockViewMode extends MockBloc<ViewModeEvent, ViewModeState>
 
 class _MockRunOptions extends MockBloc<RunOptionsEvent, RunOptionsState>
     implements RunOptionsBloc {}
+
+class _MockGamepads extends MockBloc<GamepadsEvent, GamepadsState>
+    implements GamepadsBloc {}
 
 class _MockSetup extends MockBloc<SetupEvent, SetupState>
     implements SetupBloc {}
@@ -177,6 +181,7 @@ void main() {
   late _MockBottle bottle;
   late _MockAddApp addApp;
   late _MockSections sections;
+  late _MockGamepads gamepads;
   late _MockViewMode viewMode;
   late _MockSetup setup;
 
@@ -205,6 +210,9 @@ void main() {
     library = _MockLibrary();
     sections = _MockSections();
     setup = _MockSetup();
+    gamepads = _MockGamepads();
+    when(() => gamepads.state)
+        .thenReturn(const GamepadsState(isLoading: false));
     showSetup(const SetupState(isChecking: false, runtime: true));
     whenListen(
       backends,
@@ -277,6 +285,7 @@ void main() {
     BlocProvider<BottleDetailBloc>.value(value: bottle),
     BlocProvider<AddAppBloc>.value(value: addApp),
     BlocProvider<SectionsBloc>.value(value: sections),
+    BlocProvider<GamepadsBloc>.value(value: gamepads),
     BlocProvider<ViewModeBloc>.value(value: viewMode),
     BlocProvider<SetupBloc>.value(value: setup),
   ];
@@ -791,6 +800,8 @@ void main() {
     ) async {
       getIt.registerFactory<BottleDetailBloc>(() => bottle);
       addTearDown(() => getIt.unregister<BottleDetailBloc>());
+      getIt.registerFactory<GamepadsBloc>(() => gamepads);
+      addTearDown(() => getIt.unregister<GamepadsBloc>());
       final router = await pumpRouter(tester);
       await tester.tap(find.text(_longName));
       await tester.pumpAndSettle();
