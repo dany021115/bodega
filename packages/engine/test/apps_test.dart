@@ -841,6 +841,7 @@ void main() {
           exe: 'P/n.exe',
           args: const <String>[],
           inLibrary: true,
+          hud: false,
         )),
         isNull,
       );
@@ -892,6 +893,7 @@ void main() {
         exe: 'x',
         args: <String>[],
         inLibrary: true,
+        hud: false,
       );
       expect(appIcon(home, game), isNull);
       touch('$cache/header.jpg');

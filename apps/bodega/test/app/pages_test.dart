@@ -367,7 +367,6 @@ void main() {
 
     for (final step in [
       AddAppStep.form,
-      AddAppStep.creating,
       AddAppStep.installing,
       AddAppStep.pickInstalled,
     ]) {
@@ -379,7 +378,6 @@ void main() {
           const Stream<AddAppState>.empty(),
           initialState: AddAppState(
             step: step,
-            bottles: const ['prueba'],
             bottle: 'prueba',
             exe: '/g/$_longName$_longName.exe',
             title: 'Blur',
