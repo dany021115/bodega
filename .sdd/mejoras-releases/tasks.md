@@ -59,6 +59,13 @@ P1 y P2 son independientes y se pueden hacer a la vez. P7 a P11 no dependen de l
 - [ ] **T8 (P8)** `bodega fix show` y, en la app, una nota "Arreglos aplicados" en la pantalla de la botella.
   **Comprobación:** tests del repositorio y de widget; `pages_test.dart` a los 4 anchos.
 
+## P15. Mandos en Linux
+
+- [x] **T17 (P15)** `gamepads.dart`, `HostPlatform.gamepads()` y `bodega pads`: lista los mandos, si Wine podrá abrirlos y si falta SDL2, con el paquete de la distro.
+  **Comprobación (hecha):** `gamepads_test.dart` (5 tests); `dart test` completo: 122 pasan. En CachyOS, un mando virtual y uno real (8BitDo) aparecen en `bodega pads` y Wine los crea como XInput. **Sin probar:** el aviso de falta de permiso sobre un mando real (el contenedor para probarlo con otro usuario no respondió); la app.
+- [ ] **T18 (P15b)** En la app, aviso de mandos en la pantalla de la botella.
+  **Comprobación:** tests del repositorio y de widget.
+
 ## P9 y P10. Dependencias de Windows
 
 - [ ] **T9 (P9)** `winetricks` en el paquete (con sha256 en `assets.json`), la lista permitida de verbos y `bodega deps install`. Solo en procesos sin ventana.
