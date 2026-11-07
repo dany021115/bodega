@@ -123,22 +123,29 @@ class _AddAppDialogState extends State<AddAppDialog> {
                   const SizedBox(height: AppSpacing.lg),
                   _tabs(context, state, onFile),
                   const SizedBox(height: AppSpacing.lg),
+                  // The error scrolls with the body: a long one must not push
+                  // the footer out of a small window.
                   Flexible(
                     child: SingleChildScrollView(
-                      child: onFile
-                          ? _fileBody(context, state)
-                          : _popularBody(context),
-                    ),
-                  ),
-                  if (state.error case final error?) ...[
-                    const SizedBox(height: AppSpacing.md),
-                    SelectableText(
-                      error.message,
-                      style: styles.body?.copyWith(
-                        color: Theme.of(context).colorScheme.error,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          onFile
+                              ? _fileBody(context, state)
+                              : _popularBody(context),
+                          if (state.error case final error?) ...[
+                            const SizedBox(height: AppSpacing.md),
+                            SelectableText(
+                              error.message,
+                              style: styles.body?.copyWith(
+                                color: Theme.of(context).colorScheme.error,
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                     ),
-                  ],
+                  ),
                   const SizedBox(height: AppSpacing.lg),
                   _footer(context, state, onFile),
                 ],
@@ -393,9 +400,14 @@ class _AddAppDialogState extends State<AddAppDialog> {
       AddAppStep.done => const <Widget>[],
     };
 
-    return Row(
+    // A Wrap, so the buttons go under the switch when there is no room.
+    return Wrap(
+      alignment: WrapAlignment.spaceBetween,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      runSpacing: AppSpacing.sm,
       children: [
-        Expanded(
+        SizedBox(
+          width: 320,
           child: SwitchListTile(
             contentPadding: EdgeInsets.zero,
             title: Text('Agregar a la biblioteca', style: styles.body),
@@ -408,10 +420,15 @@ class _AddAppDialogState extends State<AddAppDialog> {
                 bloc.add(AddAppEvent.addToLibraryToggled(value)),
           ),
         ),
-        for (final action in actions) ...[
-          const SizedBox(width: AppSpacing.sm),
-          action,
-        ],
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (final (index, action) in actions.indexed) ...[
+              if (index > 0) const SizedBox(width: AppSpacing.sm),
+              action,
+            ],
+          ],
+        ),
       ],
     );
   }

@@ -82,8 +82,8 @@ class BottleRow extends StatelessWidget {
               borderRadius: AppRadius.xsBorder,
               onTap: onTap,
               child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.md,
+                padding: EdgeInsets.symmetric(
+                  horizontal: expanded ? AppSpacing.md : AppSpacing.sm,
                   vertical: AppSpacing.sm,
                 ),
                 child: expanded

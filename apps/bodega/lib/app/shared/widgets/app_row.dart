@@ -18,6 +18,7 @@ class AppRow extends StatelessWidget {
   final Widget? footerChip;
   final VoidCallback onPlay;
   final VoidCallback onStop;
+
   /// Gets the context of the menu button: the menu always opens beside it.
   final ValueChanged<BuildContext>? onMenu;
 
@@ -107,9 +108,11 @@ class AppRow extends StatelessWidget {
                     ),
                     const SizedBox(width: AppSpacing.sm),
                     if (chip != null) ...[
-                      ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 140),
-                        child: chip,
+                      Flexible(
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 140),
+                          child: chip,
+                        ),
                       ),
                       const SizedBox(width: AppSpacing.md),
                     ],
@@ -124,12 +127,16 @@ class AppRow extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: AppSpacing.xs),
-                    Text(
-                      running ? 'En ejecución' : 'Cerrada',
-                      style: styles.caption?.copyWith(
-                        color: running
-                            ? AppColor.statusTested
-                            : colors.onSurfaceVariant,
+                    Flexible(
+                      child: Text(
+                        running ? 'En ejecución' : 'Cerrada',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: styles.caption?.copyWith(
+                          color: running
+                              ? AppColor.statusTested
+                              : colors.onSurfaceVariant,
+                        ),
                       ),
                     ),
                     const SizedBox(width: AppSpacing.md),

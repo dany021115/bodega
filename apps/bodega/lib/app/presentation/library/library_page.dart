@@ -54,24 +54,24 @@ class _LibraryPageState extends State<LibraryPage> {
         bloc.add(LibraryEvent.open(app.bottle, app.key));
       case AppMenuAction.options:
         // The graphics layers installed are a bottle's, not the library's.
-        (await bottles.detail(app.bottle)).match(
-          (error) => AppToast.error(anchor, error.message),
-          (detail) {
-            if (!anchor.mounted) return;
-            showRunOptions(
-              anchor,
-              bottle: app.bottle,
-              backends: detail.installedBackends,
-              program: app.exe,
-              args: app.args,
-              title: app.title,
-            );
-          },
-        );
+        (await bottles.detail(app.bottle))
+            .match((error) => AppToast.error(anchor, error.message), (detail) {
+              if (!anchor.mounted) return;
+              showRunOptions(
+                anchor,
+                bottle: app.bottle,
+                backends: detail.installedBackends,
+                program: app.exe,
+                args: app.args,
+                title: app.title,
+              );
+            });
       case AppMenuAction.hud:
         bloc.add(LibraryEvent.setHud(app.bottle, app.key, !app.hud));
       case AppMenuAction.library:
-        bloc.add(LibraryEvent.setInLibrary(app.bottle, app.key, !app.inLibrary));
+        bloc.add(
+          LibraryEvent.setInLibrary(app.bottle, app.key, !app.inLibrary),
+        );
       case AppMenuAction.hide:
         (await bottles.hideApp(app.bottle, app.key)).match(
           (error) => AppToast.error(anchor, error.message),

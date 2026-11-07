@@ -89,7 +89,11 @@ void main() {
     showBottle(_detail());
   });
 
-  Future<void> pump(WidgetTester tester, double width, {bool grid = true}) async {
+  Future<void> pump(
+    WidgetTester tester,
+    double width, {
+    bool grid = true,
+  }) async {
     tester.view.devicePixelRatio = 1;
     tester.view.physicalSize = Size(width, 900);
     addTearDown(tester.view.resetPhysicalSize);
@@ -143,6 +147,12 @@ void main() {
     tester,
   ) async {
     await pump(tester, 720);
+    // Below the apps the list builds its children lazily: scroll there first.
+    await tester.scrollUntilVisible(
+      find.text('Configuración'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
     final title = tester.getTopLeft(find.text('Configuración')).dx;
     expect(title, lessThan(720 / 2));
   });
@@ -171,14 +181,19 @@ void main() {
 
   testWidgets('the menu of an app hides it from the bottle', (tester) async {
     await pump(tester, 1200);
-    await tester.tap(find.byTooltip('Opciones de Una aplicación con un título bastante largo número 1').first);
+    await tester.tap(
+      find
+          .byTooltip(
+            'Opciones de Una aplicación con un título bastante largo número 1',
+          )
+          .first,
+    );
     await tester.pumpAndSettle();
     await tester.tap(find.text('Quitar de la botella'));
     await tester.pumpAndSettle();
 
-    verify(
-      () => bottle.add(const BottleDetailEvent.hideApp('app1.exe')),
-    ).called(1);
+    verify(() => bottle.add(const BottleDetailEvent.hideApp('app1.exe')))
+        .called(1);
     verify(() => library.add(const LibraryEvent.load())).called(1);
   });
 }

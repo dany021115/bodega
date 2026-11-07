@@ -8,7 +8,8 @@ const _long = LibraryApp(
   bottle: 'Una botella con un nombre muy largo que no cabe en la tarjeta',
   key: 'k',
   id: 'app-largo',
-  title: 'Un título de aplicación extremadamente largo para comprobar el recorte',
+  title:
+      'Un título de aplicación extremadamente largo para comprobar el recorte',
 );
 
 void main() {

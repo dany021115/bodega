@@ -73,8 +73,10 @@ class SideBarItem extends StatelessWidget {
               borderRadius: AppRadius.xsBorder,
               onTap: onTap,
               child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.md,
+                padding: EdgeInsets.symmetric(
+                  // The compact bar is 68 px: with the selected item's border
+                  // only an icon and a small padding fit.
+                  horizontal: expanded ? AppSpacing.md : AppSpacing.sm,
                   vertical: AppSpacing.md,
                 ),
                 child: content,

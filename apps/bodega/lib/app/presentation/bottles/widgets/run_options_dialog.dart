@@ -63,10 +63,7 @@ class _RunOptionsDialogState extends State<RunOptionsDialog> {
   }
 
   Future<void> _pick() async {
-    const programs = XTypeGroup(
-      label: 'Programas',
-      extensions: ['exe', 'EXE'],
-    );
+    const programs = XTypeGroup(label: 'Programas', extensions: ['exe', 'EXE']);
     final file = await openFile(acceptedTypeGroups: const [programs]);
     if (file == null) return;
     _program.text = file.path;

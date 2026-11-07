@@ -137,11 +137,15 @@ class _SideBarState extends State<SideBar> {
                           ),
                           if (expanded) ...[
                             const SizedBox(width: AppSpacing.xs),
-                            Text(
-                              'Nueva botella',
-                              style: styles.body?.copyWith(
-                                color: colors.onPrimary,
-                                fontWeight: FontWeight.w600,
+                            Flexible(
+                              child: Text(
+                                'Nueva botella',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: styles.body?.copyWith(
+                                  color: colors.onPrimary,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
                             ),
                           ],

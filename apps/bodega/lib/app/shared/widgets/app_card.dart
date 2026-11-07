@@ -41,6 +41,7 @@ class AppCard extends StatelessWidget {
   final Widget? footerChip;
   final VoidCallback onPlay;
   final VoidCallback onStop;
+
   /// Gets the context of the menu button: the menu always opens beside it.
   final ValueChanged<BuildContext>? onMenu;
 
@@ -93,63 +94,66 @@ class AppCard extends StatelessWidget {
         children: [
           // The menu and play buttons sit outside this gesture area: inside it,
           // a double click would wait for the buttons' own taps.
-          GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onDoubleTap: running ? null : onPlay,
-            onSecondaryTapUp: menu == null
-                ? null
-                : (_) => menu(anchor ?? context),
-            child: Semantics(
-              button: true,
-              label: app.title,
-              hint: 'Doble toque para abrir',
-              onTap: running ? null : onPlay,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  SizedBox(
-                    height: coverHeight,
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        DecoratedBox(
-                          decoration: BoxDecoration(
-                            gradient: AppGradient.cover(from, to),
-                          ),
-                        ),
-                        AppIcon(
-                          id: app.id,
-                          title: app.title,
-                          iconPath: app.iconPath,
-                          size: 64,
-                        ),
-                        if (running)
-                          const Positioned(
-                            top: AppSpacing.sm,
-                            left: AppSpacing.sm,
-                            child: StatusChip(
-                              label: 'En ejecución',
-                              color: AppColor.statusTested,
+          Expanded(
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onDoubleTap: running ? null : onPlay,
+              onSecondaryTapUp: menu == null
+                  ? null
+                  : (_) => menu(anchor ?? context),
+              child: Semantics(
+                button: true,
+                label: app.title,
+                hint: 'Doble toque para abrir',
+                onTap: running ? null : onPlay,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // The cover takes what the title and footer leave, so the
+                    // card fits its cell whatever the font makes of those rows.
+                    Expanded(
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          DecoratedBox(
+                            decoration: BoxDecoration(
+                              gradient: AppGradient.cover(from, to),
                             ),
                           ),
-                      ],
+                          AppIcon(
+                            id: app.id,
+                            title: app.title,
+                            iconPath: app.iconPath,
+                            size: 64,
+                          ),
+                          if (running)
+                            const Positioned(
+                              top: AppSpacing.sm,
+                              left: AppSpacing.sm,
+                              child: StatusChip(
+                                label: 'En ejecución',
+                                color: AppColor.statusTested,
+                              ),
+                            ),
+                        ],
+                      ),
                     ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(
-                      AppSpacing.md,
-                      AppSpacing.md,
-                      AppSpacing.md,
-                      0,
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(
+                        AppSpacing.md,
+                        AppSpacing.md,
+                        AppSpacing.md,
+                        0,
+                      ),
+                      child: Text(
+                        app.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: styles.cardTitle,
+                      ),
                     ),
-                    child: Text(
-                      app.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: styles.cardTitle,
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
@@ -191,6 +195,12 @@ class AppCard extends StatelessWidget {
                       anchor = button;
                       return IconButton(
                         tooltip: 'Opciones de ${app.title}',
+                        // As small as the play button, so the chip has room.
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints.tightFor(
+                          width: 32,
+                          height: 32,
+                        ),
                         iconSize: 18,
                         icon: const Icon(Icons.more_horiz_rounded),
                         onPressed: () => menu(button),

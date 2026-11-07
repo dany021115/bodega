@@ -37,28 +37,30 @@ class LibraryToggle extends StatelessWidget {
               horizontal: AppSpacing.sm,
               vertical: AppSpacing.xs,
             ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                ExcludeSemantics(
-                  child: Icon(
-                    inLibrary
-                        ? Icons.bookmark_added_rounded
-                        : Icons.bookmark_add_outlined,
-                    size: 14,
-                    color: color,
+            // Scales down when the footer is tight, instead of overflowing.
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ExcludeSemantics(
+                    child: Icon(
+                      inLibrary
+                          ? Icons.bookmark_added_rounded
+                          : Icons.bookmark_add_outlined,
+                      size: 14,
+                      color: color,
+                    ),
                   ),
-                ),
-                const SizedBox(width: AppSpacing.xs),
-                Flexible(
-                  child: Text(
+                  const SizedBox(width: AppSpacing.xs),
+                  Text(
                     inLibrary ? 'En biblioteca' : 'Agregar a biblioteca',
                     maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppTextStyle(context).caption?.copyWith(color: color),
+                    style: AppTextStyle(context).caption
+                        ?.copyWith(color: color),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),

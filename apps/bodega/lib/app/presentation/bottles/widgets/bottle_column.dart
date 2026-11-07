@@ -194,11 +194,7 @@ class BottleColumn extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(
-                Icons.warning_amber_rounded,
-                size: 18,
-                color: colors.error,
-              ),
+              Icon(Icons.warning_amber_rounded, size: 18, color: colors.error),
               const SizedBox(width: AppSpacing.sm),
               Expanded(child: Text(hint, style: styles.bodySecondary)),
             ],

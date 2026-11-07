@@ -57,9 +57,13 @@ class PopularAppCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: AppSpacing.md),
-              GradientButton(
-                label: blocked ? 'No disponible' : 'Instalar',
-                onPressed: blocked ? null : onInstall,
+              // Capped, so the label gets an ellipsis before the row overflows.
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 132),
+                child: GradientButton(
+                  label: blocked ? 'No disponible' : 'Instalar',
+                  onPressed: blocked ? null : onInstall,
+                ),
               ),
             ],
           ),

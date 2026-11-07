@@ -9,14 +9,18 @@ import 'package:bodega/app/bloc/library/library_bloc.dart';
 import 'package:bodega/app/bloc/run_options/run_options_bloc.dart';
 import 'package:bodega/app/bloc/sections/sections_bloc.dart';
 import 'package:bodega/app/bloc/setup/setup_bloc.dart';
+import 'package:bodega/app/bloc/view_mode/view_mode_bloc.dart';
 import 'package:bodega/app/presentation/add_app/add_app_dialog.dart';
 import 'package:bodega/app/presentation/backends/backends_page.dart';
 import 'package:bodega/app/presentation/bottles/bottle_detail_page.dart';
+import 'package:bodega/app/presentation/bottles/widgets/bottle_column.dart';
+import 'package:bodega/app/presentation/bottles/widgets/bottle_empty_apps.dart';
 import 'package:bodega/app/presentation/bottles/widgets/run_options_dialog.dart';
 import 'package:bodega/app/presentation/catalog/catalog_detail_page.dart';
 import 'package:bodega/app/presentation/catalog/catalog_page.dart';
 import 'package:bodega/app/presentation/library/library_page.dart';
 import 'package:bodega/app/router.dart';
+import 'package:bodega/app/shared/widgets/gradient_button.dart';
 import 'package:bodega/app/shared/widgets/install_panel.dart';
 import 'package:bodega/app/shared/widgets/side_bar.dart';
 import 'package:bodega/device/helpers/breakpoints.dart';
@@ -60,6 +64,9 @@ class _MockLibrary extends MockBloc<LibraryEvent, LibraryState>
 
 class _MockSections extends MockBloc<SectionsEvent, SectionsState>
     implements SectionsBloc {}
+
+class _MockViewMode extends MockBloc<ViewModeEvent, ViewModeState>
+    implements ViewModeBloc {}
 
 class _MockRunOptions extends MockBloc<RunOptionsEvent, RunOptionsState>
     implements RunOptionsBloc {}
@@ -170,6 +177,7 @@ void main() {
   late _MockBottle bottle;
   late _MockAddApp addApp;
   late _MockSections sections;
+  late _MockViewMode viewMode;
   late _MockSetup setup;
 
   void showBottle(BottleDetailState state) => whenListen(
@@ -178,11 +186,8 @@ void main() {
     initialState: state,
   );
 
-  void showSetup(SetupState state) => whenListen(
-    setup,
-    const Stream<SetupState>.empty(),
-    initialState: state,
-  );
+  void showSetup(SetupState state) =>
+      whenListen(setup, const Stream<SetupState>.empty(), initialState: state);
 
   void showLibrary(LibraryState state) => whenListen(
     library,
@@ -213,6 +218,12 @@ void main() {
         isLoading: false,
         bottles: [Bottle(name: _longName, ready: true)],
       ),
+    );
+    viewMode = _MockViewMode();
+    whenListen(
+      viewMode,
+      const Stream<ViewModeState>.empty(),
+      initialState: const ViewModeState(),
     );
     whenListen(
       sections,
@@ -266,6 +277,7 @@ void main() {
     BlocProvider<BottleDetailBloc>.value(value: bottle),
     BlocProvider<AddAppBloc>.value(value: addApp),
     BlocProvider<SectionsBloc>.value(value: sections),
+    BlocProvider<ViewModeBloc>.value(value: viewMode),
     BlocProvider<SetupBloc>.value(value: setup),
   ];
 
@@ -425,14 +437,28 @@ void main() {
   }
 
   group('the bottle screen', () {
+    // The panel is the box of its width: it is only there when it is beside.
+    final panel = find.byWidgetPredicate(
+      (w) => w is SizedBox && w.width == BottleDetailView.panelWidth,
+    );
+
     testWidgets('the column goes beside when there is room', (tester) async {
       await pump(tester, 1150, bottleView());
-      expect(find.byType(VerticalDivider), findsOneWidget);
+      expect(panel, findsOneWidget);
+      expect(
+        tester.getTopLeft(find.byType(BottleColumn)).dx,
+        greaterThanOrEqualTo(tester.getTopLeft(panel).dx),
+      );
     });
 
     testWidgets('and below when there is not', (tester) async {
-      await pump(tester, 801, bottleView());
-      expect(find.byType(VerticalDivider), findsNothing);
+      showBottle(_bottle(apps: const []));
+      await pump(tester, 801, bottleView(), height: 1200);
+      expect(panel, findsNothing);
+      expect(
+        tester.getTopLeft(find.byType(BottleColumn)).dy,
+        greaterThan(tester.getTopLeft(find.text('Apps instaladas')).dy),
+      );
     });
 
     testWidgets('says the state of the bottle', (tester) async {
@@ -455,8 +481,12 @@ void main() {
     testWidgets('an empty one invites to install', (tester) async {
       showBottle(_bottle(apps: const []));
       await pump(tester, 1150, bottleView(), height: 900);
-      expect(find.text('Esta botella no tiene aplicaciones'), findsOneWidget);
-      expect(find.widgetWithText(FilledButton, 'Instalar'), findsOneWidget);
+      expect(find.text('Esta botella está vacía'), findsOneWidget);
+      final invite = find.descendant(
+        of: find.byType(BottleEmptyApps),
+        matching: find.byType(GradientButton),
+      );
+      expect(tester.widget<GradientButton>(invite).onPressed, isNotNull);
     });
 
     testWidgets('a bottle that does not exist offers a way back', (
@@ -477,7 +507,7 @@ void main() {
       await pump(tester, 1150, bottleView(), height: 2400);
       await tester.tap(find.text('Mandos'));
       await tester.tap(find.text('Configuración de Wine'));
-      await tester.tap(find.text('Abrir terminal'));
+      await tester.tap(find.text('Terminal'));
       await tester.pump();
       verify(
         () => library.add(LibraryEvent.run(_longName, 'control', ['joy.cpl'])),
@@ -491,7 +521,14 @@ void main() {
 
     testWidgets('the settings show what the bottle has', (tester) async {
       await pump(tester, 1150, bottleView(), height: 2400);
-      expect(find.text('Windows 10'), findsOneWidget);
+      // The fact card and the selected version of the dropdown both say it.
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('windows win10')),
+          matching: find.text('Windows 10'),
+        ),
+        findsOneWidget,
+      );
       expect(find.text('Pantalla de alta densidad'), findsOneWidget);
       expect(find.text('DLSS'), findsOneWidget);
       expect(find.text('Anunciar AVX'), findsOneWidget);
@@ -530,10 +567,7 @@ void main() {
       );
       await tester.pumpWidget(const SizedBox());
       await pump(tester, 1150, bottleView(), height: 2400);
-      expect(
-        find.text('Cambiarlo cierra lo que esté abierto.'),
-        findsNothing,
-      );
+      expect(find.text('Cambiarlo cierra lo que esté abierto.'), findsNothing);
     });
 
     testWidgets('an incomplete bottle offers only to delete it', (
@@ -541,13 +575,16 @@ void main() {
     ) async {
       showBottle(_bottle(ready: false));
       await pump(tester, 1150, bottleView(), height: 2400);
-      final run = tester.widget<TextButton>(
-        find.widgetWithText(TextButton, 'Ejecutar con opciones…'),
+      // The quick actions and the delete button are outlined buttons.
+      Finder button(String label) => find.ancestor(
+        of: find.text(label),
+        matching: find.byWidgetPredicate((w) => w is ButtonStyleButton),
+      );
+      final run = tester.widget<ButtonStyleButton>(
+        button('Ejecutar con opciones…'),
       );
       expect(run.onPressed, isNull);
-      final delete = tester.widget<TextButton>(
-        find.widgetWithText(TextButton, 'Borrar botella'),
-      );
+      final delete = tester.widget<ButtonStyleButton>(button('Borrar botella'));
       expect(delete.onPressed, isNotNull);
     });
 
@@ -558,7 +595,7 @@ void main() {
         initialState: const SectionsState(collapsed: {'settings'}),
       );
       await pump(tester, 1150, bottleView(), height: 1200);
-      expect(find.text('Configuración avanzada'), findsOneWidget);
+      expect(find.text('Configuración'), findsOneWidget);
       expect(find.text('msync'), findsNothing);
       expect(find.text('Borrar botella'), findsOneWidget);
     });
@@ -576,6 +613,8 @@ void main() {
           ],
         ),
       );
+      // Not running: a running application does not take a double click.
+      showLibrary(const LibraryState());
       await pump(tester, 1150, bottleView(), height: 1200);
       await tester.tap(find.text('Muck'));
       await tester.pump(const Duration(milliseconds: 50));
@@ -601,7 +640,7 @@ void main() {
       await pump(tester, 1150, bottleView(), height: 1200);
       await tester.tap(find.byIcon(Icons.more_horiz_rounded));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Ocultar'));
+      await tester.tap(find.text('Quitar de la botella'));
       await tester.pumpAndSettle();
       verify(() => bottle.add(const BottleDetailEvent.hideApp('steam:9')))
           .called(1);
@@ -609,27 +648,27 @@ void main() {
   });
 
   group('the library', () {
-    testWidgets('names the bottle, and says it is the bottle that is open', (
+    testWidgets('names the bottle, and says which of its apps run', (
       tester,
     ) async {
       await pump(tester, 1150, const LibraryPage(), height: 1200);
-      expect(find.text('Botella steam'), findsNWidgets(2));
-      expect(find.text('Botella abierta'), findsNWidgets(2));
-      expect(find.text('Parar botella'), findsNWidgets(2));
-      expect(find.text('Abrir'), findsNWidgets(3));
+      expect(find.text('steam'), findsNWidgets(2));
+      expect(find.text('En ejecución'), findsNWidgets(2));
+      expect(find.byTooltip('Parar'), findsNWidgets(2));
+      expect(find.byTooltip('Jugar'), findsOneWidget);
     });
 
     testWidgets('shows a hint once per bottle', (tester) async {
       await pump(tester, 1150, const LibraryPage(), height: 1200);
-      expect(find.text(_long), findsOneWidget);
+      // The hint is the warning's tooltip: one per bottle, on its first app.
+      expect(find.byTooltip(_long), findsOneWidget);
     });
 
     testWidgets('opens the application asked', (tester) async {
       await pump(tester, 1150, const LibraryPage(), height: 1200);
-      await tester.tap(find.text('Abrir').at(1));
+      await tester.tap(find.byTooltip('Jugar'));
       await tester.pump();
-      verify(() => library.add(const LibraryEvent.open('steam', 'steam:1')))
-          .called(1);
+      verify(() => library.add(const LibraryEvent.open('blur', 'b'))).called(1);
     });
   });
 
@@ -727,9 +766,7 @@ void main() {
       addTearDown(router.dispose);
       await tester.pumpWidget(
         MultiBlocProvider(
-          providers: [
-            ...providers(),
-          ],
+          providers: [...providers()],
           child: MaterialApp.router(
             routerConfig: router,
             builder: (context, child) => ResponsiveBreakpoints.builder(

@@ -40,6 +40,8 @@ void main() {
     when(() => repository.waitBottle('steam'))
         .thenAnswer((_) => bottleEmpty.future);
     when(() => repository.bottleNames()).thenAnswer((_) async => const []);
+    // Closing a bottle reloads the apps: what ran may have added some.
+    when(() => repository.apps()).thenAnswer((_) async => right(const []));
     when(() => repository.antiCheatHints(any(), any())).thenReturn(const []);
     when(() => repository.hintsIn(any())).thenAnswer((_) async => const []);
   });

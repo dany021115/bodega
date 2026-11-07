@@ -39,7 +39,9 @@ Future<AppMenuAction?> showAppMenu(
         child: Row(
           children: [
             const Expanded(child: Text('HUD de rendimiento')),
-            IgnorePointer(child: Switch(value: hud, onChanged: (_) {})),
+            IgnorePointer(
+              child: Switch(value: hud, onChanged: (_) {}),
+            ),
           ],
         ),
       ),

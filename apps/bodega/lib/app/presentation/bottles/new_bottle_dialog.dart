@@ -145,6 +145,7 @@ class NewBottleDialog extends StatelessWidget {
                         children: [
                           Expanded(
                             child: DropdownButtonFormField<String>(
+                              isExpanded: true,
                               initialValue: state.windows,
                               decoration: const InputDecoration(
                                 labelText: 'Versión de Windows',
@@ -171,6 +172,7 @@ class NewBottleDialog extends StatelessWidget {
                             child: BlocBuilder<BackendsBloc, BackendsState>(
                               builder: (context, backends) =>
                                   DropdownButtonFormField<String>(
+                                    isExpanded: true,
                                     initialValue: state.backend,
                                     decoration: const InputDecoration(
                                       labelText: 'Gráficos',
