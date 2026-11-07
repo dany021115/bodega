@@ -22,6 +22,12 @@ sealed class BottleDetailEvent with _$BottleDetailEvent {
   const factory BottleDetailEvent.hideApp(String key) =
       BottleDetailHideAppEvent;
   const factory BottleDetailEvent.delete() = BottleDetailDeleteEvent;
+  const factory BottleDetailEvent.rename(String newName) =
+      BottleDetailRenameEvent;
+  const factory BottleDetailEvent.setInLibrary(String key, bool value) =
+      BottleDetailSetInLibraryEvent;
+  const factory BottleDetailEvent.setHud(String key, bool value) =
+      BottleDetailSetHudEvent;
   const factory BottleDetailEvent.openLog(String path) =
       BottleDetailOpenLogEvent;
 }

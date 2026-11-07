@@ -1,7 +1,7 @@
 import 'package:injectable/injectable.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-enum PreferenceKey { darkTheme, collapsedSections }
+enum PreferenceKey { collapsedSections, libraryViewGrid }
 
 @lazySingleton
 class Preferences {
@@ -9,10 +9,11 @@ class Preferences {
 
   Preferences(this._prefs);
 
-  bool? getDarkTheme() => _prefs.getBool(PreferenceKey.darkTheme.name);
+  bool? getLibraryViewGrid() =>
+      _prefs.getBool(PreferenceKey.libraryViewGrid.name);
 
-  Future<void> saveDarkTheme(bool value) =>
-      _prefs.setBool(PreferenceKey.darkTheme.name, value);
+  Future<void> saveLibraryViewGrid(bool value) =>
+      _prefs.setBool(PreferenceKey.libraryViewGrid.name, value);
 
   List<String> getCollapsedSections() =>
       _prefs.getStringList(PreferenceKey.collapsedSections.name) ?? const [];

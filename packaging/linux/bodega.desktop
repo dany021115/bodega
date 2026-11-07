@@ -4,5 +4,6 @@ Name=Bodega
 Comment=Lanzador para jugar juegos de Windows con Wine
 Exec=/opt/bodega/bodega
 Icon=bodega
+StartupWMClass=bodega
 Terminal=false
 Categories=Game;

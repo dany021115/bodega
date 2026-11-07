@@ -227,7 +227,7 @@ void _checkSync(String sync) {
 typedef BottleSettings = ({
   String backend,
   String sync,
-  Map<String, ({String? backend, Map<String, String> env})> programs,
+  Map<String, ({String? backend, Map<String, String> env, bool hud})> programs,
 
   /// Which version of [_ensureGamepads] the bottle has had; 0 for none.
   int gamepads,
@@ -269,7 +269,7 @@ BottleSettings _with(
   BottleSettings settings, {
   String? backend,
   String? sync,
-  Map<String, ({String? backend, Map<String, String> env})>? programs,
+  Map<String, ({String? backend, Map<String, String> env, bool hud})>? programs,
   int? gamepads,
   bool? highRes,
   bool? dlss,
@@ -308,6 +308,7 @@ BottleSettings _settings(String dir) {
           key as String: (
             backend: (value as Map)['backend'] as String?,
             env: Map<String, String>.from((value['env'] ?? const {}) as Map),
+            hud: (value['hud'] ?? false) as bool,
           ),
       },
       gamepads: (json['gamepads'] ?? 0) as int,
@@ -356,6 +357,7 @@ void _saveSettings(String dir, BottleSettings settings) {
         key: {
           if (value.backend case final backend?) 'backend': backend,
           if (value.env.isNotEmpty) 'env': value.env,
+          if (value.hud) 'hud': true,
         },
     },
     if (settings.gamepads > 0) 'gamepads': settings.gamepads,
@@ -380,12 +382,13 @@ void setBackend(String home, String name, String backend, {String? exe}) {
   if (exe != null) {
     final key = _exeKey(exe);
     final env = programs[key]?.env ?? const <String, String>{};
+    final hud = programs[key]?.hud ?? false;
     if (backend != 'auto') {
-      programs[key] = (backend: backend, env: env);
-    } else if (env.isEmpty) {
+      programs[key] = (backend: backend, env: env, hud: hud);
+    } else if (env.isEmpty && !hud) {
       programs.remove(key);
     } else {
-      programs[key] = (backend: null, env: env);
+      programs[key] = (backend: null, env: env, hud: hud);
     }
   }
   _saveSettings(

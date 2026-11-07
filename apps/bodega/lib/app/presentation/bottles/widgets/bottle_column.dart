@@ -1,32 +1,37 @@
 import 'package:bodega/app/bloc/bottle_detail/bottle_detail_bloc.dart';
-import 'package:bodega/app/bloc/catalog/catalog_bloc.dart';
 import 'package:bodega/app/bloc/library/library_bloc.dart';
 import 'package:bodega/app/bloc/setup/setup_bloc.dart';
 import 'package:bodega/app/presentation/bottles/widgets/log_dialog.dart';
+import 'package:bodega/app/presentation/bottles/widgets/rename_bottle_dialog.dart';
 import 'package:bodega/app/presentation/bottles/widgets/run_options_dialog.dart';
-import 'package:bodega/app/router.dart';
 import 'package:bodega/app/shared/widgets/collapsible_section.dart';
 import 'package:bodega/app/shared/widgets/confirm_dialog.dart';
-import 'package:bodega/device/router/manager.dart';
+import 'package:bodega/app/shared/widgets/status_chip.dart';
+import 'package:bodega/device/theme/color.dart';
+import 'package:bodega/device/theme/gradient.dart';
 import 'package:bodega/device/theme/radius.dart';
 import 'package:bodega/device/theme/spacing.dart';
 import 'package:bodega/device/theme/typography.dart';
 import 'package:bodega/domain/entities/bottle_detail.dart';
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-/// What can be done with a bottle: the column at its right (V8–V10).
+/// What can be done with a bottle: its panel at the right of the applications,
+/// or below them when there is no room.
 class BottleColumn extends StatelessWidget {
   final BottleDetail detail;
   final bool isBusy;
   final bool isOpen;
+  final List<String> hints;
 
   const BottleColumn({
     super.key,
     required this.detail,
     required this.isBusy,
     required this.isOpen,
+    required this.hints,
   });
 
   static const windowsNames = {
@@ -68,6 +73,12 @@ class BottleColumn extends StatelessWidget {
     if (confirmed) bloc.add(LibraryEvent.stop(detail.name));
   }
 
+  Future<void> _rename(BuildContext context) async {
+    final bloc = context.read<BottleDetailBloc>();
+    final newName = await showRenameBottleDialog(context, detail.name);
+    if (newName != null) bloc.add(BottleDetailEvent.rename(newName));
+  }
+
   Future<void> _delete(BuildContext context) async {
     final bloc = context.read<BottleDetailBloc>();
     final confirmed = await confirm(
@@ -93,6 +104,19 @@ class BottleColumn extends StatelessWidget {
     label: Text(label),
   );
 
+  Widget _quick(
+    IconData icon,
+    String label,
+    VoidCallback onPressed, {
+    bool enabled = true,
+    Color? color,
+  }) => OutlinedButton.icon(
+    style: OutlinedButton.styleFrom(foregroundColor: color),
+    onPressed: isBusy || !enabled ? null : onPressed,
+    icon: Icon(icon, size: 18),
+    label: Text(label),
+  );
+
   Widget _switch(
     BuildContext context,
     String title,
@@ -110,61 +134,212 @@ class BottleColumn extends StatelessWidget {
     );
   }
 
+  Widget _identity(BuildContext context, String label, Color color) {
+    final styles = AppTextStyle(context);
+    final colors = Theme.of(context).colorScheme;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                gradient: AppGradient.brand,
+                borderRadius: AppRadius.smBorder,
+              ),
+              child: ExcludeSemantics(
+                child: Icon(Icons.wine_bar_rounded, color: colors.onPrimary),
+              ),
+            ),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          detail.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: styles.sectionTitle,
+                        ),
+                      ),
+                      IconButton(
+                        tooltip: isOpen
+                            ? 'Párala para renombrarla'
+                            : 'Renombrar',
+                        visualDensity: VisualDensity.compact,
+                        icon: const Icon(Icons.edit_rounded, size: 18),
+                        onPressed: isBusy || isOpen
+                            ? null
+                            : () => _rename(context),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  StatusChip(label: label, color: color),
+                ],
+              ),
+            ),
+          ],
+        ),
+        for (final hint in hints) ...[
+          const SizedBox(height: AppSpacing.sm),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                Icons.warning_amber_rounded,
+                size: 18,
+                color: colors.error,
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(child: Text(hint, style: styles.bodySecondary)),
+            ],
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _facts(BuildContext context) {
+    final styles = AppTextStyle(context);
+    final colors = Theme.of(context).colorScheme;
+
+    Widget fact(String label, String value) => Expanded(
+      child: Container(
+        padding: const EdgeInsets.all(AppSpacing.sm),
+        decoration: BoxDecoration(
+          color: colors.surfaceContainerHigh,
+          borderRadius: AppRadius.xsBorder,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              value,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: styles.body?.copyWith(fontWeight: FontWeight.w600),
+            ),
+            Text(label, style: styles.caption),
+          ],
+        ),
+      ),
+    );
+
+    return Row(
+      children: [
+        fact('Apps', '${detail.apps.length}'),
+        const SizedBox(width: AppSpacing.sm),
+        fact('Windows', windowsNames[detail.windows] ?? detail.windows),
+        const SizedBox(width: AppSpacing.sm),
+        fact(
+          'Gráficos',
+          detail.backend == 'auto' ? 'Automático' : detail.backend,
+        ),
+      ],
+    );
+  }
+
+  Widget _quickActions(BuildContext context) {
+    final library = context.read<LibraryBloc>();
+    final colors = Theme.of(context).colorScheme;
+    final name = detail.name;
+
+    return Wrap(
+      spacing: AppSpacing.sm,
+      runSpacing: AppSpacing.sm,
+      children: [
+        if (isOpen)
+          _quick(
+            Icons.stop_rounded,
+            'Parar',
+            () => _stop(context),
+            color: colors.error,
+          ),
+        _quick(
+          Icons.play_arrow_rounded,
+          'Ejecutar con opciones…',
+          () => showRunOptions(
+            context,
+            bottle: name,
+            backends: detail.installedBackends,
+          ),
+          enabled: detail.ready,
+        ),
+        // Runs a program once: it is not kept in the bottle's list.
+        _quick(Icons.file_open_rounded, 'Ejecutar .exe…', () async {
+          final file = await openFile(
+            acceptedTypeGroups: const [
+              XTypeGroup(label: 'Programas', extensions: ['exe', 'EXE']),
+            ],
+          );
+          if (file != null) library.add(LibraryEvent.run(name, file.path));
+        }, enabled: detail.ready),
+        _quick(
+          Icons.folder_open_rounded,
+          'Unidad C:',
+          () => launchUrl(Uri.directory(detail.driveC)),
+          enabled: detail.ready,
+        ),
+        _quick(
+          Icons.terminal_rounded,
+          'Terminal',
+          () => library.add(LibraryEvent.run(name, 'wineconsole', ['cmd'])),
+          enabled: detail.ready,
+        ),
+      ],
+    );
+  }
+
+  Widget _deleteButton(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
+    return OutlinedButton.icon(
+      style: OutlinedButton.styleFrom(
+        foregroundColor: colors.error,
+        side: BorderSide(color: colors.error),
+      ),
+      onPressed: isBusy ? null : () => _delete(context),
+      icon: const Icon(Icons.delete_outline_rounded, size: 18),
+      label: const Text('Borrar botella'),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final styles = AppTextStyle(context);
     final bloc = context.read<BottleDetailBloc>();
     final library = context.read<LibraryBloc>();
     final caps = context.read<SetupBloc>().state.capabilities;
+    final colors = Theme.of(context).colorScheme;
     final name = detail.name;
     // The current one too: it may have been uninstalled by hand.
     final backends = {'auto', ...detail.installedBackends, detail.backend};
+    final (label, color) = !detail.ready
+        ? ('Incompleta', AppColor.statusFlaky)
+        : isOpen
+        ? ('Abierta', AppColor.statusTested)
+        : ('Cerrada', AppColor.statusUntested);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        CollapsibleSection(
-          id: 'actions',
-          title: 'Acciones',
-          children: [
-            _action(
-              Icons.play_arrow_rounded,
-              'Ejecutar con opciones…',
-              () => showRunOptions(
-                context,
-                bottle: name,
-                backends: detail.installedBackends,
-              ),
-              enabled: detail.ready,
-            ),
-            _action(Icons.storefront_rounded, 'Instalar en esta botella', () {
-              context.read<CatalogBloc>().add(CatalogEvent.target(name));
-              RouterManager.go(AppRoute.catalog, context: context);
-            }, enabled: detail.ready),
-            _action(
-              Icons.folder_open_rounded,
-              'Abrir unidad C:',
-              () => launchUrl(Uri.directory(detail.driveC)),
-              enabled: detail.ready,
-            ),
-            _action(
-              Icons.terminal_rounded,
-              'Abrir terminal',
-              () => library.add(LibraryEvent.run(name, 'wineconsole', ['cmd'])),
-              enabled: detail.ready,
-            ),
-            if (isOpen)
-              _action(Icons.stop_rounded, 'Parar', () => _stop(context)),
-            _action(
-              Icons.delete_outline_rounded,
-              'Borrar botella',
-              () => _delete(context),
-            ),
-          ],
-        ),
+        _identity(context, label, color),
+        const SizedBox(height: AppSpacing.lg),
+        _facts(context),
+        const SizedBox(height: AppSpacing.lg),
+        _quickActions(context),
         CollapsibleSection(
           id: 'settings',
-          title: 'Configuración avanzada',
+          title: 'Configuración',
           children: [
             const SizedBox(height: AppSpacing.xs),
             DropdownButtonFormField<String>(
@@ -287,7 +462,7 @@ class BottleColumn extends StatelessWidget {
         ),
         CollapsibleSection(
           id: 'panels',
-          title: 'Paneles de control',
+          title: 'Herramientas de Wine',
           children: [
             for (final (label, program, args) in panels)
               _action(
@@ -345,7 +520,7 @@ class BottleColumn extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: styles.caption?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurface,
+                          color: colors.onSurface,
                         ),
                       ),
                       Text(
@@ -360,6 +535,8 @@ class BottleColumn extends StatelessWidget {
               ),
           ],
         ),
+        const SizedBox(height: AppSpacing.lg),
+        _deleteButton(context),
       ],
     );
   }

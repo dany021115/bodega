@@ -120,4 +120,38 @@ void main() {
         .getOrElse((error) => fail(error.message));
     expect(detail.apps, isEmpty);
   });
+
+  test('an application taken out of the library stays in the bottle', () async {
+    File('${bottle.path}/prefix/drive_c/A/a.exe').createSync(recursive: true);
+    File('${bottle.path}/apps.json').writeAsStringSync(
+      jsonEncode({
+        'apps': [
+          {'id': 'custom', 'title': 'A', 'exe': 'A/a.exe', 'args': []},
+        ],
+      }),
+    );
+
+    (await repository.setInLibrary(
+      'steam',
+      'a/a.exe',
+      false,
+    )).getOrElse((error) => fail(error.message));
+
+    final detail = (await repository.detail('steam'))
+        .getOrElse((error) => fail(error.message));
+    expect(detail.apps.single.key, 'a/a.exe');
+    expect(detail.apps.single.inLibrary, isFalse);
+  });
+
+  test('renaming moves the bottle to its new name', () async {
+    (await repository.renameBottle(
+      'steam',
+      'juegos',
+    )).getOrElse((error) => fail(error.message));
+
+    final detail = (await repository.detail('juegos'))
+        .getOrElse((error) => fail(error.message));
+    expect(detail.name, 'juegos');
+    expect(Directory('${home.path}/bottles/steam').existsSync(), isFalse);
+  });
 }

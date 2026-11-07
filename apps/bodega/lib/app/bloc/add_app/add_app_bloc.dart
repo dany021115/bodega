@@ -1,6 +1,7 @@
 import 'package:bloc/bloc.dart';
 import 'package:bodega/domain/entities/app_error.dart';
 import 'package:bodega/domain/repository/add_app_repository.dart';
+import 'package:bodega/domain/repository/bottle_repository.dart';
 import 'package:fpdart/fpdart.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:injectable/injectable.dart';
@@ -12,15 +13,12 @@ part 'add_app_bloc.freezed.dart';
 @injectable
 class AddAppBloc extends Bloc<AddAppEvent, AddAppState> {
   final AddAppRepository _repository;
+  final BottleRepository _bottles;
 
-  AddAppBloc(this._repository) : super(const AddAppState()) {
-    on<AddAppLoadEvent>((event, emit) async {
-      final result = await _repository.readyBottles();
-      result.match(
-        (error) => emit(state.copyWith(error: error)),
-        (bottles) => emit(state.copyWith(bottles: bottles)),
-      );
-    });
+  AddAppBloc(this._repository, this._bottles) : super(const AddAppState()) {
+    on<AddAppLoadEvent>(
+      (event, emit) => emit(state.copyWith(bottle: event.bottle)),
+    );
     on<AddAppExeChosenEvent>((event, emit) {
       final name = event.path.split('/').last;
       emit(
@@ -36,11 +34,11 @@ class AddAppBloc extends Bloc<AddAppEvent, AddAppState> {
     on<AddAppTitleChangedEvent>(
       (event, emit) => emit(state.copyWith(title: event.title)),
     );
-    on<AddAppBottleChosenEvent>(
-      (event, emit) => emit(state.copyWith(bottle: event.bottle)),
-    );
     on<AddAppInstallerToggledEvent>(
       (event, emit) => emit(state.copyWith(isInstaller: event.value)),
+    );
+    on<AddAppAddToLibraryToggledEvent>(
+      (event, emit) => emit(state.copyWith(addToLibrary: event.value)),
     );
     on<AddAppSubmitEvent>(_submit);
     // An installer can leave a service behind, and then the bottle never
@@ -50,11 +48,10 @@ class AddAppBloc extends Bloc<AddAppEvent, AddAppState> {
         emit(state.copyWith(step: AddAppStep.pickInstalled));
       }
     });
-    on<AddAppInstalledChosenEvent>((event, emit) async {
-      final bottle = state.bottle;
-      if (bottle == null) return;
-      await _register(bottle, event.path, emit, onFailure: state.step);
-    });
+    on<AddAppInstalledChosenEvent>(
+      (event, emit) =>
+          _register(state.bottle, event.path, emit, onFailure: state.step),
+    );
   }
 
   Future<void> _submit(
@@ -64,30 +61,12 @@ class AddAppBloc extends Bloc<AddAppEvent, AddAppState> {
     final exe = state.exe;
     if (!state.canSubmit || exe == null) return;
 
-    // Before creating anything: an unusable path must not leave a bottle.
+    // An unusable path fails here, before Wine or the library see it.
     if (_repository.pathProblem(exe) case final problem?) {
       return emit(state.copyWith(error: AppError.engine(problem)));
     }
 
-    var chosen = state.bottle;
-    if (chosen == null) {
-      emit(state.copyWith(step: AddAppStep.creating, error: null));
-      switch (await _repository.createBottle(state.title.trim())) {
-        case Left(value: final error):
-          return emit(state.copyWith(step: AddAppStep.form, error: error));
-        case Right(value: final created):
-          chosen = created;
-          // A retry after this point goes to the same bottle.
-          emit(
-            state.copyWith(
-              bottle: created,
-              bottles: [...state.bottles, created],
-            ),
-          );
-      }
-    }
-    final bottle = chosen;
-
+    final bottle = state.bottle;
     if (!state.isInstaller) {
       return _register(bottle, exe, emit, onFailure: AddAppStep.form);
     }
@@ -114,10 +93,19 @@ class AddAppBloc extends Bloc<AddAppEvent, AddAppState> {
     Emitter<AddAppState> emit, {
     required AddAppStep onFailure,
   }) async {
-    final result = await _repository.addApp(bottle, state.title.trim(), exe);
-    result.match(
-      (error) => emit(state.copyWith(step: onFailure, error: error)),
-      (_) => emit(state.copyWith(step: AddAppStep.done, error: null)),
-    );
+    switch (await _repository.addApp(bottle, state.title.trim(), exe)) {
+      case Left(value: final error):
+        return emit(state.copyWith(step: onFailure, error: error));
+      case Right(value: final key):
+        if (!state.addToLibrary) {
+          switch (await _bottles.setInLibrary(bottle, key, false)) {
+            case Left(value: final error):
+              return emit(state.copyWith(step: onFailure, error: error));
+            case Right():
+              break;
+          }
+        }
+    }
+    emit(state.copyWith(step: AddAppStep.done, error: null));
   }
 }

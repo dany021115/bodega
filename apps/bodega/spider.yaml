@@ -2,3 +2,6 @@ groups:
   - path: assets/icons/catalog
     class_name: AssetsCatalogIcons
     package: bodega
+  - path: assets/images
+    class_name: AssetsImages
+    package: bodega

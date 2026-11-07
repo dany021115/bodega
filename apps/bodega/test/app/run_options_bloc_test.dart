@@ -20,7 +20,6 @@ void main() {
         args: any(named: 'args'),
         env: any(named: 'env'),
         backend: any(named: 'backend'),
-        hud: any(named: 'hud'),
         avx: any(named: 'avx'),
       ),
     ).thenAnswer((_) async => right('/l/a.log'));
@@ -46,7 +45,6 @@ void main() {
     args: args,
     env: env,
     backend: 'dxvk',
-    hud: true,
     avx: false,
     save: save,
     title: 'Mi juego',
@@ -67,7 +65,6 @@ void main() {
           args: ['-uno', 'dos tres'],
           env: {'DXVK_HUD': 'fps', 'WINEDEBUG': '+d3d'},
           backend: 'dxvk',
-          hud: true,
           avx: false,
         ),
       ).called(1);
@@ -119,7 +116,6 @@ void main() {
           args: any(named: 'args'),
           env: any(named: 'env'),
           backend: any(named: 'backend'),
-          hud: any(named: 'hud'),
           avx: any(named: 'avx'),
         ),
       );
@@ -136,7 +132,6 @@ void main() {
           args: any(named: 'args'),
           env: any(named: 'env'),
           backend: any(named: 'backend'),
-          hud: any(named: 'hud'),
           avx: any(named: 'avx'),
         ),
       ).thenAnswer(

@@ -592,6 +592,194 @@ void main() {
     });
   });
 
+  group('setInLibrary', () {
+    test('every app is in the library until it is taken out', () {
+      final drive = bottle('b');
+      touch('$drive/P/a.exe');
+      addApp(home, 'b', 'A', 'P/a.exe');
+      expect(bottleApps(home, 'b').single.inLibrary, isTrue);
+
+      setInLibrary(home, 'b', 'p/a.exe', false);
+      expect(bottleApps(home, 'b').single.inLibrary, isFalse);
+      expect(
+        jsonDecode(
+          File('$home/bottles/b/apps.json').readAsStringSync(),
+        )['offLibrary'],
+        ['p/a.exe'],
+      );
+
+      setInLibrary(home, 'b', 'p/a.exe', true);
+      expect(bottleApps(home, 'b').single.inLibrary, isTrue);
+      expect(
+        jsonDecode(
+          File('$home/bottles/b/apps.json').readAsStringSync(),
+        )['offLibrary'],
+        isEmpty,
+      );
+    });
+
+    test('a detected one can be taken out too', () {
+      final drive = bottle('b');
+      touch('$drive/P/a.exe');
+      touch('$drive/users/Public/Desktop/A.lnk')
+          .writeAsBytesSync(lnk(r'C:\P\a.exe'));
+      setInLibrary(home, 'b', 'p/a.exe', false);
+      expect(bottleApps(home, 'b').single.inLibrary, isFalse);
+    });
+
+    test('a bottle from before apps.json reads as all in', () {
+      bottle('steam');
+      legacy('steam', steamApp);
+      expect(bottleApps(home, 'steam').single.inLibrary, isTrue);
+
+      setInLibrary(home, 'steam', 'program files (x86)/steam/steam.exe', false);
+      expect(bottleApps(home, 'steam').single.inLibrary, isFalse);
+      expect(File('$home/bottles/steam/app.json').existsSync(), isFalse);
+    });
+
+    test('an app the bottle does not have is an error', () {
+      bottle('b');
+      expect(
+        () => setInLibrary(home, 'b', 'p/nada.exe', false),
+        throwsA(contains('no tiene la aplicación')),
+      );
+    });
+
+    test('hideApp takes the app out of the off list', () {
+      final drive = bottle('b');
+      touch('$drive/P/a.exe');
+      addApp(home, 'b', 'A', 'P/a.exe');
+      setInLibrary(home, 'b', 'p/a.exe', false);
+      hideApp(home, 'b', 'p/a.exe');
+      expect(
+        jsonDecode(
+          File('$home/bottles/b/apps.json').readAsStringSync(),
+        )['offLibrary'],
+        isEmpty,
+      );
+    });
+  });
+
+  group('setAppHud', () {
+    test('an app has no HUD until it is turned on', () {
+      final drive = bottle('b');
+      touch('$drive/P/a.exe');
+      addApp(home, 'b', 'A', 'P/a.exe');
+      expect(bottleApps(home, 'b').single.hud, isFalse);
+    });
+
+    test('on and off are kept in the bottle settings', () {
+      final drive = bottle('b');
+      touch('$drive/P/a.exe');
+      addApp(home, 'b', 'A', 'P/a.exe');
+      setAppHud(home, 'b', 'p/a.exe', true);
+      expect(bottleApps(home, 'b').single.hud, isTrue);
+      expect(
+        jsonDecode(
+          File('$home/bottles/b/settings.json').readAsStringSync(),
+        )['programs'],
+        {
+          'a.exe': {'hud': true},
+        },
+      );
+
+      setAppHud(home, 'b', 'p/a.exe', false);
+      expect(bottleApps(home, 'b').single.hud, isFalse);
+    });
+
+    test('a detected app keeps it too', () {
+      final drive = bottle('b');
+      touch('$drive/P/a.exe');
+      touch('$drive/users/Public/Desktop/A.lnk')
+          .writeAsBytesSync(lnk(r'C:\P\a.exe'));
+      setAppHud(home, 'b', 'p/a.exe', true);
+      expect(bottleApps(home, 'b').single.hud, isTrue);
+    });
+
+    test('an app the bottle does not have is an error', () {
+      bottle('b');
+      expect(
+        () => setAppHud(home, 'b', 'p/nada.exe', true),
+        throwsA(contains('no tiene la aplicación')),
+      );
+    });
+
+    group('a launch', () {
+      setUp(() async {
+        final (engine, hostlibs) = await fakeRuntime(tmp, 'engine');
+        await installRuntime(home, engine, hostlibs);
+      });
+
+      test('gets the HUD its program has, and not once it is off', () async {
+        await createBottle(home, 'b');
+        touch('$home/bottles/b/prefix/drive_c/P/a.exe');
+        addApp(home, 'b', 'A', 'P/a.exe');
+        final env = File('$home/bottles/b/prefix/last-env');
+
+        setAppHud(home, 'b', 'p/a.exe', true);
+        await exitOf(await openApp(home, 'b'));
+        expect(env.readAsStringSync(), contains('MTL_HUD_ENABLED=1'));
+
+        setAppHud(home, 'b', 'p/a.exe', false);
+        await exitOf(await openApp(home, 'b'));
+        expect(env.readAsStringSync(), isNot(contains('MTL_HUD_ENABLED')));
+      });
+    });
+  });
+
+  group('renameBottle', () {
+    setUp(() async {
+      final (engine, hostlibs) = await fakeRuntime(tmp, 'engine');
+      await installRuntime(home, engine, hostlibs);
+      await createBottle(home, 'b');
+    });
+
+    test('moves the folder, and a z: link stays a link', () async {
+      final dosdevices = '$home/bottles/b/prefix/dosdevices';
+      Directory(dosdevices).createSync();
+      Link('$dosdevices/z:').createSync('/');
+      await renameBottle(home, 'b', 'c');
+      expect(Directory('$home/bottles/b').existsSync(), isFalse);
+      expect(File('$home/bottles/c/prefix/system.reg').existsSync(), isTrue);
+      final z = '$home/bottles/c/prefix/dosdevices/z:';
+      expect(
+        FileSystemEntity.typeSync(z, followLinks: false),
+        FileSystemEntityType.link,
+      );
+      expect(Link(z).targetSync(), '/');
+    });
+
+    test(
+      'refuses a name that exists, an invalid one or a missing bottle',
+      () async {
+        await createBottle(home, 'c');
+        await expectLater(
+          renameBottle(home, 'b', 'c'),
+          throwsA(contains('ya existe la botella c')),
+        );
+        await expectLater(
+          renameBottle(home, 'b', 'a b'),
+          throwsA(isA<FormatException>()),
+        );
+        await expectLater(
+          renameBottle(home, 'nada', 'x'),
+          throwsA(contains('no existe la botella nada')),
+        );
+        expect(Directory('$home/bottles/b').existsSync(), isTrue);
+      },
+    );
+
+    test('refuses an open bottle, and leaves it where it is', () async {
+      final hang = File('$home/bottles/b/prefix/hang')..writeAsStringSync('');
+      await expectLater(
+        renameBottle(home, 'b', 'c'),
+        throwsA(contains('está abierta')),
+      );
+      hang.deleteSync();
+      expect(Directory('$home/bottles/b').existsSync(), isTrue);
+    });
+  });
+
   group('appIcon', () {
     final png = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 1, 2, 3];
     final dib = [40, 0, 0, 0, 32, 0, 0, 0, 64, 0, 0, 0, 9, 9];
@@ -652,6 +840,7 @@ void main() {
           title: 'N',
           exe: 'P/n.exe',
           args: const <String>[],
+          inLibrary: true,
         )),
         isNull,
       );
@@ -702,6 +891,7 @@ void main() {
         title: 'J',
         exe: 'x',
         args: <String>[],
+        inLibrary: true,
       );
       expect(appIcon(home, game), isNull);
       touch('$cache/header.jpg');

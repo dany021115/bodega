@@ -3,12 +3,15 @@ import 'dart:async';
 import 'package:bloc_test/bloc_test.dart';
 import 'package:bodega/app/bloc/library/library_bloc.dart';
 import 'package:bodega/domain/entities/library_app.dart';
+import 'package:bodega/domain/repository/bottle_repository.dart';
 import 'package:bodega/domain/repository/library_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fpdart/fpdart.dart';
 import 'package:mocktail/mocktail.dart';
 
 class _MockLibrary extends Mock implements LibraryRepository {}
+
+class _MockBottles extends Mock implements BottleRepository {}
 
 const _blur = LibraryApp(
   bottle: 'blur',
@@ -19,6 +22,7 @@ const _blur = LibraryApp(
 
 void main() {
   late _MockLibrary repository;
+  late _MockBottles bottles;
   late Completer<void> firstExit;
   late Completer<void> bottleEmpty;
 
@@ -26,6 +30,7 @@ void main() {
 
   setUp(() {
     repository = _MockLibrary();
+    bottles = _MockBottles();
     firstExit = Completer();
     bottleEmpty = Completer();
     when(() => repository.open('steam'))
@@ -46,7 +51,7 @@ void main() {
     build: () {
       when(() => repository.apps())
           .thenAnswer((_) async => right(const [_blur]));
-      return LibraryBloc(repository);
+      return LibraryBloc(repository, bottles);
     },
     act: (bloc) => bloc.add(const LibraryEvent.load()),
     verify: (bloc) {
@@ -59,7 +64,7 @@ void main() {
     'an empty library is not loading',
     build: () {
       when(() => repository.apps()).thenAnswer((_) async => right(const []));
-      return LibraryBloc(repository);
+      return LibraryBloc(repository, bottles);
     },
     act: (bloc) => bloc.add(const LibraryEvent.load()),
     verify: (bloc) {
@@ -68,8 +73,26 @@ void main() {
     },
   );
 
+  blocTest<LibraryBloc, LibraryState>(
+    'the HUD of an application is saved and the library reloads',
+    build: () {
+      when(() => repository.apps()).thenAnswer((_) async => right(const []));
+      when(() => bottles.setHud('steam', 'a/a.exe', true))
+          .thenAnswer((_) async => right(unit));
+      return LibraryBloc(repository, bottles);
+    },
+    act: (bloc) =>
+        bloc.add(const LibraryEvent.setHud('steam', 'a/a.exe', true)),
+    wait: const Duration(milliseconds: 10),
+    verify: (_) {
+      verify(() => bottles.setHud('steam', 'a/a.exe', true)).called(1);
+      verify(() => repository.apps()).called(1);
+    },
+  );
+
   test('open until the last process, not the first', () async {
-    final bloc = LibraryBloc(repository)..add(const LibraryEvent.open('steam'));
+    final bloc = LibraryBloc(repository, bottles)
+      ..add(const LibraryEvent.open('steam'));
     await settle();
     expect(bloc.state.open, {'steam'});
 
@@ -88,7 +111,7 @@ void main() {
   test('a program run in a bottle keeps it open until it empties', () async {
     when(() => repository.run('steam', '/g/tool.exe'))
         .thenAnswer((_) async => right('/l/a.log'));
-    final bloc = LibraryBloc(repository)
+    final bloc = LibraryBloc(repository, bottles)
       ..add(const LibraryEvent.run('steam', '/g/tool.exe'));
     await settle();
     expect(bloc.state.open, {'steam'});
@@ -106,7 +129,7 @@ void main() {
         .thenAnswer((_) async => right('/l/a.log'));
     when(() => repository.open('steam', key: 'b'))
         .thenAnswer((_) async => right('/l/a.log'));
-    final bloc = LibraryBloc(repository)
+    final bloc = LibraryBloc(repository, bottles)
       ..add(const LibraryEvent.open('steam', 'a'));
     await settle();
     bloc.add(const LibraryEvent.open('steam', 'b'));
@@ -129,7 +152,8 @@ void main() {
         .thenAnswer((_) async => right('/l/a.log'));
     when(() => repository.antiCheatHints('steam', any()))
         .thenReturn(const ['EAC falló']);
-    final bloc = LibraryBloc(repository)..add(const LibraryEvent.open('steam'));
+    final bloc = LibraryBloc(repository, bottles)
+      ..add(const LibraryEvent.open('steam'));
     await settle();
     bloc.add(const LibraryEvent.checkHints());
     await settle();
@@ -143,7 +167,7 @@ void main() {
   test('a panel runs with its arguments', () async {
     when(() => repository.run('steam', 'control', args: ['joy.cpl']))
         .thenAnswer((_) async => right('/l/a.log'));
-    final bloc = LibraryBloc(repository)
+    final bloc = LibraryBloc(repository, bottles)
       ..add(const LibraryEvent.run('steam', 'control', ['joy.cpl']));
     await settle();
     expect(bloc.state.open, {'steam'});
@@ -153,7 +177,7 @@ void main() {
   test(
     'a launch made elsewhere is followed until the bottle empties',
     () async {
-      final bloc = LibraryBloc(repository)
+      final bloc = LibraryBloc(repository, bottles)
         ..add(const LibraryEvent.track('steam', '/l/a.log'));
       await settle();
       expect(bloc.state.open, {'steam'});
@@ -168,7 +192,7 @@ void main() {
 
   blocTest<LibraryBloc, LibraryState>(
     'a double click launches it once',
-    build: () => LibraryBloc(repository),
+    build: () => LibraryBloc(repository, bottles),
     act: (bloc) => bloc
       ..add(const LibraryEvent.open('steam'))
       ..add(const LibraryEvent.open('steam')),
@@ -184,7 +208,7 @@ void main() {
       when(() => repository.bottleNames())
           .thenAnswer((_) async => const ['steam', 'blur']);
       when(() => repository.waitBottle('blur')).thenAnswer((_) async {});
-      return LibraryBloc(repository);
+      return LibraryBloc(repository, bottles);
     },
     act: (bloc) => bloc.add(const LibraryEvent.load()),
     wait: const Duration(milliseconds: 1100),
@@ -196,7 +220,7 @@ void main() {
     build: () {
       when(() => repository.antiCheatHints('steam', any()))
           .thenReturn(const ['EAC falló']);
-      return LibraryBloc(repository);
+      return LibraryBloc(repository, bottles);
     },
     act: (bloc) async {
       bloc.add(const LibraryEvent.open('steam'));
@@ -218,7 +242,8 @@ void main() {
     firstExit.complete();
     bottleEmpty.complete();
 
-    final bloc = LibraryBloc(repository)..add(const LibraryEvent.open('steam'));
+    final bloc = LibraryBloc(repository, bottles)
+      ..add(const LibraryEvent.open('steam'));
     await bloc.stream.firstWhere((state) => state.toastId == 1);
 
     expect(bloc.state.open, isEmpty);

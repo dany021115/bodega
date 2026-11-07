@@ -49,7 +49,6 @@ class LibraryRepositoryImpl implements LibraryRepository {
     List<String> args = const [],
     Map<String, String> env = const {},
     String? backend,
-    bool hud = false,
     bool avx = true,
   }) => repositoryCall(
     () => engine.runInBottle(
@@ -58,7 +57,6 @@ class LibraryRepositoryImpl implements LibraryRepository {
       program,
       args,
       backend: backend,
-      hud: hud,
       env: env,
       avx: avx,
     ),

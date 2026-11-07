@@ -1,20 +1,29 @@
 import 'package:bodega/app/bloc/bottle_detail/bottle_detail_bloc.dart';
 import 'package:bodega/app/bloc/bottles/bottles_bloc.dart';
 import 'package:bodega/app/bloc/library/library_bloc.dart';
-import 'package:bodega/app/presentation/bottles/widgets/app_tile.dart';
+import 'package:bodega/app/bloc/view_mode/view_mode_bloc.dart';
+import 'package:bodega/app/presentation/add_app/add_app_dialog.dart';
 import 'package:bodega/app/presentation/bottles/widgets/bottle_column.dart';
+import 'package:bodega/app/presentation/bottles/widgets/bottle_empty_apps.dart';
+import 'package:bodega/app/presentation/bottles/widgets/library_toggle.dart';
 import 'package:bodega/app/presentation/bottles/widgets/run_options_dialog.dart';
 import 'package:bodega/app/router.dart';
+import 'package:bodega/app/shared/widgets/app_card.dart';
+import 'package:bodega/app/shared/widgets/app_menu.dart';
+import 'package:bodega/app/shared/widgets/app_row.dart';
 import 'package:bodega/app/shared/widgets/custom_loading.dart';
 import 'package:bodega/app/shared/widgets/empty_state.dart';
-import 'package:bodega/app/shared/widgets/status_chip.dart';
+import 'package:bodega/app/shared/widgets/gradient_button.dart';
+import 'package:bodega/app/shared/widgets/stop_bottle.dart';
+import 'package:bodega/app/shared/widgets/view_toggle.dart';
 import 'package:bodega/device/helpers/app_toast.dart';
 import 'package:bodega/device/router/manager.dart';
-import 'package:bodega/device/theme/color.dart';
+import 'package:bodega/device/theme/radius.dart';
 import 'package:bodega/device/theme/spacing.dart';
 import 'package:bodega/device/theme/typography.dart';
 import 'package:bodega/di.dart';
 import 'package:bodega/domain/entities/bottle_detail.dart';
+import 'package:bodega/domain/entities/library_app.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -26,6 +35,8 @@ class BottleDetailPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
+      // One bloc per bottle, even if the page is reused for another one.
+      key: ValueKey(name),
       create: (_) =>
           getIt<BottleDetailBloc>()..add(BottleDetailEvent.load(name)),
       child: BottleDetailView(name: name),
@@ -33,120 +44,228 @@ class BottleDetailPage extends StatelessWidget {
   }
 }
 
-/// Applications in the center and a column at the right, which goes below them
-/// when there is no room. It depends on the room left by the sidebar, not on
-/// the window (design §6).
+/// The applications in the center and the bottle's panel at the right. Below
+/// [wideFrom] the panel goes under the applications (design §6).
 class BottleDetailView extends StatelessWidget {
   static const double wideFrom = 760;
-  static const double columnWidth = 270;
+  static const double panelWidth = 380;
 
   final String name;
 
   const BottleDetailView({super.key, required this.name});
 
-  Widget _header(
+  static String _count(int apps) => apps == 1 ? '1 app' : '$apps apps';
+
+  void _setInLibrary(BuildContext context, LibraryApp app) {
+    context.read<BottleDetailBloc>().add(
+      BottleDetailEvent.setInLibrary(app.key, !app.inLibrary),
+    );
+    context.read<LibraryBloc>().add(const LibraryEvent.load());
+  }
+
+  /// Opens the menu beside the menu button that [anchor] is.
+  Future<void> _menu(
+    BuildContext anchor,
+    BottleDetail detail,
+    LibraryApp app,
+  ) async {
+    final action = await showAppMenu(
+      anchor,
+      inLibrary: app.inLibrary,
+      hud: app.hud,
+    );
+    if (action == null || !anchor.mounted) return;
+
+    switch (action) {
+      case AppMenuAction.open:
+        anchor.read<LibraryBloc>().add(LibraryEvent.open(detail.name, app.key));
+      case AppMenuAction.options:
+        showRunOptions(
+          anchor,
+          bottle: detail.name,
+          backends: detail.installedBackends,
+          program: app.exe,
+          args: app.args,
+          title: app.title,
+        );
+      case AppMenuAction.hud:
+        anchor.read<BottleDetailBloc>().add(
+          BottleDetailEvent.setHud(app.key, !app.hud),
+        );
+      case AppMenuAction.library:
+        _setInLibrary(anchor, app);
+      case AppMenuAction.hide:
+        anchor.read<BottleDetailBloc>().add(BottleDetailEvent.hideApp(app.key));
+        anchor.read<LibraryBloc>().add(const LibraryEvent.load());
+    }
+  }
+
+  Widget _app(
     BuildContext context,
     BottleDetail detail,
-    bool isOpen,
-    List<String> hints,
-  ) {
-    final styles = AppTextStyle(context);
-    final (label, color) = !detail.ready
-        ? ('Incompleta', AppColor.statusFlaky)
-        : isOpen
-        ? ('Abierta', AppColor.statusTested)
-        : ('Cerrada', AppColor.statusUntested);
+    LibraryApp app, {
+    required bool isGrid,
+    required bool running,
+  }) {
+    void open() => context.read<LibraryBloc>().add(
+      LibraryEvent.open(detail.name, app.key),
+    );
+    final toggle = LibraryToggle(
+      inLibrary: app.inLibrary,
+      onPressed: () => _setInLibrary(context, app),
+    );
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.xxl,
-        AppSpacing.xxl,
-        AppSpacing.xxl,
-        AppSpacing.lg,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Flexible(
-                child: Text(
-                  name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: styles.screenTitle,
+    // The builder gives the card or row its own context, to place its menu.
+    return Builder(
+      builder: (itemContext) {
+        void menu(BuildContext button) => _menu(button, detail, app);
+        void stop() => confirmStopBottle(itemContext, detail.name);
+        return isGrid
+            ? AppCard(
+                key: ValueKey(app.key),
+                app: app,
+                running: running,
+                onStop: stop,
+                onPlay: open,
+                footerChip: toggle,
+                onMenu: menu,
+              )
+            : Padding(
+                padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                child: AppRow(
+                  key: ValueKey(app.key),
+                  app: app,
+                  running: running,
+                  onStop: stop,
+                  onPlay: open,
+                  footerChip: toggle,
+                  onMenu: menu,
                 ),
-              ),
-              const SizedBox(width: AppSpacing.md),
-              StatusChip(label: label, color: color),
-            ],
-          ),
-          for (final hint in hints) ...[
-            const SizedBox(height: AppSpacing.sm),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(
-                  Icons.warning_amber_rounded,
-                  size: 18,
-                  color: Theme.of(context).colorScheme.error,
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                Expanded(child: Text(hint, style: styles.bodySecondary)),
-              ],
-            ),
-          ],
-        ],
-      ),
+              );
+      },
     );
   }
 
-  Widget _apps(BuildContext context, BottleDetail detail, {required bool fit}) {
-    if (detail.apps.isEmpty) {
-      return EmptyState(
-        icon: Icons.apps_rounded,
-        title: 'Esta botella no tiene aplicaciones',
-        message: 'Instala algo desde el catálogo.',
-        actionLabel: 'Instalar',
-        actionIcon: Icons.storefront_rounded,
-        onAction: () => RouterManager.go(AppRoute.catalog, context: context),
+  Widget _center(
+    BuildContext context,
+    BottleDetail detail, {
+    required bool isBusy,
+  }) {
+    final styles = AppTextStyle(context);
+    final isGrid = context.select((ViewModeBloc bloc) => bloc.state.isGrid);
+    final running = context.select(
+      (LibraryBloc bloc) => bloc.state.open.contains(detail.name),
+    );
+    final inLibrary = detail.apps.where((app) => app.inLibrary).length;
+    final canAdd = detail.ready && !isBusy;
+    void add() => showAddAppDialog(context, bottle: detail.name);
+
+    final apps = detail.apps.isEmpty
+        ? BottleEmptyApps(onAdd: canAdd ? add : null)
+        : isGrid
+        // The same cells as the library's grid, so the cards are the same.
+        ? GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+              maxCrossAxisExtent: 220,
+              mainAxisExtent: AppCard.extent(context),
+              crossAxisSpacing: AppSpacing.md,
+              mainAxisSpacing: AppSpacing.md,
+            ),
+            itemCount: detail.apps.length,
+            itemBuilder: (context, index) => _app(
+              context,
+              detail,
+              detail.apps[index],
+              isGrid: true,
+              running: running,
+            ),
+          )
+        : Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              for (final app in detail.apps)
+                _app(context, detail, app, isGrid: false, running: running),
+            ],
+          );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Apps instaladas', style: styles.screenTitle),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    '${_count(detail.apps.length)} en ${detail.name} · '
+                    '$inLibrary en tu biblioteca',
+                    style: styles.bodySecondary,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: AppSpacing.md),
+            ViewToggle(
+              isGrid: isGrid,
+              onChanged: (value) => context.read<ViewModeBloc>().add(
+                ViewModeEvent.set(value),
+              ),
+            ),
+            const SizedBox(width: AppSpacing.md),
+            GradientButton(
+              label: 'Agregar app',
+              icon: Icons.add_rounded,
+              onPressed: canAdd ? add : null,
+            ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.xl),
+        apps,
+      ],
+    );
+  }
+
+  Widget _panel(BuildContext context, Widget child, {required bool wide}) {
+    final colors = Theme.of(context).colorScheme;
+
+    if (wide) {
+      return DecoratedBox(
+        decoration: BoxDecoration(
+          color: colors.surfaceContainerLow,
+          border: Border(left: BorderSide(color: colors.outlineVariant)),
+        ),
+        // ListTile paints on the nearest Material: this one sits above the
+        // colored box, so the tiles' ink isn't hidden by it.
+        child: Material(
+          type: MaterialType.transparency,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(AppSpacing.xl),
+            child: child,
+          ),
+        ),
       );
     }
 
-    return GridView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
-      shrinkWrap: fit,
-      physics: fit ? const NeverScrollableScrollPhysics() : null,
-      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-        maxCrossAxisExtent: 130,
-        mainAxisExtent: 124,
-        mainAxisSpacing: AppSpacing.sm,
-        crossAxisSpacing: AppSpacing.sm,
-      ),
-      itemCount: detail.apps.length,
-      itemBuilder: (context, index) {
-        final app = detail.apps[index];
-        return AppTile(
-          key: ValueKey(app.key),
-          app: app,
-          onOpen: () =>
-              context.read<LibraryBloc>().add(LibraryEvent.open(name, app.key)),
-          onOptions: () => showRunOptions(
-            context,
-            bottle: name,
-            backends: detail.installedBackends,
-            program: app.exe,
-            args: app.args,
-            title: app.title,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: colors.surfaceContainerLow,
+          borderRadius: AppRadius.lgBorder,
+        ),
+        child: Material(
+          type: MaterialType.transparency,
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.xl),
+            child: child,
           ),
-          onHide: () {
-            context.read<BottleDetailBloc>().add(
-              BottleDetailEvent.hideApp(app.key),
-            );
-            context.read<LibraryBloc>().add(const LibraryEvent.load());
-          },
-        );
-      },
+        ),
+      ),
     );
   }
 
@@ -159,16 +278,32 @@ class BottleDetailView extends StatelessWidget {
       (LibraryBloc bloc) => bloc.state.hints[name] ?? const <String>[],
     );
 
-    return Scaffold(
+    // Whatever changes the apps (an install, the add-app dialog, a program that
+    // makes a shortcut) goes through LibraryBloc: this page follows it.
+    return BlocListener<LibraryBloc, LibraryState>(
+      listenWhen: (previous, current) => previous.apps != current.apps,
+      listener: (context, _) => context.read<BottleDetailBloc>().add(
+        BottleDetailEvent.load(name),
+      ),
+      child: Scaffold(
       body: BlocConsumer<BottleDetailBloc, BottleDetailState>(
         listenWhen: (previous, current) =>
             previous.deleted != current.deleted ||
+            previous.renamedTo != current.renamedTo ||
             (current.error != null && previous.error != current.error),
         listener: (context, state) {
           if (state.deleted) {
             context.read<BottlesBloc>().add(const BottlesEvent.load());
             context.read<LibraryBloc>().add(const LibraryEvent.load());
             RouterManager.go(AppRoute.library, context: context);
+          } else if (state.renamedTo case final newName?) {
+            context.read<BottlesBloc>().add(const BottlesEvent.load());
+            context.read<LibraryBloc>().add(const LibraryEvent.load());
+            RouterManager.go(
+              AppRoute.bottleDetail,
+              params: {'name': newName},
+              context: context,
+            );
           } else if (state.error case final error?) {
             AppToast.error(context, error.message);
           }
@@ -191,6 +326,7 @@ class BottleDetailView extends StatelessWidget {
             detail: detail,
             isBusy: state.isBusy,
             isOpen: isOpen,
+            hints: hints,
           );
 
           return LayoutBuilder(
@@ -198,18 +334,13 @@ class BottleDetailView extends StatelessWidget {
               if (constraints.maxWidth < wideFrom) {
                 return ListView(
                   children: [
-                    _header(context, detail, isOpen, hints),
-                    if (detail.apps.isEmpty)
-                      SizedBox(
-                        height: 280,
-                        child: _apps(context, detail, fit: true),
-                      )
-                    else
-                      _apps(context, detail, fit: true),
                     Padding(
-                      padding: const EdgeInsets.all(AppSpacing.xl),
-                      child: column,
+                      padding: const EdgeInsets.all(AppSpacing.xxl),
+                      child: _center(context, detail, isBusy: state.isBusy),
                     ),
+                    const SizedBox(height: AppSpacing.xl),
+                    _panel(context, column, wide: false),
+                    const SizedBox(height: AppSpacing.xxl),
                   ],
                 );
               }
@@ -218,27 +349,21 @@ class BottleDetailView extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        _header(context, detail, isOpen, hints),
-                        Expanded(child: _apps(context, detail, fit: false)),
-                      ],
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(AppSpacing.xxl),
+                      child: _center(context, detail, isBusy: state.isBusy),
                     ),
                   ),
-                  const VerticalDivider(width: 1),
                   SizedBox(
-                    width: columnWidth,
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.all(AppSpacing.lg),
-                      child: column,
-                    ),
+                    width: panelWidth,
+                    child: _panel(context, column, wide: true),
                   ),
                 ],
               );
             },
           );
         },
+      ),
       ),
     );
   }

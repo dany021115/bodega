@@ -84,7 +84,7 @@ GoRouter createRouter(SetupBloc setup) {
                 path: ':id',
                 name: AppRoute.catalogDetail.name,
                 pageBuilder: (context, state) => NoTransitionPage(
-                  key: state.pageKey,
+                  key: ValueKey(state.matchedLocation),
                   child: CatalogDetailPage(id: state.pathParameters['id']!),
                 ),
               ),
@@ -100,8 +100,10 @@ GoRouter createRouter(SetupBloc setup) {
           GoRoute(
             path: '${RouterManager.path(AppRoute.bottles)}/:name',
             name: AppRoute.bottleDetail.name,
+            // pageKey is the path template (/bottles/:name), the same for every
+            // bottle: the page, and its bloc, would be reused for all of them.
             pageBuilder: (context, state) => NoTransitionPage(
-              key: state.pageKey,
+              key: ValueKey(state.matchedLocation),
               child: BottleDetailPage(name: state.pathParameters['name']!),
             ),
           ),

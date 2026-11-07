@@ -161,17 +161,6 @@ class _RunOptionsDialogState extends State<RunOptionsDialog> {
                     onChanged: (value) =>
                         _change((s) => s.copyWith(backend: value)),
                   ),
-                  SwitchListTile.adaptive(
-                    contentPadding: EdgeInsets.zero,
-                    title: Text('HUD de rendimiento', style: styles.body),
-                    subtitle: Text(
-                      'Muestra los FPS. Con wined3d puede no salir.',
-                      style: styles.caption,
-                    ),
-                    value: state.hud,
-                    onChanged: (value) =>
-                        _change((s) => s.copyWith(hud: value)),
-                  ),
                   if (caps.avx)
                     SwitchListTile.adaptive(
                       contentPadding: EdgeInsets.zero,

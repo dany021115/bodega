@@ -1,12 +1,16 @@
 import 'package:bodega/app/bloc/bottles/bottles_bloc.dart';
 import 'package:bodega/app/bloc/library/library_bloc.dart';
-import 'package:bodega/app/bloc/theme/theme_bloc.dart';
+import 'package:bodega/app/presentation/bottles/new_bottle_dialog.dart';
 import 'package:bodega/app/router.dart';
+import 'package:bodega/app/shared/widgets/app_version.dart';
 import 'package:bodega/app/shared/widgets/bottle_row.dart';
 import 'package:bodega/app/shared/widgets/side_bar_item.dart';
 import 'package:bodega/device/router/manager.dart';
+import 'package:bodega/device/theme/gradient.dart';
+import 'package:bodega/device/theme/radius.dart';
 import 'package:bodega/device/theme/spacing.dart';
 import 'package:bodega/device/theme/typography.dart';
+import 'package:bodega/resources/assets_images.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -47,9 +51,15 @@ class _SideBarState extends State<SideBar> {
     final colors = Theme.of(context).colorScheme;
     final styles = AppTextStyle(context);
     final expanded = widget.expanded;
-    final isDark = context.select((ThemeBloc bloc) => bloc.state.isDark);
-    final open = context.select((LibraryBloc bloc) => bloc.state.open);
     final bottles = context.select((BottlesBloc bloc) => bloc.state.bottles);
+    final apps = context.select((LibraryBloc bloc) => bloc.state.apps);
+    final loading = context.select((LibraryBloc bloc) => bloc.state.isLoading);
+    final open = context.select((LibraryBloc bloc) => bloc.state.open);
+
+    final counts = <String, int>{};
+    for (final app in apps) {
+      counts[app.bottle] = (counts[app.bottle] ?? 0) + 1;
+    }
 
     return Container(
       width: expanded ? 220 : 68,
@@ -60,25 +70,34 @@ class _SideBarState extends State<SideBar> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              if (expanded)
-                Padding(
-                  padding: const EdgeInsets.only(
-                    left: AppSpacing.md,
-                    bottom: AppSpacing.lg,
-                  ),
-                  child: Text('Bodega', style: styles.sectionTitle),
+              Padding(
+                padding: EdgeInsets.only(
+                  left: expanded ? AppSpacing.md : 0,
+                  bottom: AppSpacing.lg,
                 ),
+                child: Row(
+                  mainAxisAlignment: expanded
+                      ? MainAxisAlignment.start
+                      : MainAxisAlignment.center,
+                  children: [
+                    Image.asset(
+                      AssetsImages.logo,
+                      width: 40,
+                      height: 40,
+                      excludeFromSemantics: true,
+                    ),
+                    if (expanded) ...[
+                      const SizedBox(width: AppSpacing.md),
+                      Text('Bodega', style: styles.sectionTitle),
+                    ],
+                  ],
+                ),
+              ),
               _section(
                 Icons.apps_rounded,
                 'Biblioteca',
                 AppRoute.library,
                 '/library',
-              ),
-              _section(
-                Icons.storefront_rounded,
-                'Instalar',
-                AppRoute.catalog,
-                '/catalog',
               ),
               const SizedBox(height: AppSpacing.sm),
               if (expanded)
@@ -87,10 +106,52 @@ class _SideBarState extends State<SideBar> {
                     left: AppSpacing.md,
                     bottom: AppSpacing.xs,
                   ),
-                  child: Text('Botellas', style: styles.label),
+                  child: Text('BOTELLAS', style: styles.label),
                 )
               else
                 const Divider(),
+              // The same dialog as the library's empty state: a bottle is
+              // always created the same way.
+              Tooltip(
+                message: 'Nueva botella',
+                // Ink paints on the nearest Material, which would sit under the
+                // sidebar's own background and be hidden by it.
+                child: Material(
+                  type: MaterialType.transparency,
+                  child: InkWell(
+                    borderRadius: AppRadius.mdBorder,
+                    onTap: () => showNewBottleDialog(context),
+                    child: Ink(
+                      height: 40,
+                      decoration: BoxDecoration(
+                        gradient: AppGradient.brand,
+                        borderRadius: AppRadius.mdBorder,
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.add_rounded,
+                            size: 20,
+                            color: colors.onPrimary,
+                          ),
+                          if (expanded) ...[
+                            const SizedBox(width: AppSpacing.xs),
+                            Text(
+                              'Nueva botella',
+                              style: styles.body?.copyWith(
+                                color: colors.onPrimary,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.sm),
               Expanded(
                 child: ListView.builder(
                   itemCount: bottles.length,
@@ -103,6 +164,7 @@ class _SideBarState extends State<SideBar> {
                         expanded: expanded,
                         isOpen: open.contains(bottle.name),
                         selected: widget.location == '/bottles/${bottle.name}',
+                        appCount: loading ? null : counts[bottle.name] ?? 0,
                         onTap: () => RouterManager.go(
                           AppRoute.bottleDetail,
                           params: {'name': bottle.name},
@@ -120,16 +182,8 @@ class _SideBarState extends State<SideBar> {
                 AppRoute.backends,
                 '/backends',
               ),
-              SideBarItem(
-                icon: isDark
-                    ? Icons.light_mode_rounded
-                    : Icons.dark_mode_rounded,
-                label: isDark ? 'Tema claro' : 'Tema oscuro',
-                selected: false,
-                expanded: expanded,
-                onTap: () =>
-                    context.read<ThemeBloc>().add(const ThemeEvent.toggle()),
-              ),
+              const SizedBox(height: AppSpacing.xs),
+              AppVersion(compact: !expanded),
             ],
           ),
         ),

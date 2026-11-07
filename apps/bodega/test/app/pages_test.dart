@@ -9,7 +9,6 @@ import 'package:bodega/app/bloc/library/library_bloc.dart';
 import 'package:bodega/app/bloc/run_options/run_options_bloc.dart';
 import 'package:bodega/app/bloc/sections/sections_bloc.dart';
 import 'package:bodega/app/bloc/setup/setup_bloc.dart';
-import 'package:bodega/app/bloc/theme/theme_bloc.dart';
 import 'package:bodega/app/presentation/add_app/add_app_dialog.dart';
 import 'package:bodega/app/presentation/backends/backends_page.dart';
 import 'package:bodega/app/presentation/bottles/bottle_detail_page.dart';
@@ -20,7 +19,6 @@ import 'package:bodega/app/presentation/library/library_page.dart';
 import 'package:bodega/app/router.dart';
 import 'package:bodega/app/shared/widgets/install_panel.dart';
 import 'package:bodega/app/shared/widgets/side_bar.dart';
-import 'package:bodega/data/service/preference.dart';
 import 'package:bodega/device/helpers/breakpoints.dart';
 import 'package:bodega/device/theme/theme.dart';
 import 'package:bodega/di.dart';
@@ -68,8 +66,6 @@ class _MockRunOptions extends MockBloc<RunOptionsEvent, RunOptionsState>
 
 class _MockSetup extends MockBloc<SetupEvent, SetupState>
     implements SetupBloc {}
-
-class _MockPreferences extends Mock implements Preferences {}
 
 // The longest texts and every chip at once: what would overflow first.
 final _long = 'Una nota larga que ocupa varias líneas en la pantalla. ' * 6;
@@ -322,6 +318,15 @@ void main() {
     ) async {
       showBottle(_bottle(ready: false, apps: const []));
       await pump(tester, width, bottleView());
+    });
+
+    testWidgets('an empty library fits at $width px', (tester) async {
+      whenListen(
+        library,
+        const Stream<LibraryState>.empty(),
+        initialState: const LibraryState(),
+      );
+      await pump(tester, width, const LibraryPage());
     });
 
     testWidgets('a bottle with its sections folded fits at $width px', (
@@ -720,15 +725,12 @@ void main() {
       tester.view.devicePixelRatio = 1;
       tester.view.physicalSize = const Size(1150, 800);
       addTearDown(tester.view.reset);
-      final preferences = _MockPreferences();
-      when(() => preferences.getDarkTheme()).thenReturn(null);
       final router = createRouter(setup);
       addTearDown(router.dispose);
       await tester.pumpWidget(
         MultiBlocProvider(
           providers: [
             ...providers(),
-            BlocProvider<ThemeBloc>(create: (_) => ThemeBloc(preferences)),
           ],
           child: MaterialApp.router(
             routerConfig: router,

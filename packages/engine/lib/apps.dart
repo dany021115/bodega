@@ -10,6 +10,8 @@ typedef InstalledApp = ({
   String title,
   String exe,
   List<String> args,
+  bool inLibrary,
+  bool hud,
 });
 
 typedef BottleInfo = ({String name, bool ready, List<InstalledApp> apps});
@@ -31,22 +33,30 @@ String appKey(String exe) {
   return relative.toLowerCase();
 }
 
-typedef _Store = ({List<Map<String, dynamic>> apps, List<String> hidden});
+typedef _Store = ({
+  List<Map<String, dynamic>> apps,
+  List<String> hidden,
+  List<String> offLibrary,
+});
 
 /// `apps.json`, or the `app.json` of a bottle from before it existed.
 _Store _readStore(String dir) {
   final current = File('$dir/apps.json');
   final file = current.existsSync() ? current : File('$dir/app.json');
-  if (!file.existsSync()) return (apps: [], hidden: []);
+  if (!file.existsSync()) return (apps: [], hidden: [], offLibrary: []);
   try {
     final json = jsonDecode(file.readAsStringSync()) as Map<String, dynamic>;
     final _Store store = file.path == current.path
         ? (
             apps: List<Map<String, dynamic>>.from(json['apps'] as List),
             hidden: List<String>.from((json['hidden'] ?? const []) as List),
+            // Missing in files from before it existed: every app is in.
+            offLibrary: List<String>.from(
+              (json['offLibrary'] ?? const []) as List,
+            ),
           )
-        : (apps: [json], hidden: []);
-    store.apps.forEach((app) => _appOf('', app));
+        : (apps: [json], hidden: [], offLibrary: []);
+    store.apps.forEach((app) => _appOf('', app, store.offLibrary));
     return store;
   } on Object catch (e) {
     throw '${file.path} no es válido: $e';
@@ -55,22 +65,45 @@ _Store _readStore(String dir) {
 
 /// `app.json` goes only once `apps.json` is safely written (M1).
 void _writeStore(String dir, _Store store) {
-  _writeJson('$dir/apps.json', {'apps': store.apps, 'hidden': store.hidden});
+  _writeJson('$dir/apps.json', {
+    'apps': store.apps,
+    'hidden': store.hidden,
+    'offLibrary': store.offLibrary,
+  });
   final legacy = File('$dir/app.json');
   if (legacy.existsSync()) legacy.deleteSync();
 }
 
-InstalledApp _appOf(String bottle, Map<String, dynamic> json) {
+InstalledApp _appOf(
+  String bottle,
+  Map<String, dynamic> json,
+  List<String> offLibrary,
+) {
   final exe = json['exe'] as String;
+  final key = appKey(exe);
   return (
     bottle: bottle,
-    key: appKey(exe),
+    key: key,
     id: json['id'] as String,
     title: json['title'] as String,
     exe: exe,
     args: List<String>.from(json['args'] as List),
+    inLibrary: !offLibrary.contains(key),
+    hud: false, // set by _withHud
   );
 }
+
+/// [app] with the HUD its program has in the bottle's settings.
+InstalledApp _withHud(InstalledApp app, BottleSettings settings) => (
+  bottle: app.bottle,
+  key: app.key,
+  id: app.id,
+  title: app.title,
+  exe: app.exe,
+  args: app.args,
+  inLibrary: app.inLibrary,
+  hud: settings.programs[_exeKey(app.exe)]?.hud ?? false,
+);
 
 void _registerApp(
   String dir,
@@ -82,7 +115,7 @@ void _registerApp(
   final store = _readStore(dir);
   final key = appKey(exe);
   // Installing again over it replaces it.
-  store.apps.removeWhere((app) => _appOf('', app).key == key);
+  store.apps.removeWhere((app) => _appOf('', app, store.offLibrary).key == key);
   store.apps.add({
     'id': id,
     'title': title,
@@ -109,7 +142,10 @@ void addApp(
   final path = exe.startsWith('/') ? exe : findCI('$dir/prefix/drive_c', exe);
   if (!File(path).existsSync()) throw 'no existe $path';
   final key = appKey(exe);
-  if (_readStore(dir).apps.any((app) => _appOf(bottle, app).key == key)) {
+  final store = _readStore(dir);
+  if (store.apps.any(
+    (app) => _appOf(bottle, app, store.offLibrary).key == key,
+  )) {
     throw 'la botella $bottle ya tiene esa aplicación';
   }
   _registerApp(dir, 'custom', title, exe, args);
@@ -125,6 +161,7 @@ void addApp(
           program: (
             backend: settings.programs[program]?.backend,
             env: {...?settings.programs[program]?.env, ...env},
+            hud: settings.programs[program]?.hud ?? false,
           ),
         },
       ),
@@ -132,13 +169,55 @@ void addApp(
   }
 }
 
+/// Turns the HUD on or off for every launch of the application's program (S4).
+/// A Steam game's program is steam.exe, so its games share the setting, as
+/// they share the backend.
+void setAppHud(String home, String bottle, String key, bool value) {
+  final dir = _existing(home, bottle);
+  final app = _appsIn(bottle, dir).where((app) => app.key == key).firstOrNull;
+  if (app == null) throw '$bottle no tiene la aplicación $key';
+  final settings = _settings(dir);
+  final program = _exeKey(app.exe);
+  final current = settings.programs[program];
+  _saveSettings(
+    dir,
+    _with(
+      settings,
+      programs: {
+        ...settings.programs,
+        program: (
+          backend: current?.backend,
+          env: current?.env ?? const <String, String>{},
+          hud: value,
+        ),
+      },
+    ),
+  );
+}
+
 /// Takes the application out of the list. A registered one is forgotten, and
 /// also hidden, because its shortcuts would bring it back.
 void hideApp(String home, String bottle, String key) {
   final dir = _existing(home, bottle);
   final store = _readStore(dir);
-  store.apps.removeWhere((app) => _appOf(bottle, app).key == key);
+  store.apps.removeWhere(
+    (app) => _appOf(bottle, app, store.offLibrary).key == key,
+  );
+  store.offLibrary.remove(key);
   if (!store.hidden.contains(key)) store.hidden.add(key);
+  _writeStore(dir, store);
+}
+
+/// Puts the application in the library, or takes it out. It stays installed
+/// and launchable either way.
+void setInLibrary(String home, String bottle, String key, bool value) {
+  final dir = _existing(home, bottle);
+  if (!_appsIn(bottle, dir).any((app) => app.key == key)) {
+    throw '$bottle no tiene la aplicación $key';
+  }
+  final store = _readStore(dir);
+  store.offLibrary.remove(key);
+  if (!value) store.offLibrary.add(key);
   _writeStore(dir, store);
 }
 
@@ -148,13 +227,20 @@ List<InstalledApp> bottleApps(String home, String bottle) =>
 
 List<InstalledApp> _appsIn(String bottle, String dir) {
   final store = _readStore(dir);
-  final registered = [for (final app in store.apps) _appOf(bottle, app)];
+  final settings = _settings(dir);
+  final registered = [
+    for (final app in store.apps)
+      _withHud(_appOf(bottle, app, store.offLibrary), settings),
+  ];
   final seen = {...registered.map((app) => app.key), ...store.hidden};
   final drive = '$dir/prefix/drive_c';
   final detected = [
-    ..._shortcutApps(bottle, drive),
-    ..._steamGames(bottle, drive),
-  ].where((app) => seen.add(app.key)).toList();
+    ..._shortcutApps(bottle, drive, store.offLibrary),
+    ..._steamGames(bottle, drive, store.offLibrary),
+  ]
+      .where((app) => seen.add(app.key))
+      .map((app) => _withHud(app, settings))
+      .toList();
   detected.sort(
     (a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()),
   );
@@ -192,7 +278,11 @@ List<File> _shortcutFiles(String drive) {
   ];
 }
 
-Iterable<InstalledApp> _shortcutApps(String bottle, String drive) sync* {
+Iterable<InstalledApp> _shortcutApps(
+  String bottle,
+  String drive,
+  List<String> offLibrary,
+) sync* {
   for (final file in _shortcutFiles(drive)) {
     final lnk = readLnk(file.path);
     if (lnk == null || !lnk.target.toLowerCase().startsWith(r'c:\')) continue;
@@ -202,9 +292,11 @@ Iterable<InstalledApp> _shortcutApps(String bottle, String drive) sync* {
     if (!File(findCI(drive, exe)).existsSync()) continue;
     // ponytail: the working folder is the exe's, not the shortcut's; a game
     // that needs another one won't start until `workingDir` reaches _launchIn.
+    final key = appKey(exe);
     yield (
       bottle: bottle,
-      key: appKey(exe),
+      key: key,
+      inLibrary: !offLibrary.contains(key),
       id: 'detected',
       title: file.path
           .split('/')
@@ -215,6 +307,7 @@ Iterable<InstalledApp> _shortcutApps(String bottle, String drive) sync* {
         for (final match in RegExp(r'"([^"]*)"|(\S+)').allMatches(lnk.args))
           match[1] ?? match[2]!,
       ],
+      hud: false, // set by _withHud
     );
   }
 }
@@ -223,7 +316,11 @@ Iterable<InstalledApp> _shortcutApps(String bottle, String drive) sync* {
 /// so with its backend (design §4).
 // ponytail: only the library inside the prefix; `libraryfolders.vdf` lists the
 // others, for when a bottle has one.
-Iterable<InstalledApp> _steamGames(String bottle, String drive) sync* {
+Iterable<InstalledApp> _steamGames(
+  String bottle,
+  String drive,
+  List<String> offLibrary,
+) sync* {
   final apps = findCI(drive, 'Program Files (x86)/Steam/steamapps');
   if (!File(findCI(drive, _steamExe)).existsSync() ||
       !_isRealDirectory(apps)) {
@@ -241,13 +338,16 @@ Iterable<InstalledApp> _steamGames(String bottle, String drive) sync* {
     final flags = int.tryParse(field('StateFlags') ?? '');
     if (id == null || title == null || flags == null) continue;
     if (flags & 4 == 0 || id == _steamRedistributables) continue;
+    final key = 'steam:$id';
     yield (
       bottle: bottle,
-      key: 'steam:$id',
+      key: key,
+      inLibrary: !offLibrary.contains(key),
       id: 'steam-game',
       title: title,
       exe: _steamExe,
       args: ['-applaunch', id],
+      hud: false, // set by _withHud
     );
   }
 }

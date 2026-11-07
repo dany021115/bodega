@@ -18,5 +18,11 @@ abstract class LibraryApp with _$LibraryApp {
 
     /// A picture of it on disk, if it has one.
     String? iconPath,
+
+    /// Whether the library shows it. Off apps still belong to their bottle.
+    @Default(true) bool inLibrary,
+
+    /// Whether every launch of it shows the performance HUD.
+    @Default(false) bool hud,
   }) = _LibraryApp;
 }

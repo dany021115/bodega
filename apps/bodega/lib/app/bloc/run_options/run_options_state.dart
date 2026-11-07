@@ -12,7 +12,6 @@ abstract class RunOptionsState with _$RunOptionsState {
 
     /// Null keeps what the bottle would choose.
     String? backend,
-    @Default(false) bool hud,
     @Default(true) bool avx,
     @Default(false) bool save,
     @Default('') String title,

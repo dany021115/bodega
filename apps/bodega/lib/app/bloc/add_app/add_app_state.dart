@@ -1,6 +1,6 @@
 part of 'add_app_bloc.dart';
 
-enum AddAppStep { form, creating, installing, pickInstalled, done }
+enum AddAppStep { form, installing, pickInstalled, done }
 
 @freezed
 abstract class AddAppState with _$AddAppState {
@@ -8,13 +8,13 @@ abstract class AddAppState with _$AddAppState {
 
   const factory AddAppState({
     @Default(AddAppStep.form) AddAppStep step,
-    @Default([]) List<String> bottles,
+    @Default('') String bottle,
     String? exe,
     @Default('') String title,
-
-    /// Null means a new bottle.
-    String? bottle,
     @Default(false) bool isInstaller,
+
+    /// Off leaves the app in its bottle, out of the library.
+    @Default(true) bool addToLibrary,
     String? driveC,
     AppError? error,
   }) = _AddAppState;

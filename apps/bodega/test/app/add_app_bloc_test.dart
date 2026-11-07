@@ -4,26 +4,31 @@ import 'package:bloc_test/bloc_test.dart';
 import 'package:bodega/app/bloc/add_app/add_app_bloc.dart';
 import 'package:bodega/domain/entities/app_error.dart';
 import 'package:bodega/domain/repository/add_app_repository.dart';
+import 'package:bodega/domain/repository/bottle_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fpdart/fpdart.dart';
 import 'package:mocktail/mocktail.dart';
 
 class _MockAddApp extends Mock implements AddAppRepository {}
 
+class _MockBottles extends Mock implements BottleRepository {}
+
 void main() {
   late _MockAddApp repository;
+  late _MockBottles bottles;
   const exe = '/g/Blur/Blur.exe';
 
   setUp(() {
     repository = _MockAddApp();
+    bottles = _MockBottles();
     when(() => repository.pathProblem(any())).thenReturn(null);
-    when(() => repository.createBottle('Blur'))
-        .thenAnswer((_) async => right('blur'));
     when(() => repository.addApp(any(), any(), any()))
+        .thenAnswer((_) async => right('blur/blur.exe'));
+    when(() => bottles.setInLibrary(any(), any(), any()))
         .thenAnswer((_) async => right(unit));
   });
 
-  AddAppBloc build() => AddAppBloc(repository);
+  AddAppBloc build() => AddAppBloc(repository, bottles);
 
   blocTest<AddAppBloc, AddAppState>(
     'the title comes from the file, and can be changed',
@@ -39,30 +44,50 @@ void main() {
   );
 
   blocTest<AddAppBloc, AddAppState>(
-    'a loose program goes into a new bottle',
+    'a loose program goes into the bottle it was opened from, in the library',
     build: build,
     act: (bloc) => bloc
+      ..add(const AddAppEvent.load('prueba'))
       ..add(const AddAppEvent.exeChosen(exe))
       ..add(const AddAppEvent.submit()),
     verify: (bloc) {
       expect(bloc.state.step, AddAppStep.done);
-      verify(() => repository.createBottle('Blur')).called(1);
-      verify(() => repository.addApp('blur', 'Blur', exe)).called(1);
+      verify(() => repository.addApp('prueba', 'Blur', exe)).called(1);
+      verifyNever(() => bottles.setInLibrary(any(), any(), any()));
       verifyNever(() => repository.runInstaller(any(), any()));
     },
   );
 
   blocTest<AddAppBloc, AddAppState>(
-    'into an existing bottle it creates none',
+    'an app added out of the library is hidden there, and stays in the bottle',
     build: build,
     act: (bloc) => bloc
+      ..add(const AddAppEvent.load('prueba'))
+      ..add(const AddAppEvent.addToLibraryToggled(false))
       ..add(const AddAppEvent.exeChosen(exe))
-      ..add(const AddAppEvent.bottleChosen('prueba'))
       ..add(const AddAppEvent.submit()),
     verify: (bloc) {
       expect(bloc.state.step, AddAppStep.done);
-      verifyNever(() => repository.createBottle(any()));
-      verify(() => repository.addApp('prueba', 'Blur', exe)).called(1);
+      verify(() => bottles.setInLibrary('prueba', 'blur/blur.exe', false))
+          .called(1);
+    },
+  );
+
+  blocTest<AddAppBloc, AddAppState>(
+    'a failure hiding the app shows the error and does not finish',
+    build: () {
+      when(() => bottles.setInLibrary(any(), any(), any()))
+          .thenAnswer((_) async => left(const AppError.engine('no')));
+      return build();
+    },
+    act: (bloc) => bloc
+      ..add(const AddAppEvent.load('prueba'))
+      ..add(const AddAppEvent.addToLibraryToggled(false))
+      ..add(const AddAppEvent.exeChosen(exe))
+      ..add(const AddAppEvent.submit()),
+    verify: (bloc) {
+      expect(bloc.state.step, AddAppStep.form);
+      expect(bloc.state.error, const AppError.engine('no'));
     },
   );
 
@@ -76,6 +101,7 @@ void main() {
     },
     act: (bloc) async {
       bloc
+        ..add(const AddAppEvent.load('blur'))
         ..add(const AddAppEvent.exeChosen(exe))
         ..add(const AddAppEvent.installerToggled(true))
         ..add(const AddAppEvent.submit());
@@ -106,6 +132,7 @@ void main() {
     },
     act: (bloc) async {
       bloc
+        ..add(const AddAppEvent.load('blur'))
         ..add(const AddAppEvent.exeChosen(exe))
         ..add(const AddAppEvent.installerToggled(true))
         ..add(const AddAppEvent.submit());
@@ -126,6 +153,7 @@ void main() {
         .thenAnswer((_) => installer.future);
     when(() => repository.driveC('blur')).thenReturn('/b/blur/drive_c');
     final bloc = build()
+      ..add(const AddAppEvent.load('blur'))
       ..add(const AddAppEvent.exeChosen(exe))
       ..add(const AddAppEvent.installerToggled(true))
       ..add(const AddAppEvent.submit());
@@ -144,33 +172,35 @@ void main() {
   });
 
   blocTest<AddAppBloc, AddAppState>(
-    'an invalid path creates no bottle',
+    'an invalid path registers nothing',
     build: () {
       when(() => repository.pathProblem(exe)).thenReturn('nombre no válido');
       return build();
     },
     act: (bloc) => bloc
+      ..add(const AddAppEvent.load('blur'))
       ..add(const AddAppEvent.exeChosen(exe))
       ..add(const AddAppEvent.submit()),
     verify: (bloc) {
       expect(bloc.state.step, AddAppStep.form);
       expect(bloc.state.error, const AppError.engine('nombre no válido'));
-      verifyNever(() => repository.createBottle(any()));
+      verifyNever(() => repository.addApp(any(), any(), any()));
     },
   );
 
   blocTest<AddAppBloc, AddAppState>(
-    'a retry after a failure reuses the bottle it just created',
+    'a retry after a failure goes to the same bottle',
     build: () {
       var attempt = 0;
       when(() => repository.addApp('blur', 'Blur', exe)).thenAnswer(
         (_) async =>
-            attempt++ == 0 ? left(const AppError.engine('falló')) : right(unit),
+            attempt++ == 0 ? left(const AppError.engine('falló')) : right('k'),
       );
       return build();
     },
     act: (bloc) async {
       bloc
+        ..add(const AddAppEvent.load('blur'))
         ..add(const AddAppEvent.exeChosen(exe))
         ..add(const AddAppEvent.submit());
       await bloc.stream.firstWhere((s) => s.error != null);
@@ -180,14 +210,16 @@ void main() {
     },
     verify: (bloc) {
       expect(bloc.state.step, AddAppStep.done);
-      verify(() => repository.createBottle('Blur')).called(1);
+      verify(() => repository.addApp('blur', 'Blur', exe)).called(2);
     },
   );
 
   blocTest<AddAppBloc, AddAppState>(
     'without a program or a title it does not submit',
     build: build,
-    act: (bloc) => bloc.add(const AddAppEvent.submit()),
-    verify: (_) => verifyNever(() => repository.createBottle(any())),
+    act: (bloc) => bloc
+      ..add(const AddAppEvent.load('blur'))
+      ..add(const AddAppEvent.submit()),
+    verify: (_) => verifyNever(() => repository.addApp(any(), any(), any())),
   );
 }

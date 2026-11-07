@@ -7,20 +7,6 @@ import 'package:flutter_test/flutter_test.dart';
 import '_home.dart';
 
 void main() {
-  group('bottleNameFor', () {
-    test('makes a valid name out of a title', () {
-      expect(bottleNameFor('Blur', const []), 'blur');
-      expect(bottleNameFor('Mi Juego: 2!', const []), 'mi-juego-2');
-      expect(bottleNameFor('¡¿?!', const []), 'app');
-      expect(bottleNameFor('x' * 100, const []), hasLength(58));
-    });
-
-    test('never repeats a name, whatever its case', () {
-      expect(bottleNameFor('Blur', const ['BLUR']), 'blur-2');
-      expect(bottleNameFor('Blur', const ['blur', 'blur-2']), 'blur-3');
-    });
-  });
-
   group('the repository', () {
     late Directory home;
     late AddAppRepositoryImpl repository;
@@ -54,6 +40,8 @@ void main() {
 
       expect(result.isRight(), isTrue);
       expect(app()['exe'], 'Blur/Blur.exe');
+      // The key the library uses, the one setInLibrary takes.
+      expect(result.getOrElse((_) => ''), 'blur/blur.exe');
     });
 
     test('a program outside it is kept absolute', () async {

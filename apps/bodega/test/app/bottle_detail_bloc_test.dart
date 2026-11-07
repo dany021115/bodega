@@ -225,4 +225,86 @@ void main() {
       expect(bloc.state.logLines, ['uno', 'dos']);
     },
   );
+
+  blocTest<BottleDetailBloc, BottleDetailState>(
+    'renaming reloads the bottle under its new name',
+    build: () {
+      when(() => repository.renameBottle('steam', 'juegos'))
+          .thenAnswer((_) async => right(unit));
+      when(() => repository.detail('juegos'))
+          .thenAnswer((_) async => right(_detail.copyWith(name: 'juegos')));
+      return build();
+    },
+    act: (bloc) async {
+      bloc.add(load);
+      await bloc.stream.first;
+      bloc.add(const BottleDetailEvent.rename('juegos'));
+    },
+    wait: const Duration(milliseconds: 10),
+    verify: (bloc) {
+      verify(() => repository.renameBottle('steam', 'juegos')).called(1);
+      expect(bloc.state.detail?.name, 'juegos');
+      expect(bloc.state.renamedTo, 'juegos');
+      expect(bloc.state.isBusy, isFalse);
+    },
+  );
+
+  blocTest<BottleDetailBloc, BottleDetailState>(
+    'a failed rename keeps the name and says why',
+    build: () {
+      when(() => repository.renameBottle('steam', 'juegos'))
+          .thenAnswer((_) async => left(const AppError.engine('ya existe')));
+      return build();
+    },
+    act: (bloc) async {
+      bloc.add(load);
+      await bloc.stream.first;
+      bloc.add(const BottleDetailEvent.rename('juegos'));
+    },
+    wait: const Duration(milliseconds: 10),
+    verify: (bloc) {
+      expect(bloc.state.error, const AppError.engine('ya existe'));
+      expect(bloc.state.renamedTo, isNull);
+      expect(bloc.state.detail, _detail);
+    },
+  );
+
+  blocTest<BottleDetailBloc, BottleDetailState>(
+    'the HUD of an application is saved and the detail reloads',
+    build: () {
+      when(() => repository.setHud('steam', 'a/a.exe', true))
+          .thenAnswer((_) async => right(unit));
+      return build();
+    },
+    act: (bloc) async {
+      bloc.add(load);
+      await bloc.stream.first;
+      bloc.add(const BottleDetailEvent.setHud('a/a.exe', true));
+    },
+    wait: const Duration(milliseconds: 10),
+    verify: (_) {
+      verify(() => repository.setHud('steam', 'a/a.exe', true)).called(1);
+      verify(() => repository.detail('steam')).called(2);
+    },
+  );
+
+  blocTest<BottleDetailBloc, BottleDetailState>(
+    'hiding an application from the library saves it and reloads',
+    build: () {
+      when(() => repository.setInLibrary('steam', 'a/a.exe', false))
+          .thenAnswer((_) async => right(unit));
+      return build();
+    },
+    act: (bloc) async {
+      bloc.add(load);
+      await bloc.stream.first;
+      bloc.add(const BottleDetailEvent.setInLibrary('a/a.exe', false));
+    },
+    wait: const Duration(milliseconds: 10),
+    verify: (_) {
+      verify(() => repository.setInLibrary('steam', 'a/a.exe', false))
+          .called(1);
+      verify(() => repository.detail('steam')).called(2);
+    },
+  );
 }

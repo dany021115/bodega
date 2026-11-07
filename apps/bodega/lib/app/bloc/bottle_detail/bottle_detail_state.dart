@@ -6,6 +6,9 @@ abstract class BottleDetailState with _$BottleDetailState {
     @Default(true) bool isLoading,
     @Default(false) bool isBusy,
     @Default(false) bool deleted,
+
+    /// The new name, once a rename has succeeded.
+    String? renamedTo,
     BottleDetail? detail,
     String? logPath,
     @Default([]) List<String> logLines,

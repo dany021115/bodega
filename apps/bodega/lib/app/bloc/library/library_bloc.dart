@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:bloc/bloc.dart';
 import 'package:bodega/domain/entities/app_error.dart';
 import 'package:bodega/domain/entities/library_app.dart';
+import 'package:bodega/domain/repository/bottle_repository.dart';
 import 'package:bodega/domain/repository/library_repository.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:injectable/injectable.dart';
@@ -16,12 +17,13 @@ class LibraryBloc extends Bloc<LibraryEvent, LibraryState> {
   static const _launchPause = Duration(seconds: 2);
 
   final LibraryRepository _repository;
+  final BottleRepository _bottles;
   final Map<String, ({DateTime since, String? log})> _runs = {};
   final Set<String> _watching = {};
   final Set<String> _opening = {};
   Timer? _hintTimer;
 
-  LibraryBloc(this._repository) : super(const LibraryState()) {
+  LibraryBloc(this._repository, this._bottles) : super(const LibraryState()) {
     on<LibraryLoadEvent>((event, emit) async {
       final result = await _repository.apps();
       result.match(
@@ -85,6 +87,30 @@ class LibraryBloc extends Bloc<LibraryEvent, LibraryState> {
       result.match((error) => emit(state.copyWith(error: error)), (_) {});
     });
 
+    on<LibrarySetInLibraryEvent>((event, emit) async {
+      final result = await _bottles.setInLibrary(
+        event.bottle,
+        event.key,
+        event.value,
+      );
+      result.match(
+        (error) => emit(state.copyWith(error: error)),
+        (_) => add(const LibraryEvent.load()),
+      );
+    });
+
+    on<LibrarySetHudEvent>((event, emit) async {
+      final result = await _bottles.setHud(
+        event.bottle,
+        event.key,
+        event.value,
+      );
+      result.match(
+        (error) => emit(state.copyWith(error: error)),
+        (_) => add(const LibraryEvent.load()),
+      );
+    });
+
     on<LibraryDetectedEvent>((event, emit) {
       if (_runs.containsKey(event.bottle)) return;
       _begin(event.bottle, DateTime.now(), null);
@@ -100,6 +126,8 @@ class LibraryBloc extends Bloc<LibraryEvent, LibraryState> {
         _hintTimer = null;
       }
       emit(state.copyWith(open: {...state.open}..remove(bottle)));
+      // What ran may have added apps (an installer's shortcuts, a Steam game).
+      add(const LibraryEvent.load());
 
       final log = run.log;
       _addHints(bottle, [

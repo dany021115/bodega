@@ -268,6 +268,8 @@ Future<String> _launchIn(
           .replaceAll(RegExp(r'[^A-Za-z0-9._-]'), '_');
   final argv = [exe, ...args];
   final settings = _settings(dir);
+  // The HUD saved for the program, or else asked for by this launch.
+  final hudOn = hud || (settings.programs[_exeKey(program)]?.hud ?? false);
   final log = _newLog(
     dir,
     tag.length > 40 ? tag.substring(0, 40) : tag,
@@ -286,8 +288,8 @@ Future<String> _launchIn(
     wrapper: hostPlatform.launchWrapper(gamemode: settings.gamemode),
     // Backend, then bottle, then program, then this launch (M8).
     extra: {
-      ...backendEnv(home, choice.name, hud: hud),
-      if (hud) ...hostPlatform.perfEnv(dir),
+      ...backendEnv(home, choice.name, hud: hudOn),
+      if (hudOn) ...hostPlatform.perfEnv(dir),
       if (settings.dlss) ..._dlssEnv,
       ...hostPlatform.gpuEnv(settings.gpu),
       ...settings.env,
@@ -577,6 +579,36 @@ Future<void> removeBottle(String home, String name) async {
     await _wineserver(rt, '$dir/prefix', '-w');
   }
   Directory(dir).deleteSync(recursive: true);
+}
+
+/// Renames `bottles/<from>` to `bottles/<to>`. The bottle must be stopped: its
+/// processes carry the old prefix path. `rename` never follows links, so
+/// `dosdevices/z:` stays a link (E4).
+Future<void> renameBottle(String home, String from, String to) async {
+  final target = bottleDir(home, to);
+  final dir = _existing(home, from);
+  if (Directory(target).existsSync()) throw 'ya existe la botella $to';
+  if (hasRuntime(home) && await _serverRunning(home, dir)) {
+    throw 'la botella $from está abierta: bodega stop $from';
+  }
+  Directory(dir).renameSync(target);
+  await hostPlatform.prepareBottle(home, to);
+}
+
+/// `wineserver -w` returns at once when the bottle has no server, so one still
+/// waiting after a second is running (as the app's watch assumes).
+Future<bool> _serverRunning(String home, String dir) async {
+  var ended = false;
+  final wait = _wineserver(
+    currentRuntime(home),
+    '$dir/prefix',
+    '-w',
+  ).whenComplete(() => ended = true);
+  await Future.any<void>([
+    wait,
+    Future<void>.delayed(const Duration(seconds: 1)),
+  ]);
+  return !ended;
 }
 
 typedef BottleLog = ({

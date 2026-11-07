@@ -9,6 +9,9 @@ uso: bodega install <engine.tar.gz> <hostlibs.tar.gz>
      bodega run [--backend <b>] [--hud] <botella> <programa> [args…]
      bodega wait <botella>
      bodega stop <botella>
+     bodega rename <botella> <nombre-nuevo>
+     bodega library <botella> <clave> on|off
+     bodega hud <botella> <clave> on|off
      bodega backend list
      bodega backend install <dxmt|dxvk> [tarball]
      bodega backend import d3dmetal <carpeta>
@@ -124,6 +127,23 @@ Future<void> main(List<String> args) async {
       },
     ['wait', final bottle] => (home) => waitBottle(home, bottle),
     ['stop', final bottle] => (home) => stopBottle(home, bottle),
+    ['rename', final from, final to] => (home) async {
+      await renameBottle(home, from, to);
+      stdout.writeln('botella renombrada: $to');
+      return 0;
+    },
+    ['library', final bottle, final key, final mode]
+        when mode == 'on' || mode == 'off' =>
+      (home) async {
+        setInLibrary(home, bottle, key, mode == 'on');
+        return 0;
+      },
+    ['hud', final bottle, final key, final mode]
+        when mode == 'on' || mode == 'off' =>
+      (home) async {
+        setAppHud(home, bottle, key, mode == 'on');
+        return 0;
+      },
     ['backend', 'list'] => (home) async {
       listBackends(home).forEach((name, installed) {
         stdout.writeln('$name: ${installed ? 'instalado' : 'no instalado'}');

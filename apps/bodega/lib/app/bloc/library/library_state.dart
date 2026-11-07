@@ -2,6 +2,8 @@ part of 'library_bloc.dart';
 
 @freezed
 abstract class LibraryState with _$LibraryState {
+  const LibraryState._();
+
   const factory LibraryState({
     @Default(true) bool isLoading,
     @Default([]) List<LibraryApp> apps,
@@ -13,4 +15,10 @@ abstract class LibraryState with _$LibraryState {
     @Default(0) int toastId,
     AppError? error,
   }) = _LibraryState;
+
+  /// The apps the library shows; [apps] has them all, hidden ones included.
+  List<LibraryApp> get libraryApps => [
+    for (final app in apps)
+      if (app.inLibrary) app,
+  ];
 }
