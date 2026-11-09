@@ -142,6 +142,30 @@ class LinuxPlatform extends HostPlatform {
   }
 
   @override
+  Future<GamepadReport?> gamepads() async {
+    final proc = File('/proc/bus/input/devices');
+    final pads = parseInputDevices(
+      proc.existsSync() ? proc.readAsStringSync() : '',
+      readable: (node) {
+        try {
+          File(node).openSync().closeSync();
+          return true;
+        } on FileSystemException {
+          return false;
+        }
+      },
+    );
+    final libs = await _ldconfig();
+    // Without ldconfig SDL2 cannot be told, so it is not reported missing.
+    final sdl = libs == null || libs.contains('libSDL2-2.0.so.0');
+    return (
+      pads: pads,
+      sdl: sdl,
+      issues: gamepadIssues(pads, sdl: sdl, install: _installCommand),
+    );
+  }
+
+  @override
   HostCapabilities get capabilities => (
     highRes: true,
     avx: false,
@@ -312,7 +336,7 @@ String archVulkanPackages(Iterable<String> vendors) {
 
 /// The install command for this distro, read from ID and ID_LIKE in
 /// /etc/os-release, or null if it is not Debian-like, Fedora or Arch.
-String? _installCommand(String apt, String dnf, String pacman) {
+String? _installCommand(String apt, String? dnf, String pacman) {
   final file = File('/etc/os-release');
   if (!file.existsSync()) return null;
   final ids = file
@@ -324,7 +348,9 @@ String? _installCommand(String apt, String dnf, String pacman) {
   if (ids.any((id) => id == 'debian' || id == 'ubuntu')) {
     return 'sudo apt install $apt';
   }
-  if (ids.contains('fedora')) return 'sudo dnf install $dnf';
+  if (ids.contains('fedora')) {
+    return dnf == null ? null : 'sudo dnf install $dnf';
+  }
   if (ids.contains('arch')) return 'sudo pacman -S $pacman';
   return null;
 }

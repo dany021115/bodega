@@ -1,16 +1,20 @@
 import 'package:bodega/device/theme/color.dart';
+import 'package:bodega/device/theme/gradient.dart';
 import 'package:bodega/device/theme/radius.dart';
 import 'package:bodega/device/theme/spacing.dart';
 import 'package:bodega/device/theme/typography.dart';
 import 'package:bodega/domain/entities/bottle.dart';
 import 'package:flutter/material.dart';
 
-/// A bottle in the sidebar: its name or, when compact, its initial.
+/// A bottle in the sidebar: its name and apps count or, when compact, its icon.
 class BottleRow extends StatelessWidget {
   final Bottle bottle;
   final bool selected;
   final bool isOpen;
   final bool expanded;
+
+  /// Null while the library loads, so that the count isn't shown as 0.
+  final int? appCount;
   final VoidCallback onTap;
 
   const BottleRow({
@@ -20,6 +24,7 @@ class BottleRow extends StatelessWidget {
     required this.isOpen,
     required this.expanded,
     required this.onTap,
+    this.appCount,
   });
 
   String get _state => !bottle.ready
@@ -32,10 +37,15 @@ class BottleRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final styles = AppTextStyle(context);
     final colors = Theme.of(context).colorScheme;
-    final foreground = selected
-        ? colors.onPrimaryContainer
-        : colors.onSurfaceVariant;
-    final initial = bottle.name.characters.first.toUpperCase();
+    final foreground = selected ? colors.onSurface : colors.onSurfaceVariant;
+    final brand = AppGradient.brand;
+    final tint = LinearGradient(
+      begin: brand.begin,
+      end: brand.end,
+      colors: [for (final c in brand.colors) c.withValues(alpha: 0.16)],
+      stops: brand.stops,
+    );
+    final count = appCount;
 
     final mark = bottle.ready
         ? Container(
@@ -60,55 +70,66 @@ class BottleRow extends StatelessWidget {
       child: Tooltip(
         message: expanded ? '' : '${bottle.name} ($_state)',
         child: Material(
-          color: selected ? colors.primaryContainer : Colors.transparent,
+          color: Colors.transparent,
           borderRadius: AppRadius.xsBorder,
-          child: InkWell(
-            borderRadius: AppRadius.xsBorder,
-            onTap: onTap,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.md,
-                vertical: AppSpacing.sm,
-              ),
-              child: expanded
-                  ? Row(
-                      children: [
-                        Icon(
-                          Icons.wine_bar_rounded,
-                          size: 18,
-                          color: foreground,
-                        ),
-                        const SizedBox(width: AppSpacing.md),
-                        Expanded(
-                          child: Text(
-                            bottle.name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: styles.body?.copyWith(
-                              color: foreground,
-                              fontWeight: selected
-                                  ? FontWeight.w600
-                                  : FontWeight.w500,
+          child: Ink(
+            decoration: BoxDecoration(
+              gradient: selected ? tint : null,
+              borderRadius: AppRadius.xsBorder,
+              border: selected ? Border.all(color: colors.primary) : null,
+            ),
+            child: InkWell(
+              borderRadius: AppRadius.xsBorder,
+              onTap: onTap,
+              child: Padding(
+                padding: EdgeInsets.symmetric(
+                  horizontal: expanded ? AppSpacing.md : AppSpacing.sm,
+                  vertical: AppSpacing.sm,
+                ),
+                child: expanded
+                    ? Row(
+                        children: [
+                          Icon(
+                            Icons.wine_bar_rounded,
+                            size: 18,
+                            color: foreground,
+                          ),
+                          const SizedBox(width: AppSpacing.md),
+                          Expanded(
+                            child: Text(
+                              bottle.name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: styles.body?.copyWith(
+                                color: foreground,
+                                fontWeight: selected
+                                    ? FontWeight.w600
+                                    : FontWeight.w500,
+                              ),
                             ),
                           ),
-                        ),
-                        const SizedBox(width: AppSpacing.sm),
-                        mark,
-                      ],
-                    )
-                  : Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        Text(
-                          initial,
-                          style: styles.body?.copyWith(
+                          if (count != null) ...[
+                            Text(
+                              count == 1 ? '1 app' : '$count apps',
+                              style: styles.caption,
+                            ),
+                            const SizedBox(width: AppSpacing.sm),
+                          ],
+                          mark,
+                        ],
+                      )
+                    : Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          Icon(
+                            Icons.wine_bar_rounded,
+                            size: 20,
                             color: foreground,
-                            fontWeight: FontWeight.w600,
                           ),
-                        ),
-                        Positioned(right: 0, top: 0, child: mark),
-                      ],
-                    ),
+                          Positioned(right: 0, top: 0, child: mark),
+                        ],
+                      ),
+              ),
             ),
           ),
         ),

@@ -103,6 +103,42 @@ class BottleRepositoryImpl implements BottleRepository {
       });
 
   @override
+  Future<Either<AppError, Unit>> create(
+    String name, {
+    String windows = 'win11',
+    String backend = 'auto',
+  }) => repositoryCall(() async {
+    await engine.createBottle(_home.path, name);
+    await engine.setWindowsVersion(_home.path, name, windows);
+    engine.setBackend(_home.path, name, backend);
+    return unit;
+  });
+
+  @override
+  Future<Either<AppError, Unit>> renameBottle(String name, String newName) =>
+      repositoryCall(() async {
+        await engine.renameBottle(_home.path, name, newName);
+        return unit;
+      });
+
+  @override
+  Future<Either<AppError, Unit>> setInLibrary(
+    String name,
+    String key,
+    bool value,
+  ) => repositoryCall(() {
+    engine.setInLibrary(_home.path, name, key, value);
+    return unit;
+  });
+
+  @override
+  Future<Either<AppError, Unit>> setHud(String name, String key, bool value) =>
+      repositoryCall(() {
+        engine.setAppHud(_home.path, name, key, value);
+        return unit;
+      });
+
+  @override
   Future<Either<AppError, List<String>>> logLines(String path) =>
       repositoryCall(() async {
         final lines = ListQueue<String>();

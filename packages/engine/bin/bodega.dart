@@ -9,6 +9,9 @@ uso: bodega install <engine.tar.gz> <hostlibs.tar.gz>
      bodega run [--backend <b>] [--hud] <botella> <programa> [args…]
      bodega wait <botella>
      bodega stop <botella>
+     bodega rename <botella> <nombre-nuevo>
+     bodega library <botella> <clave> on|off
+     bodega hud <botella> <clave> on|off
      bodega backend list
      bodega backend install <dxmt|dxvk> [tarball]
      bodega backend import d3dmetal <carpeta>
@@ -18,6 +21,7 @@ uso: bodega install <engine.tar.gz> <hostlibs.tar.gz>
      bodega option <botella> gpu auto|discrete
      bodega option <botella> gamemode on|off
      bodega sdl install [archivo.dmg]
+     bodega pads
      bodega catalog list [texto]
      bodega catalog show <id>
      bodega catalog install <id> [botella]
@@ -38,6 +42,28 @@ Future<void> main(List<String> args) async {
       );
       stdout.writeln('Las botellas usarán SDL2 al volver a abrirlas.');
       return 0;
+    },
+    ['pads'] => (home) async {
+      final report = await hostPlatform.gamepads();
+      if (report == null) {
+        stdout.writeln(
+          'En ${hostPlatform.displayName} Bodega prepara los mandos solo; no hay nada que revisar.',
+        );
+        return 0;
+      }
+      if (report.pads.isEmpty) stdout.writeln('No hay mandos conectados.');
+      for (final pad in report.pads) {
+        stdout.writeln(
+          '${pad.readable ? 'ok' : 'SIN PERMISO'}  ${pad.name} '
+          '(${pad.vid}:${pad.pid})  ${pad.node}',
+        );
+      }
+      stdout.writeln('SDL2: ${report.sdl ? 'instalada' : 'falta'}');
+      for (final issue in report.issues) {
+        stdout.writeln('\n${issue.title}\n  ${issue.detail}');
+        if (issue.command != null) stdout.writeln('  ${issue.command}');
+      }
+      return report.issues.isEmpty ? 0 : 1;
     },
     ['create', final bottle] => (home) async {
       final logs = Directory('${bottleDir(home, bottle)}/logs');
@@ -151,6 +177,23 @@ Future<void> main(List<String> args) async {
       },
     ['wait', final bottle] => (home) => waitBottle(home, bottle),
     ['stop', final bottle] => (home) => stopBottle(home, bottle),
+    ['rename', final from, final to] => (home) async {
+      await renameBottle(home, from, to);
+      stdout.writeln('botella renombrada: $to');
+      return 0;
+    },
+    ['library', final bottle, final key, final mode]
+        when mode == 'on' || mode == 'off' =>
+      (home) async {
+        setInLibrary(home, bottle, key, mode == 'on');
+        return 0;
+      },
+    ['hud', final bottle, final key, final mode]
+        when mode == 'on' || mode == 'off' =>
+      (home) async {
+        setAppHud(home, bottle, key, mode == 'on');
+        return 0;
+      },
     ['backend', 'list'] => (home) async {
       listBackends(home).forEach((name, installed) {
         stdout.writeln('$name: ${installed ? 'instalado' : 'no instalado'}');

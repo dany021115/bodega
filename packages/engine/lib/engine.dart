@@ -17,6 +17,7 @@ part 'fixes.dart';
 part 'platform.dart';
 part 'platform_linux.dart';
 part 'platform_mac.dart';
+part 'gamepads.dart';
 
 /// The data root (R1): `BODEGA_HOME`, or else the host's default, created and
 /// canonical.
@@ -82,6 +83,10 @@ List<String> get requiredFiles => hostPlatform.requiredFiles;
 
 /// Whether the host can run Windows programs, and what is missing (R10).
 Future<List<HostIssue>> checkHost() => hostPlatform.checkHost();
+
+/// The gamepads and what is wrong with them, or null where Bodega sets them up
+/// itself (the Mac).
+Future<GamepadReport?> checkGamepads() => hostPlatform.gamepads();
 
 /// What the host offers, so that a UI hides the rest (R11).
 HostCapabilities hostCapabilities() => hostPlatform.capabilities;
@@ -272,6 +277,8 @@ Future<String> _launchIn(
           .replaceAll(RegExp(r'[^A-Za-z0-9._-]'), '_');
   final argv = [exe, ...args];
   final settings = _settings(dir);
+  // The HUD saved for the program, or else asked for by this launch.
+  final hudOn = hud || (settings.programs[_exeKey(program)]?.hud ?? false);
   final log = _newLog(
     dir,
     tag.length > 40 ? tag.substring(0, 40) : tag,
@@ -284,8 +291,8 @@ Future<String> _launchIn(
   // Backend, then the game's fix, then bottle, program and this launch (M8, F3).
   final steps = fix?.active ?? const <FixStep>[];
   final launchEnv = {
-    ...backendEnv(home, choice.name, hud: hud),
-    if (hud) ...hostPlatform.perfEnv(dir),
+    ...backendEnv(home, choice.name, hud: hudOn),
+    if (hudOn) ...hostPlatform.perfEnv(dir),
     if (settings.dlss) ..._dlssEnv,
     ...hostPlatform.gpuEnv(settings.gpu),
     for (final step in steps)
@@ -600,6 +607,36 @@ Future<void> removeBottle(String home, String name) async {
     await _wineserver(rt, '$dir/prefix', '-w');
   }
   Directory(dir).deleteSync(recursive: true);
+}
+
+/// Renames `bottles/<from>` to `bottles/<to>`. The bottle must be stopped: its
+/// processes carry the old prefix path. `rename` never follows links, so
+/// `dosdevices/z:` stays a link (E4).
+Future<void> renameBottle(String home, String from, String to) async {
+  final target = bottleDir(home, to);
+  final dir = _existing(home, from);
+  if (Directory(target).existsSync()) throw 'ya existe la botella $to';
+  if (hasRuntime(home) && await _serverRunning(home, dir)) {
+    throw 'la botella $from está abierta: bodega stop $from';
+  }
+  Directory(dir).renameSync(target);
+  await hostPlatform.prepareBottle(home, to);
+}
+
+/// `wineserver -w` returns at once when the bottle has no server, so one still
+/// waiting after a second is running (as the app's watch assumes).
+Future<bool> _serverRunning(String home, String dir) async {
+  var ended = false;
+  final wait = _wineserver(
+    currentRuntime(home),
+    '$dir/prefix',
+    '-w',
+  ).whenComplete(() => ended = true);
+  await Future.any<void>([
+    wait,
+    Future<void>.delayed(const Duration(seconds: 1)),
+  ]);
+  return !ended;
 }
 
 typedef BottleLog = ({

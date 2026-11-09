@@ -1,10 +1,8 @@
 import 'package:bloc_test/bloc_test.dart';
 import 'package:bodega/app/bloc/bottles/bottles_bloc.dart';
 import 'package:bodega/app/bloc/library/library_bloc.dart';
-import 'package:bodega/app/bloc/theme/theme_bloc.dart';
 import 'package:bodega/app/shared/widgets/main_shell.dart';
 import 'package:bodega/app/shared/widgets/side_bar.dart';
-import 'package:bodega/data/service/preference.dart';
 import 'package:bodega/device/helpers/breakpoints.dart';
 import 'package:bodega/domain/entities/bottle.dart';
 import 'package:flutter/material.dart';
@@ -13,8 +11,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:responsive_framework/responsive_framework.dart';
-
-class _MockPreferences extends Mock implements Preferences {}
 
 class _MockBottles extends MockBloc<BottlesEvent, BottlesState>
     implements BottlesBloc {}
@@ -50,11 +46,8 @@ void main() {
   });
 
   Widget providers(Widget child) {
-    final preferences = _MockPreferences();
-    when(() => preferences.getDarkTheme()).thenReturn(null);
     return MultiBlocProvider(
       providers: [
-        BlocProvider<ThemeBloc>(create: (_) => ThemeBloc(preferences)),
         BlocProvider<BottlesBloc>.value(value: bottles),
         BlocProvider<LibraryBloc>.value(value: library),
       ],
@@ -95,19 +88,23 @@ void main() {
   testWidgets('at 1000 px the sidebar shows text', (tester) async {
     await pumpShell(tester, 1000);
     expect(find.text('Biblioteca'), findsOneWidget);
-    expect(find.text('Instalar'), findsOneWidget);
+    expect(find.text('BOTELLAS'), findsOneWidget);
     expect(find.text('Backends'), findsOneWidget);
     expect(find.text('steam'), findsOneWidget);
+    expect(find.text('Instalar'), findsNothing);
   });
 
-  testWidgets('at 600 px it shows icons and initials', (tester) async {
+  testWidgets('at 600 px it shows only icons, with tooltips', (tester) async {
     await pumpShell(tester, 600);
     expect(find.text('Biblioteca'), findsNothing);
+    expect(find.text('BOTELLAS'), findsNothing);
     expect(find.text('steam'), findsNothing);
     expect(find.byIcon(Icons.apps_rounded), findsOneWidget);
     expect(find.byIcon(Icons.memory_rounded), findsOneWidget);
-    expect(find.text('S'), findsOneWidget);
-    expect(find.text('G'), findsOneWidget);
+    expect(find.byTooltip('Biblioteca'), findsOneWidget);
+    expect(find.byTooltip('Backends'), findsOneWidget);
+    expect(find.text('S'), findsNothing);
+    expect(find.text('G'), findsNothing);
   });
 
   group('SideBar', () {
@@ -143,8 +140,8 @@ void main() {
     });
 
     testWidgets('marks a section only by its own path', (tester) async {
-      await pumpBar(tester, '/catalog/steam');
-      expect(rowFor(tester, 'Instalar').properties.selected, isTrue);
+      await pumpBar(tester, '/backends');
+      expect(rowFor(tester, 'Backends').properties.selected, isTrue);
       expect(rowFor(tester, 'Biblioteca').properties.selected, isFalse);
       expect(rowFor(tester, 'Botella steam').properties.selected, isFalse);
     });

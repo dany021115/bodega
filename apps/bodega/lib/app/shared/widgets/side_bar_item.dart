@@ -1,3 +1,4 @@
+import 'package:bodega/device/theme/gradient.dart';
 import 'package:bodega/device/theme/radius.dart';
 import 'package:bodega/device/theme/spacing.dart';
 import 'package:bodega/device/theme/typography.dart';
@@ -22,9 +23,14 @@ class SideBarItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    final foreground = selected
-        ? colors.onPrimaryContainer
-        : colors.onSurfaceVariant;
+    final foreground = selected ? colors.onSurface : colors.onSurfaceVariant;
+    final brand = AppGradient.brand;
+    final tint = LinearGradient(
+      begin: brand.begin,
+      end: brand.end,
+      colors: [for (final c in brand.colors) c.withValues(alpha: 0.16)],
+      stops: brand.stops,
+    );
 
     final content = Row(
       mainAxisAlignment: expanded
@@ -55,17 +61,26 @@ class SideBarItem extends StatelessWidget {
       child: Tooltip(
         message: expanded ? '' : label,
         child: Material(
-          color: selected ? colors.primaryContainer : Colors.transparent,
+          color: Colors.transparent,
           borderRadius: AppRadius.xsBorder,
-          child: InkWell(
-            borderRadius: AppRadius.xsBorder,
-            onTap: onTap,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.md,
-                vertical: AppSpacing.md,
+          child: Ink(
+            decoration: BoxDecoration(
+              gradient: selected ? tint : null,
+              borderRadius: AppRadius.xsBorder,
+              border: selected ? Border.all(color: colors.primary) : null,
+            ),
+            child: InkWell(
+              borderRadius: AppRadius.xsBorder,
+              onTap: onTap,
+              child: Padding(
+                padding: EdgeInsets.symmetric(
+                  // The compact bar is 68 px: with the selected item's border
+                  // only an icon and a small padding fit.
+                  horizontal: expanded ? AppSpacing.md : AppSpacing.sm,
+                  vertical: AppSpacing.md,
+                ),
+                child: content,
               ),
-              child: content,
             ),
           ),
         ),

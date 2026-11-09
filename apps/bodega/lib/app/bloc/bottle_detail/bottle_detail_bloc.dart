@@ -47,10 +47,8 @@ class BottleDetailBloc extends Bloc<BottleDetailEvent, BottleDetailState> {
       ),
     );
     on<BottleDetailSetGpuEvent>(
-      (event, emit) => _change(
-        emit,
-        (name) => _repository.setOptions(name, gpu: event.gpu),
-      ),
+      (event, emit) =>
+          _change(emit, (name) => _repository.setOptions(name, gpu: event.gpu)),
     );
     on<BottleDetailSetGamemodeEvent>(
       (event, emit) => _change(
@@ -78,6 +76,31 @@ class BottleDetailBloc extends Bloc<BottleDetailEvent, BottleDetailState> {
         (_) => emit(state.copyWith(isBusy: false, deleted: true)),
       );
     });
+    on<BottleDetailRenameEvent>((event, emit) async {
+      final name = state.detail?.name;
+      if (name == null) return;
+      emit(state.copyWith(isBusy: true, error: null));
+      final result = await _repository.renameBottle(name, event.newName);
+      await result.match(
+        (error) async => emit(state.copyWith(isBusy: false, error: error)),
+        (_) async {
+          await _load(event.newName, emit);
+          emit(state.copyWith(isBusy: false, renamedTo: event.newName));
+        },
+      );
+    });
+    on<BottleDetailSetInLibraryEvent>(
+      (event, emit) => _change(
+        emit,
+        (name) => _repository.setInLibrary(name, event.key, event.value),
+      ),
+    );
+    on<BottleDetailSetHudEvent>(
+      (event, emit) => _change(
+        emit,
+        (name) => _repository.setHud(name, event.key, event.value),
+      ),
+    );
     on<BottleDetailOpenLogEvent>((event, emit) async {
       emit(state.copyWith(logPath: event.path, logLines: const []));
       final result = await _repository.logLines(event.path);

@@ -3,47 +3,48 @@ import 'package:bodega/device/theme/radius.dart';
 import 'package:flutter/material.dart';
 
 class AppTheme {
-  static ThemeData getLightTheme() => _buildBaseTheme(Brightness.light);
+  static ThemeData getLightTheme() => _buildTheme(Brightness.light);
 
-  static ThemeData getDarkTheme() => _buildBaseTheme(Brightness.dark);
+  static ThemeData getDarkTheme() => _buildTheme(Brightness.dark);
 
-  // === COLOR SCHEMES ===
+  // === COLOR SCHEME ===
 
   static ColorScheme _colorScheme(Brightness brightness) {
-    final isDark = brightness == Brightness.dark;
+    final dark = brightness == Brightness.dark;
+    final text = dark ? AppColor.text : AppColor.textLight;
+    final onAccent = dark ? AppColor.onAccent : AppColor.onAccentLight;
+    final violet = dark ? AppColor.violet : AppColor.violetLight;
+    final border = dark ? AppColor.border : AppColor.borderLight;
 
     return ColorScheme(
       brightness: brightness,
-      primary: isDark ? AppColor.primaryDark : AppColor.primaryLight,
-      onPrimary: isDark ? AppColor.onPrimaryDark : AppColor.onPrimaryLight,
-      primaryContainer: isDark
-          ? AppColor.primaryContainerDark
-          : AppColor.primaryContainerLight,
-      onPrimaryContainer: isDark
-          ? AppColor.onPrimaryContainerDark
-          : AppColor.onPrimaryContainerLight,
-      secondary: isDark ? AppColor.primaryDark : AppColor.primaryLight,
-      onSecondary: isDark ? AppColor.onPrimaryDark : AppColor.onPrimaryLight,
-      error: isDark ? AppColor.errorDark : AppColor.errorLight,
-      onError: isDark ? AppColor.onErrorDark : AppColor.onErrorLight,
-      surface: isDark ? AppColor.surfaceDark : AppColor.surfaceLight,
-      onSurface: isDark ? AppColor.onSurfaceDark : AppColor.onSurfaceLight,
-      onSurfaceVariant: isDark
-          ? AppColor.onSurfaceVariantDark
-          : AppColor.onSurfaceVariantLight,
-      surfaceContainer: isDark
-          ? AppColor.surfaceContainerDark
-          : AppColor.surfaceContainerLight,
-      surfaceContainerHigh: isDark
-          ? AppColor.surfaceContainerHighDark
-          : AppColor.surfaceContainerHighLight,
-      surfaceContainerHighest: isDark
-          ? AppColor.surfaceContainerHighestDark
-          : AppColor.surfaceContainerHighestLight,
-      outline: isDark ? AppColor.outlineDark : AppColor.outlineLight,
-      outlineVariant: isDark ? AppColor.outlineDark : AppColor.outlineLight,
-      shadow: Colors.black.withValues(alpha: 0.1),
-      scrim: Colors.black.withValues(alpha: 0.5),
+      primary: dark ? AppColor.cyan : AppColor.cyanLight,
+      onPrimary: onAccent,
+      primaryContainer: dark ? AppColor.blue : AppColor.blueLight,
+      onPrimaryContainer: dark ? AppColor.text : AppColor.onAccentLight,
+      secondary: violet,
+      onSecondary: dark ? text : onAccent,
+      tertiary: violet,
+      onTertiary: dark ? text : onAccent,
+      error: dark ? AppColor.error : AppColor.errorLight,
+      onError: onAccent,
+      surface: dark ? AppColor.background : AppColor.backgroundLight,
+      onSurface: text,
+      onSurfaceVariant: dark
+          ? AppColor.textSecondary
+          : AppColor.textSecondaryLight,
+      surfaceContainerLow: dark
+          ? AppColor.bottlePanel
+          : AppColor.bottlePanelLight,
+      surfaceContainer: dark ? AppColor.sidebar : AppColor.sidebarLight,
+      surfaceContainerHigh: dark ? AppColor.surface : AppColor.surfaceLight,
+      surfaceContainerHighest: dark
+          ? AppColor.surface2
+          : AppColor.surface2Light,
+      outline: border,
+      outlineVariant: border,
+      shadow: Colors.black.withValues(alpha: dark ? 0.5 : 0.15),
+      scrim: Colors.black.withValues(alpha: dark ? 0.6 : 0.4),
     );
   }
 
@@ -96,7 +97,7 @@ class AppTheme {
 
   // === THEME BUILDER ===
 
-  static ThemeData _buildBaseTheme(Brightness brightness) {
+  static ThemeData _buildTheme(Brightness brightness) {
     final colors = _colorScheme(brightness);
 
     return ThemeData(
@@ -112,7 +113,7 @@ class AppTheme {
         foregroundColor: colors.onSurface,
       ),
       cardTheme: CardThemeData(
-        color: colors.surfaceContainer,
+        color: colors.surfaceContainerHigh,
         elevation: 0,
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
@@ -121,8 +122,13 @@ class AppTheme {
         ),
       ),
       dialogTheme: DialogThemeData(
-        backgroundColor: colors.surfaceContainer,
+        backgroundColor: colors.surfaceContainerHigh,
         shape: RoundedRectangleBorder(borderRadius: AppRadius.lgBorder),
+      ),
+      snackBarTheme: SnackBarThemeData(
+        backgroundColor: colors.surfaceContainerHighest,
+        contentTextStyle: TextStyle(color: colors.onSurface),
+        actionTextColor: colors.primary,
       ),
       dividerTheme: DividerThemeData(
         color: colors.outline.withValues(alpha: 0.6),

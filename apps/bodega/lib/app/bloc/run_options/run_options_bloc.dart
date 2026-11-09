@@ -65,7 +65,6 @@ class RunOptionsBloc extends Bloc<RunOptionsEvent, RunOptionsState> {
       args: args,
       env: variables,
       backend: state.backend,
-      hud: state.hud,
       avx: state.avx,
     );
     launched.match(

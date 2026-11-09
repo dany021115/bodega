@@ -20,15 +20,14 @@ abstract class LibraryRepository {
     List<String> args = const [],
   });
 
-  /// Launches with options (V11): variables, backend, HUD and AVX of this
-  /// launch only.
+  /// Launches with options (V11): variables, backend and AVX of this launch
+  /// only.
   Future<Either<AppError, String>> launch(
     String bottle,
     String program, {
     List<String> args = const [],
     Map<String, String> env = const {},
     String? backend,
-    bool hud = false,
     bool avx = true,
   });
 

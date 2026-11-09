@@ -63,10 +63,7 @@ class _RunOptionsDialogState extends State<RunOptionsDialog> {
   }
 
   Future<void> _pick() async {
-    const programs = XTypeGroup(
-      label: 'Programas',
-      extensions: ['exe', 'EXE'],
-    );
+    const programs = XTypeGroup(label: 'Programas', extensions: ['exe', 'EXE']);
     final file = await openFile(acceptedTypeGroups: const [programs]);
     if (file == null) return;
     _program.text = file.path;
@@ -160,17 +157,6 @@ class _RunOptionsDialogState extends State<RunOptionsDialog> {
                     ],
                     onChanged: (value) =>
                         _change((s) => s.copyWith(backend: value)),
-                  ),
-                  SwitchListTile.adaptive(
-                    contentPadding: EdgeInsets.zero,
-                    title: Text('HUD de rendimiento', style: styles.body),
-                    subtitle: Text(
-                      'Muestra los FPS. Con wined3d puede no salir.',
-                      style: styles.caption,
-                    ),
-                    value: state.hud,
-                    onChanged: (value) =>
-                        _change((s) => s.copyWith(hud: value)),
                   ),
                   if (caps.avx)
                     SwitchListTile.adaptive(

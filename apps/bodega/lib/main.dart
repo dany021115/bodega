@@ -6,6 +6,7 @@ import 'package:bodega/app/bloc/library/library_bloc.dart';
 import 'package:bodega/app/bloc/sections/sections_bloc.dart';
 import 'package:bodega/app/bloc/setup/setup_bloc.dart';
 import 'package:bodega/app/bloc/theme/theme_bloc.dart';
+import 'package:bodega/app/bloc/view_mode/view_mode_bloc.dart';
 import 'package:bodega/app/router.dart';
 import 'package:bodega/device/helpers/breakpoints.dart';
 import 'package:bodega/device/theme/theme.dart';
@@ -43,26 +44,26 @@ class _BodegaAppState extends State<BodegaApp> {
         BlocProvider.value(value: getIt<CatalogBloc>()),
         BlocProvider.value(value: getIt<InstallBloc>()),
         BlocProvider.value(value: getIt<LibraryBloc>()),
+        BlocProvider.value(value: getIt<ViewModeBloc>()),
         BlocProvider(create: (_) => getIt<SectionsBloc>()),
         BlocProvider(create: (_) => getIt<ThemeBloc>()),
       ],
+      // ponytail: no switch yet; ThemeEvent.toggle is there for when one comes.
       child: BlocBuilder<ThemeBloc, ThemeState>(
-        builder: (context, theme) {
-          return ToastificationWrapper(
-            child: MaterialApp.router(
-              title: 'Bodega',
-              debugShowCheckedModeBanner: false,
-              builder: (context, child) => ResponsiveBreakpoints.builder(
-                child: child!,
-                breakpoints: appBreakpoints,
-              ),
-              themeMode: theme.isDark ? ThemeMode.dark : ThemeMode.light,
-              theme: AppTheme.getLightTheme(),
-              darkTheme: AppTheme.getDarkTheme(),
-              routerConfig: _router,
+        builder: (context, theme) => ToastificationWrapper(
+          child: MaterialApp.router(
+            title: 'Bodega',
+            debugShowCheckedModeBanner: false,
+            builder: (context, child) => ResponsiveBreakpoints.builder(
+              child: child!,
+              breakpoints: appBreakpoints,
             ),
-          );
-        },
+            themeMode: theme.isDark ? ThemeMode.dark : ThemeMode.light,
+            theme: AppTheme.getLightTheme(),
+            darkTheme: AppTheme.getDarkTheme(),
+            routerConfig: _router,
+          ),
+        ),
       ),
     );
   }

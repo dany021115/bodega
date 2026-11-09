@@ -95,3 +95,14 @@ Un job `smoke` que depende de `build`/`arch`/`package` y, cuando está encendido
 - Cambios: `tool/package_macos.sh` (hoy `codesign --sign -`), secretos en `release-macos.yml`, y `packaging/macos/LEEME.txt` (ya no hace falta la explicación de clic derecho).
 - Riesgo: el Wine empaquetado contiene muchos binarios x86_64 y dylibs; la notarización exige firmar todos con el runtime endurecido, y Wine puede necesitar entitlements (`allow-jit`, `allow-unsigned-executable-memory`, `disable-library-validation`). Hay que probarlo en un Mac antes de prometerlo.
 - Sin cuenta: se deja como está y se mejora `LEEME.txt`.
+
+## M11. Mandos en Linux (extra, pedida después)
+
+- Cómo funciona: no hay nada que configurar en la botella. El `winebus` de Wine 11.21 enlaza `libudev` y carga `libSDL2-2.0.so.0` del sistema. Con SDL2, Wine ve el mando como `is_gamepad 1` y crea el dispositivo XInput. Sin ella usa el camino de `udev` (hidraw y evdev). En macOS la capa es otra (`_ensureGamepads`, IOHID o SDL2 incluida) y no cambia.
+- Medido en CachyOS con Wine sin ventana: un mando virtual (`uinput`, Xbox 360 `045e:028e`) y uno real (8BitDo Ultimate 2, `2dc8:310b`, por su receptor USB) salen en el log como `sdl_add_device controller … is_gamepad 1` y luego `WINEXINPUT\VID_…&XI_00`. Wine también avisa `Unable to open udev device "/dev/hidraw0": Permission denied` para los hidraw de root: es ruido, no un fallo.
+- Qué falla de verdad: sin permiso sobre `/dev/input/event*` no hay mando; sin SDL2, se cae al camino de `udev`. Ninguna de las dos cosas daba pista al usuario.
+- `HostPlatform.gamepads()` devuelve `GamepadReport` (mandos, SDL2, avisos), o `null` en Mac. Un mando es un bloque de `/proc/bus/input/devices` con un `jsN`; su nodo es el `eventN` del mismo bloque, y se comprueba abriéndolo. Los avisos no entran en `checkHost`, porque no impiden jugar.
+- Paquetes: reglas udev, `steam-devices` (Debian y Ubuntu: multiverse/non-free; Arch: multilib; Fedora: sin comando); SDL2, `libsdl2-2.0-0`, `SDL2` y `sdl2-compat`.
+- CLI: `bodega pads` (sale con 1 si hay avisos).
+- App: la sección plegable "Mandos" de la columna de la botella (`GamepadsSection`, `id: 'gamepads'`) muestra cada mando con su estado ("Listo" o "Sin permiso"), cada aviso como `RequirementCard` con su comando copiable, y un botón "Volver a comprobar". En Mac, donde `gamepads()` devuelve `null`, no ocupa lugar. `GamepadsBloc` lo provee `BottleDetailPage` y lee `GamepadRepository` (`data/` llama a `checkGamepads()` del motor).
+- Sin probar: la app con un mando real conectado (probada con widgets a 380 px, el ancho del panel), la ruta sin SDL2 en un equipo real, y un juego usando el mando.

@@ -117,7 +117,7 @@ Future<String> installEntry(
     }
   }
 
-  final program = (backend: backend, env: entry.env);
+  final program = (backend: backend, env: entry.env, hud: false);
   if (intoExisting) {
     // The bottle keeps its backend and sync: other things live in it (M12).
     final settings = _settings(dir);
@@ -127,11 +127,16 @@ Future<String> installEntry(
         '${entry.sync}. Se deja como está; cámbialo en la botella si falla.',
       );
     }
+    // The HUD is the user's choice, not the catalog's: it survives a reinstall.
+    final hud = settings.programs[_exeKey(entry.exe)]?.hud ?? false;
     _saveSettings(
       dir,
       _with(
         settings,
-        programs: {...settings.programs, _exeKey(entry.exe): program},
+        programs: {
+          ...settings.programs,
+          _exeKey(entry.exe): (backend: backend, env: entry.env, hud: hud),
+        },
       ),
     );
   } else {

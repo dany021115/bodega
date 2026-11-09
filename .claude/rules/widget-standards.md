@@ -18,6 +18,7 @@ paths:
 - `AppIcon` for an app's logo or initial
 - `confirm()` before anything that closes or deletes: name the bottle, and say what is lost
 - `AppToast` for messages that pass; `SelectableText` for errors worth copying
+- `AppCard`, `AppRow`, `ViewToggle`, `GradientButton` are the shared pieces of the new UI, and `AppGradient` holds the gradients
 
 ## Design Tokens
 - Text: `AppTextStyle(context)`. Never hardcode a `fontFamily`: `null` is SF Pro

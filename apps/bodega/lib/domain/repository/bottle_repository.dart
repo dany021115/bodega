@@ -34,6 +34,25 @@ abstract class BottleRepository {
 
   Future<Either<AppError, Unit>> delete(String name);
 
+  /// An empty bottle with [windows] and [backend], both applied after it is made.
+  Future<Either<AppError, Unit>> create(
+    String name, {
+    String windows = 'win11',
+    String backend = 'auto',
+  });
+
+  Future<Either<AppError, Unit>> renameBottle(String name, String newName);
+
+  /// Shows or hides an application in the library, without touching its bottle.
+  Future<Either<AppError, Unit>> setInLibrary(
+    String name,
+    String key,
+    bool value,
+  );
+
+  /// Shows or hides the performance HUD on every launch of an application.
+  Future<Either<AppError, Unit>> setHud(String name, String key, bool value);
+
   /// Takes the application out of the bottle's list.
   Future<Either<AppError, Unit>> hideApp(String name, String key);
 

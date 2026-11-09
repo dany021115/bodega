@@ -15,5 +15,7 @@ List<LibraryApp> libraryApps(String home, List<InstalledApp> apps) => [
           : 'C:\\${app.exe.replaceAll('/', r'\')}',
       args: app.args,
       iconPath: appIcon(home, app),
+      inLibrary: app.inLibrary,
+      hud: app.hud,
     ),
 ];

@@ -15,6 +15,13 @@ sealed class LibraryEvent with _$LibraryEvent {
   const factory LibraryEvent.track(String bottle, String log) =
       LibraryTrackEvent;
   const factory LibraryEvent.stop(String bottle) = LibraryStopEvent;
+  const factory LibraryEvent.setInLibrary(
+    String bottle,
+    String key,
+    bool value,
+  ) = LibrarySetInLibraryEvent;
+  const factory LibraryEvent.setHud(String bottle, String key, bool value) =
+      LibrarySetHudEvent;
   const factory LibraryEvent.detected(String bottle) = LibraryDetectedEvent;
   const factory LibraryEvent.closed(String bottle) = LibraryClosedEvent;
   const factory LibraryEvent.checkHints() = LibraryCheckHintsEvent;
