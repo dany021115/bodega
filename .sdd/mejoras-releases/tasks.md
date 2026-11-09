@@ -46,7 +46,7 @@ P1 y P2 son independientes y se pueden hacer a la vez. P7 a P11 no dependen de l
 
 ## P5. Release encadenado
 
-- [ ] **T5** En `tag-version.yml`, tras crear el tag, `gh workflow run release-linux.yml -f tag=$tag`, con `permissions: actions: write`. Actualizar `AGENTS.md`.
+- [ ] **T5** En `tag-version.yml`, tras crear el tag, `gh workflow run release-linux.yml --ref "$tag"` (el release se construye con el tag desde el que corre, ya no hay input `tag`), con `permissions: actions: write`. Actualizar `AGENTS.md`.
   **Comprobación:** un merge a `main` con versión nueva crea el tag y lanza `release-linux` sin tocar nada; un merge sin versión nueva no lanza nada.
 
 ## P6. Revisión automática de versiones

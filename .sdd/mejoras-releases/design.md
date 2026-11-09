@@ -37,7 +37,7 @@ Un job `smoke` que depende de `build`/`arch`/`package` y, cuando está encendido
 ## M4. Release encadenado (X4)
 
 - Problema: un push de tag hecho con `GITHUB_TOKEN` no dispara otros workflows, salvo `workflow_dispatch` y `repository_dispatch`.
-- Diseño: en `tag-version.yml`, tras `git push origin refs/tags/$tag`, añadir `gh workflow run release-linux.yml -f tag="$tag"` con `permissions: actions: write` y `GH_TOKEN: ${{ github.token }}`.
+- Diseño: en `tag-version.yml`, tras `git push origin refs/tags/$tag`, añadir `gh workflow run release-linux.yml --ref "$tag"` (el flujo construye el tag desde el que corre; ya no tiene input `tag`) con `permissions: actions: write` y `GH_TOKEN: ${{ github.token }}`.
 - Solo si el tag se acaba de crear (el `exit 0` de "ya existe" lo evita en los demás pushes).
 - macOS: `release-macos` queda manual (decisión 2 de la propuesta).
 - Actualizar `AGENTS.md`: "Only the `tag-version` workflow creates tags ... `release-linux` runs by itself after it; `release-macos` is run by hand".

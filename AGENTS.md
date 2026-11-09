@@ -15,7 +15,7 @@ Bodega is a personal launcher for Windows games on Apple Silicon and Linux. For 
 
 - Only the `tag-version` workflow creates `vX.Y.Z` tags. It runs on push to `main`.
 - Never create, move or delete tags by hand (`git tag`, `git push --tags`), and never create them from other workflows.
-- `release-linux` and `release-macos` upload the release files. Run them by hand, with the tag.
+- `release-linux` and `release-macos` upload the release files. Run them by hand, from the tag: pick it in "Use workflow from" (Tags tab). They build that tag, and fail if you run them from a branch.
 - Commit and push still need the user's approval.
 
 ## GitHub Actions budget
