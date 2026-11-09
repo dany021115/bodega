@@ -56,9 +56,9 @@ P1 y P2 son independientes y se pueden hacer a la vez. P7 a P11 no dependen de l
 
 ## P7 y P8. Arreglos por juego
 
-- [ ] **T7 (P7)** `packages/engine/data/fixes.json`, su generador y `fixes_data.dart`; la mezcla en `createBottle` y `_launchIn` con la precedencia del diseño.
-  **Comprobación:** tests de precedencia (el ajuste del usuario gana) y de plataforma (una entrada de otra plataforma no se aplica).
-- [ ] **T8 (P8)** `bodega fix show` y, en la app, una nota "Arreglos aplicados" en la pantalla de la botella.
+- [x] **T7 (P7)** `tool/import_fixes.py` y `fixes_data.dart` (20 juegos, 32 pasos de `highball-db` en `7a008d5`), `fixes.dart` en el motor, la mezcla en `_launchIn` y `openApp`, y `bodega fix list|show`.
+  **Comprobación (hecha):** `fixes_test.dart` (precedencia, plataforma, overrides, registro, opt-in, datos incluidos) y `dart test` completo: 117 pasan. Prueba real en CachyOS con Wine sin ventana: un paso de registro `linux` se escribe (`reg query` devuelve `native,builtin`) y uno `mac` no. **Sin probar:** nada de lo `mac` en un Mac; ni con un Steam real abriendo un juego.
+- [ ] **T8 (P8)** En la app, una nota "Arreglos aplicados" en la pantalla de la botella y en el detalle del juego (la CLI ya está en T7).
   **Comprobación:** tests del repositorio y de widget; `pages_test.dart` a los 4 anchos.
 
 ## P9 y P10. Dependencias de Windows

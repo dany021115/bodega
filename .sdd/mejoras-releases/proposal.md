@@ -57,7 +57,7 @@ Reglas para todo workflow nuevo o cambiado:
 | X3 | Cuando se pida (`smoke` en `release-linux`; en macOS, un input igual), antes de publicar el workflow instalará el `.deb` en Ubuntu 24.04, el `.pkg.tar.zst` en `archlinux` y desempacará el AppImage, y en cada uno ejecutará `bodega backend list` (CLI, sin ventana). Si falla, no se publica. Por defecto está apagado. |
 | X4 | Cuando `tag-version` cree un tag, lanzará `release-linux` con ese tag por `workflow_dispatch`. El release de macOS sigue a mano mientras dependa de tags `engine-*` y `hostlibs-*`. |
 | X5 | Cada semana, un workflow comparará `packaging/linux/assets.json` con las últimas releases estables y abrirá una PR con la versión nueva y su sha256, o un issue si no puede calcularlo. Nunca fijará un pre-release. |
-| X6 | El motor aplicará, al crear o lanzar, los arreglos de `packages/engine/lib/fixes_data.dart` del juego detectado por ID, sin sobrescribir lo que el usuario puso por programa. |
+| X6 | Al abrir un juego de Steam, el motor aplicará los pasos del arreglo de `packages/engine/lib/fixes_data.dart` (variables, valores de registro y `dlloverride`) marcados para ese equipo, sin pisar lo que el usuario puso en la botella, el programa o el lanzamiento. |
 | X7 | El motor instalará dependencias de Windows (`vcredist`, `dotnet`, fuentes) en una botella con `winetricks`, solo con verbos de una lista permitida, en un proceso de Wine sin ventana. |
 | X8 | La app consultará los releases de GitHub una vez por sesión, y si hay una versión mayor mostrará un aviso con el enlace al release. Nunca instalará sin que el usuario lo pida. |
 | X9 | El `PKGBUILD` del AUR bajará el `.tar.gz` del release y verificará su sha256. |
@@ -68,7 +68,7 @@ Reglas para todo workflow nuevo o cambiado:
 1. **Orden.** Propuesta: M1, M2, M3 (seguridad de los releases) → M4 → M6 → M7 → M8 → resto. Choca con la lista anterior (UI en Linux, hito 3 de la interfaz, ntsync): hay que decidir si va antes o después.
 2. **M4 y macOS.** `release-macos` necesita los tags `engine-*` y `hostlibs-*`, que se crean a mano en otros workflows. ¿Se deja manual o se automatiza con un tag fijo?
 3. **M10.** Exige cuenta de Apple Developer (de pago). [INFERENCIA] Desde Cuba puede no ser accesible. Sin ella, M10 se descarta y M8 en macOS solo avisa.
-4. **M6, de dónde salen los arreglos.** Opciones: un JSON propio que se va llenando con lo que se prueba; o partir de datos abiertos de otros proyectos (por ejemplo `umu-database`, cuya licencia hay que revisar antes de copiar nada). No se copia nada de CrossOver.
+4. **M6, de dónde salen los arreglos.** Resuelta: las recetas de juegos de `highball-db` (CC0), importadas con `tool/import_fixes.py` y marcadas `mac`. Linux queda sin pasos hasta que haya arreglos probados en Linux; `umu-database` es GPL-3.0 y no se copia. No se copia nada de CrossOver.
 5. **M7.** ¿winetricks se incluye en el paquete, o se pide al usuario? Incluirlo añade una dependencia (LGPL, ya listado en `wine/NOTICE.md` para macOS) y descargas desde servidores de Microsoft.
 
 ## Criterios de aceptación
