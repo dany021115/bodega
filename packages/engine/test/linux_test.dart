@@ -100,24 +100,27 @@ void main() {
       hostPlatform.defaultHome({'XDG_DATA_HOME': '/x', 'HOME': '/h'}),
       '/x/bodega',
     );
-    expect(
-      hostPlatform.defaultHome({'HOME': '/h'}),
-      '/h/.local/share/bodega',
-    );
+    expect(hostPlatform.defaultHome({'HOME': '/h'}), '/h/.local/share/bodega');
     expect(
       hostPlatform.defaultHome({'HOME': '/h', 'XDG_DATA_HOME': ''}),
       '/h/.local/share/bodega',
     );
   });
 
-  test('findCI matches each segment without regard to case', () {
-    final real = '$tmp/Program Files/Steam/STEAM.EXE';
-    write(real, '');
-    expect(findCI(tmp, 'Program Files/Steam/STEAM.EXE'), real);
-    expect(findCI(tmp, 'program files/steam/steam.exe'), real);
-    expect(findCI(tmp, r'program files\steam\steam.exe'), real);
-    expect(findCI(tmp, 'nope/x.exe'), '$tmp/nope/x.exe');
-  });
+  test(
+    'findCI matches each segment without regard to case',
+    skip: _caseInsensitiveDisk()
+        ? 'el disco no distingue mayúsculas, como el de un Mac'
+        : false,
+    () {
+      final real = '$tmp/Program Files/Steam/STEAM.EXE';
+      write(real, '');
+      expect(findCI(tmp, 'Program Files/Steam/STEAM.EXE'), real);
+      expect(findCI(tmp, 'program files/steam/steam.exe'), real);
+      expect(findCI(tmp, r'program files\steam\steam.exe'), real);
+      expect(findCI(tmp, 'nope/x.exe'), '$tmp/nope/x.exe');
+    },
+  );
 
   test('the backends are wine and dxvk', () {
     expect(hostPlatform.backendNames, ['wine', 'dxvk']);
@@ -127,13 +130,13 @@ void main() {
   test('dxvk overrides the D3D DLLs, and wine sets none', () {
     hostPlatform = const LinuxPlatform(mangoHud: false);
     final dxvk = backendEnv(home, 'dxvk');
-    expect(
-      dxvk['WINEDLLOVERRIDES'],
-      allOf(contains('d3d11'), contains('n,b')),
-    );
+    expect(dxvk['WINEDLLOVERRIDES'], allOf(contains('d3d11'), contains('n,b')));
     expect(dxvk.containsKey('WINEDLLPATH_PREPEND'), isFalse);
     expect(backendEnv(home, 'wine')['WINEDLLOVERRIDES'], endsWith('dxgi=b'));
-    expect(backendEnv(home, 'wine', hud: true).containsKey('DXVK_HUD'), isFalse);
+    expect(
+      backendEnv(home, 'wine', hud: true).containsKey('DXVK_HUD'),
+      isFalse,
+    );
     expect(
       backendEnv(home, 'dxvk', hud: true)['DXVK_HUD'],
       'fps,frametimes,gpuload,memory,compiler',
@@ -290,4 +293,16 @@ void main() {
       );
     });
   });
+}
+
+/// A Mac's disk finds `a` when asked for `A`, so findCI has nothing to do
+/// there and its test would fail.
+bool _caseInsensitiveDisk() {
+  final dir = Directory.systemTemp.createTempSync('bodega-case');
+  try {
+    File('${dir.path}/A').createSync();
+    return File('${dir.path}/a').existsSync();
+  } finally {
+    dir.deleteSync(recursive: true);
+  }
 }
