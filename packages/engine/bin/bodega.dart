@@ -25,7 +25,8 @@ uso: bodega install <engine.tar.gz> <hostlibs.tar.gz>
      bodega catalog list [texto]
      bodega catalog show <id>
      bodega catalog install <id> [botella]
-
+     bodega fix list [texto]
+     bodega fix show <id|appid-de-steam>
      bodega apps
      bodega open [--backend <b>] [--hud] <botella> [clave]''';
 
@@ -95,6 +96,19 @@ Future<void> main(List<String> args) async {
     ['open', ...final rest] when parseOpen(rest) != null => (home) async {
       final open = parseOpen(rest)!;
       final since = DateTime.now();
+      final app = open.key == null
+          ? bottleApps(home, open.bottle).firstOrNull
+          : bottleApps(
+              home,
+              open.bottle,
+            ).where((app) => app.key == open.key).firstOrNull;
+      final fix = app == null ? null : fixForApp(app.key);
+      if (fix != null) {
+        stdout.writeln(
+          'arreglo: ${fix.title}, ${_stepsHere(fix)}'
+          '${fix.optIn ? ' (opcional: no se aplica sola)' : ''}',
+        );
+      }
       final log = await openApp(
         home,
         open.bottle,
@@ -138,7 +152,18 @@ Future<void> main(List<String> args) async {
       _show(catalogEntry(id));
       return 0;
     },
-
+    ['fix', 'list'] => (home) async {
+      _listFixes(gameFixes());
+      return 0;
+    },
+    ['fix', 'list', final text] => (home) async {
+      _listFixes(gameFixes(text));
+      return 0;
+    },
+    ['fix', 'show', final id] => (home) async {
+      _showFix(gameFix(id));
+      return 0;
+    },
     ['catalog', 'install', final id, ...final rest] when rest.length < 2 =>
       (home) async {
         final entry = catalogEntry(id);
@@ -283,6 +308,54 @@ void _show(CatalogEntry entry) {
     'fuente: ${entry.source['repo']} ${entry.source['commit']}, '
     '${entry.source['path']} (${entry.source['license']}); '
     'verificado: ${entry.source['verified']}',
+  );
+}
+
+String _stepsHere(GameFix fix) {
+  final count = fix.steps.where((step) => step.applies).length;
+  return '$count de ${fix.steps.length} pasos son de este equipo '
+      '(${hostPlatform.displayName})';
+}
+
+void _listFixes(List<GameFix> fixes) {
+  for (final fix in fixes) {
+    stdout.writeln(
+      '${fix.id.padRight(34)}  ${fix.steam.toString().padRight(8)}  '
+      '${fix.title.padRight(34)}  '
+      '${fix.steps.where((step) => step.applies).length}/${fix.steps.length}'
+      '${fix.optIn ? '  opcional' : ''}',
+    );
+  }
+}
+
+void _showFix(GameFix fix) {
+  stdout
+    ..writeln('${fix.title} (${fix.id}), Steam ${fix.steam}')
+    ..writeln(
+      _stepsHere(fix) + (fix.optIn ? '; opcional: no se aplica sola' : ''),
+    );
+  for (final step in fix.steps) {
+    final what = switch (step.type) {
+      'env' => 'variable ${step.name}=${step.value}',
+      'registry' =>
+        'registro ${step.key} ${step.name} (${step.valueType}) = ${step.data}',
+      _ => 'dlloverride ${step.value}',
+    };
+    stdout.writeln(
+      '  ${step.applies ? 'aplica' : 'no aplica'}  $what  [${step.platforms.join(', ')}]',
+    );
+  }
+  for (final note in fix.notes) {
+    stdout.writeln('nota (en inglés): $note');
+  }
+  for (final issue in fix.knownIssues) {
+    stdout.writeln('problema (en inglés): ${issue.symptom} -> ${issue.fix}');
+  }
+  final verified = fix.verified;
+  stdout.writeln(
+    'fuente: gauthierpiarrette/highball-db ${fixesSourceCommit.substring(0, 7)}, '
+    '${fix.source} (CC0-1.0); '
+    'verificado: ${verified == null ? 'no' : '${verified['date']} en ${verified['chip']}'}',
   );
 }
 

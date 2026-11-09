@@ -14,6 +14,9 @@ class LinuxPlatform extends HostPlatform {
   String get displayName => 'Linux';
 
   @override
+  String get id => 'linux';
+
+  @override
   String get defaultWineDebug => '-all';
 
   bool get _hasMangoHud =>

@@ -7,11 +7,13 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'catalog_data.dart';
+import 'fixes_data.dart';
 import 'probe_data.dart';
 
 part 'apps.dart';
 part 'backends.dart';
 part 'catalog.dart';
+part 'fixes.dart';
 part 'platform.dart';
 part 'platform_linux.dart';
 part 'platform_mac.dart';
@@ -236,6 +238,8 @@ Future<String> _launchIn(
   Map<String, String> env = const {},
   bool? avx,
   Map<String, String> extra = const {},
+  GameFix? fix,
+  String? note,
 }) async {
   final dir = _existing(home, name);
   final rt = currentRuntime(home);
@@ -282,7 +286,32 @@ Future<String> _launchIn(
     cwd,
     argv,
     backend: '${choice.name} (${choice.origin})',
+    note: note,
   );
+  // Backend, then the game's fix, then bottle, program and this launch (M8, F3).
+  final steps = fix?.active ?? const <FixStep>[];
+  final launchEnv = {
+    ...backendEnv(home, choice.name, hud: hudOn),
+    if (hudOn) ...hostPlatform.perfEnv(dir),
+    if (settings.dlss) ..._dlssEnv,
+    ...hostPlatform.gpuEnv(settings.gpu),
+    for (final step in steps)
+      if (step.type == 'env')
+        if (fixValue(step.value!) case final value?) step.name!: value,
+    ...settings.env,
+    ...?settings.programs[_exeKey(program)]?.env,
+    ...hostPlatform.syncEnv(settings.sync),
+    ...env,
+    ...extra,
+  };
+  final overrides = [
+    for (final step in steps)
+      if (step.type == 'dlloverride') step.value!,
+  ];
+  if (overrides.isNotEmpty) {
+    launchEnv['WINEDLLOVERRIDES'] =
+        '${launchEnv['WINEDLLOVERRIDES'] ?? _overrides};${overrides.join(';')}';
+  }
   await _start(
     rt,
     prefix,
@@ -291,18 +320,7 @@ Future<String> _launchIn(
     argv,
     detached: true,
     wrapper: hostPlatform.launchWrapper(gamemode: settings.gamemode),
-    // Backend, then bottle, then program, then this launch (M8).
-    extra: {
-      ...backendEnv(home, choice.name, hud: hudOn),
-      if (hudOn) ...hostPlatform.perfEnv(dir),
-      if (settings.dlss) ..._dlssEnv,
-      ...hostPlatform.gpuEnv(settings.gpu),
-      ...settings.env,
-      ...?settings.programs[_exeKey(program)]?.env,
-      ...hostPlatform.syncEnv(settings.sync),
-      ...env,
-      ...extra,
-    },
+    extra: launchEnv,
     remove: {if (!(avx ?? settings.avx)) 'ROSETTA_ADVERTISE_AVX'},
   );
   return log;
@@ -345,6 +363,9 @@ const _hints = {
       'hay un wineserver de otro runtime: bodega stop <botella>',
   'wine: failed to open':
       'Wine no pudo abrir el programa: revisa su ruta (trampa 11)',
+  fixNotApplied:
+      'Steam ya estaba abierto, así que el arreglo de este juego no le llegó. '
+      'Para la botella y vuelve a abrir el juego desde Bodega.',
 };
 
 /// One hint per marker found in [log] (R16), read as a stream so that a huge
@@ -530,6 +551,7 @@ String _newLog(
   String cwd,
   List<String> argv, {
   String? backend,
+  String? note,
 }) {
   final now = DateTime.now().toUtc();
   final iso = now.toIso8601String();
@@ -544,7 +566,8 @@ String _newLog(
       '# runtime ${rt.split('/').last}\n'
       '${backend == null ? '' : '# backend $backend\n'}'
       '# cwd $cwd\n'
-      '# argv ${argv.join(' ')}\n',
+      '# argv ${argv.join(' ')}\n'
+      '${note == null ? '' : '# aviso $note\n'}',
     );
   return log.path;
 }

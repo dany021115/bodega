@@ -28,6 +28,14 @@ abstract class HostPlatform {
 
   /// `Mac` or `Linux`, for texts.
   String get displayName;
+
+  /// This machine's memory in MB, for fix values sized to it, or 0 if it can't
+  /// be read. It asks the system that really runs, whichever platform a test
+  /// pretends to be.
+  int get memoryMB => _memoryMB ??= _readMemoryMB();
+
+  /// `mac` or `linux`: what a fix step names in its `platforms`.
+  String get id;
   String defaultHome(Map<String, String> env);
   void prepareHome(String home);
   Map<String, String> baseEnv(Map<String, String> parent);
@@ -65,3 +73,22 @@ abstract class HostPlatform {
 
 /// The host in use. Tests replace it.
 HostPlatform hostPlatform = HostPlatform.detect();
+
+/// Read once: the memory does not change while Bodega runs.
+int? _memoryMB;
+
+int _readMemoryMB() {
+  try {
+    if (Platform.isMacOS) {
+      final out = Process.runSync('/usr/sbin/sysctl', ['-n', 'hw.memsize']);
+      return (int.tryParse('${out.stdout}'.trim()) ?? 0) >> 20;
+    }
+    final total = RegExp(
+      r'^MemTotal:\s+(\d+) kB',
+      multiLine: true,
+    ).firstMatch(File('/proc/meminfo').readAsStringSync());
+    return (int.tryParse(total?.group(1) ?? '') ?? 0) >> 10;
+  } on Object {
+    return 0;
+  }
+}
