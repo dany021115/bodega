@@ -1,5 +1,6 @@
 # Builds the Linux packages for a version tag and uploads them to that tag's GitHub release.
-# Manual dispatch only. The tag is created by tag-version on push to main.
+# Manual dispatch only. The tag is created by tag-version on push to main. Pick it in
+# "Use workflow from" (the Tags tab) when running the workflow: that tag is what gets built.
 # The account is on GitHub Free (included compute and 500 MB of artifact storage): the smoke tests are
 # off unless asked for, and the artifacts live one day.
 name: release-linux
@@ -7,10 +8,6 @@ name: release-linux
 on:
   workflow_dispatch:
     inputs:
-      tag:
-        description: "Version tag to build, e.g. v1.0.0 (created by tag-version)"
-        type: string
-        required: true
       smoke:
         description: "install each package in a clean container and run its CLI before publishing (about 20 min of Linux runner time)"
         type: boolean
@@ -28,14 +25,19 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          ref: ${{ inputs.tag }}
+          ref: ${{ github.ref_name }}
 
       - name: Check the tag
         id: check
         env:
-          TAG: ${{ inputs.tag }}
+          TAG: ${{ github.ref_name }}
+          REF_TYPE: ${{ github.ref_type }}
         run: |
           set -euo pipefail
+          if [ "$REF_TYPE" != "tag" ]; then
+            echo "::error::run this workflow from a version tag: pick it in 'Use workflow from' (now: $REF_TYPE '$TAG')."
+            exit 1
+          fi
           if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             echo "::error::'$TAG' is not a version tag (vX.Y.Z)."
             exit 1
@@ -65,7 +67,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.tag }}
+          ref: ${{ github.ref_name }}
       - name: system packages
         run: |
           set -euo pipefail
@@ -97,7 +99,7 @@ jobs:
         run: pacman -Syu --noconfirm --needed git
       - uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.tag }}
+          ref: ${{ github.ref_name }}
       - uses: actions/download-artifact@v4
         with:
           name: linux-installers
@@ -129,7 +131,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.tag }}
+          ref: ${{ github.ref_name }}
       - uses: actions/download-artifact@v4
         with:
           pattern: "*-installers"
@@ -149,7 +151,7 @@ jobs:
       attestations: write
     env:
       GH_TOKEN: ${{ github.token }}
-      TAG: ${{ inputs.tag }}
+      TAG: ${{ github.ref_name }}
     steps:
       # Only so that gh knows the repository.
       - uses: actions/checkout@v4
