@@ -90,6 +90,9 @@ class MacPlatform extends HostPlatform {
   }
 
   @override
+  Future<GamepadReport?> gamepads() async => null;
+
+  @override
   Future<List<HostIssue>> checkHost() async => [
     if (!(await rosettaInstalled()))
       (

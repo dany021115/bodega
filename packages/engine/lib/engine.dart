@@ -15,6 +15,7 @@ part 'catalog.dart';
 part 'platform.dart';
 part 'platform_linux.dart';
 part 'platform_mac.dart';
+part 'gamepads.dart';
 
 /// The data root (R1): `BODEGA_HOME`, or else the host's default, created and
 /// canonical.
@@ -80,6 +81,10 @@ List<String> get requiredFiles => hostPlatform.requiredFiles;
 
 /// Whether the host can run Windows programs, and what is missing (R10).
 Future<List<HostIssue>> checkHost() => hostPlatform.checkHost();
+
+/// The gamepads and what is wrong with them, or null where Bodega sets them up
+/// itself (the Mac).
+Future<GamepadReport?> checkGamepads() => hostPlatform.gamepads();
 
 /// What the host offers, so that a UI hides the rest (R11).
 HostCapabilities hostCapabilities() => hostPlatform.capabilities;

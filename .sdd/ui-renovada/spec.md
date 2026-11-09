@@ -40,7 +40,7 @@ lateral; se alcanza desde el dialogo "Agregar app".
 
 ## Paleta y tokens
 
-Tema oscuro unico. Colores en `device/theme/color.dart` (`AppColor`) y
+Tema oscuro por defecto, con su versión clara (`ThemeBloc`, sin botón por ahora). Colores en `device/theme/color.dart` (`AppColor`) y
 gradiente en `device/theme/gradient.dart` (`AppGradient`).
 
 - Fondos: `background` (070B1A), `sidebar` (0B1126), `bottlePanel` (0A1030),
@@ -64,5 +64,5 @@ acento por tipo: exito `statusTested`, error `colorScheme.error`, aviso
 
 ## Fuera de alcance
 
-- Tema claro (se quita `PreferenceKey.darkTheme`).
+- Un botón para cambiar de tema. El tema claro y el `ThemeBloc` siguen, como en el resto del proyecto, con el oscuro por defecto (decisión del usuario, 2026-11-09).
 - Cambios de engine fuera de `offLibrary`, `renameBottle` y `setInLibrary`.

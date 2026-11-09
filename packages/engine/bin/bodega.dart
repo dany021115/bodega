@@ -21,9 +21,11 @@ uso: bodega install <engine.tar.gz> <hostlibs.tar.gz>
      bodega option <botella> gpu auto|discrete
      bodega option <botella> gamemode on|off
      bodega sdl install [archivo.dmg]
+     bodega pads
      bodega catalog list [texto]
      bodega catalog show <id>
      bodega catalog install <id> [botella]
+
      bodega apps
      bodega open [--backend <b>] [--hud] <botella> [clave]''';
 
@@ -39,6 +41,28 @@ Future<void> main(List<String> args) async {
       );
       stdout.writeln('Las botellas usarán SDL2 al volver a abrirlas.');
       return 0;
+    },
+    ['pads'] => (home) async {
+      final report = await hostPlatform.gamepads();
+      if (report == null) {
+        stdout.writeln(
+          'En ${hostPlatform.displayName} Bodega prepara los mandos solo; no hay nada que revisar.',
+        );
+        return 0;
+      }
+      if (report.pads.isEmpty) stdout.writeln('No hay mandos conectados.');
+      for (final pad in report.pads) {
+        stdout.writeln(
+          '${pad.readable ? 'ok' : 'SIN PERMISO'}  ${pad.name} '
+          '(${pad.vid}:${pad.pid})  ${pad.node}',
+        );
+      }
+      stdout.writeln('SDL2: ${report.sdl ? 'instalada' : 'falta'}');
+      for (final issue in report.issues) {
+        stdout.writeln('\n${issue.title}\n  ${issue.detail}');
+        if (issue.command != null) stdout.writeln('  ${issue.command}');
+      }
+      return report.issues.isEmpty ? 0 : 1;
     },
     ['create', final bottle] => (home) async {
       final logs = Directory('${bottleDir(home, bottle)}/logs');
@@ -114,6 +138,7 @@ Future<void> main(List<String> args) async {
       _show(catalogEntry(id));
       return 0;
     },
+
     ['catalog', 'install', final id, ...final rest] when rest.length < 2 =>
       (home) async {
         final entry = catalogEntry(id);

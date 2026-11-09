@@ -61,6 +61,15 @@ bodega option prueba gamemode on
 - GPU por botella: `auto` o `discrete`. `discrete` usa las variables de offload de PRIME (NVIDIA y Mesa).
 - GameMode: si `gamemoderun` está instalado, envuelve el lanzamiento.
 
+### Mandos
+
+Wine usa SDL2 del sistema para los mandos y, sin ella, `udev`. Bodega no configura nada en la botella. `bodega pads` lista los mandos que ve el kernel, si tu usuario puede abrirlos y si falta SDL2, con el paquete de tu distro.
+
+Si un mando no aparece en el juego:
+
+- Instala las reglas udev de mandos (`steam-devices`: en Ubuntu viene de multiverse, y en Arch de multilib) y vuelve a conectarlo.
+- Instala SDL2 (`libsdl2-2.0-0`, `SDL2` o `sdl2-compat`).
+
 ### ntsync
 
 El Wine incluido no tiene variables de esync ni fsync, así que no hay forma de forzarlos. Wine usa ntsync solo si existe `/dev/ntsync` y tu usuario puede acceder a él.

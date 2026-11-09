@@ -4,6 +4,7 @@ import 'package:bodega/app/bloc/backends/backends_bloc.dart';
 import 'package:bodega/app/bloc/bottle_detail/bottle_detail_bloc.dart';
 import 'package:bodega/app/bloc/bottles/bottles_bloc.dart';
 import 'package:bodega/app/bloc/catalog/catalog_bloc.dart';
+import 'package:bodega/app/bloc/gamepads/gamepads_bloc.dart';
 import 'package:bodega/app/bloc/install/install_bloc.dart';
 import 'package:bodega/app/bloc/library/library_bloc.dart';
 import 'package:bodega/app/bloc/run_options/run_options_bloc.dart';
@@ -70,6 +71,9 @@ class _MockViewMode extends MockBloc<ViewModeEvent, ViewModeState>
 
 class _MockRunOptions extends MockBloc<RunOptionsEvent, RunOptionsState>
     implements RunOptionsBloc {}
+
+class _MockGamepads extends MockBloc<GamepadsEvent, GamepadsState>
+    implements GamepadsBloc {}
 
 class _MockSetup extends MockBloc<SetupEvent, SetupState>
     implements SetupBloc {}
@@ -177,6 +181,7 @@ void main() {
   late _MockBottle bottle;
   late _MockAddApp addApp;
   late _MockSections sections;
+  late _MockGamepads gamepads;
   late _MockViewMode viewMode;
   late _MockSetup setup;
 
@@ -205,6 +210,9 @@ void main() {
     library = _MockLibrary();
     sections = _MockSections();
     setup = _MockSetup();
+    gamepads = _MockGamepads();
+    when(() => gamepads.state)
+        .thenReturn(const GamepadsState(isLoading: false));
     showSetup(const SetupState(isChecking: false, runtime: true));
     whenListen(
       backends,
@@ -277,6 +285,7 @@ void main() {
     BlocProvider<BottleDetailBloc>.value(value: bottle),
     BlocProvider<AddAppBloc>.value(value: addApp),
     BlocProvider<SectionsBloc>.value(value: sections),
+    BlocProvider<GamepadsBloc>.value(value: gamepads),
     BlocProvider<ViewModeBloc>.value(value: viewMode),
     BlocProvider<SetupBloc>.value(value: setup),
   ];
@@ -287,6 +296,7 @@ void main() {
     double width,
     Widget page, {
     double height = 480,
+    bool light = false,
   }) async {
     tester.view.devicePixelRatio = 1;
     tester.view.physicalSize = Size(width, height);
@@ -295,7 +305,7 @@ void main() {
       MultiBlocProvider(
         providers: providers(),
         child: MaterialApp(
-          theme: AppTheme.getDarkTheme(),
+          theme: light ? AppTheme.getLightTheme() : AppTheme.getDarkTheme(),
           builder: (context, child) => ResponsiveBreakpoints.builder(
             child: child!,
             breakpoints: appBreakpoints,
@@ -313,6 +323,18 @@ void main() {
   }
 
   Widget bottleView() => BottleDetailView(name: _longName);
+
+  // There is no switch yet, but the light theme must be ready for one.
+  testWidgets('every screen renders with the light theme', (tester) async {
+    for (final width in [720.0, 1150.0]) {
+      await pump(tester, width, const CatalogPage(), light: true);
+      await pump(tester, width, const LibraryPage(), light: true);
+      await pump(tester, width, bottleView(), light: true);
+      await pump(tester, width, const BackendsPage(), light: true);
+    }
+    final context = tester.element(find.byType(BackendsPage));
+    expect(Theme.of(context).brightness, Brightness.light);
+  });
 
   // The minimum window, the narrowest with two catalog columns, the default
   // one, and a big one.
@@ -791,6 +813,8 @@ void main() {
     ) async {
       getIt.registerFactory<BottleDetailBloc>(() => bottle);
       addTearDown(() => getIt.unregister<BottleDetailBloc>());
+      getIt.registerFactory<GamepadsBloc>(() => gamepads);
+      addTearDown(() => getIt.unregister<GamepadsBloc>());
       final router = await pumpRouter(tester);
       await tester.tap(find.text(_longName));
       await tester.pumpAndSettle();
