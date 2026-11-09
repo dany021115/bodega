@@ -18,6 +18,22 @@ abstract class AppColor {
   static const Color violet = Color(0xFF8B5CF6);
   static const Color error = Color(0xFFF87171);
 
+  // === LIGHT ===
+  // The same neon accents, darker so that they read on white (4.5:1 or more).
+  static const Color backgroundLight = Color(0xFFF5F7FF);
+  static const Color sidebarLight = Color(0xFFEDF1FC);
+  static const Color bottlePanelLight = Color(0xFFF0F3FD);
+  static const Color surfaceLight = Color(0xFFFFFFFF);
+  static const Color surface2Light = Color(0xFFE6EBFA);
+  static const Color borderLight = Color(0xFFCBD3EE);
+  static const Color textLight = Color(0xFF0B1126);
+  static const Color textSecondaryLight = Color(0xFF4A5680);
+  static const Color onAccentLight = Color(0xFFFFFFFF);
+  static const Color cyanLight = Color(0xFF0E7490);
+  static const Color blueLight = Color(0xFF2563EB);
+  static const Color violetLight = Color(0xFF7C3AED);
+  static const Color errorLight = Color(0xFFDC2626);
+
   // === CATALOG STATUS ===
   static const Color statusTested = Color(0xFF34D399);
   static const Color statusReported = Color(0xFF42A5F5);

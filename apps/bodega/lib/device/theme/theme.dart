@@ -3,55 +3,75 @@ import 'package:bodega/device/theme/radius.dart';
 import 'package:flutter/material.dart';
 
 class AppTheme {
-  static ThemeData getDarkTheme() => _buildTheme();
+  static ThemeData getLightTheme() => _buildTheme(Brightness.light);
+
+  static ThemeData getDarkTheme() => _buildTheme(Brightness.dark);
 
   // === COLOR SCHEME ===
 
-  static final ColorScheme _colors = ColorScheme(
-    brightness: Brightness.dark,
-    primary: AppColor.cyan,
-    onPrimary: AppColor.onAccent,
-    primaryContainer: AppColor.blue,
-    onPrimaryContainer: AppColor.text,
-    secondary: AppColor.violet,
-    onSecondary: AppColor.text,
-    tertiary: AppColor.violet,
-    onTertiary: AppColor.text,
-    error: AppColor.error,
-    onError: AppColor.onAccent,
-    surface: AppColor.background,
-    onSurface: AppColor.text,
-    onSurfaceVariant: AppColor.textSecondary,
-    surfaceContainerLow: AppColor.bottlePanel,
-    surfaceContainer: AppColor.sidebar,
-    surfaceContainerHigh: AppColor.surface,
-    surfaceContainerHighest: AppColor.surface2,
-    outline: AppColor.border,
-    outlineVariant: AppColor.border,
-    shadow: Colors.black.withValues(alpha: 0.5),
-    scrim: Colors.black.withValues(alpha: 0.6),
-  );
+  static ColorScheme _colorScheme(Brightness brightness) {
+    final dark = brightness == Brightness.dark;
+    final text = dark ? AppColor.text : AppColor.textLight;
+    final onAccent = dark ? AppColor.onAccent : AppColor.onAccentLight;
+    final violet = dark ? AppColor.violet : AppColor.violetLight;
+    final border = dark ? AppColor.border : AppColor.borderLight;
+
+    return ColorScheme(
+      brightness: brightness,
+      primary: dark ? AppColor.cyan : AppColor.cyanLight,
+      onPrimary: onAccent,
+      primaryContainer: dark ? AppColor.blue : AppColor.blueLight,
+      onPrimaryContainer: dark ? AppColor.text : AppColor.onAccentLight,
+      secondary: violet,
+      onSecondary: dark ? text : onAccent,
+      tertiary: violet,
+      onTertiary: dark ? text : onAccent,
+      error: dark ? AppColor.error : AppColor.errorLight,
+      onError: onAccent,
+      surface: dark ? AppColor.background : AppColor.backgroundLight,
+      onSurface: text,
+      onSurfaceVariant: dark
+          ? AppColor.textSecondary
+          : AppColor.textSecondaryLight,
+      surfaceContainerLow: dark
+          ? AppColor.bottlePanel
+          : AppColor.bottlePanelLight,
+      surfaceContainer: dark ? AppColor.sidebar : AppColor.sidebarLight,
+      surfaceContainerHigh: dark ? AppColor.surface : AppColor.surfaceLight,
+      surfaceContainerHighest: dark
+          ? AppColor.surface2
+          : AppColor.surface2Light,
+      outline: border,
+      outlineVariant: border,
+      shadow: Colors.black.withValues(alpha: dark ? 0.5 : 0.15),
+      scrim: Colors.black.withValues(alpha: dark ? 0.6 : 0.4),
+    );
+  }
 
   // === COMPONENT THEMES ===
 
-  static InputDecorationTheme get _inputTheme => InputDecorationTheme(
-    filled: true,
-    fillColor: _colors.surfaceContainerHigh,
-    border: OutlineInputBorder(
-      borderRadius: AppRadius.xsBorder,
-      borderSide: BorderSide(color: _colors.outline),
-    ),
-    enabledBorder: OutlineInputBorder(
-      borderRadius: AppRadius.xsBorder,
-      borderSide: BorderSide(color: _colors.outline),
-    ),
-    focusedBorder: OutlineInputBorder(
-      borderRadius: AppRadius.xsBorder,
-      borderSide: BorderSide(color: _colors.primary, width: 2),
-    ),
-    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-    isDense: true,
-  );
+  static InputDecorationTheme _inputTheme(ColorScheme colors) =>
+      InputDecorationTheme(
+        filled: true,
+        fillColor: colors.surfaceContainerHigh,
+        border: OutlineInputBorder(
+          borderRadius: AppRadius.xsBorder,
+          borderSide: BorderSide(color: colors.outline),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: AppRadius.xsBorder,
+          borderSide: BorderSide(color: colors.outline),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: AppRadius.xsBorder,
+          borderSide: BorderSide(color: colors.primary, width: 2),
+        ),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: 10,
+        ),
+        isDense: true,
+      );
 
   static final FilledButtonThemeData _filledButtonTheme = FilledButtonThemeData(
     style: FilledButton.styleFrom(
@@ -77,11 +97,11 @@ class AppTheme {
 
   // === THEME BUILDER ===
 
-  static ThemeData _buildTheme() {
-    final colors = _colors;
+  static ThemeData _buildTheme(Brightness brightness) {
+    final colors = _colorScheme(brightness);
 
     return ThemeData(
-      brightness: Brightness.dark,
+      brightness: brightness,
       useMaterial3: true,
       colorScheme: colors,
       scaffoldBackgroundColor: colors.surface,
@@ -115,7 +135,7 @@ class AppTheme {
         thickness: 1,
         space: 1,
       ),
-      inputDecorationTheme: _inputTheme,
+      inputDecorationTheme: _inputTheme(colors),
       filledButtonTheme: _filledButtonTheme,
       outlinedButtonTheme: _outlinedButtonTheme,
       textButtonTheme: _textButtonTheme,

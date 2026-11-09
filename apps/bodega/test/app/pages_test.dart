@@ -296,6 +296,7 @@ void main() {
     double width,
     Widget page, {
     double height = 480,
+    bool light = false,
   }) async {
     tester.view.devicePixelRatio = 1;
     tester.view.physicalSize = Size(width, height);
@@ -304,7 +305,7 @@ void main() {
       MultiBlocProvider(
         providers: providers(),
         child: MaterialApp(
-          theme: AppTheme.getDarkTheme(),
+          theme: light ? AppTheme.getLightTheme() : AppTheme.getDarkTheme(),
           builder: (context, child) => ResponsiveBreakpoints.builder(
             child: child!,
             breakpoints: appBreakpoints,
@@ -322,6 +323,18 @@ void main() {
   }
 
   Widget bottleView() => BottleDetailView(name: _longName);
+
+  // There is no switch yet, but the light theme must be ready for one.
+  testWidgets('every screen renders with the light theme', (tester) async {
+    for (final width in [720.0, 1150.0]) {
+      await pump(tester, width, const CatalogPage(), light: true);
+      await pump(tester, width, const LibraryPage(), light: true);
+      await pump(tester, width, bottleView(), light: true);
+      await pump(tester, width, const BackendsPage(), light: true);
+    }
+    final context = tester.element(find.byType(BackendsPage));
+    expect(Theme.of(context).brightness, Brightness.light);
+  });
 
   // The minimum window, the narrowest with two catalog columns, the default
   // one, and a big one.
