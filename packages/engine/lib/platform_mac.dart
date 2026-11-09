@@ -36,12 +36,6 @@ class MacPlatform extends HostPlatform {
   String get id => 'mac';
 
   @override
-  int get memoryMB => _memoryMB ??= () {
-    final out = Process.runSync('/usr/sbin/sysctl', ['-n', 'hw.memsize']);
-    return (int.tryParse('${out.stdout}'.trim()) ?? 0) >> 20;
-  }();
-
-  @override
   String defaultHome(Map<String, String> env) =>
       '${env['HOME']!}/Library/Application Support/Bodega';
 

@@ -108,9 +108,11 @@ GameFix? fixForApp(String key) {
 }
 
 /// [value] with highball-db's `${memoryMB*0.375}` worked out for this host, or
-/// null if it holds a placeholder Bodega does not know: then the step is left
-/// out, rather than passed on as text.
+/// null if it holds a placeholder Bodega does not know, or the memory can't be
+/// read: then the step is left out, rather than passed on as text.
 String? fixValue(String value) {
+  // With the memory unknown, a budget of 0 would be worse than none.
+  if (value.contains(r'${memoryMB') && hostPlatform.memoryMB <= 0) return null;
   final sized = value.replaceAllMapped(
     RegExp(r'\$\{memoryMB\*([0-9.]+)\}'),
     (match) => '${(hostPlatform.memoryMB * double.parse(match[1]!)).round()}',
