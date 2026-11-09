@@ -101,6 +101,27 @@ void main() {
     expect(File('$dir/backends/dxmt/wine/x64/d3d11.dll').existsSync(), isTrue);
   });
 
+  test("the bundle's SDL2 goes into the runtime in use when it differs", () {
+    const sdl = 'engine/lib/wine/x86_64-unix/libSDL2-2.0.0.dylib';
+    _write('$bundle/runtime/wine-x/$sdl', 'sdl 2.30.12');
+    hostPlatform = MacPlatform(bundle: bundle);
+    final dir = bodegaHome(env);
+    final installed = File('$dir/runtimes/current/$sdl');
+    expect(installed.readAsStringSync(), 'sdl 2.30.12');
+
+    // A runtime from a tarball has none, an older one another version.
+    installed.deleteSync();
+    bodegaHome(env);
+    expect(installed.readAsStringSync(), 'sdl 2.30.12');
+    installed.writeAsStringSync('sdl 2.32.10');
+    bodegaHome(env);
+    expect(installed.readAsStringSync(), 'sdl 2.30.12');
+
+    final before = installed.lastModifiedSync();
+    bodegaHome(env);
+    expect(installed.lastModifiedSync(), before);
+  });
+
   test('sha256Of', () async {
     _write('$tmp/abc', 'abc');
     expect(

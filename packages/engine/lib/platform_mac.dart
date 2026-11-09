@@ -48,6 +48,30 @@ class MacPlatform extends HostPlatform {
     // shortcut: the copy is synchronous and runs once; if a big runtime makes
     // the first start slow, move it to a step with progress.
     _registerBundled(home, root, copy: true, afterCopy: _stripQuarantine);
+    _syncSdl(home, root);
+  }
+
+  /// SDL2 lives inside a runtime, and a runtime is copied only when it is
+  /// missing: one installed from a tarball has none, and an older one may have
+  /// another version, whose pad controls can be wrong. The bundle's SDL2 goes
+  /// into the runtime in use whenever it differs (design §10).
+  void _syncSdl(String home, String root) {
+    if (!hasRuntime(home)) return;
+    final source = [
+      for (final id in _subdirs('$root/runtime'))
+        if (File('$root/runtime/$id/$_sdlInRuntime') case final file
+            when file.existsSync())
+          file,
+    ].firstOrNull;
+    if (source == null) return;
+    final target = File(_sdlPath(home));
+    if (target.existsSync() &&
+        _sameBytes(source.readAsBytesSync(), target.readAsBytesSync())) {
+      return;
+    }
+    source.copySync('${target.path}.tmp');
+    File('${target.path}.tmp').renameSync(target.path);
+    _stripQuarantine(target.path);
   }
 
   @override
@@ -315,4 +339,12 @@ Future<void> _ensureGamepads(String home, String name) async {
       return -1;
     },
   );
+}
+
+bool _sameBytes(List<int> a, List<int> b) {
+  if (a.length != b.length) return false;
+  for (var i = 0; i < a.length; i++) {
+    if (a[i] != b[i]) return false;
+  }
+  return true;
 }

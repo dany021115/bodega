@@ -467,17 +467,20 @@ Future<int> _wineserver(String rt, String prefix, String flag) async {
 
 /// The official SDL2 release (zlib licence): its universal framework, from
 /// which only the x86_64 part is kept. Checked: Wine loads it and maps an Xbox
-/// pad through SDL (design §10).
+/// pad through SDL (design §10). 2.30.12, as CrossOver's: with 2.32.10 an Xbox
+/// One S pad had up and down swapped in Blur, measured on 2026-11-09.
 const _sdl = (
   url:
-      'https://github.com/libsdl-org/SDL/releases/download/release-2.32.10/'
-      'SDL2-2.32.10.dmg',
-  sha256: '4a7ac31640d70214e848f994be8a12849c0f97918a7e6c2e27a40036166d1a7f',
+      'https://github.com/libsdl-org/SDL/releases/download/release-2.30.12/'
+      'SDL2-2.30.12.dmg',
+  sha256: 'a8fcd488a8062f632bacd7a74dbbb5f585f3b0303ccf08384ac0349eccd8420d',
 );
 
-/// Where Wine's winebus looks for SDL2: beside itself, as for FreeType.
-String _sdlPath(String home) =>
-    '${currentRuntime(home)}/engine/lib/wine/x86_64-unix/libSDL2-2.0.0.dylib';
+/// Where Wine's winebus looks for SDL2 in a runtime: beside itself, as for
+/// FreeType.
+const _sdlInRuntime = 'engine/lib/wine/x86_64-unix/libSDL2-2.0.0.dylib';
+
+String _sdlPath(String home) => '${currentRuntime(home)}/$_sdlInRuntime';
 
 /// Whether the current runtime has SDL2, so that gamepads go through it.
 bool hasSdl(String home) =>
