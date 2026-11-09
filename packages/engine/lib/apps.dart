@@ -225,8 +225,7 @@ Iterable<InstalledApp> _shortcutApps(String bottle, String drive) sync* {
 // others, for when a bottle has one.
 Iterable<InstalledApp> _steamGames(String bottle, String drive) sync* {
   final apps = findCI(drive, 'Program Files (x86)/Steam/steamapps');
-  if (!File(findCI(drive, _steamExe)).existsSync() ||
-      !_isRealDirectory(apps)) {
+  if (!File(findCI(drive, _steamExe)).existsSync() || !_isRealDirectory(apps)) {
     return;
   }
   final manifest = RegExp(r'/appmanifest_\d+\.acf$');
@@ -291,6 +290,10 @@ Future<String> openApp(
       : apps.where((app) => app.key == key).firstOrNull ??
             (throw '$bottle no tiene la aplicación $key');
   final fix = fixForApp(app.key);
+  // A Steam already open starts the game with its own environment, so the
+  // fix's variables would not reach it: the log says so instead of hiding it.
+  final missed =
+      fix != null && fix.needsLaunchEnv && await _steamRunning(home, bottle);
   if (fix != null) await _applyFixRegistry(home, bottle, fix);
   return _launchIn(
     home,
@@ -302,6 +305,7 @@ Future<String> openApp(
     env: env,
     avx: avx,
     fix: fix,
+    note: missed ? fixNotApplied : null,
   );
 }
 

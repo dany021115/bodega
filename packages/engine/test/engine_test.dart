@@ -18,6 +18,7 @@ reg)
   case "$*" in *FAIL*) exit 3 ;; esac
   echo "$@" >>"$WINEPREFIX/reg.log" ;;
 msiexec) echo "$@" >"$WINEPREFIX/msi-args"; . "$3" ;;
+tasklist) cat "$WINEPREFIX/tasks" 2>/dev/null ;;
 winecfg) echo "$@" >>"$WINEPREFIX/winecfg.log" ;;
 *-setup.exe) echo "$@" >"$WINEPREFIX/setup-args"; . "$1" ;;
 *) env >"$WINEPREFIX/last-env"; echo "$@"; sleep 5 & exit 7 ;;

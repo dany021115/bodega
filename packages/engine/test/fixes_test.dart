@@ -199,6 +199,75 @@ void main() {
       expect(value.split(';').length, greaterThan(2));
     });
 
+    test('a value sized to the memory is worked out for this host', () async {
+      fixesSource = fixes([
+        env('DXVK_CONFIG', r'dxgi.maxVideoMemoryBudget=${memoryMB*0.375}'),
+        env('RARO', r'${otraCosa}'),
+      ]);
+      await open();
+      final budget = (hostPlatform.memoryMB * 0.375).round();
+      expect(hostPlatform.memoryMB, greaterThan(0));
+      expect(lastEnv()['DXVK_CONFIG'], 'dxgi.maxVideoMemoryBudget=$budget');
+      // A placeholder Bodega does not know is left out, not passed as text.
+      expect(lastEnv(), isNot(contains('RARO')));
+    });
+
+    group('with Steam already open', () {
+      List<String> tasklistLogs() => [
+        for (final log in bottleLogs(home, 'b'))
+          if (log.name.endsWith('-tasklist.log')) log.path,
+      ];
+
+      setUp(() {
+        // The fake wineserver -w waits while this exists: a running bottle.
+        File('$prefix/hang').createSync();
+        File('$prefix/tasks').writeAsStringSync(
+          'steam.exe                      24 Console 1 0 K\n',
+        );
+      });
+
+      test('the log says its variables did not reach the game', () async {
+        fixesSource = fixes([env('X', '1')]);
+        final log = await openApp(home, 'b', key: 'steam:9');
+        await exitOf(log);
+        expect(
+          File(log).readAsStringSync(),
+          contains('# aviso $fixNotApplied'),
+        );
+        expect(await hintsIn(log), [contains('Steam ya estaba abierto')]);
+        expect(tasklistLogs(), hasLength(1));
+      });
+
+      test('a bottle running something else is no reason to warn', () async {
+        File('$prefix/tasks').writeAsStringSync('explorer.exe  20 Console\n');
+        fixesSource = fixes([override('foo=n')]);
+        final log = await openApp(home, 'b', key: 'steam:9');
+        await exitOf(log);
+        expect(await hintsIn(log), isEmpty);
+      });
+
+      test('a fix that only writes the registry does not ask', () async {
+        fixesSource = fixes([registry('uno')]);
+        final log = await openApp(home, 'b', key: 'steam:9');
+        await exitOf(log);
+        expect(tasklistLogs(), isEmpty);
+        expect(await hintsIn(log), isEmpty);
+        expect(regLog(), hasLength(1));
+      });
+    });
+
+    test('with Steam closed there is nothing to ask or warn', () async {
+      fixesSource = fixes([env('X', '1')]);
+      final log = await openApp(home, 'b', key: 'steam:9');
+      await exitOf(log);
+      expect(lastEnv()['X'], '1');
+      expect(await hintsIn(log), isEmpty);
+      expect(
+        bottleLogs(home, 'b').where((l) => l.name.endsWith('-tasklist.log')),
+        isEmpty,
+      );
+    });
+
     test('its registry values are written before the game starts', () async {
       fixesSource = fixes([registry('uno'), registry('dos')]);
       await open();

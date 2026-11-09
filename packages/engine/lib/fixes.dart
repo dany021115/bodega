@@ -73,6 +73,10 @@ class GameFix {
           for (final step in steps)
             if (step.applies) step,
         ];
+
+  /// Whether some step must be in the game's environment: variables and DLL
+  /// overrides, which only a Steam that starts with them can pass on.
+  bool get needsLaunchEnv => active.any((step) => step.type != 'registry');
 }
 
 /// The fixes in file order, filtered by [query] on id and title.
@@ -101,6 +105,55 @@ GameFix gameFix(String idOrApp) =>
 GameFix? fixForApp(String key) {
   final app = key.startsWith('steam:') ? int.tryParse(key.substring(6)) : null;
   return app == null ? null : fixForSteamApp(app);
+}
+
+/// [value] with highball-db's `${memoryMB*0.375}` worked out for this host, or
+/// null if it holds a placeholder Bodega does not know: then the step is left
+/// out, rather than passed on as text.
+String? fixValue(String value) {
+  final sized = value.replaceAllMapped(
+    RegExp(r'\$\{memoryMB\*([0-9.]+)\}'),
+    (match) => '${(hostPlatform.memoryMB * double.parse(match[1]!)).round()}',
+  );
+  return sized.contains(r'${') ? null : sized;
+}
+
+/// The note that goes in the log when a fix could not reach the game; [hintsIn]
+/// turns it into advice.
+const fixNotApplied = 'arreglo sin aplicar: Steam ya estaba abierto';
+
+/// Whether Steam runs in the bottle. With no wineserver nothing does, which
+/// takes no time to know (design §5); else `tasklist` tells, without a window.
+Future<bool> _steamRunning(String home, String bottle) async {
+  final prefix = '${_existing(home, bottle)}/prefix';
+  final wait = await Process.start(
+    '${currentRuntime(home)}/engine/bin/wineserver',
+    ['-w'],
+    environment: wineEnv(prefix, Platform.environment),
+    includeParentEnvironment: false,
+  );
+  final idle = await wait.exitCode
+      .then((_) => true)
+      .timeout(
+        const Duration(milliseconds: 500),
+        onTimeout: () {
+          wait.kill();
+          return false;
+        },
+      );
+  if (idle) return false;
+  final log = await _launchIn(
+    home,
+    bottle,
+    'tasklist',
+    const [],
+    backend: 'wine',
+    label: 'tasklist',
+  );
+  await exitOf(log);
+  return File(log)
+      .readAsLinesSync(encoding: latin1)
+      .any((line) => line.toLowerCase().startsWith('steam.exe '));
 }
 
 /// Writes the registry values of [fix] into the bottle, which a variable cannot do (F3).

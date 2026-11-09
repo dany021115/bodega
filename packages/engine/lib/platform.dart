@@ -16,6 +16,9 @@ typedef HostCapabilities = ({
 });
 
 /// What differs between hosts. The rest of the engine is shared.
+/// Read once: the memory does not change while Bodega runs.
+int? _memoryMB;
+
 abstract class HostPlatform {
   const HostPlatform();
 
@@ -28,6 +31,9 @@ abstract class HostPlatform {
 
   /// `Mac` or `Linux`, for texts.
   String get displayName;
+
+  /// The host's memory in MB, for fix values sized to it.
+  int get memoryMB;
 
   /// `mac` or `linux`: what a fix step names in its `platforms`.
   String get id;

@@ -17,6 +17,15 @@ class LinuxPlatform extends HostPlatform {
   String get id => 'linux';
 
   @override
+  int get memoryMB => _memoryMB ??= () {
+    final total = RegExp(
+      r'^MemTotal:\s+(\d+) kB',
+      multiLine: true,
+    ).firstMatch(File('/proc/meminfo').readAsStringSync());
+    return (int.tryParse(total?.group(1) ?? '') ?? 0) >> 10;
+  }();
+
+  @override
   String get defaultWineDebug => '-all';
 
   bool get _hasMangoHud =>
