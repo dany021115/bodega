@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Usage: build_arch.sh <Bodega-X.Y.Z-linux-x86_64.tar.gz> <out dir>
 # Wraps the tarball from package_linux.sh in a pacman package (needs makepkg,
-# which refuses to run as root). Writes bodega-X.Y.Z-1-x86_64.pkg.tar.zst.
+# which refuses to run as root). Writes Bodega-X.Y.Z-arch-x86_64.pkg.tar.zst, named like the
+# other release files; the package inside is still `bodega`.
 set -euo pipefail
 
 tarball="$(readlink -f "$1")"
@@ -23,9 +24,12 @@ cp "$dir/PKGBUILD" "$dir/bodega.install" "$dir/../linux/bodega.desktop" "$work/"
 cp "$icon" "$work/bodega.png"
 ln -s "$tarball" "$work/$(basename "$tarball")"
 
-mkdir -p "$out"
+mkdir -p "$out" "$work/dest"
 (
   cd "$work"
-  BODEGA_VERSION="$version" PKGDEST="$out" makepkg -f --nodeps --nocheck
+  # makepkg names it bodega-X.Y.Z-<pkgrel>-x86_64.pkg.tar.zst. PKGDEST must not be ./pkg, which is
+  # makepkg's own staging dir; a private one also keeps stale builds out.
+  BODEGA_VERSION="$version" PKGDEST="$work/dest" makepkg -f --nodeps --nocheck
 )
-ls -l "$out"/bodega-"$version"-*.pkg.tar.zst
+mv "$work"/dest/bodega-"$version"-*-x86_64.pkg.tar.zst "$out/Bodega-$version-arch-x86_64.pkg.tar.zst"
+ls -l "$out/Bodega-$version-arch-x86_64.pkg.tar.zst"

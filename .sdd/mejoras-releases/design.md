@@ -13,19 +13,20 @@ Cada sección cubre una mejora de `proposal.md`. Las firmas y rutas son las prop
 
 ## M2. Checksums y procedencia (X2)
 
-- En el job `release` de `release-linux.yml` y de `release-macos.yml`: después de descargar los artefactos a `dist/`, `cd dist && sha256sum * > SHA256SUMS`, y subir `SHA256SUMS` junto con los demás.
-- Procedencia: `actions/attest-build-provenance@v2` con `subject-path: dist/*`. Requiere `permissions: id-token: write, attestations: write` en ese job.
-- Verificación del usuario: `sha256sum -c SHA256SUMS` y `gh attestation verify <archivo> -R dany021115/bodega`.
+- En el job `release` de `release-linux.yml` y de `release-macos.yml`: después de descargar los artefactos a `dist/`, se escribe `SHA256SUMS-linux` o `SHA256SUMS-macos` (un archivo por plataforma, porque los dos workflows suben al mismo release y un nombre común se pisaría con `--clobber`). Se genera fuera de `dist/` y se mueve dentro, para que no se liste a sí mismo.
+- Procedencia: `actions/attest@v4` (el que recomienda la documentación de GitHub; `attest-build-provenance` es su envoltorio) con `subject-path: dist/*`, y `permissions: contents: write, id-token: write, attestations: write` en ese job.
+- El paso de attest lleva `continue-on-error: true`: la procedencia se suma a los checksums y no debe tumbar un release. El repositorio es **privado**: la documentación dice que los privados usan la instancia Sigstore de GitHub (sin registro público de transparencia), pero no confirma si el plan actual lo permite. Se sabrá en el primer release; si falla, quedan los checksums y se anota aquí.
+- Verificación del usuario: `sha256sum -c SHA256SUMS-linux --ignore-missing` y, si la procedencia se generó, `gh attestation verify <archivo> -R dany021115/bodega` (con `gh` autenticado, porque el repo es privado).
 - Esto no firma el DMG para Gatekeeper (eso es M10); solo prueba qué workflow produjo el archivo.
 
 ## M3. Prueba de humo de paquetes (X3)
 
-Un job `smoke` que depende de `build`/`arch`/`package` y bloquea a `release`:
+Un job `smoke` que depende de `build`/`arch`/`package` y, cuando está encendido, bloquea a `release`. **Opcional y apagado por defecto** (input `smoke` de `workflow_dispatch`, ver "Límites de GitHub Free" en `proposal.md`): son unos 20 min de Linux por release, y en macOS diez veces más caros. `release` corre igual si `smoke` se salta (`always()` con una comprobación explícita de que no falló). El script es `tool/smoke_linux.sh <deb|arch|appimage> <dist>`, que también se corre en local con docker.
 
 | Paquete | Entorno | Comando |
 |---|---|---|
 | `.deb` | `ubuntu:24.04` limpio | `apt install ./Bodega-*.deb`; `bodega --help`; `BODEGA_HOME=$(mktemp -d) bodega backend list` |
-| `.pkg.tar.zst` | `archlinux:base` | `pacman -U --noconfirm bodega-*.pkg.tar.zst`; los mismos dos comandos |
+| `.pkg.tar.zst` | `archlinux:base` | `pacman -U --noconfirm Bodega-*-arch-x86_64.pkg.tar.zst`; los mismos dos comandos |
 | `.AppImage` | `ubuntu:24.04` | `APPIMAGE_EXTRACT_AND_RUN=1 ./Bodega-*.AppImage --version` si existe; si no, solo que arranque y salga |
 | `.dmg` | `macos-15` | `hdiutil attach`; `Bodega.app/Contents/MacOS/bodega-cli --help`; `bodega create prueba` (sin ventana) |
 
@@ -55,14 +56,16 @@ Un job `smoke` que depende de `build`/`arch`/`package` y bloquea a `release`:
 
 ## M6. Base de arreglos por juego (X6)
 
-- Datos: `packages/engine/lib/fixes_data.dart`, generado desde `packages/engine/data/fixes.json`, con la misma forma que usa hoy `catalog_data.dart`. Una entrada por juego:
-  `{ "id": "steam:1234", "title": "...", "platforms": ["linux","mac"], "env": {...}, "dllOverrides": "...", "winetricks": ["vcrun2022"], "backend": "dxvk", "notes": "..." }`.
-- Identificación: ID de Steam (de `steamapps/appmanifest_*.acf`, que `apps.dart` ya parsea para los juegos de Steam) o nombre del exe como respaldo.
-- Aplicación: al crear la botella (`createBottle`) y al lanzar (`_launchIn`), mezclando en este orden: valores por defecto, arreglo del juego, ajustes de la botella, ajustes del programa, opción de la línea de comandos. El último gana, así que el usuario nunca pierde lo que puso a mano.
-- `bodega fix show <botella> <programa>` muestra qué arreglo se aplicaría y por qué.
-- Fuente de datos: solo lo que se pruebe en equipos reales, o datos con licencia compatible. Cada entrada anota su origen en `notes`/`source`. No se copia nada propietario.
-- Cruce con M7: el campo `winetricks` se ejecuta con el mecanismo de M7.
-- Pruebas del motor: precedencia de la mezcla, y que una entrada de otra plataforma no se aplica.
+- Datos: `packages/engine/lib/fixes_data.dart`, **generado** por `tool/import_fixes.py` desde `recipes/games/` de `gauthierpiarrette/highball-db` (CC0-1.0) en un commit fijo (`7a008d5`), igual que `catalog_data.dart` es texto en Dart y no un archivo. Una entrada por juego: `id`, `title`, `steam` (appid, de `db/games/<id>.json`), `optIn`, `steps`, `notes`, `knownIssues`, `source`, `verified`.
+- Pasos (`steps`), cada uno con `platforms`: `env` (variable), `registry` (valor de registro bajo `HKCU\` o `HKLM\Software\`) y `dlloverride`. Un equipo aplica solo los pasos marcados para él (`hostPlatform.id`: `mac` o `linux`). El importador marca todo como `mac`, porque Highball solo lo verificó en Mac. No se importa lo que el motor no entiende (`file`, `copy`, `sync`, `renderer`, `dxvkconfig`) ni las variables ajenas (`HB_*` del motor de Highball, `FEX_*` y `MVK_*` de la línea arm64, `CX_*` de CrossOver): el script las cuenta y las lista. Variables permitidas: `ROSETTA_ADVERTISE_AVX`, `D3DM_*`, `VKD3D_*`, `DXVK_CONFIG`.
+- Identificación: la clave de la aplicación `steam:<appid>`, que `apps.dart` ya produce al leer `appmanifest_*.acf`. Solo se aplica al abrir un juego de Steam con `openApp`.
+- Aplicación: variables y overrides entran en `_launchIn` después del backend y la GPU y antes de los ajustes de la botella, del programa y del lanzamiento, así que lo que el usuario puso a mano gana (y `avx: false` sigue quitando `ROSETTA_ADVERTISE_AVX`). Los valores de registro se escriben con `reg add` antes de lanzar; si uno falla, el lanzamiento se detiene. Un arreglo `optIn` se muestra pero no se aplica solo.
+- Límite: el juego lo lanza Steam. Si Steam ya está abierto en la botella, `-applaunch` pasa el juego al Steam en marcha y las variables nuevas no le llegan: hay que cerrar la botella antes. El registro sí queda escrito.
+- CLI: `bodega fix list [texto]` y `bodega fix show <id|appid>` (qué pasos aplican en este equipo y cuáles no, con la fuente); `bodega open` avisa si el juego tiene arreglo.
+- Las notas y los problemas conocidos se guardan en inglés, como los escribió Highball, y la CLI lo dice.
+- Linux queda sin pasos hasta que haya arreglos verificados en Linux. `umu-database` (GPL-3.0) no se copia: su licencia no encaja con un proyecto cerrado.
+- Cruce con M7: un paso `winetricks` se añadiría con el mecanismo de M7.
+- Pruebas del motor (`fixes_test.dart`): los datos incluidos se parsean, sin ids ni appids repetidos; un paso desconocido se rechaza; cada equipo aplica solo sus pasos; precedencia con el entorno de la botella y del lanzamiento; `avx: false`; overrides añadidos; registro escrito antes de lanzar y fallo que detiene el lanzamiento; y que un arreglo opt-in, de otro equipo o de otro juego no hace nada. Prueba real en Linux con Wine sin ventana: un paso `linux` de registro se escribe y uno `mac` no.
 
 ## M7. Dependencias de Windows (X7)
 

@@ -32,13 +32,15 @@ P1 y P2 son independientes y se pueden hacer a la vez. P7 a P11 no dependen de l
 
 ## P2. SHA256SUMS y procedencia
 
-- [ ] **T2** En el job `release` de `release-linux.yml` y de `release-macos.yml`: generar `SHA256SUMS` en `dist/`, subirlo, y añadir `actions/attest-build-provenance` con los permisos `id-token` y `attestations`.
-  **Comprobación:** en un release real, `sha256sum -c SHA256SUMS` pasa y `gh attestation verify` valida un archivo.
+- [x] **T2** En el job `release` de `release-linux.yml` y de `release-macos.yml`: `SHA256SUMS-linux` y `SHA256SUMS-macos` en `dist/`, subidos con los paquetes, y `actions/attest@v4` (con `continue-on-error`) y sus permisos.
+  **Comprobación (hecha):** el fragmento de checksums corre bien contra un `dist/` de prueba (`sha256sum -c` da OK en los tres archivos) y los YAML son válidos. **Pendiente del primer release:** que `SHA256SUMS-*` aparezca en el release y que el paso de attest pase en un repo privado; si falla, el release sale igual con los checksums.
+- [x] **T2b** El paquete de Arch pasa de `bodega-X.Y.Z-1-x86_64.pkg.tar.zst` a `Bodega-X.Y.Z-arch-x86_64.pkg.tar.zst`, para que en el release se vea que es el de Arch (`packaging/arch/build_arch.sh` lo renombra; `AGENTS.md` y la spec de `soporte-arch` actualizados).
+  **Comprobación (hecha):** `build_arch.sh` en CachyOS con el `.tar.gz` real da `Bodega-1.1.0-arch-x86_64.pkg.tar.zst`, y `pacman -Qip` sigue mostrando `Name: bodega`, `Version: 1.1.0-1` y las dependencias. Por el camino salió un fallo: `PKGDEST` no puede ser `./pkg`, que es la carpeta de trabajo de makepkg.
 
 ## P3 y P4. Prueba de humo
 
-- [ ] **T3 (P3)** Job `smoke` en `release-linux.yml` para `.deb` (Ubuntu limpio), `.pkg.tar.zst` (`archlinux`) y AppImage, antes de `release`.
-  **Comprobación:** con un paquete roto a propósito, el job falla y no se publica; con uno bueno, pasa.
+- [x] **T3 (P3)** `tool/smoke_linux.sh <deb|arch|appimage> <dist>` y un job `smoke` en `release-linux.yml`, **opcional** (input `smoke`, apagado por defecto por los límites de GitHub Free). `release` corre igual si `smoke` se salta, y no corre si falla.
+  **Comprobación (hecha en CachyOS, con docker):** AppImage en `ubuntu:24.04` → `wine: instalado`, `dxvk: instalado`, OK. `.deb` (construido en un contenedor Ubuntu con `build_deb.sh`) instalado con `apt` → OK, y su `postinst` no falla. Un paquete sin la capa DXVK hace fallar la comprobación (`dxvk: no instalado`). **No verificado:** el caso Arch (`pacman -U` en `archlinux:base`): `pacman -Syu` no pudo bajar paquetes del mirror desde esta red ("Operation too slow"), así que ese tramo solo lo probará el primer `release-linux` con `smoke` encendido. Tampoco se probó el job en GitHub.
 - [ ] **T4 (P4)** Job `smoke` en `release-macos.yml`: montar el DMG y ejecutar `bodega-cli --help` y `bodega create prueba`.
   **Comprobación:** igual que T3.
 
@@ -54,9 +56,9 @@ P1 y P2 son independientes y se pueden hacer a la vez. P7 a P11 no dependen de l
 
 ## P7 y P8. Arreglos por juego
 
-- [ ] **T7 (P7)** `packages/engine/data/fixes.json`, su generador y `fixes_data.dart`; la mezcla en `createBottle` y `_launchIn` con la precedencia del diseño.
-  **Comprobación:** tests de precedencia (el ajuste del usuario gana) y de plataforma (una entrada de otra plataforma no se aplica).
-- [ ] **T8 (P8)** `bodega fix show` y, en la app, una nota "Arreglos aplicados" en la pantalla de la botella.
+- [x] **T7 (P7)** `tool/import_fixes.py` y `fixes_data.dart` (20 juegos, 32 pasos de `highball-db` en `7a008d5`), `fixes.dart` en el motor, la mezcla en `_launchIn` y `openApp`, y `bodega fix list|show`.
+  **Comprobación (hecha):** `fixes_test.dart` (precedencia, plataforma, overrides, registro, opt-in, datos incluidos) y `dart test` completo: 117 pasan. Prueba real en CachyOS con Wine sin ventana: un paso de registro `linux` se escribe (`reg query` devuelve `native,builtin`) y uno `mac` no. **Sin probar:** nada de lo `mac` en un Mac; ni con un Steam real abriendo un juego.
+- [ ] **T8 (P8)** En la app, una nota "Arreglos aplicados" en la pantalla de la botella y en el detalle del juego (la CLI ya está en T7).
   **Comprobación:** tests del repositorio y de widget; `pages_test.dart` a los 4 anchos.
 
 ## P9 y P10. Dependencias de Windows
