@@ -15,6 +15,18 @@ abstract class BackendsState with _$BackendsState {
     @Default(0) int received,
     int? total,
 
+    /// The Game Porting Toolkit versions offered (I1).
+    @Default([]) List<GptkRelease> releases,
+
+    /// The version whose dmg Bodega waits for in Downloads (I2).
+    String? gptkWaiting,
+
+    /// What the D3DMetal install is doing (I3).
+    String? gptkStep,
+
+    /// The D3DMetal version just installed, for the page to say so.
+    String? gptkInstalled,
+
     /// The backend being checked.
     String? checking,
     @Default({}) Map<String, List<ProbeResult>> results,

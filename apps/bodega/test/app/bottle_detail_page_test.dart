@@ -2,6 +2,7 @@ import 'package:bloc_test/bloc_test.dart';
 import 'package:bodega/app/bloc/bottle_detail/bottle_detail_bloc.dart';
 import 'package:bodega/app/bloc/bottles/bottles_bloc.dart';
 import 'package:bodega/app/bloc/gamepads/gamepads_bloc.dart';
+import 'package:bodega/app/bloc/graphics/graphics_bloc.dart';
 import 'package:bodega/app/bloc/library/library_bloc.dart';
 import 'package:bodega/app/bloc/sections/sections_bloc.dart';
 import 'package:bodega/app/bloc/setup/setup_bloc.dart';
@@ -11,6 +12,7 @@ import 'package:bodega/app/presentation/bottles/widgets/bottle_empty_apps.dart';
 import 'package:bodega/app/shared/widgets/app_card.dart';
 import 'package:bodega/app/shared/widgets/app_row.dart';
 import 'package:bodega/domain/entities/bottle_detail.dart';
+import 'package:bodega/domain/entities/exe_graphics.dart';
 import 'package:bodega/domain/entities/library_app.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -34,6 +36,9 @@ class _MockGamepads extends MockBloc<GamepadsEvent, GamepadsState>
 
 class _MockSetup extends MockBloc<SetupEvent, SetupState>
     implements SetupBloc {}
+
+class _MockGraphics extends MockBloc<GraphicsEvent, GraphicsState>
+    implements GraphicsBloc {}
 
 class _MockViewMode extends MockBloc<ViewModeEvent, ViewModeState>
     implements ViewModeBloc {}
@@ -65,6 +70,7 @@ void main() {
   late _MockSections sections;
   late _MockSetup setup;
   late _MockViewMode viewMode;
+  late _MockGraphics graphics;
 
   void showBottle(BottleDetail detail, {bool isBusy = false}) {
     whenListen(
@@ -86,6 +92,8 @@ void main() {
     setup = _MockSetup();
     gamepads = _MockGamepads();
     viewMode = _MockViewMode();
+    graphics = _MockGraphics();
+    when(() => graphics.state).thenReturn(const GraphicsState());
 
     when(() => bottles.state).thenReturn(const BottlesState());
     when(() => sections.state).thenReturn(const SectionsState());
@@ -118,6 +126,7 @@ void main() {
             BlocProvider<SectionsBloc>.value(value: sections),
             BlocProvider<SetupBloc>.value(value: setup),
             BlocProvider<ViewModeBloc>.value(value: viewMode),
+            BlocProvider<GraphicsBloc>.value(value: graphics),
           ],
           child: const BottleDetailView(name: _longName),
         ),
@@ -150,6 +159,51 @@ void main() {
       expect(find.text('Esta botella está vacía'), findsOneWidget);
       expect(find.byType(BottleEmptyApps), findsOneWidget);
     });
+  }
+
+  for (final backend in ['d3dmetal', 'auto']) {
+    testWidgets(
+      'graphics label, and the warning only for a misfit ($backend)',
+      (tester) async {
+        const blur = LibraryApp(
+          bottle: _longName,
+          key: 'blur.exe',
+          id: 'blur',
+          title: 'Blur',
+          exe: r'C:\Blur\Blur.exe',
+        );
+        showBottle(
+          BottleDetail(
+            name: _longName,
+            ready: true,
+            backend: backend,
+            sync: 'msync',
+            apps: const [blur],
+            installedBackends: const ['d3dmetal'],
+          ),
+        );
+        when(() => graphics.state).thenReturn(
+          GraphicsState(
+            byKey: {
+              GraphicsState.keyOf(_longName, blur.exe): const ExeGraphics(
+                bits: 32,
+                directx: 'DX9',
+                misfits: ['d3dmetal'],
+              ),
+            },
+          ),
+        );
+        await pump(tester, 1200);
+
+        expect(find.text('DX9 · 32 bits'), findsOneWidget);
+        expect(
+          find.text(
+            'd3dmetal no le sirve a: Blur (DX9 · 32 bits). Usa Automático.',
+          ),
+          backend == 'auto' ? findsNothing : findsOneWidget,
+        );
+      },
+    );
   }
 
   testWidgets('the panel goes below the apps when the window is narrow', (

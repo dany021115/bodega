@@ -5,6 +5,7 @@ import 'package:bodega/data/service/engine_home.dart';
 import 'package:bodega/data/service/repository_call.dart';
 import 'package:bodega/domain/entities/app_error.dart';
 import 'package:bodega/domain/entities/backend_info.dart';
+import 'package:bodega/domain/entities/exe_graphics.dart';
 import 'package:bodega/domain/repository/backend_repository.dart';
 import 'package:dio/dio.dart';
 import 'package:engine/engine.dart' as engine;
@@ -21,13 +22,17 @@ class BackendRepositoryImpl implements BackendRepository {
 
   @override
   Future<Either<AppError, List<BackendInfo>>> list() => repositoryCall(
-    () => [
+    () async => [
       for (final MapEntry(:key, :value)
           in engine.listBackends(_home.path).entries)
         BackendInfo(
           name: key,
           installed: value,
           downloadable: engine.pinnedBackend(key) != null,
+          use: engine.hostPlatform.backendUse(key),
+          version: key == 'd3dmetal' && value
+              ? await engine.d3dmetalVersion(_home.path)
+              : null,
         ),
     ],
   );
@@ -78,11 +83,68 @@ class BackendRepositoryImpl implements BackendRepository {
       });
 
   @override
-  Future<Either<AppError, Unit>> importD3DMetal(String folder) =>
-      repositoryCall(() async {
-        await engine.importD3DMetal(_home.path, folder);
-        return unit;
-      });
+  List<GptkRelease> get gptkReleases => [
+    for (final release in engine.gptkReleases)
+      GptkRelease(
+        version: release.version,
+        tested: release.tested,
+        url: release.url,
+      ),
+  ];
+
+  @override
+  Future<Either<AppError, String?>> findGptkDmg(String version) =>
+      repositoryCall(
+        () => engine.findGptkDmg(
+          version,
+          '${Platform.environment['HOME']}/Downloads',
+        ),
+      );
+
+  @override
+  Future<Either<AppError, String>> installD3DMetalDmg(
+    String dmg, {
+    required void Function(String step) onStep,
+    required bool Function() cancelled,
+  }) => repositoryCall(
+    () => engine.installD3DMetalDmg(
+      _home.path,
+      dmg,
+      onStep: onStep,
+      cancelled: cancelled,
+    ),
+  );
+
+  @override
+  Future<Either<AppError, Map<String, ExeGraphics>>> graphics(
+    String bottle,
+    List<String> exes,
+  ) => repositoryCall(() async {
+    final drive = '${engine.bottleDir(_home.path, bottle)}/prefix/drive_c';
+    final backends = engine.listBackends(_home.path).keys;
+    return {
+      for (final exe in exes)
+        if (await engine.exeGraphics(
+              exe.startsWith('/')
+                  ? exe
+                  : engine.findCI(
+                      drive,
+                      exe
+                          .replaceFirst(RegExp(r'^[cC]:\\'), '')
+                          .replaceAll(r'\', '/'),
+                    ),
+            )
+            case final found?)
+          exe: ExeGraphics(
+            bits: found.bits,
+            directx: found.directx,
+            misfits: [
+              for (final backend in backends)
+                if (!engine.hostPlatform.backendFits(backend, found)) backend,
+            ],
+          ),
+    };
+  });
 
   @override
   Future<Either<AppError, List<ProbeResult>>> check(

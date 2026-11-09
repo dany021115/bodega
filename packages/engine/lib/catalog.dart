@@ -110,7 +110,7 @@ Future<String> installEntry(
   } else {
     file = setup;
     if (entry.sha256 case final want?) {
-      final got = await _sha256(file);
+      final got = await sha256Of(file);
       if (got != want) {
         throw 'checksum incorrecto en $file: $got, se esperaba $want';
       }

@@ -33,6 +33,12 @@ abstract class BottleDetail with _$BottleDetail {
     @Default(false) bool gamemode,
     @Default('win10') String windows,
 
+    /// The Windows user its games see; empty for [macUser] (U1).
+    @Default('') String user,
+
+    /// The host's user name, which Wine takes when [user] is empty.
+    @Default('') String macUser,
+
     /// Where `C:` is, to show it in the file manager.
     @Default('') String driveC,
     @Default([]) List<LibraryApp> apps,

@@ -14,6 +14,9 @@ class AppRow extends StatelessWidget {
   final String? bottleLabel;
   final bool running;
 
+  /// What its exe draws with, like `DX9 · 32 bits` (G2).
+  final String? graphics;
+
   /// Replaces the bottle label in the row.
   final Widget? footerChip;
   final VoidCallback onPlay;
@@ -30,6 +33,7 @@ class AppRow extends StatelessWidget {
     required this.onStop,
     this.bottleLabel,
     this.footerChip,
+    this.graphics,
     this.onMenu,
   });
 
@@ -107,6 +111,15 @@ class AppRow extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: AppSpacing.sm),
+                    if (graphics case final graphics?) ...[
+                      Text(
+                        graphics,
+                        style: styles.caption?.copyWith(
+                          color: colors.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(width: AppSpacing.md),
+                    ],
                     if (chip != null) ...[
                       Flexible(
                         child: ConstrainedBox(

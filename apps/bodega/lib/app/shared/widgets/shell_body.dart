@@ -2,7 +2,9 @@ import 'package:bodega/app/bloc/bottles/bottles_bloc.dart';
 import 'package:bodega/app/bloc/catalog/catalog_bloc.dart';
 import 'package:bodega/app/bloc/install/install_bloc.dart';
 import 'package:bodega/app/bloc/library/library_bloc.dart';
+import 'package:bodega/app/bloc/update/update_bloc.dart';
 import 'package:bodega/app/shared/widgets/install_panel.dart';
+import 'package:bodega/app/shared/widgets/update_dialog.dart';
 import 'package:bodega/device/helpers/app_toast.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -17,6 +19,16 @@ class ShellBody extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiBlocListener(
       listeners: [
+        // A3: a newer version opens its dialog once.
+        BlocListener<UpdateBloc, UpdateState>(
+          listenWhen: (previous, current) =>
+              previous.update == null && current.update != null,
+          listener: (context, state) => showDialog<void>(
+            context: context,
+            barrierDismissible: false,
+            builder: (_) => const UpdateDialog(),
+          ),
+        ),
         BlocListener<LibraryBloc, LibraryState>(
           listenWhen: (previous, current) =>
               previous.toastId != current.toastId,

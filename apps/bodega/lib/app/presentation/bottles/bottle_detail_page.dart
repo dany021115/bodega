@@ -9,6 +9,7 @@ import 'package:bodega/app/presentation/bottles/widgets/bottle_empty_apps.dart';
 import 'package:bodega/app/presentation/bottles/widgets/library_toggle.dart';
 import 'package:bodega/app/presentation/bottles/widgets/run_options_dialog.dart';
 import 'package:bodega/app/router.dart';
+import 'package:bodega/app/shared/graphics_of.dart';
 import 'package:bodega/app/shared/widgets/app_card.dart';
 import 'package:bodega/app/shared/widgets/app_menu.dart';
 import 'package:bodega/app/shared/widgets/app_row.dart';
@@ -128,6 +129,7 @@ class BottleDetailView extends StatelessWidget {
       builder: (itemContext) {
         void menu(BuildContext button) => _menu(button, detail, app);
         void stop() => confirmStopBottle(itemContext, detail.name);
+        final graphics = graphicsOf(itemContext, detail.name, app.exe)?.label;
         return isGrid
             ? AppCard(
                 key: ValueKey(app.key),
@@ -136,6 +138,7 @@ class BottleDetailView extends StatelessWidget {
                 onStop: stop,
                 onPlay: open,
                 footerChip: toggle,
+                graphics: graphics,
                 onMenu: menu,
               )
             : Padding(
@@ -147,6 +150,7 @@ class BottleDetailView extends StatelessWidget {
                   onStop: stop,
                   onPlay: open,
                   footerChip: toggle,
+                  graphics: graphics,
                   onMenu: menu,
                 ),
               );

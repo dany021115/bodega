@@ -1,16 +1,19 @@
 import 'package:bodega/app/bloc/backends/backends_bloc.dart';
 import 'package:bodega/app/bloc/bottles/bottles_bloc.dart';
 import 'package:bodega/app/bloc/catalog/catalog_bloc.dart';
+import 'package:bodega/app/bloc/graphics/graphics_bloc.dart';
 import 'package:bodega/app/bloc/install/install_bloc.dart';
 import 'package:bodega/app/bloc/library/library_bloc.dart';
 import 'package:bodega/app/bloc/sections/sections_bloc.dart';
 import 'package:bodega/app/bloc/setup/setup_bloc.dart';
 import 'package:bodega/app/bloc/theme/theme_bloc.dart';
+import 'package:bodega/app/bloc/update/update_bloc.dart';
 import 'package:bodega/app/bloc/view_mode/view_mode_bloc.dart';
 import 'package:bodega/app/router.dart';
 import 'package:bodega/device/helpers/breakpoints.dart';
 import 'package:bodega/device/theme/theme.dart';
 import 'package:bodega/di.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -34,6 +37,12 @@ class _BodegaAppState extends State<BodegaApp> {
   final SetupBloc _setup = getIt<SetupBloc>()..add(const SetupEvent.check());
   late final GoRouter _router = createRouter(_setup);
 
+  /// A1: only a release build looks for updates, once per start; a
+  /// development build would replace itself (design §5).
+  final UpdateBloc _updates = kReleaseMode
+      ? (getIt<UpdateBloc>()..add(const UpdateEvent.check()))
+      : getIt<UpdateBloc>();
+
   @override
   Widget build(BuildContext context) {
     return MultiBlocProvider(
@@ -42,7 +51,9 @@ class _BodegaAppState extends State<BodegaApp> {
         BlocProvider.value(value: getIt<BackendsBloc>()),
         BlocProvider.value(value: getIt<BottlesBloc>()),
         BlocProvider.value(value: getIt<CatalogBloc>()),
+        BlocProvider.value(value: getIt<GraphicsBloc>()),
         BlocProvider.value(value: getIt<InstallBloc>()),
+        BlocProvider.value(value: _updates),
         BlocProvider.value(value: getIt<LibraryBloc>()),
         BlocProvider.value(value: getIt<ViewModeBloc>()),
         BlocProvider(create: (_) => getIt<SectionsBloc>()),

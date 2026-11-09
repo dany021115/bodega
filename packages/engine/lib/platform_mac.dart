@@ -164,42 +164,38 @@ class MacPlatform extends HostPlatform {
     if (hud) 'MTL_HUD_ENABLED': '1',
   };
 
-  /// S3: looks for the DLL names anywhere in the exe, because imports alone miss
-  /// LoadLibrary (design §4). NULs are dropped to catch UTF-16 strings too.
+  /// S3, from what [exeGraphics] finds in the exe.
   @override
   Future<String> autoBackend(String home, String? exePath) async {
-    if (exePath == null || !File(exePath).existsSync()) return 'wine';
-    final bits = _peBits(exePath);
-    if (bits == null) return 'wine';
-    final found = <String>{};
-    var tail = '';
-    await for (final chunk in File(
-      exePath,
-    ).openRead().transform(latin1.decoder)) {
-      final text = tail + chunk.replaceAll('\x00', '').toLowerCase();
-      found.addAll(
-        [
-          'd3d12.dll',
-          'd3d11.dll',
-          'd3d10',
-          'dxgi.dll',
-          'd3d9.dll',
-        ].where(text.contains),
-      );
-      if (found.contains('d3d12.dll')) break;
-      tail = text.substring(text.length < 16 ? 0 : text.length - 16);
-    }
-    if (found.contains('d3d12.dll')) {
-      return bits == 64 && _installed(home, 'd3dmetal') ? 'd3dmetal' : 'wine';
-    }
-    // A D3D9 game can mention d3d10 or dxgi just to probe them, as Blur does (A4).
-    if (!found.contains('d3d11.dll') &&
-        (found.isEmpty || found.contains('d3d9.dll'))) {
-      return 'wine';
-    }
-    return ['dxmt', 'dxvk'].where((b) => _installed(home, b)).firstOrNull ??
-        'wine';
+    final exe = exePath == null ? null : await exeGraphics(exePath);
+    return switch (exe?.directx) {
+      'DX12' =>
+        exe!.bits == 64 && _installed(home, 'd3dmetal') ? 'd3dmetal' : 'wine',
+      'DX11' || 'DX10' =>
+        ['dxmt', 'dxvk'].where((b) => _installed(home, b)).firstOrNull ??
+            'wine',
+      _ => 'wine',
+    };
   }
+
+  /// G3: what each layer translates. DXVK-macOS has no d3d9 and D3DMetal no
+  /// 32-bit DX12.
+  @override
+  bool backendFits(String backend, ExeGraphics exe) =>
+      exe.directx.isEmpty ||
+      switch (backend) {
+        'd3dmetal' =>
+          exe.bits == 64 && (exe.directx == 'DX11' || exe.directx == 'DX12'),
+        'dxmt' || 'dxvk' => exe.directx == 'DX10' || exe.directx == 'DX11',
+        _ => true,
+      };
+
+  @override
+  String backendUse(String backend) => switch (backend) {
+    'd3dmetal' => 'DirectX 11 y 12, solo 64 bits',
+    'dxmt' || 'dxvk' => 'DirectX 10 y 11, 32 y 64 bits',
+    _ => 'Todo: DirectX 9 y anteriores, y lo que no encaje en los demás',
+  };
 
   @override
   String mapBackend(String name) => name;

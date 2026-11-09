@@ -77,7 +77,7 @@ P1 y P2 son independientes y se pueden hacer a la vez. P7 a P11 no dependen de l
 
 ## P11. Aviso de versión nueva
 
-- [ ] **T11** Servicio en `data/`, estado en `domain/`, aviso en `app/`. Una consulta por sesión; sin red no muestra nada.
+- [-] **T11** (sustituida por `.sdd/archive/2026-11-09-actualizaciones-app`) Servicio en `data/`, estado en `domain/`, aviso en `app/`. Una consulta por sesión; sin red no muestra nada.
   **Comprobación:** tests con cliente falso (mayor, igual, error); `flutter analyze` y `check_layers.sh` pasan.
 
 ## P12. AUR
@@ -91,7 +91,7 @@ P1 y P2 son independientes y se pueden hacer a la vez. P7 a P11 no dependen de l
 - [ ] **T14 (USUARIO)** Decidir si hay cuenta de Apple Developer. Sin ella, se cierran P13 y P14 y solo se mejora `LEEME.txt`.
 - [ ] **T15 (P13)** Firma con Developer ID, hardened runtime, entitlements y notarización en `tool/package_macos.sh` y `release-macos.yml`.
   **Comprobación:** en un Mac limpio, el DMG abre sin el aviso de Gatekeeper y Wine arranca una botella.
-- [ ] **T16 (P14)** Sparkle con appcast y firma EdDSA.
+- [-] **T16 (P14)** (sustituida por `.sdd/archive/2026-11-09-actualizaciones-app`: sin Sparkle) Sparkle con appcast y firma EdDSA.
   **Comprobación:** una versión instalada detecta una más nueva y la actualiza.
 
 ## Aceptación del usuario

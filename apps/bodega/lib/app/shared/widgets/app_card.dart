@@ -37,6 +37,9 @@ class AppCard extends StatelessWidget {
   final String? bottleLabel;
   final bool running;
 
+  /// What its exe draws with, like `DX9 · 32 bits` (G2).
+  final String? graphics;
+
   /// Replaces the bottle label in the footer.
   final Widget? footerChip;
   final VoidCallback onPlay;
@@ -53,6 +56,7 @@ class AppCard extends StatelessWidget {
     required this.onStop,
     this.bottleLabel,
     this.footerChip,
+    this.graphics,
     this.onMenu,
   });
 
@@ -126,6 +130,22 @@ class AppCard extends StatelessWidget {
                             iconPath: app.iconPath,
                             size: 64,
                           ),
+                          if (graphics case final graphics?)
+                            Positioned(
+                              top: AppSpacing.sm,
+                              right: AppSpacing.sm,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: AppSpacing.sm,
+                                  vertical: AppSpacing.xxs,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: colors.surface.withValues(alpha: 0.8),
+                                  borderRadius: AppRadius.xsBorder,
+                                ),
+                                child: Text(graphics, style: styles.caption),
+                              ),
+                            ),
                           if (running)
                             const Positioned(
                               top: AppSpacing.sm,

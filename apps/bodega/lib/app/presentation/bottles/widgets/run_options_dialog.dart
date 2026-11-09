@@ -1,7 +1,9 @@
 import 'package:bodega/app/bloc/library/library_bloc.dart';
 import 'package:bodega/app/bloc/run_options/run_options_bloc.dart';
 import 'package:bodega/app/bloc/setup/setup_bloc.dart';
+import 'package:bodega/app/shared/graphics_of.dart';
 import 'package:bodega/app/shared/widgets/custom_loading.dart';
+import 'package:bodega/device/theme/color.dart';
 import 'package:bodega/device/theme/spacing.dart';
 import 'package:bodega/device/theme/typography.dart';
 import 'package:bodega/di.dart';
@@ -68,6 +70,18 @@ class _RunOptionsDialogState extends State<RunOptionsDialog> {
     if (file == null) return;
     _program.text = file.path;
     _change((state) => state.copyWith(program: file.path));
+  }
+
+  /// G4: why the chosen backend does not suit the program, if it does not.
+  String? _misfit(BuildContext context, RunOptionsState state) {
+    final backend = state.backend;
+    if (backend == null || backend == 'auto') return null;
+    final name = state.program.split(RegExp(r'[\\/]')).last;
+    return graphicsOf(
+      context,
+      state.bottle,
+      state.program,
+    )?.warning(state.title.isEmpty ? name : state.title, backend);
   }
 
   @override
@@ -158,6 +172,16 @@ class _RunOptionsDialogState extends State<RunOptionsDialog> {
                     onChanged: (value) =>
                         _change((s) => s.copyWith(backend: value)),
                   ),
+                  if (_misfit(context, state) case final warning?)
+                    Padding(
+                      padding: const EdgeInsets.only(top: AppSpacing.xs),
+                      child: Text(
+                        warning,
+                        style: styles.caption?.copyWith(
+                          color: AppColor.statusFlaky,
+                        ),
+                      ),
+                    ),
                   if (caps.avx)
                     SwitchListTile.adaptive(
                       contentPadding: EdgeInsets.zero,

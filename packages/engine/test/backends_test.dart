@@ -361,6 +361,122 @@ void main() {
     expect((await resolveBackend(home, dir, 'notepad', null)).name, 'wine');
   });
 
+  test('exeGraphics and backendFits (G1, G3)', () async {
+    Future<String> read(int machine, String text) async {
+      final g = await exeGraphics(fakePe('$tmp/g.exe', machine, text).path);
+      return g == null ? 'nada' : '${g.directx} ${g.bits}';
+    }
+
+    // Blur: D3D9 that probes d3d10 and dxgi.
+    expect(await read(0x14C, 'd3d9.dll d3d10 dxgi.dll'), 'DX9 32');
+    expect(await read(0x8664, 'x D3D12.DLL d3d11.dll'), 'DX12 64');
+    expect(
+      await read(0x8664, 'd\x003\x00d\x001\x001\x00.\x00d\x00l\x00l'),
+      'DX11 64',
+    );
+    expect(await read(0x14C, 'solo dxgi.dll'), 'DX10 32');
+    expect(await read(0x14C, 'opengl32.dll'), ' 32');
+    expect(await exeGraphics('$tmp/no.exe'), isNull);
+    File('$tmp/n.exe').writeAsStringSync('d3d12.dll');
+    expect(await exeGraphics('$tmp/n.exe'), isNull);
+
+    bool fits(String backend, int bits, String directx) =>
+        hostPlatform.backendFits(backend, (bits: bits, directx: directx));
+    expect(fits('d3dmetal', 32, 'DX9'), isFalse);
+    expect(fits('d3dmetal', 32, 'DX11'), isFalse);
+    expect(fits('d3dmetal', 64, 'DX12'), isTrue);
+    expect(fits('dxmt', 64, 'DX12'), isFalse);
+    expect(fits('dxvk', 32, 'DX9'), isFalse);
+    expect(fits('dxvk', 32, 'DX10'), isTrue);
+    expect(fits('wine', 32, 'DX9'), isTrue);
+    expect(fits('d3dmetal', 32, ''), isTrue);
+  });
+
+  test('findGptkDmg picks the newest finished dmg (I2)', () async {
+    final dir = Directory('$tmp/descargas')..createSync();
+    expect(await findGptkDmg('3.0', dir.path), isNull);
+    File('${dir.path}/Game_Porting_Toolkit_3.0.dmg')
+      ..writeAsStringSync('viejo')
+      ..setLastModifiedSync(DateTime(2025));
+    File('${dir.path}/Game_Porting_Toolkit_3.0 (1).dmg').writeAsStringSync('');
+    File('${dir.path}/Game_Porting_Toolkit_3.0.dmg.crdownload')
+        .writeAsStringSync('');
+    File('${dir.path}/Game_Porting_Toolkit_4.0_beta_2.dmg')
+        .writeAsStringSync('');
+    expect(await findGptkDmg('3.0', dir.path), endsWith('3.0 (1).dmg'));
+    expect(await findGptkDmg('4.0', dir.path), endsWith('4.0_beta_2.dmg'));
+    expect(gptkReleases.where((r) => r.tested).single.version, '3.0');
+  });
+
+  test('d3dmetalVersion reads the framework (I1)', () async {
+    expect(await d3dmetalVersion(home), isNull);
+    File(
+        '$home/backends/d3dmetal/external/D3DMetal.framework/Resources/Info.plist',
+      )
+      ..createSync(recursive: true)
+      ..writeAsStringSync(
+        '<?xml version="1.0" encoding="UTF-8"?><plist version="1.0"><dict>'
+        '<key>CFBundleShortVersionString</key><string>3.0</string>'
+        '</dict></plist>',
+      );
+    expect(await d3dmetalVersion(home), '3.0');
+  }, skip: File('/usr/bin/plutil').existsSync() ? false : 'needs plutil');
+
+  test(
+    'installD3DMetalDmg imports from a dmg, or a dmg inside it (I3)',
+    () async {
+      Future<String> dmg(String name, String src) async {
+        await Process.run('/usr/bin/hdiutil', [
+          'create',
+          '-quiet',
+          '-srcfolder',
+          src,
+          '-volname',
+          name,
+          '-ov',
+          '$tmp/$name.dmg',
+        ]);
+        return '$tmp/$name.dmg';
+      }
+
+      fakeD3DMetal('$tmp/eval/redist/lib');
+      File(
+          '$tmp/eval/redist/lib/external/D3DMetal.framework/Resources/Info.plist',
+        )
+        ..createSync(recursive: true)
+        ..writeAsStringSync(
+          '<?xml version="1.0" encoding="UTF-8"?><plist version="1.0"><dict>'
+          '<key>CFBundleShortVersionString</key><string>3.0</string>'
+          '</dict></plist>',
+        );
+      final eval = await dmg('Evaluation environment', '$tmp/eval');
+      Directory('$tmp/outer').createSync();
+      File(eval).copySync('$tmp/outer/Evaluation environment.dmg');
+      final outer = await dmg('Game_Porting_Toolkit_3.0', '$tmp/outer');
+      Directory('$tmp/empty').createSync();
+      final empty = await dmg('vacio', '$tmp/empty');
+
+      Future<String> mounts() async =>
+          '${(await Process.run('/usr/bin/hdiutil', ['info'])).stdout}';
+
+      final steps = <String>[];
+      expect(await installD3DMetalDmg(home, eval), '3.0');
+      expect(await installD3DMetalDmg(home, outer, onStep: steps.add), '3.0');
+      expect(steps, contains('Importando D3DMetal'));
+      expect(
+        Link('$home/backends/d3dmetal/wine/x86_64-unix/d3d11.so').targetSync(),
+        '../../external/libd3dshared.dylib',
+      );
+      await expectLater(
+        installD3DMetalDmg(home, empty),
+        throwsA(contains('falta redist/lib')),
+      );
+      expect(await mounts(), isNot(contains(tmp)));
+    },
+    skip: File('/usr/bin/hdiutil').existsSync() ? false : 'needs hdiutil',
+    timeout: const Timeout(Duration(minutes: 2)),
+  );
+
   test('listBackends', () {
     expect(listBackends(home), {
       'wine': true,

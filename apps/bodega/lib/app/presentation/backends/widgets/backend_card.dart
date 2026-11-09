@@ -1,5 +1,5 @@
 import 'package:bodega/app/bloc/backends/backends_bloc.dart';
-import 'package:bodega/app/presentation/backends/widgets/d3dmetal_instructions.dart';
+import 'package:bodega/app/presentation/backends/widgets/gptk_section.dart';
 import 'package:bodega/app/presentation/backends/widgets/probe_dialog.dart';
 import 'package:bodega/app/shared/widgets/status_chip.dart';
 import 'package:bodega/device/theme/color.dart';
@@ -30,12 +30,6 @@ class BackendCard extends StatelessWidget {
     if (file != null) {
       bloc.add(BackendsEvent.installFile(backend.name, file.path));
     }
-  }
-
-  Future<void> _pickFolder(BuildContext context) async {
-    final bloc = context.read<BackendsBloc>();
-    final folder = await getDirectoryPath(confirmButtonText: 'Elegir');
-    if (folder != null) bloc.add(BackendsEvent.importD3DMetal(folder));
   }
 
   Future<void> _check(BuildContext context) async {
@@ -81,9 +75,13 @@ class BackendCard extends StatelessWidget {
             ),
             const SizedBox(height: AppSpacing.xs),
             Text(_descriptions[name] ?? '', style: styles.bodySecondary),
+            if (backend.use.isNotEmpty) ...[
+              const SizedBox(height: AppSpacing.xs),
+              Text('Sirve para: ${backend.use}', style: styles.caption),
+            ],
             if (name == 'd3dmetal') ...[
               const SizedBox(height: AppSpacing.md),
-              const D3DMetalInstructions(),
+              GptkSection(state: state, installed: backend.version),
             ],
             if (isBusy || isChecking) ...[
               const SizedBox(height: AppSpacing.md),
@@ -97,9 +95,10 @@ class BackendCard extends StatelessWidget {
                 child: Text(
                   isChecking
                       ? 'Comprobando; cada caso puede tardar hasta 90 s'
-                      : state.isDownloading && state.fraction != 1
-                      ? 'Descargando'
-                      : 'Instalando',
+                      : state.gptkStep ??
+                            (state.isDownloading && state.fraction != 1
+                                ? 'Descargando'
+                                : 'Instalando'),
                   style: styles.caption,
                 ),
               ),
@@ -126,11 +125,6 @@ class BackendCard extends StatelessWidget {
                     child: const Text('Elegir archivo…'),
                   ),
                 ],
-                if (!backend.installed && name == 'd3dmetal')
-                  FilledButton(
-                    onPressed: blocked ? null : () => _pickFolder(context),
-                    child: const Text('Elegir carpeta…'),
-                  ),
                 if (backend.installed)
                   OutlinedButton(
                     onPressed: blocked ? null : () => _check(context),

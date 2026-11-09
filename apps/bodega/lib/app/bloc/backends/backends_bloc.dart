@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:bloc/bloc.dart';
 import 'package:bodega/domain/entities/app_error.dart';
 import 'package:bodega/domain/entities/backend_info.dart';
@@ -13,8 +15,11 @@ part 'backends_bloc.freezed.dart';
 @lazySingleton
 class BackendsBloc extends Bloc<BackendsEvent, BackendsState> {
   final BackendRepository _repository;
+  Timer? _poll;
+  var _cancelled = false;
 
-  BackendsBloc(this._repository) : super(const BackendsState()) {
+  BackendsBloc(this._repository)
+    : super(BackendsState(releases: _repository.gptkReleases)) {
     on<BackendsLoadEvent>((event, emit) async {
       emit(state.copyWith(error: null));
       await _load(emit);
@@ -50,12 +55,35 @@ class BackendsBloc extends Bloc<BackendsEvent, BackendsState> {
         emit,
       );
     });
-    on<BackendsImportEvent>((event, emit) async {
-      if (state.busy != null) return;
-      emit(
-        state.copyWith(busy: 'd3dmetal', received: 0, total: null, error: null),
+    on<BackendsInstallGptkEvent>((event, emit) async {
+      if (state.busy != null || state.gptkWaiting != null) return;
+      final version = event.release.version;
+      final dmg = (await _repository.findGptkDmg(version)).toNullable();
+      if (dmg != null) return _installDmg(dmg, emit);
+      // The page opens Apple's download when this is set; this looks for the
+      // dmg every few seconds meanwhile (design §5).
+      emit(state.copyWith(gptkWaiting: version, error: null));
+      _poll = Timer.periodic(
+        const Duration(seconds: 3),
+        (_) => add(const BackendsEvent.pollGptk()),
       );
-      await _finish(await _repository.importD3DMetal(event.folder), emit);
+    });
+    on<BackendsPollGptkEvent>((event, emit) async {
+      final version = state.gptkWaiting;
+      if (version == null) return;
+      final dmg = (await _repository.findGptkDmg(version)).toNullable();
+      if (dmg == null || state.gptkWaiting == null) return;
+      _stopWaiting(emit);
+      await _installDmg(dmg, emit);
+    });
+    on<BackendsInstallGptkDmgEvent>((event, emit) async {
+      if (state.busy != null) return;
+      _stopWaiting(emit);
+      await _installDmg(event.dmg, emit);
+    });
+    on<BackendsCancelGptkEvent>((event, emit) {
+      _cancelled = true;
+      _stopWaiting(emit);
     });
     on<BackendsCheckEvent>((event, emit) async {
       if (state.busy != null || state.checking != null) return;
@@ -71,6 +99,42 @@ class BackendsBloc extends Bloc<BackendsEvent, BackendsState> {
         ),
       );
     });
+  }
+
+  void _stopWaiting(Emitter<BackendsState> emit) {
+    _poll?.cancel();
+    _poll = null;
+    emit(state.copyWith(gptkWaiting: null));
+  }
+
+  /// I3, then the check (Comprobar) in the first bottle that can run it.
+  Future<void> _installDmg(String dmg, Emitter<BackendsState> emit) async {
+    _cancelled = false;
+    emit(
+      state.copyWith(
+        busy: 'd3dmetal',
+        received: 0,
+        total: null,
+        error: null,
+        gptkInstalled: null,
+      ),
+    );
+    final result = await _repository.installD3DMetalDmg(
+      dmg,
+      onStep: (step) => emit(state.copyWith(gptkStep: step)),
+      cancelled: () => _cancelled,
+    );
+    emit(state.copyWith(gptkStep: null, gptkInstalled: result.toNullable()));
+    await _finish(result.map((_) => unit), emit);
+    if (result.isRight() && state.bottles.isNotEmpty) {
+      add(BackendsEvent.check(state.bottles.first, 'd3dmetal'));
+    }
+  }
+
+  @override
+  Future<void> close() {
+    _poll?.cancel();
+    return super.close();
   }
 
   Future<void> _finish(

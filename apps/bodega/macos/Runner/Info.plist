@@ -24,6 +24,8 @@
 	<string>$(MACOSX_DEPLOYMENT_TARGET)</string>
 	<key>NSHumanReadableCopyright</key>
 	<string>$(PRODUCT_COPYRIGHT)</string>
+	<key>NSDownloadsFolderUsageDescription</key>
+	<string>Bodega busca en Descargas el Game Porting Toolkit que bajaste de Apple, para instalar D3DMetal.</string>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Los juegos usan la red local para las partidas en LAN con otros equipos de tu casa.</string>
 	<key>NSMainNibFile</key>

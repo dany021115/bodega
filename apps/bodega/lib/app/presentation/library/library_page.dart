@@ -3,6 +3,7 @@ import 'package:bodega/app/bloc/view_mode/view_mode_bloc.dart';
 import 'package:bodega/app/presentation/bottles/new_bottle_dialog.dart';
 import 'package:bodega/app/presentation/bottles/widgets/run_options_dialog.dart';
 import 'package:bodega/app/presentation/library/widgets/bottle_tag.dart';
+import 'package:bodega/app/shared/graphics_of.dart';
 import 'package:bodega/app/shared/widgets/app_card.dart';
 import 'package:bodega/app/shared/widgets/app_menu.dart';
 import 'package:bodega/app/shared/widgets/app_row.dart';
@@ -100,12 +101,14 @@ class _LibraryPageState extends State<LibraryPage> {
         void play() => bloc.add(LibraryEvent.open(app.bottle, app.key));
         void stop() => confirmStopBottle(anchor, app.bottle);
         void menu(BuildContext button) => _menu(button, app);
+        final graphics = graphicsOf(anchor, app.bottle, app.exe)?.label;
 
         return asRow
             ? AppRow(
                 app: app,
                 running: running,
                 footerChip: tag,
+                graphics: graphics,
                 onPlay: play,
                 onStop: stop,
                 onMenu: menu,
@@ -114,6 +117,7 @@ class _LibraryPageState extends State<LibraryPage> {
                 app: app,
                 running: running,
                 footerChip: tag,
+                graphics: graphics,
                 onPlay: play,
                 onStop: stop,
                 onMenu: menu,

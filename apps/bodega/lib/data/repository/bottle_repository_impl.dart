@@ -61,6 +61,16 @@ class BottleRepositoryImpl implements BottleRepository {
       });
 
   @override
+  Future<Either<AppError, Unit>> setUser(String name, String? user) =>
+      repositoryCall(() async {
+        await engine.setBottleUser(_home.path, name, user);
+        return unit;
+      });
+
+  @override
+  String? userProblem(String user) => engine.badUser(user.trim());
+
+  @override
   Future<Either<AppError, Unit>> setWindowsVersion(
     String name,
     String version,
@@ -167,6 +177,8 @@ BottleDetail _detail(String home, String name) {
     gpu: settings.gpu,
     gamemode: settings.gamemode,
     windows: settings.windows,
+    user: settings.user,
+    macUser: engine.hostUser,
     driveC: '${engine.bottleDir(home, name)}/prefix/drive_c',
     apps: libraryApps(home, engine.bottleApps(home, name)),
     exceptions: [

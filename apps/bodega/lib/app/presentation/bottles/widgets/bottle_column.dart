@@ -5,6 +5,8 @@ import 'package:bodega/app/presentation/bottles/widgets/gamepads_section.dart';
 import 'package:bodega/app/presentation/bottles/widgets/log_dialog.dart';
 import 'package:bodega/app/presentation/bottles/widgets/rename_bottle_dialog.dart';
 import 'package:bodega/app/presentation/bottles/widgets/run_options_dialog.dart';
+import 'package:bodega/app/presentation/bottles/widgets/windows_user_dialog.dart';
+import 'package:bodega/app/shared/graphics_of.dart';
 import 'package:bodega/app/shared/widgets/collapsible_section.dart';
 import 'package:bodega/app/shared/widgets/confirm_dialog.dart';
 import 'package:bodega/app/shared/widgets/status_chip.dart';
@@ -60,6 +62,19 @@ class BottleColumn extends StatelessWidget {
         'Lo que no hayas guardado se perderá.',
     action: 'Cambiar',
   );
+
+  Future<void> _changeUser(BuildContext context) async {
+    final bloc = context.read<BottleDetailBloc>();
+    final user = await showWindowsUserDialog(
+      context,
+      current: detail.user,
+      macUser: detail.macUser,
+      problem: bloc.userProblem,
+    );
+    if (user != null) {
+      bloc.add(BottleDetailEvent.setUser(user.isEmpty ? null : user));
+    }
+  }
 
   Future<void> _stop(BuildContext context) async {
     final bloc = context.read<LibraryBloc>();
@@ -245,6 +260,21 @@ class BottleColumn extends StatelessWidget {
     );
   }
 
+  /// G4: the apps that the backend chosen for the bottle does not suit.
+  String? _misfits(BuildContext context) {
+    final backend = detail.backend;
+    if (backend == 'auto') return null;
+    final apps = [
+      for (final app in detail.apps)
+        if (graphicsOf(context, detail.name, app.exe) case final graphics?
+            when graphics.misfits.contains(backend))
+          '${app.title} (${graphics.label})',
+    ];
+    return apps.isEmpty
+        ? null
+        : '$backend no le sirve a: ${apps.join(', ')}. Usa Automático.';
+  }
+
   Widget _quickActions(BuildContext context) {
     final library = context.read<LibraryBloc>();
     final colors = Theme.of(context).colorScheme;
@@ -359,6 +389,14 @@ class BottleColumn extends StatelessWidget {
                       }
                     },
             ),
+            if (_misfits(context) case final warning?) ...[
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                warning,
+                style: AppTextStyle(context).caption
+                    ?.copyWith(color: AppColor.statusFlaky),
+              ),
+            ],
             const SizedBox(height: AppSpacing.md),
             DropdownButtonFormField<String>(
               key: ValueKey('windows ${detail.windows}'),
@@ -378,6 +416,23 @@ class BottleColumn extends StatelessWidget {
                         bloc.add(BottleDetailEvent.setWindows(version));
                       }
                     },
+            ),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text(
+                'Usuario de Windows',
+                style: AppTextStyle(context).body,
+              ),
+              subtitle: Text(
+                detail.user.isEmpty
+                    ? '${detail.macUser} (el de tu equipo)'
+                    : detail.user,
+                style: AppTextStyle(context).caption,
+              ),
+              trailing: TextButton(
+                onPressed: isBusy ? null : () => _changeUser(context),
+                child: const Text('Cambiar…'),
+              ),
             ),
             if (caps.syncModes.length > 1)
               _switch(

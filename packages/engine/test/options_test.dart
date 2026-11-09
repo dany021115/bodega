@@ -110,6 +110,68 @@ void main() {
     });
   });
 
+  group('setBottleUser (U1–U4)', () {
+    String users(String bottle) => '${prefix(bottle)}/drive_c/users';
+
+    test('names the Windows user and takes the profile with it', () async {
+      await createBottle(home, 'b');
+      await program('b');
+      addApp(home, 'b', 'A', 'P/a.exe');
+      Future<String?> launchedAs() async {
+        await exitOf(await openApp(home, 'b'));
+        return lastEnv('b')['USER'];
+      }
+
+      expect(await launchedAs(), hostUser);
+      final mac = hostUser;
+      File('${users('b')}/$mac/AppData/x').createSync(recursive: true);
+      Link('${users('b')}/$mac/Documents').createSync('$tmp/docs');
+
+      expect(await setBottleUser(home, 'b', ' Dany '), isTrue);
+      expect(bottleSettings(home, 'b').user, 'Dany');
+      expect(await launchedAs(), 'Dany');
+      expect(File('${users('b')}/Dany/AppData/x').existsSync(), isTrue);
+      expect(Link('${users('b')}/Dany/Documents').targetSync(), '$tmp/docs');
+      expect(Directory('${users('b')}/$mac').existsSync(), isFalse);
+      expect(
+        File('${prefix('b')}/reg.log').readAsStringSync(),
+        contains(
+          r'reg add HKCU\Environment /v TEMP /t REG_EXPAND_SZ '
+          r'/d %USERPROFILE%\AppData\Local\Temp /f',
+        ),
+      );
+      expect(await setBottleUser(home, 'b', 'Dany'), isFalse);
+
+      expect(await setBottleUser(home, 'b', null), isTrue);
+      expect(bottleSettings(home, 'b').user, '');
+      expect(
+        File('$home/bottles/b/settings.json').readAsStringSync(),
+        isNot(contains('"user"')),
+      );
+      expect(File('${users('b')}/$mac/AppData/x').existsSync(), isTrue);
+      expect(await launchedAs(), mac);
+    });
+
+    test('a name taken, or a bad one, changes nothing', () async {
+      await createBottle(home, 'b');
+      Directory('${users('b')}/$hostUser').createSync(recursive: true);
+      Directory('${users('b')}/Dany').createSync();
+      await expectLater(
+        setBottleUser(home, 'b', 'Dany'),
+        throwsA(contains('ya existe')),
+      );
+      for (final bad in ['a/b', 'x' * 21, '...', 'a*b', 'a\tb']) {
+        await expectLater(
+          setBottleUser(home, 'b', bad),
+          throwsA(contains('nombre')),
+          reason: bad,
+        );
+      }
+      expect(bottleSettings(home, 'b').user, '');
+      expect(badUser('Daniel Medina'), isNull);
+    });
+  });
+
   group('setHighRes', () {
     List<String> reg(String bottle) {
       final file = File('${prefix(bottle)}/reg.log');

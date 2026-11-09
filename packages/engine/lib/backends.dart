@@ -40,7 +40,7 @@ Future<String> installBackend(
   final dest = _backendSlot(home, name);
   final want = sha256 ?? pin.sha256;
   final file = tarball ?? await _download(home, url ?? pin.url, want);
-  final got = await _sha256(file);
+  final got = await sha256Of(file);
   if (got != want) {
     throw 'checksum incorrecto en $file: $got, se esperaba $want';
   }
@@ -57,6 +57,167 @@ Future<String> installBackend(
     }
     root.renameSync('${tmp.path}/wine');
   });
+}
+
+/// I1: the Game Porting Toolkit versions offered, oldest first, with where
+/// Apple serves each. Only 3.0 has been checked with Bodega. Apple asks for an
+/// Apple ID before the download: the user's browser gets it, never Bodega (B2).
+const gptkReleases = [
+  (
+    version: '3.0',
+    tested: true,
+    url:
+        'https://download.developer.apple.com/Developer_Tools/'
+        'Game_Porting_Toolkit_3.0/Game_Porting_Toolkit_3.0.dmg',
+  ),
+  (
+    version: '4.0',
+    tested: false,
+    url: 'https://developer.apple.com/download/all/?q=game%20porting%20toolkit',
+  ),
+];
+
+/// I2: the newest `Game_Porting_Toolkit_<version>….dmg` in [dir], or null. A
+/// download still running has another extension, so it does not count. Async:
+/// the first read of Downloads waits for the user to allow it.
+Future<String?> findGptkDmg(String version, String dir) async {
+  final prefix = 'game_porting_toolkit_${version.toLowerCase()}';
+  final found = [
+    await for (final file in Directory(dir).list())
+      if (file is File &&
+          file.uri.pathSegments.last.toLowerCase().startsWith(prefix) &&
+          file.path.toLowerCase().endsWith('.dmg'))
+        file,
+  ]..sort((a, b) => b.lastModifiedSync().compareTo(a.lastModifiedSync()));
+  return found.firstOrNull?.path;
+}
+
+/// I1: the version of the D3DMetal imported, from its framework, or null.
+Future<String?> d3dmetalVersion(String home) async {
+  final plist =
+      '$home/backends/d3dmetal/external/D3DMetal.framework/Resources/Info.plist';
+  if (!File(plist).existsSync()) return null;
+  final result = await Process.run('/usr/bin/plutil', [
+    '-extract',
+    'CFBundleShortVersionString',
+    'raw',
+    plist,
+  ]);
+  return result.exitCode == 0 ? (result.stdout as String).trim() : null;
+}
+
+/// I3: installs D3DMetal from the Game Porting Toolkit dmg the user got from
+/// Apple. It sits in `redist/lib`, usually in a dmg inside that dmg which
+/// shows Apple's license: macOS opens that one so the user accepts it
+/// themselves (design §1), and Bodega waits for its volume. What it mounted is
+/// detached at the end, whatever happens. Returns the version installed.
+Future<String> installD3DMetalDmg(
+  String home,
+  String dmg, {
+  void Function(String step)? onStep,
+  bool Function()? cancelled,
+  Duration wait = const Duration(minutes: 5),
+}) async {
+  if (!hostPlatform.capabilities.d3dmetal) {
+    throw 'd3dmetal no disponible en ${hostPlatform.displayName}';
+  }
+  final mounted = <String>[];
+  Future<String> attach(String image) async {
+    final mount = Directory.systemTemp.createTempSync('bodega-gptk').path;
+    for (var tries = 1; ; tries++) {
+      final result = await Process.run('/usr/bin/hdiutil', [
+        'attach',
+        '-nobrowse',
+        '-readonly',
+        '-mountpoint',
+        mount,
+        image,
+      ]);
+      if (result.exitCode == 0) break;
+      final why = '${result.stdout}${result.stderr}'.trim().split('\n').last;
+      // A dmg just downloaded stays busy for some seconds, held by the
+      // browser or by macOS's malware check.
+      if (why.contains('Resource busy') && tries < 15) {
+        await Future<void>.delayed(const Duration(seconds: 2));
+        continue;
+      }
+      Directory(mount).deleteSync();
+      throw 'no se pudo abrir ${image.split('/').last}: $why';
+    }
+    mounted.add(mount);
+    return mount;
+  }
+
+  String? redist(String root) =>
+      Directory('$root/redist/lib').existsSync() ? '$root/redist' : null;
+
+  onStep?.call('Abriendo ${dmg.split('/').last}');
+  try {
+    final outer = await attach(dmg);
+    var found = redist(outer);
+    if (found == null) {
+      // `Evaluation environment for Windows games <version>.dmg`, beside the
+      // samples and the tools' installers.
+      final inner = Directory(outer).listSync().whereType<File>().where((file) {
+        final name = file.uri.pathSegments.last.toLowerCase();
+        return name.startsWith('evaluation environment') &&
+            name.endsWith('.dmg');
+      }).firstOrNull;
+      if (inner == null) throw 'no hay D3DMetal en $dmg: falta redist/lib';
+      final info = await Process.run('/usr/bin/hdiutil', [
+        'imageinfo',
+        inner.path,
+      ]);
+      if (!'${info.stdout}'.contains('Software License Agreement: true')) {
+        found = redist(await attach(inner.path));
+      } else {
+        onStep?.call('Acepta la licencia de Apple en la ventana que se abrió');
+        await _run('/usr/bin/open', [inner.path]);
+        final deadline = DateTime.now().add(wait);
+        while (found == null) {
+          if (cancelled?.call() ?? false) throw 'instalación cancelada';
+          if (DateTime.now().isAfter(deadline)) {
+            throw 'no se aceptó la licencia de Apple';
+          }
+          await Future<void>.delayed(const Duration(seconds: 1));
+          for (final volume in Directory('/Volumes').listSync()) {
+            if (Directory(
+              '${volume.path}/redist/lib/external/D3DMetal.framework',
+            ).existsSync()) {
+              mounted.add(volume.path);
+              found = '${volume.path}/redist';
+              break;
+            }
+          }
+        }
+      }
+      if (found == null) throw 'no hay D3DMetal en $dmg: falta redist/lib';
+    }
+    onStep?.call('Importando D3DMetal');
+    // Replaces the one there was, and puts it back if the new one fails.
+    final dest = Directory('$home/backends/d3dmetal');
+    final old = Directory('${dest.path}.old');
+    if (old.existsSync()) old.deleteSync(recursive: true);
+    if (dest.existsSync()) dest.renameSync(old.path);
+    try {
+      await importD3DMetal(home, found);
+    } catch (_) {
+      if (old.existsSync()) old.renameSync(dest.path);
+      rethrow;
+    }
+    if (old.existsSync()) old.deleteSync(recursive: true);
+  } finally {
+    // The inner volume first: its image lives in the outer one.
+    for (final mount in mounted.reversed) {
+      await Process.run('/usr/bin/hdiutil', ['detach', mount]);
+      try {
+        Directory(mount).deleteSync();
+      } on FileSystemException {
+        // A volume in /Volumes goes away with the detach.
+      }
+    }
+  }
+  return await d3dmetalVersion(home) ?? 'desconocida';
 }
 
 /// Copies D3DMetal from a folder the user provides (B2). Its unix modules are
@@ -165,7 +326,7 @@ Future<String> _download(
   final file = File('${dir.path}/${name ?? url.split('/').last}');
   if (sha256 != null &&
       file.existsSync() &&
-      await _sha256(file.path) == sha256) {
+      await sha256Of(file.path) == sha256) {
     return file.path;
   }
   final part = File('${file.path}.part');
@@ -185,7 +346,7 @@ Future<String> _download(
   ]);
   part.renameSync(file.path);
   if (sha256 != null) {
-    final got = await _sha256(file.path);
+    final got = await sha256Of(file.path);
     if (got != sha256) {
       file.deleteSync();
       throw 'checksum incorrecto en ${file.path}: $got, se esperaba $sha256';
@@ -194,7 +355,8 @@ Future<String> _download(
   return file.path;
 }
 
-Future<String> _sha256(String file) async {
+/// The SHA-256 of [file], in hex, from the host's own tool.
+Future<String> sha256Of(String file) async {
   final (tool, args) = hostPlatform.sha256Tool;
   return (await _run(tool, [...args, file])).split(' ').first;
 }
@@ -242,6 +404,9 @@ typedef BottleSettings = ({
   /// `auto` or `discrete` (R14).
   String gpu,
   bool gamemode,
+
+  /// The Windows user name its games see (U1); empty for the host's.
+  String user,
 });
 
 /// What [setWindowsVersion] admits, newest first.
@@ -262,6 +427,7 @@ BottleSettings get _defaults => (
   env: {},
   gpu: 'auto',
   gamemode: hostPlatform.defaultGamemode,
+  user: '',
 );
 
 /// [settings] with these fields changed: records have no `copyWith`.
@@ -278,6 +444,7 @@ BottleSettings _with(
   Map<String, String>? env,
   String? gpu,
   bool? gamemode,
+  String? user,
 }) => (
   backend: backend ?? settings.backend,
   sync: sync ?? settings.sync,
@@ -290,6 +457,7 @@ BottleSettings _with(
   env: env ?? settings.env,
   gpu: gpu ?? settings.gpu,
   gamemode: gamemode ?? settings.gamemode,
+  user: user ?? settings.user,
 );
 
 /// `bottles/<b>/settings.json` (S1, A1, A2, M8). A missing file or field means
@@ -319,6 +487,7 @@ BottleSettings _settings(String dir) {
       env: Map<String, String>.from((json['env'] ?? const {}) as Map),
       gpu: (json['gpu'] ?? 'auto') as String,
       gamemode: (json['gamemode'] ?? hostPlatform.defaultGamemode) as bool,
+      user: (json['user'] ?? '') as String,
     );
     _checkChoice(settings.backend);
     _checkSync(settings.sync);
@@ -369,6 +538,7 @@ void _saveSettings(String dir, BottleSettings settings) {
     if (settings.gpu != _defaults.gpu) 'gpu': settings.gpu,
     if (settings.gamemode != hostPlatform.defaultGamemode)
       'gamemode': settings.gamemode,
+    if (settings.user.isNotEmpty) 'user': settings.user,
   });
 }
 
@@ -438,6 +608,79 @@ void setBottleOptions(
       env: env,
     ),
   );
+}
+
+/// The user name Wine takes when Bodega sets none: the host's (design §4).
+String get hostUser => hostPlatform.baseEnv(Platform.environment)['USER'] ?? '';
+
+/// U3: why [user] cannot be a Windows user name, or null if it can.
+String? badUser(String user) {
+  if (user.isEmpty) return 'el nombre está vacío';
+  if (user.length > 20) return 'el nombre tiene más de 20 caracteres';
+  if (RegExp(r'["/\\\[\]:;|=,+*?<>\x00-\x1f]').hasMatch(user)) {
+    return r'el nombre no puede llevar " / \ [ ] : ; | = , + * ? < >';
+  }
+  if (RegExp(r'^[. ]+$').hasMatch(user)) {
+    return 'el nombre no puede ser solo puntos o espacios';
+  }
+  return null;
+}
+
+/// U4: the Windows user of the bottle; null or empty means the host's. Stops
+/// the bottle and renames its profile folder, so saved games and the links to
+/// the host's folders stay with it, and points TEMP and TMP at the profile.
+/// Returns whether anything changed.
+Future<bool> setBottleUser(String home, String name, String? user) async {
+  final dir = _existing(home, name);
+  final wanted = (user ?? '').trim();
+  if (wanted.isNotEmpty) {
+    if (badUser(wanted) case final why?) throw why;
+  }
+  final settings = _settings(dir);
+  final saved = wanted == hostUser ? '' : wanted;
+  if (saved == settings.user) return false;
+  final from = settings.user.isEmpty ? hostUser : settings.user;
+  final to = saved.isEmpty ? hostUser : saved;
+  final users = '$dir/prefix/drive_c/users';
+  final old = Directory('$users/$from');
+  final hasOld =
+      from.isNotEmpty &&
+      FileSystemEntity.typeSync(old.path, followLinks: false) ==
+          FileSystemEntityType.directory;
+  // A change of case only is the same folder on the Mac.
+  if (hasOld &&
+      from.toLowerCase() != to.toLowerCase() &&
+      FileSystemEntity.typeSync('$users/$to', followLinks: false) !=
+          FileSystemEntityType.notFound) {
+    throw 'ya existe C:\\users\\$to en la botella: bórrala o elige otro nombre';
+  }
+  await stopBottle(home, name);
+  // `rename` moves the links inside as links: nothing they point to is touched.
+  if (hasOld) old.renameSync('$users/$to');
+  _saveSettings(dir, _with(settings, user: saved));
+  for (final variable in const ['TEMP', 'TMP']) {
+    final log = await _launchIn(
+      home,
+      name,
+      'reg',
+      [
+        'add',
+        r'HKCU\Environment',
+        '/v',
+        variable,
+        '/t',
+        'REG_EXPAND_SZ',
+        '/d',
+        r'%USERPROFILE%\AppData\Local\Temp',
+        '/f',
+      ],
+      backend: 'wine',
+      label: 'usuario',
+    );
+    final code = await exitOf(log);
+    if (code != 0) throw 'reg add salió con $code; log: $log';
+  }
+  return true;
 }
 
 /// `RetinaMode` and the doubled `LogPixels` (M9, INFORME §6.1). Wine reads them
@@ -516,6 +759,53 @@ Future<({String name, String origin})> resolveBackend(
 String _notInstalled(String name) =>
     '$name no está instalado: bodega backend '
     '${name == 'd3dmetal' ? 'import d3dmetal <carpeta>' : 'install $name'}';
+
+/// What an exe draws with (G1): its bits, and the newest DirectX it names
+/// (`DX12`, `DX11`, `DX10`, `DX9`, or empty when it names none).
+typedef ExeGraphics = ({int bits, String directx});
+
+/// G1: looks for the DLL names anywhere in the exe, because imports alone miss
+/// LoadLibrary (design §4). Null if [path] is not a PE on x86. Runs in another
+/// isolate: a big exe takes a while to read.
+Future<ExeGraphics?> exeGraphics(String path) =>
+    Isolate.run(() => _readGraphics(path));
+
+Future<ExeGraphics?> _readGraphics(String path) async {
+  if (!File(path).existsSync()) return null;
+  final bits = _peBits(path);
+  if (bits == null) return null;
+  final found = <String>{};
+  var tail = '';
+  // NULs are dropped to catch UTF-16 strings too.
+  await for (final chunk in File(path).openRead().transform(latin1.decoder)) {
+    final text = tail + chunk.replaceAll('\x00', '').toLowerCase();
+    found.addAll(
+      [
+        'd3d12.dll',
+        'd3d11.dll',
+        'd3d10',
+        'dxgi.dll',
+        'd3d9.dll',
+      ].where(text.contains),
+    );
+    if (found.contains('d3d12.dll')) break;
+    tail = text.substring(text.length < 16 ? 0 : text.length - 16);
+  }
+  return (
+    bits: bits,
+    directx: found.contains('d3d12.dll')
+        ? 'DX12'
+        : found.contains('d3d11.dll')
+        ? 'DX11'
+        // A D3D9 game can mention d3d10 or dxgi just to probe them, as Blur
+        // does (A4).
+        : found.contains('d3d9.dll')
+        ? 'DX9'
+        : found.isNotEmpty
+        ? 'DX10'
+        : '',
+  );
+}
 
 /// 64 or 32 from the PE header, or null if [path] is not a PE on x86.
 int? _peBits(String path) {

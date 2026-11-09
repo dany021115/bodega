@@ -22,10 +22,17 @@ void main() {
     downloadable: true,
   );
 
-  setUpAll(() => registerFallbackValue((int _, int? _) {}));
+  const gptk = GptkRelease(version: '3.0', tested: true, url: 'https://x');
+
+  setUpAll(() {
+    registerFallbackValue((int _, int? _) {});
+    registerFallbackValue((String _) {});
+    registerFallbackValue(() => false);
+  });
 
   setUp(() {
     repository = _MockBackends();
+    when(() => repository.gptkReleases).thenReturn(const []);
     when(() => repository.list())
         .thenAnswer((_) async => right(const [missing]));
     when(() => repository.readyBottles())
@@ -94,16 +101,50 @@ void main() {
   );
 
   blocTest<BackendsBloc, BackendsState>(
-    'importing with an error says why',
+    'installs D3DMetal from the dmg in Downloads, then checks it (I2, I3)',
     build: () {
+      when(() => repository.findGptkDmg('3.0'))
+          .thenAnswer((_) async => right('/d/G.dmg'));
       when(
-        () => repository.importD3DMetal('/x'),
-      ).thenAnswer((_) async => left(const AppError.engine('falta external')));
+        () => repository.installD3DMetalDmg(
+          '/d/G.dmg',
+          onStep: any(named: 'onStep'),
+          cancelled: any(named: 'cancelled'),
+        ),
+      ).thenAnswer((call) async {
+        (call.namedArguments[#onStep] as void Function(String))('Importando');
+        return right('3.0');
+      });
+      when(() => repository.check('prueba', 'd3dmetal'))
+          .thenAnswer((_) async => right(const []));
       return BackendsBloc(repository);
     },
-    act: (bloc) => bloc.add(const BackendsEvent.importD3DMetal('/x')),
+    act: (bloc) => bloc.add(const BackendsEvent.installGptk(gptk)),
+    wait: const Duration(milliseconds: 50),
     verify: (bloc) {
-      expect(bloc.state.error, const AppError.engine('falta external'));
+      expect(bloc.state.busy, isNull);
+      expect(bloc.state.gptkStep, isNull);
+      expect(bloc.state.gptkInstalled, '3.0');
+      expect(bloc.state.error, isNull);
+      verify(() => repository.check('prueba', 'd3dmetal')).called(1);
+    },
+  );
+
+  blocTest<BackendsBloc, BackendsState>(
+    'without the dmg it waits for it in Downloads, until cancelled (I2)',
+    build: () {
+      when(() => repository.findGptkDmg('3.0'))
+          .thenAnswer((_) async => right(null));
+      return BackendsBloc(repository);
+    },
+    act: (bloc) async {
+      bloc.add(const BackendsEvent.installGptk(gptk));
+      await Future<void>.delayed(Duration.zero);
+      expect(bloc.state.gptkWaiting, '3.0');
+      bloc.add(const BackendsEvent.cancelGptk());
+    },
+    verify: (bloc) {
+      expect(bloc.state.gptkWaiting, isNull);
       expect(bloc.state.busy, isNull);
     },
   );

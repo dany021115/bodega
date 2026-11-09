@@ -10,6 +10,7 @@ import 'package:bodega/app/bloc/library/library_bloc.dart';
 import 'package:bodega/app/bloc/run_options/run_options_bloc.dart';
 import 'package:bodega/app/bloc/sections/sections_bloc.dart';
 import 'package:bodega/app/bloc/setup/setup_bloc.dart';
+import 'package:bodega/app/bloc/update/update_bloc.dart';
 import 'package:bodega/app/bloc/view_mode/view_mode_bloc.dart';
 import 'package:bodega/app/presentation/add_app/add_app_dialog.dart';
 import 'package:bodega/app/presentation/backends/backends_page.dart';
@@ -56,6 +57,9 @@ class _MockBottle extends MockBloc<BottleDetailEvent, BottleDetailState>
 
 class _MockAddApp extends MockBloc<AddAppEvent, AddAppState>
     implements AddAppBloc {}
+
+class _MockUpdate extends MockBloc<UpdateEvent, UpdateState>
+    implements UpdateBloc {}
 
 class _MockInstall extends MockBloc<InstallEvent, InstallState>
     implements InstallBloc {}
@@ -158,6 +162,10 @@ final _backends = BackendsState(
     BackendInfo(name: 'd3dmetal', installed: false, downloadable: false),
   ],
   bottles: const ['prueba'],
+  releases: const [
+    GptkRelease(version: '3.0', tested: true, url: 'https://x'),
+    GptkRelease(version: '4.0', tested: false, url: 'https://y'),
+  ],
   busy: 'dxmt',
   isDownloading: true,
   received: 50,
@@ -175,6 +183,7 @@ final _backends = BackendsState(
 void main() {
   late _MockCatalog catalog;
   late _MockInstall install;
+  late _MockUpdate updates;
   late _MockLibrary library;
   late _MockBackends backends;
   late _MockBottles bottles;
@@ -207,6 +216,8 @@ void main() {
     addApp = _MockAddApp();
     catalog = _MockCatalog();
     install = _MockInstall();
+    updates = _MockUpdate();
+    when(() => updates.state).thenReturn(const UpdateState());
     library = _MockLibrary();
     sections = _MockSections();
     setup = _MockSetup();
@@ -279,6 +290,7 @@ void main() {
   List<BlocProvider> providers() => [
     BlocProvider<CatalogBloc>.value(value: catalog),
     BlocProvider<InstallBloc>.value(value: install),
+    BlocProvider<UpdateBloc>.value(value: updates),
     BlocProvider<LibraryBloc>.value(value: library),
     BlocProvider<BackendsBloc>.value(value: backends),
     BlocProvider<BottlesBloc>.value(value: bottles),
@@ -694,22 +706,23 @@ void main() {
     });
   });
 
-  testWidgets('D3DMetal is imported, never downloaded', (tester) async {
+  testWidgets('D3DMetal lists the Game Porting Toolkit versions (I1)', (
+    tester,
+  ) async {
     await pump(tester, 1150, const BackendsPage(), height: 3000);
     final d3dmetal = find.ancestor(
       of: find.text('d3dmetal'),
       matching: find.byType(Card),
     );
-    expect(
-      find.descendant(of: d3dmetal, matching: find.text('Elegir carpeta…')),
-      findsOneWidget,
-    );
-    expect(
-      find.descendant(of: d3dmetal, matching: find.text('Instalar')),
-      findsNothing,
-    );
-    expect(find.textContaining('licencia de Apple'), findsOneWidget);
-    expect(find.textContaining('CrossOver no se acepta'), findsOneWidget);
+    Finder inCard(String text) =>
+        find.descendant(of: d3dmetal, matching: find.text(text));
+    expect(inCard('Game Porting Toolkit 3.0'), findsOneWidget);
+    expect(inCard('Probada'), findsOneWidget);
+    expect(inCard('Beta, sin probar'), findsOneWidget);
+    expect(inCard('Instalar'), findsNWidgets(2));
+    expect(inCard('Ya lo tengo: elegir dmg…'), findsOneWidget);
+    expect(inCard('Elegir carpeta…'), findsNothing);
+    expect(find.textContaining('licencia la aceptas tú'), findsOneWidget);
   });
 
   testWidgets('the detail offers each case', (tester) async {

@@ -233,6 +233,15 @@ class LinuxPlatform extends HostPlatform {
   Future<String> autoBackend(String home, String? exePath) async =>
       _installed(home, 'dxvk') ? 'dxvk' : 'wine';
 
+  // Its dxvk layer brings DXVK and vkd3d-proton: from DirectX 8 to 12.
+  @override
+  bool backendFits(String backend, ExeGraphics exe) => true;
+
+  @override
+  String backendUse(String backend) => backend == 'dxvk'
+      ? 'DirectX 8 a 12 (DXVK y vkd3d-proton)'
+      : 'Todo, más lento que dxvk';
+
   @override
   String mapBackend(String name) =>
       name == 'dxmt' || name == 'd3dmetal' ? 'dxvk' : name;

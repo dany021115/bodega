@@ -22,6 +22,13 @@ abstract class BottleRepository {
   /// Closes what is open in the bottle.
   Future<Either<AppError, Unit>> setHighRes(String name, bool value);
 
+  /// U4: the Windows user of [name]'s games; null for the host's. Stops the
+  /// bottle and takes its profile folder along.
+  Future<Either<AppError, Unit>> setUser(String name, String? user);
+
+  /// U3: why [user] cannot be a Windows user name, or null if it can.
+  String? userProblem(String user);
+
   Future<Either<AppError, Unit>> setWindowsVersion(String name, String version);
 
   Future<Either<AppError, Unit>> setOptions(

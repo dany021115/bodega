@@ -4,6 +4,7 @@ library;
 
 import 'dart:convert';
 import 'dart:io';
+import 'dart:isolate';
 import 'dart:typed_data';
 
 import 'catalog_data.dart';
@@ -71,6 +72,11 @@ Map<String, String> wineEnv(
   Map<String, String> extra = const {},
 ]) => {
   ...hostPlatform.baseEnv(parent),
+  // U2: Wine names the Windows user after USER. Every process of the bottle
+  // gets it, or wineboot would make a profile for the host's name again.
+  if (_settings(Directory(prefix).parent.path).user case final user
+      when user.isNotEmpty)
+    'USER': user,
   'WINEPREFIX': prefix,
   'WINEDLLOVERRIDES': _overrides,
   // ponytail: BODEGA_WINEDEBUG is the only knob read from the caller.
@@ -486,7 +492,7 @@ Future<String> installSdl(String home, {String? dmg}) async {
   }
   final dest = _sdlPath(home);
   final file = dmg ?? await _download(home, _sdl.url, _sdl.sha256);
-  final got = await _sha256(file);
+  final got = await sha256Of(file);
   if (got != _sdl.sha256) {
     throw 'checksum incorrecto en $file: $got, se esperaba ${_sdl.sha256}';
   }

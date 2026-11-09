@@ -180,6 +180,14 @@ void main() {
     expect(await hostPlatform.autoBackend(home, null), 'dxvk');
   });
 
+  test('on Linux every backend fits (G3)', () {
+    expect(
+      hostPlatform.backendFits('dxvk', (bits: 32, directx: 'DX9')),
+      isTrue,
+    );
+    expect(hostPlatform.backendUse('dxvk'), contains('vkd3d-proton'));
+  });
+
   test('the Mac-only installers refuse on Linux', () async {
     await expectLater(installSdl(home), throwsA(contains('Linux')));
     await expectLater(importD3DMetal(home, tmp), throwsA(contains('Linux')));

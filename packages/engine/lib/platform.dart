@@ -60,6 +60,12 @@ abstract class HostPlatform {
     bool hud = false,
   });
   Future<String> autoBackend(String home, String? exePath);
+
+  /// G3: whether [backend] translates what [exe] draws with.
+  bool backendFits(String backend, ExeGraphics exe);
+
+  /// G3: what [backend] is for, for the backends screen.
+  String backendUse(String backend);
   String mapBackend(String name);
   List<(int, String)> probeCases(String home, String backend);
   Future<void> prepareBottle(String home, String name);

@@ -46,6 +46,10 @@ class BottleDetailBloc extends Bloc<BottleDetailEvent, BottleDetailState> {
         (name) => _repository.setOptions(name, avx: event.value),
       ),
     );
+    on<BottleDetailSetUserEvent>(
+      (event, emit) =>
+          _change(emit, (name) => _repository.setUser(name, event.user)),
+    );
     on<BottleDetailSetGpuEvent>(
       (event, emit) =>
           _change(emit, (name) => _repository.setOptions(name, gpu: event.gpu)),
@@ -119,6 +123,9 @@ class BottleDetailBloc extends Bloc<BottleDetailEvent, BottleDetailState> {
           emit(state.copyWith(isLoading: false, detail: detail, error: null)),
     );
   }
+
+  /// U3, for the dialog to check the name while it is typed.
+  String? userProblem(String user) => _repository.userProblem(user);
 
   Future<void> _change(
     Emitter<BottleDetailState> emit,
