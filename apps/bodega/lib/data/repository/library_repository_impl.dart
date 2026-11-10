@@ -4,6 +4,7 @@ import 'package:bodega/data/service/app_mapper.dart';
 import 'package:bodega/data/service/engine_home.dart';
 import 'package:bodega/data/service/repository_call.dart';
 import 'package:bodega/domain/entities/app_error.dart';
+import 'package:bodega/domain/entities/hint.dart';
 import 'package:bodega/domain/entities/library_app.dart';
 import 'package:bodega/domain/repository/library_repository.dart';
 import 'package:engine/engine.dart' as engine;
@@ -102,22 +103,27 @@ class LibraryRepositoryImpl implements LibraryRepository {
       repositoryCall(() => engine.waitBottle(_home.path, bottle));
 
   @override
-  List<String> antiCheatHints(String bottle, DateTime since) {
+  List<Hint> antiCheatHints(String bottle, DateTime since) {
     try {
-      return engine.antiCheatHints(_home.path, bottle, since: since);
+      return _hints(engine.antiCheatHints(_home.path, bottle, since: since));
     } on Object {
       return const [];
     }
   }
 
   @override
-  Future<List<String>> hintsIn(String log) async {
+  Future<List<Hint>> hintsIn(String log) async {
     try {
-      return await engine.hintsIn(log);
+      return _hints(await engine.hintsIn(log));
     } on Object {
       return const [];
     }
   }
+
+  List<Hint> _hints(List<engine.Hint> hints) => [
+    for (final hint in hints)
+      Hint(id: hint.id, args: hint.args, text: hint.text),
+  ];
 }
 
 /// How the engine keeps [program]: `C:\\X\\a.exe` and a path inside the

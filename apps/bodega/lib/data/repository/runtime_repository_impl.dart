@@ -24,6 +24,8 @@ class RuntimeRepositoryImpl implements RuntimeRepository {
       issues: [
         for (final issue in issues)
           HostIssue(
+            id: issue.id,
+            args: issue.args,
             title: issue.title,
             detail: issue.detail,
             command: issue.command,

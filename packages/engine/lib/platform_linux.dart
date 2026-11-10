@@ -112,15 +112,18 @@ class LinuxPlatform extends HostPlatform {
     return [
       if (arch != 'x86_64')
         (
-          title: 'Procesador no soportado',
-          detail: 'Bodega necesita un procesador x86_64.',
+          id: 'cpu',
+          args: const {},
+          title: 'Unsupported processor',
+          detail: 'Bodega needs an x86_64 processor.',
           command: null,
         ),
-      if (libs != null &&
-          !(libs.contains('libvulkan.so.1') && _vulkanIcd()))
+      if (libs != null && !(libs.contains('libvulkan.so.1') && _vulkanIcd()))
         (
-          title: 'Falta Vulkan',
-          detail: 'Los juegos usan Vulkan (DXVK) para dibujar.',
+          id: 'vulkan',
+          args: const {},
+          title: 'Vulkan is missing',
+          detail: 'Games use Vulkan (DXVK) to draw.',
           command: _installCommand(
             'libvulkan1 mesa-vulkan-drivers',
             'vulkan-loader mesa-vulkan-drivers',
@@ -129,14 +132,11 @@ class LinuxPlatform extends HostPlatform {
         ),
       if (libs != null && !libs.contains('libpulse.so.0'))
         (
-          title: 'Falta audio',
-          detail:
-              'Wine necesita PulseAudio o PipeWire con compatibilidad Pulse.',
-          command: _installCommand(
-            'libpulse0',
-            'pulseaudio-libs',
-            'libpulse',
-          ),
+          id: 'audio',
+          args: const {},
+          title: 'Audio is missing',
+          detail: 'Wine needs PulseAudio, or PipeWire with Pulse support.',
+          command: _installCommand('libpulse0', 'pulseaudio-libs', 'libpulse'),
         ),
     ];
   }
@@ -239,8 +239,8 @@ class LinuxPlatform extends HostPlatform {
 
   @override
   String backendUse(String backend) => backend == 'dxvk'
-      ? 'DirectX 8 a 12 (DXVK y vkd3d-proton)'
-      : 'Todo, más lento que dxvk';
+      ? 'DirectX 8 to 12 (DXVK and vkd3d-proton)'
+      : 'Everything, slower than dxvk';
 
   @override
   String mapBackend(String name) =>
@@ -339,8 +339,10 @@ String archVulkanPackages(Iterable<String> vendors) {
     for (final vendor in vendors)
       if (drivers[vendor.toLowerCase()] case final driver?) driver,
   };
-  return ['vulkan-icd-loader', ...found.isEmpty ? ['vulkan-swrast'] : found]
-      .join(' ');
+  return [
+    'vulkan-icd-loader',
+    ...found.isEmpty ? ['vulkan-swrast'] : found,
+  ].join(' ');
 }
 
 /// The install command for this distro, read from ID and ID_LIKE in
@@ -427,7 +429,7 @@ void _register(
     final tmp = Directory('$dest.tmp');
     if (tmp.existsSync()) tmp.deleteSync(recursive: true);
     final cp = Process.runSync('cp', ['-a', source, tmp.path]);
-    if (cp.exitCode != 0) throw 'no se pudo copiar $source: ${cp.stderr}';
+    if (cp.exitCode != 0) throw 'could not copy $source: ${cp.stderr}';
     // Before the rename, so a start cut short never leaves a copy that
     // looks complete but still carries the quarantine.
     afterCopy?.call(tmp.path);

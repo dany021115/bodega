@@ -1,3 +1,5 @@
+import 'package:bodega/app/shared/error_text.dart';
+import 'package:bodega/l10n/l10n.dart';
 import 'package:bodega/app/bloc/setup/setup_bloc.dart';
 import 'package:bodega/app/presentation/setup/widgets/requirement_card.dart';
 import 'package:bodega/app/presentation/setup/widgets/runtime_card.dart';
@@ -25,7 +27,7 @@ class SetupPage extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Text('Preparar Bodega', style: styles.screenTitle),
+                    Text(context.l10n.setupTitle, style: styles.screenTitle),
                     const SizedBox(height: AppSpacing.xl),
                     if (state.isChecking)
                       const CustomLoading()
@@ -40,7 +42,7 @@ class SetupPage extends StatelessWidget {
                       ],
                       if (state.error case final error?) ...[
                         SelectableText(
-                          error.message,
+                          error.text(context.l10n),
                           style: styles.body?.copyWith(
                             color: Theme.of(context).colorScheme.error,
                           ),
@@ -54,7 +56,7 @@ class SetupPage extends StatelessWidget {
                                 const SetupEvent.check(),
                               ),
                         icon: const Icon(Icons.refresh_rounded, size: 18),
-                        label: const Text('Volver a comprobar'),
+                        label: Text(context.l10n.setupCheckAgain),
                       ),
                     ],
                   ],

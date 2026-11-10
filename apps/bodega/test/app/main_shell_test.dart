@@ -5,6 +5,7 @@ import 'package:bodega/app/shared/widgets/main_shell.dart';
 import 'package:bodega/app/shared/widgets/side_bar.dart';
 import 'package:bodega/device/helpers/breakpoints.dart';
 import 'package:bodega/domain/entities/bottle.dart';
+import 'package:bodega/l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -75,6 +76,8 @@ void main() {
       providers(
         MaterialApp.router(
           routerConfig: router,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           builder: (context, child) => ResponsiveBreakpoints.builder(
             child: child!,
             breakpoints: appBreakpoints,
@@ -87,21 +90,21 @@ void main() {
 
   testWidgets('at 1000 px the sidebar shows text', (tester) async {
     await pumpShell(tester, 1000);
-    expect(find.text('Biblioteca'), findsOneWidget);
-    expect(find.text('BOTELLAS'), findsOneWidget);
+    expect(find.text('Library'), findsOneWidget);
+    expect(find.text('BOTTLES'), findsOneWidget);
     expect(find.text('Backends'), findsOneWidget);
     expect(find.text('steam'), findsOneWidget);
-    expect(find.text('Instalar'), findsNothing);
+    expect(find.text('Install'), findsNothing);
   });
 
   testWidgets('at 600 px it shows only icons, with tooltips', (tester) async {
     await pumpShell(tester, 600);
-    expect(find.text('Biblioteca'), findsNothing);
-    expect(find.text('BOTELLAS'), findsNothing);
+    expect(find.text('Library'), findsNothing);
+    expect(find.text('BOTTLES'), findsNothing);
     expect(find.text('steam'), findsNothing);
     expect(find.byIcon(Icons.apps_rounded), findsOneWidget);
     expect(find.byIcon(Icons.memory_rounded), findsOneWidget);
-    expect(find.byTooltip('Biblioteca'), findsOneWidget);
+    expect(find.byTooltip('Library'), findsOneWidget);
     expect(find.byTooltip('Backends'), findsOneWidget);
     expect(find.text('S'), findsNothing);
     expect(find.text('G'), findsNothing);
@@ -112,6 +115,8 @@ void main() {
       await tester.pumpWidget(
         providers(
           MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
             home: Scaffold(
               body: Row(
                 children: [
@@ -135,30 +140,30 @@ void main() {
 
     testWidgets('marks the bottle of the current path', (tester) async {
       await pumpBar(tester, '/bottles/steam');
-      expect(rowFor(tester, 'Botella steam').properties.selected, isTrue);
-      expect(rowFor(tester, 'Botella games').properties.selected, isFalse);
+      expect(rowFor(tester, 'Bottle steam').properties.selected, isTrue);
+      expect(rowFor(tester, 'Bottle games').properties.selected, isFalse);
     });
 
     testWidgets('marks a section only by its own path', (tester) async {
       await pumpBar(tester, '/backends');
       expect(rowFor(tester, 'Backends').properties.selected, isTrue);
-      expect(rowFor(tester, 'Biblioteca').properties.selected, isFalse);
-      expect(rowFor(tester, 'Botella steam').properties.selected, isFalse);
+      expect(rowFor(tester, 'Library').properties.selected, isFalse);
+      expect(rowFor(tester, 'Bottle steam').properties.selected, isFalse);
     });
 
     testWidgets('says which is open and which is incomplete', (tester) async {
       await pumpBar(tester, '/library');
       expect(
-        rowFor(tester, 'Botella steam').properties.label,
-        'Botella steam, abierta',
+        rowFor(tester, 'Bottle steam').properties.label,
+        'Bottle steam, open',
       );
       expect(
-        rowFor(tester, 'Botella games').properties.label,
-        'Botella games, cerrada',
+        rowFor(tester, 'Bottle games').properties.label,
+        'Bottle games, closed',
       );
       expect(
-        rowFor(tester, 'Botella rota').properties.label,
-        'Botella rota, incompleta',
+        rowFor(tester, 'Bottle rota').properties.label,
+        'Bottle rota, incomplete',
       );
       expect(find.byIcon(Icons.warning_amber_rounded), findsOneWidget);
     });

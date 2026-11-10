@@ -86,7 +86,7 @@ void main() {
       var calls = 0;
       when(() => repository.download(any(), any())).thenAnswer(
         (_) async => calls++ == 0
-            ? left(const AppError.engine('no coincide con su SHA256'))
+            ? left(const AppError.engine('does not match its SHA256'))
             : right(null),
       );
       return UpdateBloc(repository);

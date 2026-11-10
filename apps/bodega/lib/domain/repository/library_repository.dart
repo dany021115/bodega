@@ -1,4 +1,5 @@
 import 'package:bodega/domain/entities/app_error.dart';
+import 'package:bodega/domain/entities/hint.dart';
 import 'package:bodega/domain/entities/library_app.dart';
 import 'package:fpdart/fpdart.dart';
 
@@ -48,7 +49,7 @@ abstract class LibraryRepository {
   /// Ends when the bottle's last process exits, or at once if nothing runs.
   Future<void> waitBottle(String bottle);
 
-  List<String> antiCheatHints(String bottle, DateTime since);
+  List<Hint> antiCheatHints(String bottle, DateTime since);
 
-  Future<List<String>> hintsIn(String log);
+  Future<List<Hint>> hintsIn(String log);
 }

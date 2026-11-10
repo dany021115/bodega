@@ -9,6 +9,7 @@ import 'package:bodega/app/shared/widgets/empty_state.dart';
 import 'package:bodega/device/router/manager.dart';
 import 'package:bodega/device/theme/spacing.dart';
 import 'package:bodega/device/theme/typography.dart';
+import 'package:bodega/l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -17,17 +18,18 @@ class CatalogDetailPage extends StatelessWidget {
 
   const CatalogDetailPage({super.key, required this.id});
 
-  static const _sourceLabels = {
-    'repo': 'Repositorio',
-    'commit': 'Commit',
-    'path': 'Receta',
-    'license': 'Licencia',
-    'verified': 'Verificada',
-  };
-
   @override
   Widget build(BuildContext context) {
     final styles = AppTextStyle(context);
+    final l10n = context.l10n;
+    String sourceLabel(String key) => switch (key) {
+      'repo' => l10n.catalogSourceRepo,
+      'commit' => l10n.catalogSourceCommit,
+      'path' => l10n.catalogSourcePath,
+      'license' => l10n.catalogSourceLicense,
+      'verified' => l10n.catalogSourceVerified,
+      _ => key,
+    };
 
     return Scaffold(
       body: BlocBuilder<CatalogBloc, CatalogState>(
@@ -37,9 +39,9 @@ class CatalogDetailPage extends StatelessWidget {
           if (app == null) {
             return EmptyState(
               icon: Icons.search_off_rounded,
-              title: 'No está en el catálogo',
+              title: l10n.catalogNotFound,
               message: id,
-              actionLabel: 'Volver al catálogo',
+              actionLabel: l10n.catalogBack,
               onAction: () =>
                   RouterManager.go(AppRoute.catalog, context: context),
             );
@@ -54,7 +56,7 @@ class CatalogDetailPage extends StatelessWidget {
                   onPressed: () =>
                       RouterManager.go(AppRoute.catalog, context: context),
                   icon: const Icon(Icons.arrow_back_rounded, size: 18),
-                  label: const Text('Catálogo'),
+                  label: Text(l10n.catalogBackShort),
                 ),
               ),
               const SizedBox(height: AppSpacing.md),
@@ -83,15 +85,15 @@ class CatalogDetailPage extends StatelessWidget {
               const SizedBox(height: AppSpacing.lg),
               DetailAction(app: app),
               DetailSection(
-                title: 'Configuración',
+                title: l10n.catalogSettings,
                 children: [
-                  Text('Backend: ${app.backend}', style: styles.body),
-                  Text('Sync: ${app.sync}', style: styles.body),
+                  Text(l10n.catalogBackend(app.backend), style: styles.body),
+                  Text(l10n.catalogSync(app.sync), style: styles.body),
                 ],
               ),
               if (app.notes.isNotEmpty)
                 DetailSection(
-                  title: 'Notas',
+                  title: l10n.catalogNotes,
                   children: [
                     for (final note in app.notes)
                       Padding(
@@ -102,7 +104,7 @@ class CatalogDetailPage extends StatelessWidget {
                 ),
               if (app.knownIssues.isNotEmpty)
                 DetailSection(
-                  title: 'Problemas conocidos',
+                  title: l10n.catalogKnownIssues,
                   children: [
                     for (final issue in app.knownIssues)
                       Padding(
@@ -118,11 +120,11 @@ class CatalogDetailPage extends StatelessWidget {
                   ],
                 ),
               DetailSection(
-                title: 'Procedencia',
+                title: l10n.catalogSource,
                 children: [
                   for (final MapEntry(:key, :value) in app.source.entries)
                     SelectableText(
-                      '${_sourceLabels[key] ?? key}: $value',
+                      '${sourceLabel(key)}: $value',
                       style: styles.caption,
                     ),
                 ],

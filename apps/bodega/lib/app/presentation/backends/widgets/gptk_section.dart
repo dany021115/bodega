@@ -1,3 +1,4 @@
+import 'package:bodega/l10n/l10n.dart';
 import 'package:bodega/app/bloc/backends/backends_bloc.dart';
 import 'package:bodega/app/shared/widgets/status_chip.dart';
 import 'package:bodega/device/helpers/app_toast.dart';
@@ -21,14 +22,18 @@ class GptkSection extends StatelessWidget {
 
   Future<void> _pickDmg(BuildContext context) async {
     final bloc = context.read<BackendsBloc>();
-    const dmgs = XTypeGroup(label: 'Imagen de disco', extensions: ['dmg']);
-    final file = await openFile(acceptedTypeGroups: const [dmgs]);
+    final dmgs = XTypeGroup(
+      label: context.l10n.backendsDiskImage,
+      extensions: const ['dmg'],
+    );
+    final file = await openFile(acceptedTypeGroups: [dmgs]);
     if (file != null) bloc.add(BackendsEvent.installGptkDmg(file.path));
   }
 
   @override
   Widget build(BuildContext context) {
     final styles = AppTextStyle(context);
+    final l10n = context.l10n;
     final bloc = context.read<BackendsBloc>();
     final waiting = state.gptkWaiting;
     final blocked =
@@ -52,8 +57,11 @@ class GptkSection extends StatelessWidget {
               before.gptkInstalled != now.gptkInstalled,
           listener: (context, now) => AppToast.success(
             context,
-            'D3DMetal ${now.gptkInstalled} instalado. '
-            '${now.bottles.isEmpty ? 'Crea una botella para comprobarlo.' : 'Comprobando…'}',
+            now.bottles.isEmpty
+                ? context.l10n.backendsGptkInstalledNoBottle(now.gptkInstalled!)
+                : context.l10n.backendsGptkInstalledChecking(
+                    now.gptkInstalled!,
+                  ),
           ),
         ),
       ],
@@ -62,8 +70,8 @@ class GptkSection extends StatelessWidget {
         children: [
           Text(
             installed == null
-                ? 'Elige una versión del Game Porting Toolkit de Apple.'
-                : 'Tienes D3DMetal $installed.',
+                ? l10n.backendsGptkChoose
+                : l10n.backendsGptkHave(installed!),
             style: styles.body,
           ),
           for (final release in state.releases) ...[
@@ -77,7 +85,9 @@ class GptkSection extends StatelessWidget {
                   ),
                 ),
                 StatusChip(
-                  label: release.tested ? 'Probada' : 'Beta, sin probar',
+                  label: release.tested
+                      ? l10n.backendsGptkTested
+                      : l10n.backendsGptkBeta,
                   color: release.tested
                       ? AppColor.statusTested
                       : AppColor.statusFlaky,
@@ -89,8 +99,8 @@ class GptkSection extends StatelessWidget {
                       : () => bloc.add(BackendsEvent.installGptk(release)),
                   child: Text(
                     installed?.startsWith(release.version) ?? false
-                        ? 'Reinstalar'
-                        : 'Instalar',
+                        ? l10n.backendsReinstall
+                        : l10n.commonInstall,
                   ),
                 ),
               ],
@@ -103,9 +113,7 @@ class GptkSection extends StatelessWidget {
             Semantics(
               liveRegion: true,
               child: Text(
-                'Inicia sesión en Apple en el navegador y descarga el Game '
-                'Porting Toolkit $waiting. Bodega lo instala en cuanto '
-                'aparezca en Descargas.',
+                l10n.backendsGptkWaiting(waiting),
                 style: styles.caption,
               ),
             ),
@@ -117,19 +125,15 @@ class GptkSection extends StatelessWidget {
               if (waiting != null || state.gptkStep != null)
                 OutlinedButton(
                   onPressed: () => bloc.add(const BackendsEvent.cancelGptk()),
-                  child: const Text('Cancelar'),
+                  child: Text(l10n.commonCancel),
                 ),
               TextButton(
                 onPressed: state.busy != null ? null : () => _pickDmg(context),
-                child: const Text('Ya lo tengo: elegir dmg…'),
+                child: Text(l10n.backendsGptkPickDmg),
               ),
             ],
           ),
-          Text(
-            'Bodega no descarga D3DMetal: lo baja tu navegador con tu cuenta '
-            'de Apple, y su licencia la aceptas tú.',
-            style: styles.caption,
-          ),
+          Text(l10n.backendsGptkLicense, style: styles.caption),
         ],
       ),
     );

@@ -1,15 +1,15 @@
 import 'package:bodega/app/shared/widgets/app_row.dart';
 import 'package:bodega/device/theme/theme.dart';
 import 'package:bodega/domain/entities/library_app.dart';
+import 'package:bodega/l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 const _long = LibraryApp(
-  bottle: 'Una botella con un nombre muy largo que no cabe en la fila',
+  bottle: 'A bottle with a name so very long that it does not fit on the row',
   key: 'k',
-  id: 'app-largo',
-  title:
-      'Un título de aplicación extremadamente largo para comprobar el recorte',
+  id: 'long-app',
+  title: 'An extremely long application title to check that it gets cut short',
 );
 
 void main() {
@@ -19,6 +19,8 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     await tester.pumpWidget(
       MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
         theme: AppTheme.getDarkTheme(),
         home: Scaffold(
           body: Center(
@@ -38,14 +40,16 @@ void main() {
       ),
     );
     expect(tester.takeException(), isNull);
-    expect(find.text('Jugar'), findsOneWidget);
-    expect(find.byTooltip('Opciones de ${_long.title}'), findsOneWidget);
+    expect(find.text('Play'), findsOneWidget);
+    expect(find.byTooltip('Options for ${_long.title}'), findsOneWidget);
   });
 
   testWidgets('the button stops a running app', (tester) async {
     var stopped = 0;
     await tester.pumpWidget(
       MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
         theme: AppTheme.getDarkTheme(),
         home: Scaffold(
           body: AppRow(
@@ -57,8 +61,8 @@ void main() {
         ),
       ),
     );
-    expect(find.text('En ejecución'), findsOneWidget);
-    await tester.tap(find.text('Parar'));
+    expect(find.text('Running'), findsOneWidget);
+    await tester.tap(find.text('Stop'));
     expect(stopped, 1);
   });
 }

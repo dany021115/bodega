@@ -5,6 +5,7 @@ import 'package:bodega/app/presentation/add_app/add_app_dialog.dart';
 import 'package:bodega/device/theme/theme.dart';
 import 'package:bodega/domain/entities/app_error.dart';
 import 'package:bodega/domain/entities/catalog_app.dart';
+import 'package:bodega/l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -16,12 +17,12 @@ class _MockCatalog extends MockBloc<CatalogEvent, CatalogState>
     implements CatalogBloc {}
 
 const _longNote =
-    'Una nota muy larga para comprobar que el texto de la tarjeta se corta '
-    'sin desbordar, aunque la ventana sea la más angosta posible.';
+    'A very long note to check that the card text is cut without '
+    'overflowing, even when the window is as narrow as it gets.';
 
 CatalogApp _app(String id, String title, CatalogStatus status) => CatalogApp(
   id: id,
-  title: '$title, con un título bastante largo para la tarjeta',
+  title: '$title, with a title quite long for the card',
   status: status,
   statusNote: _longNote,
   backend: 'dxmt',
@@ -53,6 +54,8 @@ Future<void> _pump(
 
   await tester.pumpWidget(
     MaterialApp(
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
       theme: AppTheme.getDarkTheme(),
       home: MultiBlocProvider(
         providers: [
@@ -66,10 +69,9 @@ Future<void> _pump(
 }
 
 void main() {
-  const longBottle =
-      'Una botella con un nombre excesivamente largo para la cabecera';
+  const longBottle = 'A bottle with an overly long name for the header';
 
-  testWidgets('the Otros tab fits at 720 px, blocked apps cannot install', (
+  testWidgets('the Others tab fits at 720 px, blocked apps cannot install', (
     tester,
   ) async {
     await _pump(
@@ -85,13 +87,13 @@ void main() {
       ),
     );
 
-    await tester.tap(find.text('Otros'));
+    await tester.tap(find.text('Others'));
     await tester.pump();
 
     expect(find.textContaining('Steam'), findsOneWidget);
-    expect(find.text('Sin soporte'), findsOneWidget);
-    expect(find.text('No disponible'), findsOneWidget);
-    expect(find.text('Instalar'), findsNWidgets(2));
+    expect(find.text('Unsupported'), findsOneWidget);
+    expect(find.text('Unavailable'), findsOneWidget);
+    expect(find.text('Install'), findsNWidgets(2));
     expect(tester.takeException(), isNull);
   });
 
@@ -100,15 +102,15 @@ void main() {
       tester,
       add: AddAppState(
         bottle: longBottle,
-        exe: '/g/${'setup_muy_largo_' * 8}.exe',
-        title: 'Un título larguísimo ' * 6,
+        exe: '/g/${'very_long_setup_' * 8}.exe',
+        title: 'A really long title ' * 6,
       ),
     );
 
-    expect(find.text('Es un instalador'), findsOneWidget);
-    expect(find.text('Ya es un programa'), findsOneWidget);
-    expect(find.text('Agregar'), findsOneWidget);
-    expect(find.text('Agregar a la biblioteca'), findsOneWidget);
+    expect(find.text("It's an installer"), findsOneWidget);
+    expect(find.text("It's already a program"), findsOneWidget);
+    expect(find.text('Add'), findsOneWidget);
+    expect(find.text('Add to library'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -120,12 +122,12 @@ void main() {
       add: const AddAppState(
         bottle: longBottle,
         step: AddAppStep.installing,
-        error: AppError.engine('un error muy largo que se puede copiar'),
+        error: AppError.engine('a very long error that can be copied'),
       ),
     );
 
-    expect(find.text('El instalador ya terminó'), findsOneWidget);
-    expect(find.text('Cancelar'), findsNothing);
+    expect(find.text('The installer has finished'), findsOneWidget);
+    expect(find.text('Cancel'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 }

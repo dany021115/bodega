@@ -1,3 +1,5 @@
+import 'package:bodega/app/shared/error_text.dart';
+import 'package:bodega/l10n/l10n.dart';
 import 'package:bodega/app/bloc/update/update_bloc.dart';
 import 'package:bodega/device/theme/spacing.dart';
 import 'package:bodega/device/theme/typography.dart';
@@ -19,11 +21,12 @@ class UpdateDialog extends StatelessWidget {
         if (update == null) return const SizedBox.shrink();
         final bloc = context.read<UpdateBloc>();
         final styles = AppTextStyle(context);
+        final l10n = context.l10n;
         final colors = Theme.of(context).colorScheme;
         final total = state.total;
 
         return AlertDialog(
-          title: const Text('Hay una versión nueva'),
+          title: Text(l10n.updateTitle),
           content: SizedBox(
             width: 460,
             child: Column(
@@ -31,7 +34,7 @@ class UpdateDialog extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Text(
-                  'Bodega ${update.version} (tienes ${update.current})',
+                  l10n.updateVersions(update.version, update.current),
                   style: styles.body,
                 ),
                 if (update.notes.isNotEmpty) ...[
@@ -48,11 +51,7 @@ class UpdateDialog extends StatelessWidget {
                 ],
                 if (!update.installable && update.command.isNotEmpty) ...[
                   const SizedBox(height: AppSpacing.md),
-                  Text(
-                    'Actualízala con tu gestor de paquetes, con el archivo de '
-                    'la versión:',
-                    style: styles.body,
-                  ),
+                  Text(l10n.updatePackageManager, style: styles.body),
                   SelectableText(update.command, style: styles.mono),
                 ],
                 if (state.phase == UpdatePhase.downloading) ...[
@@ -63,9 +62,11 @@ class UpdateDialog extends StatelessWidget {
                     liveRegion: true,
                     child: Text(
                       total == null
-                          ? 'Descargando: ${_mb(state.received)} MB'
-                          : 'Descargando: ${_mb(state.received)} de '
-                                '${_mb(total)} MB',
+                          ? l10n.updateDownloading(_mb(state.received))
+                          : l10n.updateDownloadingOf(
+                              _mb(state.received),
+                              _mb(total),
+                            ),
                       style: styles.caption,
                     ),
                   ),
@@ -74,24 +75,18 @@ class UpdateDialog extends StatelessWidget {
                   const SizedBox(height: AppSpacing.md),
                   const LinearProgressIndicator(minHeight: 2),
                   const SizedBox(height: AppSpacing.xs),
-                  Text(
-                    'Instalando. Bodega se cerrará y abrirá la versión nueva.',
-                    style: styles.caption,
-                  ),
+                  Text(l10n.updateInstalling, style: styles.caption),
                 ],
                 if (state.error case final error?) ...[
                   const SizedBox(height: AppSpacing.md),
                   Text(
-                    error.message,
+                    error.text(l10n),
                     style: styles.body?.copyWith(color: colors.error),
                   ),
                 ],
                 const SizedBox(height: AppSpacing.md),
                 // A5, said where the user decides.
-                Text(
-                  'Tus botellas, juegos y ajustes se quedan como están.',
-                  style: styles.caption,
-                ),
+                Text(l10n.updateKeeps, style: styles.caption),
               ],
             ),
           ),
@@ -102,23 +97,23 @@ class UpdateDialog extends StatelessWidget {
                   Navigator.of(context).pop();
                   bloc.add(const UpdateEvent.skip());
                 },
-                child: const Text('Ahora no'),
+                child: Text(l10n.updateNotNow),
               ),
               if (update.installable)
                 FilledButton(
                   onPressed: () => bloc.add(const UpdateEvent.install()),
-                  child: const Text('Actualizar'),
+                  child: Text(l10n.updateUpdate),
                 )
               else
                 FilledButton(
                   onPressed: () => launchUrl(Uri.parse(update.page)),
-                  child: const Text('Ver la versión'),
+                  child: Text(l10n.updateSeeRelease),
                 ),
             ],
             UpdatePhase.downloading => [
               OutlinedButton(
                 onPressed: () => bloc.add(const UpdateEvent.cancel()),
-                child: const Text('Cancelar'),
+                child: Text(l10n.commonCancel),
               ),
             ],
             UpdatePhase.installing => const [],

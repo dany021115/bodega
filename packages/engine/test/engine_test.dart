@@ -168,7 +168,7 @@ void main() {
       for (final e in Directory('$home/runtimes').listSync())
         e.path.split('/').last,
     ]..sort();
-    final noRuntime = throwsA(contains('no hay runtime: bodega install'));
+    final noRuntime = throwsA(contains('no runtime: bodega install'));
     expect(() => currentRuntime(home), noRuntime);
 
     final (a, aLibs) = await fakeRuntime(tmp, 'engine-a');
@@ -183,7 +183,7 @@ void main() {
     File('$a.sha256').deleteSync();
     await expectLater(
       installRuntime(home, a, aLibs),
-      throwsA(contains('ya instalado')),
+      throwsA(contains('already installed')),
     );
 
     final (b, bLibs) = await fakeRuntime(tmp, 'engine-b');
@@ -196,14 +196,12 @@ void main() {
     File('$bLibs.sha256').copySync('$b.sha256');
     await expectLater(
       installRuntime(home, b, bLibs),
-      throwsA(contains('no corresponde a engine-b.tar.gz')),
+      throwsA(contains('does not match engine-b.tar.gz')),
     );
     File('$b.sha256').deleteSync();
     await expectLater(
       installRuntime(home, b, bLibs),
-      throwsA(
-        contains('gh release download engine-b -R dany021115/bodega'),
-      ),
+      throwsA(contains('gh release download engine-b -R dany021115/bodega')),
     );
     expect(runtimes(), ['current', 'engine-a']);
 
@@ -211,7 +209,7 @@ void main() {
     await expectLater(
       installRuntime(home, c, cLibs),
       throwsA(
-        'runtime incompleto: falta '
+        'incomplete runtime: missing '
         'engine/lib/wine/x86_64-unix/libgnutls.30.dylib',
       ),
     );
@@ -240,7 +238,7 @@ void main() {
     );
     await expectLater(
       createBottle(home, 't'),
-      throwsA(allOf(contains('ya existe'), contains('rm -rf'))),
+      throwsA(allOf(contains('already exists'), contains('rm -rf'))),
     );
     await expectLater(
       createBottle(home, 'broken'),
@@ -303,7 +301,7 @@ void main() {
       () => waitBottle(home, 'nope'),
       () => stopBottle(home, 'nope'),
     ]) {
-      await expectLater(missing(), throwsA('no existe la botella nope'));
+      await expectLater(missing(), throwsA('bottle nope does not exist'));
     }
   });
 
@@ -321,9 +319,18 @@ void main() {
     final clean = File('$tmp/clean.log')
       ..writeAsStringSync('# runtime engine-x\nok\r\n# exit=0\n');
     final hints = await hintsIn(dirty.path);
-    expect(hints, hasLength(4));
-    for (final word in ['FreeType', 'GnuTLS', 'bodega stop', 'ruta']) {
-      expect(hints, contains(contains(word)), reason: word);
+    expect(hints.map((hint) => hint.id), [
+      'freetype',
+      'gnutls',
+      'wineserver',
+      'openFailed',
+    ]);
+    for (final word in ['FreeType', 'GnuTLS', 'bodega stop', 'path']) {
+      expect(
+        hints.map((hint) => hint.text),
+        contains(contains(word)),
+        reason: word,
+      );
     }
     expect(await hintsIn(clean.path), isEmpty);
   });
@@ -374,7 +381,10 @@ void main() {
         await run('rundll32', ['dwrite.dll,BodegaProbe']);
         await run('rundll32', ['bcrypt.dll,BodegaProbe']);
 
-        final hints = [for (final log in logs) ...await hintsIn(log)];
+        final hints = [
+          for (final log in logs)
+            ...(await hintsIn(log)).map((hint) => hint.text),
+        ];
         final hostlibs = File(
           '$rt/engine/lib/wine/x86_64-unix/libgnutls.30.dylib',
         ).existsSync();
@@ -441,7 +451,7 @@ void main() {
         expect(await stopBottle(home, 'sonda'), 0);
       });
     },
-    skip: runtime == null ? 'BODEGA_TEST_RUNTIME no está definida' : false,
+    skip: runtime == null ? 'BODEGA_TEST_RUNTIME is not set' : false,
     timeout: const Timeout(Duration(minutes: 15)),
   );
 }

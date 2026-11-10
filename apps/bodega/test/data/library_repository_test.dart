@@ -21,7 +21,7 @@ void main() {
 
     final apps = (await LibraryRepositoryImpl(
       TestHome(home.path),
-    ).apps()).getOrElse((error) => fail(error.message));
+    ).apps()).getOrElse((error) => fail('$error'));
 
     expect(apps.map((app) => app.bottle), ['a', 'b']);
     expect(apps.first.key, 'p/a.exe');

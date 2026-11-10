@@ -1,3 +1,4 @@
+import 'package:bodega/l10n/l10n.dart';
 import 'package:bodega/device/theme/spacing.dart';
 import 'package:flutter/material.dart';
 
@@ -27,25 +28,21 @@ class _ProbeDialogState extends State<ProbeDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return AlertDialog(
-      title: Text('Comprobar ${widget.backend}'),
+      title: Text(l10n.backendsCheckTitle(widget.backend)),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           if (widget.bottles.isEmpty)
-            const Text(
-              'Hace falta una botella. Instala algo desde el Catálogo y vuelve.',
-            )
+            Text(l10n.backendsProbeNoBottle)
           else ...[
-            const Text(
-              'Se cerrará todo lo que esté abierto en la botella que elijas. '
-              'Lo que no hayas guardado se perderá.',
-            ),
+            Text(l10n.backendsProbeWarning),
             const SizedBox(height: AppSpacing.lg),
             DropdownButtonFormField<String>(
               initialValue: _bottle,
-              decoration: const InputDecoration(labelText: 'Botella'),
+              decoration: InputDecoration(labelText: l10n.backendsBottle),
               items: [
                 for (final bottle in widget.bottles)
                   DropdownMenuItem(value: bottle, child: Text(bottle)),
@@ -58,13 +55,13 @@ class _ProbeDialogState extends State<ProbeDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancelar'),
+          child: Text(l10n.commonCancel),
         ),
         FilledButton(
           onPressed: _bottle == null
               ? null
               : () => Navigator.of(context).pop(_bottle),
-          child: const Text('Comprobar'),
+          child: Text(l10n.backendsCheck),
         ),
       ],
     );

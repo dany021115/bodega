@@ -3,7 +3,7 @@ import 'package:fpdart/fpdart.dart';
 
 abstract class AddAppRepository {
   /// What makes [path] unusable, or null if it can be used.
-  String? pathProblem(String path);
+  AppError? pathProblem(String path);
 
   /// Registers [exe], an absolute path, as the bottle's app, and returns its key.
   Future<Either<AppError, String>> addApp(

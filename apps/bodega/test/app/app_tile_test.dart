@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:bodega/app/presentation/bottles/widgets/app_tile.dart';
 import 'package:bodega/app/shared/widgets/app_icon.dart';
 import 'package:bodega/domain/entities/library_app.dart';
+import 'package:bodega/l10n/app_localizations.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -28,6 +29,8 @@ void main() {
       hidden = 0;
       await tester.pumpWidget(
         MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
             body: Center(
               child: SizedBox(
@@ -77,8 +80,8 @@ void main() {
       await pumpTile(tester);
       await tester.tap(find.byIcon(Icons.more_horiz_rounded));
       await tester.pumpAndSettle();
-      expect(find.text('Abrir'), findsOneWidget);
-      await tester.tap(find.text('Ocultar'));
+      expect(find.text('Open'), findsOneWidget);
+      await tester.tap(find.text('Hide'));
       await tester.pumpAndSettle();
       expect(hidden, 1);
       expect(opened, 0);
@@ -88,7 +91,7 @@ void main() {
       await pumpTile(tester);
       await tester.tap(find.byIcon(Icons.more_horiz_rounded));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Ejecutar con opciones…'));
+      await tester.tap(find.text('Run with options…'));
       await tester.pumpAndSettle();
       expect(options, 1);
       expect(opened, 0);
@@ -98,7 +101,7 @@ void main() {
       await pumpTile(tester);
       await tester.tap(tile(), buttons: kSecondaryButton);
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Abrir'));
+      await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
       expect(opened, 1);
     });
@@ -111,6 +114,8 @@ void main() {
       String? iconPath,
     }) => tester.pumpWidget(
       MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
         home: Scaffold(
           body: AppIcon(id: id, title: 'Blur', iconPath: iconPath),
         ),

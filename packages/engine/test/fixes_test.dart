@@ -89,7 +89,7 @@ void main() {
         expect(gameFix('${first.steam}').id, first.id);
         expect(fixForApp('steam:0'), isNull);
         expect(fixForApp('otra-cosa'), isNull);
-        expect(() => gameFix('no-existe'), throwsA(contains('no hay arreglo')));
+        expect(() => gameFix('no-existe'), throwsA(contains('no fix for')));
       },
     );
 
@@ -230,11 +230,10 @@ void main() {
         fixesSource = fixes([env('X', '1')]);
         final log = await openApp(home, 'b', key: 'steam:9');
         await exitOf(log);
-        expect(
-          File(log).readAsStringSync(),
-          contains('# aviso $fixNotApplied'),
-        );
-        expect(await hintsIn(log), [contains('Steam ya estaba abierto')]);
+        expect(File(log).readAsStringSync(), contains('# note $fixNotApplied'));
+        final hints = await hintsIn(log);
+        expect(hints.map((hint) => hint.id), ['fixNotApplied']);
+        expect(hints.single.text, contains('Steam was already open'));
         expect(tasklistLogs(), hasLength(1));
       });
 
@@ -281,7 +280,7 @@ void main() {
       fixesSource = fixes([registry('FAIL')]);
       await expectLater(
         openApp(home, 'b', key: 'steam:9'),
-        throwsA(contains('reg add de Juego salió con 3')),
+        throwsA(contains('reg add for Juego exited with 3')),
       );
       expect(File('$prefix/last-env').existsSync(), isFalse);
     });

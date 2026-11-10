@@ -14,7 +14,7 @@ abstract class InstallState with _$InstallState {
     String? bottle,
     @Default(0) int received,
     int? total,
-    String? step,
+    ProgressStep? step,
     AppError? error,
     @Default(false) bool bottleLeft,
   }) = _InstallState;

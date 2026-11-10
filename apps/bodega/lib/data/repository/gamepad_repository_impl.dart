@@ -27,6 +27,8 @@ class GamepadRepositoryImpl implements GamepadRepository {
       issues: [
         for (final issue in report.issues)
           HostIssue(
+            id: issue.id,
+            args: issue.args,
             title: issue.title,
             detail: issue.detail,
             command: issue.command,

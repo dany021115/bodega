@@ -1,3 +1,4 @@
+import 'package:bodega/l10n/l10n.dart';
 import 'package:bodega/app/bloc/setup/setup_bloc.dart';
 import 'package:bodega/app/presentation/setup/widgets/tarball_row.dart';
 import 'package:bodega/app/shared/widgets/custom_loading.dart';
@@ -31,16 +32,15 @@ class RuntimeCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Falta el motor', style: styles.subsectionTitle),
-            const SizedBox(height: AppSpacing.sm),
             Text(
-              'Elige los dos archivos del motor. Cada uno debe tener su '
-              '.sha256 al lado.',
-              style: styles.bodySecondary,
+              context.l10n.setupRuntimeMissing,
+              style: styles.subsectionTitle,
             ),
+            const SizedBox(height: AppSpacing.sm),
+            Text(context.l10n.setupRuntimeHelp, style: styles.bodySecondary),
             const SizedBox(height: AppSpacing.lg),
             TarballRow(
-              label: 'Motor',
+              label: context.l10n.setupEngine,
               path: state.engine,
               onPick: busy
                   ? null
@@ -53,7 +53,7 @@ class RuntimeCard extends StatelessWidget {
             ),
             const SizedBox(height: AppSpacing.md),
             TarballRow(
-              label: 'Librerías',
+              label: context.l10n.setupHostlibs,
               path: state.hostlibs,
               onPick: busy
                   ? null
@@ -71,7 +71,7 @@ class RuntimeCard extends StatelessWidget {
                   : null,
               child: busy
                   ? const CustomLoading(size: 18)
-                  : const Text('Instalar'),
+                  : Text(context.l10n.commonInstall),
             ),
           ],
         ),

@@ -110,7 +110,7 @@ void main() {
   test(
     'findCI matches each segment without regard to case',
     skip: _caseInsensitiveDisk()
-        ? 'el disco no distingue mayúsculas, como el de un Mac'
+        ? 'the disk is case-insensitive, like a Mac\'s'
         : false,
     () {
       final real = '$tmp/Program Files/Steam/STEAM.EXE';
@@ -248,7 +248,7 @@ void main() {
     makeBottle();
     expect(
       () => setBottleOptions(home, 'b', gpu: 'turbo'),
-      throwsA(contains('gpu desconocida')),
+      throwsA(contains('unknown gpu')),
     );
     setBottleOptions(home, 'b', gpu: 'discrete');
     expect(bottleSettings(home, 'b').gpu, 'discrete');

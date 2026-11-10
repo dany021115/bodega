@@ -1,5 +1,834 @@
 {
   "@@locale": "en",
   "appTitle": "Bodega",
-  "commonCancel": "Cancel"
+  "commonCancel": "Cancel",
+  "commonInstall": "Install",
+  "commonChooseFile": "Choose file…",
+  "setupTitle": "Set up Bodega",
+  "setupCheckAgain": "Check again",
+  "setupCommandCopied": "Command copied",
+  "setupCopyCommand": "Copy command",
+  "setupRuntimeMissing": "The engine is missing",
+  "setupRuntimeHelp": "Choose the engine's two files. Each one needs its .sha256 next to it.",
+  "setupEngine": "Engine",
+  "setupHostlibs": "Libraries",
+  "setupNotChosen": "Not chosen",
+  "backendsWineDescription": "wined3d and vkd3d. Comes with the engine.",
+  "backendsDxmtDescription": "D3D10 and D3D11 on Metal. The one launchers use.",
+  "backendsDxvkDescription": "D3D10 and D3D11 on Vulkan, with MoltenVK.",
+  "backendsD3dmetalDescription": "D3D11 and D3D12 on Metal, by Apple. You import it.",
+  "backendsInstalled": "Installed",
+  "backendsNotInstalled": "Not installed",
+  "backendsUse": "Good for: {use}",
+  "@backendsUse": {
+    "placeholders": {
+      "use": {
+        "type": "String"
+      }
+    }
+  },
+  "backendsChecking": "Checking; each case can take up to 90 s",
+  "backendsDownloading": "Downloading",
+  "backendsInstalling": "Installing",
+  "backendsCheck": "Check",
+  "backendsFails": "Fails",
+  "backendsResult": "{bits} bits, D3D{d3d}",
+  "@backendsResult": {
+    "placeholders": {
+      "bits": {
+        "type": "int"
+      },
+      "d3d": {
+        "type": "String"
+      }
+    }
+  },
+  "backendsDiskImage": "Disk image",
+  "backendsGptkInstalledNoBottle": "D3DMetal {version} installed. Create a bottle to check it.",
+  "@backendsGptkInstalledNoBottle": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "backendsGptkInstalledChecking": "D3DMetal {version} installed. Checking…",
+  "@backendsGptkInstalledChecking": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "backendsGptkChoose": "Choose a version of Apple's Game Porting Toolkit.",
+  "backendsGptkHave": "You have D3DMetal {version}.",
+  "@backendsGptkHave": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "backendsGptkTested": "Tested",
+  "backendsGptkBeta": "Beta, untested",
+  "backendsReinstall": "Reinstall",
+  "backendsGptkWaiting": "Sign in to Apple in the browser and download Game Porting Toolkit {version}. Bodega installs it as soon as it shows up in Downloads.",
+  "@backendsGptkWaiting": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "backendsGptkPickDmg": "I have it: choose dmg…",
+  "backendsGptkLicense": "Bodega doesn't download D3DMetal: your browser does, with your Apple account, and you accept its license.",
+  "backendsCheckTitle": "Check {backend}",
+  "@backendsCheckTitle": {
+    "placeholders": {
+      "backend": {
+        "type": "String"
+      }
+    }
+  },
+  "backendsProbeNoBottle": "You need a bottle. Install something from the Catalog and come back.",
+  "backendsProbeWarning": "Everything open in the bottle you choose will close. Anything you haven't saved will be lost.",
+  "backendsBottle": "Bottle",
+  "shellLibrary": "Library",
+  "shellBottles": "BOTTLES",
+  "shellNewBottle": "New bottle",
+  "shellBackends": "Backends",
+  "shellBottleIncomplete": "incomplete",
+  "shellBottleOpen": "open",
+  "shellBottleClosed": "closed",
+  "shellBottleSemantics": "Bottle {name}, {state}",
+  "@shellBottleSemantics": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "state": {
+        "type": "String"
+      }
+    }
+  },
+  "shellBottleTooltip": "{name} ({state})",
+  "@shellBottleTooltip": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "state": {
+        "type": "String"
+      }
+    }
+  },
+  "shellAppCount": "{count, plural, =1{1 app} other{{count} apps}}",
+  "@shellAppCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "shellStopBottleTitle": "Stop the bottle {bottle}",
+  "@shellStopBottleTitle": {
+    "placeholders": {
+      "bottle": {
+        "type": "String"
+      }
+    }
+  },
+  "shellStopBottleMessage": "Everything open in the bottle {bottle} will close. Anything you haven't saved will be lost.",
+  "@shellStopBottleMessage": {
+    "placeholders": {
+      "bottle": {
+        "type": "String"
+      }
+    }
+  },
+  "shellStop": "Stop",
+  "shellGridView": "Grid view",
+  "shellListView": "List view",
+  "shellVersion": "Version {version}",
+  "@shellVersion": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "updateTitle": "A new version is out",
+  "updateVersions": "Bodega {version} (you have {current})",
+  "@updateVersions": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      },
+      "current": {
+        "type": "String"
+      }
+    }
+  },
+  "updatePackageManager": "Update it with your package manager, using the release's file:",
+  "updateDownloading": "Downloading: {received} MB",
+  "@updateDownloading": {
+    "placeholders": {
+      "received": {
+        "type": "String"
+      }
+    }
+  },
+  "updateDownloadingOf": "Downloading: {received} of {total} MB",
+  "@updateDownloadingOf": {
+    "placeholders": {
+      "received": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
+  "updateInstalling": "Installing. Bodega will close and open the new version.",
+  "updateKeeps": "Your bottles, games and settings stay as they are.",
+  "updateNotNow": "Not now",
+  "updateUpdate": "Update",
+  "updateSeeRelease": "See the release",
+  "errorNetwork": "Network error: {detail}",
+  "@errorNetwork": {
+    "description": "A network request failed; detail is what the network layer said.",
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "errorBottleExists": "The bottle {bottle} already exists. Delete it in Bottles to install from scratch.",
+  "@errorBottleExists": {
+    "description": "Installing a catalog app into a new bottle whose name is taken.",
+    "placeholders": {
+      "bottle": {
+        "type": "String"
+      }
+    }
+  },
+  "errorFileMissing": "{path} does not exist",
+  "@errorFileMissing": {
+    "placeholders": {
+      "path": {
+        "type": "String"
+      }
+    }
+  },
+  "errorBackendNotPinned": "No installer for backend {backend}",
+  "@errorBackendNotPinned": {
+    "placeholders": {
+      "backend": {
+        "type": "String"
+      }
+    }
+  },
+  "errorUpdateUnsupported": "This version can't be installed from the app",
+  "@errorUpdateUnsupported": {
+    "description": "Self-update is not possible on this build or system."
+  },
+  "errorUpdateNoChecksum": "The release has no SHA256 for {file}",
+  "@errorUpdateNoChecksum": {
+    "placeholders": {
+      "file": {
+        "type": "String"
+      }
+    }
+  },
+  "errorUpdateChecksumMismatch": "The download of {file} does not match its SHA256: not installing",
+  "@errorUpdateChecksumMismatch": {
+    "placeholders": {
+      "file": {
+        "type": "String"
+      }
+    }
+  },
+  "errorUpdateNotInBundle": "Bodega is not in a .app: {path}",
+  "@errorUpdateNotInBundle": {
+    "placeholders": {
+      "path": {
+        "type": "String"
+      }
+    }
+  },
+  "errorUpdateNotWritable": "Can't write to {dir}: update by hand from the release page",
+  "@errorUpdateNotWritable": {
+    "placeholders": {
+      "dir": {
+        "type": "String"
+      }
+    }
+  },
+  "errorUpdateNoApp": "The dmg has no Bodega.app",
+  "errorProcessFailed": "{exe} exited with {code}: {stderr}",
+  "@errorProcessFailed": {
+    "description": "A helper program failed; stderr is its error output, maybe empty.",
+    "placeholders": {
+      "exe": {
+        "type": "String"
+      },
+      "code": {
+        "type": "int"
+      },
+      "stderr": {
+        "type": "String"
+      }
+    }
+  },
+  "errorDownloadCut": "The download stopped at {received} of {total} bytes",
+  "@errorDownloadCut": {
+    "placeholders": {
+      "received": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "errorDownloadNotHttps": "The download is not over HTTPS: {url}",
+  "@errorDownloadNotHttps": {
+    "placeholders": {
+      "url": {
+        "type": "String"
+      }
+    }
+  },
+  "issueRosettaTitle": "Rosetta is missing",
+  "issueRosettaDetail": "Windows games run on Rosetta 2.",
+  "issueCpuTitle": "Unsupported processor",
+  "issueCpuDetail": "Bodega needs an x86_64 processor.",
+  "issueVulkanTitle": "Vulkan is missing",
+  "issueVulkanDetail": "Games use Vulkan (DXVK) to draw.",
+  "issueAudioTitle": "Audio is missing",
+  "issueAudioDetail": "Wine needs PulseAudio, or PipeWire with Pulse support.",
+  "issuePadPermissionTitle": "No permission for the gamepad {name}",
+  "@issuePadPermissionTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "issuePadPermissionDetail": "Bodega can't open {node}, so Wine won't see the gamepad. It needs the gamepad udev rules (on Arch, the package is in multilib). Then unplug the gamepad and plug it back in.",
+  "@issuePadPermissionDetail": {
+    "description": "node is the device file, e.g. /dev/input/js0.",
+    "placeholders": {
+      "node": {
+        "type": "String"
+      }
+    }
+  },
+  "issueSdlTitle": "SDL2 is missing",
+  "issueSdlDetail": "Wine uses SDL2 to understand gamepads. Without it, it uses udev, which knows fewer gamepads.",
+  "hintFreetype": "Wine can't find FreeType: reinstall the runtime with its hostlibs",
+  "hintGnutls": "Wine can't load GnuTLS: reinstall the runtime with its hostlibs",
+  "hintWineserver": "a wineserver from another runtime is running: bodega stop <bottle>",
+  "@hintWineserver": {
+    "description": "bodega stop <bottle> is a CLI command; <bottle> stands for the bottle's name."
+  },
+  "hintOpenFailed": "Wine could not open the program: check its path (trap 11)",
+  "hintFixNotApplied": "Steam was already open, so this game's fix did not reach it. Stop the bottle and open the game again from Bodega.",
+  "hintEasyAntiCheat": "{game} uses Easy Anti-Cheat and could not load it with Wine on {platform} (error 206). It is not a fault of your install: it depends on the game's developers and on Epic.",
+  "@hintEasyAntiCheat": {
+    "description": "game is the game's title, or hintThisGame; platform is Mac or Linux.",
+    "placeholders": {
+      "game": {
+        "type": "String"
+      },
+      "platform": {
+        "type": "String"
+      }
+    }
+  },
+  "hintThisGame": "This game",
+  "@hintThisGame": {
+    "description": "Stands for the game in hintEasyAntiCheat when its title is unknown."
+  },
+  "graphicsBits": "{bits} bits",
+  "@graphicsBits": {
+    "description": "An exe's architecture, e.g. 32 bits.",
+    "placeholders": {
+      "bits": {
+        "type": "int"
+      }
+    }
+  },
+  "graphicsDirectxBits": "{directx} · {bits} bits",
+  "@graphicsDirectxBits": {
+    "description": "An exe's DirectX and architecture, e.g. DX9 · 32 bits.",
+    "placeholders": {
+      "directx": {
+        "type": "String"
+      },
+      "bits": {
+        "type": "int"
+      }
+    }
+  },
+  "graphicsWarning": "{title} is {bits}-bit with DirectX {version}: {backend} does not work for it. Use Automatic.",
+  "@graphicsWarning": {
+    "description": "The chosen graphics backend does not suit this exe. Automatic is the backend option of that name.",
+    "placeholders": {
+      "title": {
+        "type": "String"
+      },
+      "bits": {
+        "type": "int"
+      },
+      "version": {
+        "type": "String"
+      },
+      "backend": {
+        "type": "String"
+      }
+    }
+  },
+  "runOptionsPrograms": "Programs",
+  "runOptionsTitle": "Run with options",
+  "runOptionsProgram": "Program",
+  "runOptionsChoose": "Choose…",
+  "runOptionsArguments": "Arguments",
+  "runOptionsEnv": "Environment variables",
+  "runOptionsEnvHint": "NAME=value, one per line. WINEDEBUG goes here.",
+  "runOptionsBadEnvLine": "Line {line} of the variables isn't NAME=value: {text}",
+  "@runOptionsBadEnvLine": {
+    "placeholders": {
+      "line": {
+        "type": "int"
+      },
+      "text": {
+        "type": "String"
+      }
+    }
+  },
+  "runOptionsGraphics": "Graphics",
+  "runOptionsAsBottle": "Same as the bottle",
+  "runOptionsAvx": "Advertise AVX",
+  "runOptionsAvxHint": "Turn it off if a game closes on start.",
+  "runOptionsSave": "Save as launcher",
+  "runOptionsSaveHint": "It stays in the bottle, with these arguments and variables.",
+  "runOptionsLauncherTitle": "Title",
+  "runOptionsRun": "Run",
+  "commonClose": "Close",
+  "bottlesRenameTitle": "Rename bottle",
+  "bottlesName": "Name",
+  "bottlesNameInvalid": "Use letters, numbers, hyphens or underscores, no spaces.",
+  "bottlesRename": "Rename",
+  "bottlesInLibrary": "In library",
+  "bottlesAddToLibrary": "Add to library",
+  "bottlesEmptyTitle": "This bottle is empty",
+  "bottlesEmptyBody": "Install a popular app or add your own .exe.",
+  "bottlesAddApp": "Add app",
+  "commonSave": "Save",
+  "commonOpen": "Open",
+  "bottlesWindowsUser": "Windows user",
+  "bottlesWindowsUserBody": "The name the games in this bottle see. Changing it closes what's open; your saved games stay.",
+  "bottlesUseHostUser": "Use {user}",
+  "@bottlesUseHostUser": {
+    "placeholders": {
+      "user": {
+        "type": "String"
+      }
+    }
+  },
+  "gamepadsTitle": "Gamepads",
+  "gamepadsNone": "No gamepads connected.",
+  "gamepadsCheckAgain": "Check again",
+  "gamepadsReady": "Ready",
+  "gamepadsNoPermission": "No permission",
+  "bottlesRunWithOptions": "Run with options…",
+  "bottlesHide": "Hide",
+  "bottlesDoubleTapToOpen": "Double tap to open",
+  "bottlesAppOptions": "Options for {title}",
+  "@bottlesAppOptions": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "commonDelete": "Delete",
+  "bottlesToolWinecfg": "Wine configuration",
+  "bottlesToolRegedit": "Registry editor",
+  "bottlesToolTaskmgr": "Task manager",
+  "bottlesToolControl": "Control panel",
+  "bottlesToolUninstaller": "Uninstall programs",
+  "bottlesClosesMessage": "Everything open in the bottle {name} will close. Anything you haven't saved will be lost.",
+  "@bottlesClosesMessage": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "bottlesChange": "Change",
+  "bottlesStopTitle": "Stop the bottle {name}",
+  "@bottlesStopTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "bottlesStopMessage": "Everything open in it will close. Anything you haven't saved will be lost.",
+  "bottlesStop": "Stop",
+  "bottlesDeleteTitle": "Delete the bottle {name}",
+  "@bottlesDeleteTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "bottlesDeleteMessage": "What it has open will close and its folder will be deleted, with everything you installed inside. This can't be undone.",
+  "bottlesStopToRename": "Stop it to rename it",
+  "bottlesFactApps": "Apps",
+  "bottlesAutomatic": "Automatic",
+  "bottlesMisfits": "{backend} doesn't suit: {apps}. Use Automatic.",
+  "@bottlesMisfits": {
+    "placeholders": {
+      "backend": {
+        "type": "String"
+      },
+      "apps": {
+        "type": "String"
+      }
+    }
+  },
+  "bottlesRunExe": "Run .exe…",
+  "bottlesDriveC": "Drive C:",
+  "bottlesDelete": "Delete bottle",
+  "bottlesIncomplete": "Incomplete",
+  "bottlesOpen": "Open",
+  "bottlesClosed": "Closed",
+  "bottlesSettings": "Settings",
+  "bottlesWindowsVersion": "Windows version",
+  "bottlesHostUser": "{user} (your computer's)",
+  "@bottlesHostUser": {
+    "placeholders": {
+      "user": {
+        "type": "String"
+      }
+    }
+  },
+  "bottlesChangeEllipsis": "Change…",
+  "bottlesSyncNote": "Changing it closes what's open.",
+  "bottlesSyncOn": "Turn on msync",
+  "bottlesSyncOff": "Turn off msync",
+  "bottlesHighRes": "High-density display",
+  "bottlesHighResNote": "Sharper on high-density displays. Closes what's open.",
+  "bottlesHighResOn": "Turn on high-density display",
+  "bottlesHighResOff": "Turn off high-density display",
+  "bottlesDlssNote": "With D3DMetal or DXMT and a compatible game. Untested.",
+  "bottlesGpuAuto": "Automatic",
+  "bottlesGpuDiscrete": "Discrete",
+  "bottlesGameModeNote": "Uses gamemoderun if installed.",
+  "bottlesWineTools": "Wine tools",
+  "bottlesDetails": "Details",
+  "bottlesExceptions": "Per-program exceptions",
+  "bottlesRemoveException": "Remove the exception for {exe}",
+  "@bottlesRemoveException": {
+    "placeholders": {
+      "exe": {
+        "type": "String"
+      }
+    }
+  },
+  "bottlesLogs": "Logs",
+  "bottlesNoLogs": "No logs yet.",
+  "bottlesLogRunning": "running",
+  "bottlesLogExited": "exited with {code}",
+  "@bottlesLogExited": {
+    "placeholders": {
+      "code": {
+        "type": "int"
+      }
+    }
+  },
+  "bottlesInstalledApps": "Installed apps",
+  "bottlesAppCount": "{count, plural, =1{1 app} other{{count} apps}} in {name} · {inLibrary} in your library",
+  "@bottlesAppCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "name": {
+        "type": "String"
+      },
+      "inLibrary": {
+        "type": "int"
+      }
+    }
+  },
+  "bottlesOpenFailed": "Couldn't open the bottle",
+  "bottlesBackToLibrary": "Back to Library",
+  "bottlesNewNameInvalid": "Use letters, numbers, hyphens or underscores, up to 64 characters.",
+  "bottlesNameTaken": "You already have a bottle with that name.",
+  "bottlesNewTitle": "New bottle",
+  "bottlesNewSubtitle": "The space where your apps and games are installed.",
+  "bottlesCreating": "Creating the bottle…",
+  "bottlesNewNote": "The first time can take a few minutes. Then you add apps from the bottle.",
+  "bottlesCreate": "Create bottle",
+  "libraryColumnApp": "APP",
+  "libraryColumnBottle": "BOTTLE",
+  "libraryColumnStatus": "STATUS",
+  "libraryTitle": "Library",
+  "librarySummary": "{apps, plural, =1{1 app} other{{apps} apps}} in {bottles, plural, =1{1 bottle} other{{bottles} bottles}}",
+  "@librarySummary": {
+    "placeholders": {
+      "apps": {
+        "type": "int"
+      },
+      "bottles": {
+        "type": "int"
+      }
+    }
+  },
+  "librarySearch": "Search",
+  "libraryPickBottle": "Choose bottle",
+  "libraryAllBottles": "All bottles",
+  "libraryEmptyTitle": "Your library is empty",
+  "libraryEmptyMessage": "Create a bottle and add your apps and games.",
+  "libraryNewBottle": "New bottle",
+  "libraryNoResultsTitle": "No results",
+  "libraryNoResultsMessage": "No app matches the search.",
+  "libraryOpenHint": "Double tap to open",
+  "libraryRunning": "Running",
+  "libraryClosed": "Closed",
+  "libraryStop": "Stop",
+  "libraryPlay": "Play",
+  "libraryOptionsOf": "Options for {title}",
+  "@libraryOptionsOf": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "libraryRunWithOptions": "Run with options…",
+  "libraryHud": "Performance HUD",
+  "libraryRemoveFromLibrary": "Remove from library",
+  "libraryAddToLibrary": "Add to library",
+  "libraryRemoveFromBottle": "Remove from bottle",
+  "catalogTitle": "Install",
+  "catalogSearch": "Search for an app or a game",
+  "catalogNoResults": "No catalog app matches.",
+  "catalogSourceRepo": "Repository",
+  "catalogSourceCommit": "Commit",
+  "catalogSourcePath": "Recipe",
+  "catalogSourceLicense": "License",
+  "catalogSourceVerified": "Verified",
+  "catalogNotFound": "Not in the catalog",
+  "catalogBack": "Back to the catalog",
+  "catalogBackShort": "Catalog",
+  "catalogSettings": "Settings",
+  "catalogBackend": "Backend: {backend}",
+  "@catalogBackend": {
+    "placeholders": {
+      "backend": {
+        "type": "String"
+      }
+    }
+  },
+  "catalogSync": "Sync: {sync}",
+  "@catalogSync": {
+    "placeholders": {
+      "sync": {
+        "type": "String"
+      }
+    }
+  },
+  "catalogNotes": "Notes",
+  "catalogKnownIssues": "Known issues",
+  "catalogSource": "Source",
+  "catalogAntiCheat": "Anti-cheat",
+  "catalogAntiCheatLoadFailed": "Couldn't load the anti-cheat list. The catalog still works; it will try again when you open it.",
+  "catalogAntiCheatBlocked": "Doesn't work",
+  "catalogAntiCheatMayFail": "May fail",
+  "catalogAntiCheatNote": "A game missing here guarantees nothing, and \"May fail\" can mean it doesn't start: POLYGON shows up like that and on Mac it doesn't get past Easy Anti-Cheat. List from AreWeAntiCheatYet (MIT), with Highball's verdict for Mac.",
+  "catalogTested": "Tested",
+  "catalogReported": "Reported",
+  "catalogUntested": "Untested",
+  "catalogBlocked": "Blocked",
+  "catalogFlaky": "Flaky",
+  "catalogInstalled": "Installed",
+  "catalogInstallers": "Installers",
+  "catalogInstall": "Install",
+  "catalogBlockedNote": "Can't be installed: it is blocked, for the reason above.",
+  "catalogInstallBackend": "Install {backend}",
+  "@catalogInstallBackend": {
+    "placeholders": {
+      "backend": {
+        "type": "String"
+      }
+    }
+  },
+  "catalogBottle": "Bottle",
+  "catalogNewBottle": "New bottle",
+  "catalogExistingBottleNote": "Installing into an existing bottle closes whatever it has open, and keeps its backend and sync.",
+  "catalogInstallerDownloaded": "Installer: downloaded",
+  "catalogInstallerFile": "Installer: {file}",
+  "@catalogInstallerFile": {
+    "placeholders": {
+      "file": {
+        "type": "String"
+      }
+    }
+  },
+  "catalogDownload": "Download",
+  "catalogPickFile": "Choose file…",
+  "catalogInstallRunning": "Another installation is running: {title}.",
+  "@catalogInstallRunning": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "addAppPrograms": "Programs",
+  "addAppAddedToLibrary": "{title} is now in your Library",
+  "@addAppAddedToLibrary": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "addAppAddedToBottle": "{title} was added to the bottle",
+  "@addAppAddedToBottle": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "addAppTitle": "Add app to {bottle}",
+  "@addAppTitle": {
+    "placeholders": {
+      "bottle": {
+        "type": "String"
+      }
+    }
+  },
+  "addAppSubtitle": "Add your own program or pick an app from the list.",
+  "addAppFromExe": "From an .exe",
+  "addAppOthers": "Others",
+  "addAppCatalogEmpty": "The catalog is empty.",
+  "addAppInstallerRunning": "The installer opens in its own window. Finish it there and this will continue here.",
+  "addAppInstallerFinished": "Installer finished. Choose the installed program: it is usually in Program Files.",
+  "addAppIsInstaller": "It's an installer",
+  "addAppIsInstallerDescription": "Runs the installer inside the bottle, then you choose the installed program.",
+  "addAppIsProgram": "It's already a program",
+  "addAppIsProgramDescription": "Adds an .exe that's already on your computer or on the bottle's C: drive.",
+  "addAppProgram": "Program",
+  "addAppNoProgram": "No program chosen",
+  "addAppPickExe": "Choose .exe",
+  "addAppTitleField": "Title",
+  "addAppInstallerDone": "The installer has finished",
+  "addAppPickInstalled": "Choose the program…",
+  "addAppAdd": "Add",
+  "addAppToLibrary": "Add to library",
+  "addAppToLibraryDescription": "Shows up on the main screen",
+  "addAppUnsupported": "Unsupported",
+  "addAppUnavailable": "Unavailable",
+  "installDownloading": "Downloading · {size}",
+  "@installDownloading": {
+    "placeholders": {
+      "size": {
+        "type": "String"
+      }
+    }
+  },
+  "installDownloadingOf": "Downloading · {percent} % · {received} of {total}",
+  "@installDownloadingOf": {
+    "placeholders": {
+      "percent": {
+        "type": "String"
+      },
+      "received": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
+  "installNoChecksum": "This installer has no fixed checksum: it trusts HTTPS and {host}.",
+  "@installNoChecksum": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
+  "installInstalling": "Installing",
+  "installDone": "Installed",
+  "installFailed": "Couldn't install",
+  "installDeleteBottle": "Delete bottle",
+  "stepNoChecksum": "no pinned checksum: trusting HTTPS and {host}",
+  "@stepNoChecksum": {
+    "description": "Install step. host is the download server.",
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
+  "stepDownloading": "Downloading the installer",
+  "stepSyncKept": "This bottle uses {bottleSync} and {app} asks for {appSync}. It stays as is; change it in the bottle if it fails.",
+  "@stepSyncKept": {
+    "description": "Install step. bottleSync and appSync are sync modes (esync, msync...); app is the app's title.",
+    "placeholders": {
+      "bottleSync": {
+        "type": "String"
+      },
+      "app": {
+        "type": "String"
+      },
+      "appSync": {
+        "type": "String"
+      }
+    }
+  },
+  "stepCreatingBottle": "Creating the bottle {bottle}",
+  "@stepCreatingBottle": {
+    "description": "Install step. bottle is the bottle's name.",
+    "placeholders": {
+      "bottle": {
+        "type": "String"
+      }
+    }
+  },
+  "stepRegistry": "Registry: {value}",
+  "@stepRegistry": {
+    "description": "Install step. value is the name of a Windows registry value.",
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "stepRunningInstaller": "Running the installer",
+  "stepWaitingInstall": "Waiting for the installation to finish",
+  "stepOpening": "Opening {file}",
+  "@stepOpening": {
+    "description": "D3DMetal import step. file is the dmg's file name.",
+    "placeholders": {
+      "file": {
+        "type": "String"
+      }
+    }
+  },
+  "stepAcceptLicense": "Accept Apple's license in the window that opened",
+  "stepImportingD3DMetal": "Importing D3DMetal",
+  "bottlesUserEmpty": "the name is empty",
+  "bottlesUserTooLong": "the name is longer than 20 characters",
+  "bottlesUserBadCharacter": "the name cannot contain \" / \\ [ ] : ; | = , + * ? < >",
+  "bottlesUserDotsOrSpaces": "the name cannot be only dots or spaces"
 }

@@ -55,7 +55,7 @@ List<CatalogEntry> catalogEntries([String query = '']) {
 
 CatalogEntry catalogEntry(String id) =>
     catalogEntries().where((entry) => entry.id == id).firstOrNull ??
-    (throw 'no está en el catálogo: $id (bodega catalog list)');
+    (throw 'not in the catalog: $id (bodega catalog list)');
 
 /// 0, and 1638, 3010 and 1641 truncated to 8 bits (`HB/Recipe.swift:154-156`).
 const _installerOk = {0, 102, 194, 105};
@@ -71,36 +71,42 @@ Future<String> installEntry(
   String? bottle,
   bool intoExisting = false,
   String? setup,
-  void Function(String step)? onStep,
+  void Function(Progress step)? onStep,
   Duration grace = const Duration(seconds: 60),
   Duration limit = const Duration(minutes: 30),
 }) async {
   final name = bottle ?? entry.id;
   final dir = bottleDir(home, name);
   if (entry.status == 'blocked') {
-    throw '${entry.title} está bloqueada: ${entry.statusNote}';
+    throw '${entry.title} is blocked: ${entry.statusNote}';
   }
   final backend = hostPlatform.mapBackend(entry.backend);
   if (!_installed(home, backend)) throw _notInstalled(backend);
   final exists = Directory(dir).existsSync();
   if (exists && !intoExisting) {
-    throw 'ya existe $dir; para empezar de cero: '
-        'bodega stop $name y rm -rf "$dir"';
+    throw '$dir already exists; to start over: '
+        'bodega stop $name and rm -rf "$dir"';
   }
   if (intoExisting && !(exists && _ready('$dir/prefix'))) {
-    throw 'la botella $name no existe o no está lista';
+    throw 'the bottle $name does not exist or is not ready';
   }
   final rt = currentRuntime(home);
   final String file;
   if (setup == null) {
     final uri = Uri.parse(entry.url);
     if (uri.scheme != 'https' && uri.scheme != 'file') {
-      throw 'la URL no es https: ${entry.url}';
+      throw 'the URL is not https: ${entry.url}';
     }
     if (entry.sha256 == null) {
-      onStep?.call('sin checksum fijo: se confía en HTTPS y en ${uri.host}');
+      onStep?.call(
+        _progress(
+          'noChecksum',
+          'no pinned checksum: trusting HTTPS and ${uri.host}',
+          {'host': uri.host},
+        ),
+      );
     }
-    onStep?.call('Descargando el instalador');
+    onStep?.call(_progress('downloading', 'Downloading the installer'));
     file = await _download(
       home,
       entry.url,
@@ -112,7 +118,7 @@ Future<String> installEntry(
     if (entry.sha256 case final want?) {
       final got = await sha256Of(file);
       if (got != want) {
-        throw 'checksum incorrecto en $file: $got, se esperaba $want';
+        throw 'wrong checksum for $file: $got, expected $want';
       }
     }
   }
@@ -123,8 +129,16 @@ Future<String> installEntry(
     final settings = _settings(dir);
     if (settings.sync != entry.sync) {
       onStep?.call(
-        'Esta botella usa ${settings.sync} y ${entry.title} pide '
-        '${entry.sync}. Se deja como está; cámbialo en la botella si falla.',
+        _progress(
+          'syncKept',
+          'This bottle uses ${settings.sync} and ${entry.title} asks for '
+              '${entry.sync}. It stays as is; change it in the bottle if it fails.',
+          {
+            'bottleSync': settings.sync,
+            'app': entry.title,
+            'appSync': entry.sync,
+          },
+        ),
       );
     }
     // The HUD is the user's choice, not the catalog's: it survives a reinstall.
@@ -140,7 +154,11 @@ Future<String> installEntry(
       ),
     );
   } else {
-    onStep?.call('Creando la botella $name');
+    onStep?.call(
+      _progress('creatingBottle', 'Creating the bottle $name', {
+        'bottle': name,
+      }),
+    );
     await createBottle(home, name);
     _saveSettings(
       dir,
@@ -154,7 +172,9 @@ Future<String> installEntry(
   }
 
   for (final value in entry.registry) {
-    onStep?.call('Registro: ${value.name}');
+    onStep?.call(
+      _progress('registry', 'Registry: ${value.name}', {'value': value.name}),
+    );
     final log = await _launchIn(home, name, 'reg', [
       'add',
       value.key,
@@ -167,10 +187,10 @@ Future<String> installEntry(
       '/f',
     ], backend: 'wine');
     final code = await exitOf(log);
-    if (code != 0) throw 'reg add salió con $code; log: $log';
+    if (code != 0) throw 'reg add exited with $code; log: $log';
   }
 
-  onStep?.call('Ejecutando el instalador');
+  onStep?.call(_progress('runningInstaller', 'Running the installer'));
   final log = await _launchIn(
     home,
     name,
@@ -186,15 +206,17 @@ Future<String> installEntry(
   final prefix = '$dir/prefix';
   if (!_installerOk.contains(code)) {
     await _wineserver(rt, prefix, '-k');
-    throw 'el instalador salió con $code; log: $log';
+    throw 'the installer exited with $code; log: $log';
   }
 
-  onStep?.call('Esperando a que termine la instalación');
+  onStep?.call(
+    _progress('waitingInstall', 'Waiting for the installation to finish'),
+  );
   // Looked up each time: the installer may write it with another case.
   File exe() => File(findCI('$prefix/drive_c', entry.exe));
   await _settle(rt, prefix, exe, grace, limit);
   if (!exe().existsSync()) {
-    throw 'el instalador terminó pero no está ${entry.exe}; log: $log';
+    throw 'the installer finished but ${entry.exe} is missing; log: $log';
   }
   _registerApp(dir, entry.id, entry.title, entry.exe, entry.args);
   if (entry.sha256 == null) File(file).deleteSync();
@@ -233,16 +255,14 @@ Future<void> _settle(
 /// Easy Anti-Cheat's failure under Wine on macOS, one hint per game (I11). It
 /// fails outside any log of ours: a launcher starts the game, and EAC writes
 /// to its own folder. [since] leaves out what older runs wrote.
-List<String> antiCheatHints(String home, String bottle, {DateTime? since}) {
+List<Hint> antiCheatHints(String home, String bottle, {DateTime? since}) {
   final drive = '${_existing(home, bottle)}/prefix/drive_c';
   final users = Directory(findCI(drive, 'users'));
   if (!users.existsSync()) return [];
   return [
     for (final user in users.listSync().whereType<Directory>())
-      if (Directory(
-            findCI(user.path, 'AppData/Roaming/EasyAntiCheat'),
-          ) case final eac
-          when eac.existsSync())
+      if (Directory(findCI(user.path, 'AppData/Roaming/EasyAntiCheat'))
+          case final eac when eac.existsSync())
         // Never follow links inside a bottle: z: points to /.
         for (final file
             in eac
@@ -254,7 +274,7 @@ List<String> antiCheatHints(String home, String bottle, {DateTime? since}) {
   ];
 }
 
-String? _eacFailure(File log) {
+Hint? _eacFailure(File log) {
   String? title, finished;
   for (final line in log.readAsLinesSync(encoding: latin1)) {
     if (line.contains('- ProcessTitle: ')) {
@@ -268,8 +288,13 @@ String? _eacFailure(File log) {
   }
   if (finished == null || !finished.contains('finished with: 206,'))
     return null;
-  return '${title ?? 'Este juego'} usa Easy Anti-Cheat y no pudo cargarlo con '
-      'Wine en ${hostPlatform.displayName} (error 206). No es un fallo de tu '
-      'instalación: depende de '
-      'los desarrolladores del juego y de Epic.';
+  final platform = hostPlatform.displayName;
+  return (
+    id: 'easyAntiCheat',
+    args: {'game': title ?? '', 'platform': platform},
+    text:
+        '${title ?? 'This game'} uses Easy Anti-Cheat and could not load it '
+        'with Wine on $platform (error 206). It is not a fault of your '
+        'install: it depends on the game\'s developers and on Epic.',
+  );
 }

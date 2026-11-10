@@ -47,12 +47,12 @@ void main() {
     'a loose program goes into the bottle it was opened from, in the library',
     build: build,
     act: (bloc) => bloc
-      ..add(const AddAppEvent.load('prueba'))
+      ..add(const AddAppEvent.load('trial'))
       ..add(const AddAppEvent.exeChosen(exe))
       ..add(const AddAppEvent.submit()),
     verify: (bloc) {
       expect(bloc.state.step, AddAppStep.done);
-      verify(() => repository.addApp('prueba', 'Blur', exe)).called(1);
+      verify(() => repository.addApp('trial', 'Blur', exe)).called(1);
       verifyNever(() => bottles.setInLibrary(any(), any(), any()));
       verifyNever(() => repository.runInstaller(any(), any()));
     },
@@ -62,13 +62,13 @@ void main() {
     'an app added out of the library is hidden there, and stays in the bottle',
     build: build,
     act: (bloc) => bloc
-      ..add(const AddAppEvent.load('prueba'))
+      ..add(const AddAppEvent.load('trial'))
       ..add(const AddAppEvent.addToLibraryToggled(false))
       ..add(const AddAppEvent.exeChosen(exe))
       ..add(const AddAppEvent.submit()),
     verify: (bloc) {
       expect(bloc.state.step, AddAppStep.done);
-      verify(() => bottles.setInLibrary('prueba', 'blur/blur.exe', false))
+      verify(() => bottles.setInLibrary('trial', 'blur/blur.exe', false))
           .called(1);
     },
   );
@@ -81,7 +81,7 @@ void main() {
       return build();
     },
     act: (bloc) => bloc
-      ..add(const AddAppEvent.load('prueba'))
+      ..add(const AddAppEvent.load('trial'))
       ..add(const AddAppEvent.addToLibraryToggled(false))
       ..add(const AddAppEvent.exeChosen(exe))
       ..add(const AddAppEvent.submit()),
@@ -163,7 +163,7 @@ void main() {
     bloc.add(const AddAppEvent.installedChosen('/b/x.exe'));
     await bloc.stream.firstWhere((s) => s.step == AddAppStep.done);
 
-    installer.complete(left(const AppError.engine('tarde')));
+    installer.complete(left(const AppError.engine('late')));
     await Future<void>.delayed(Duration.zero);
 
     expect(bloc.state.step, AddAppStep.done);
@@ -174,7 +174,8 @@ void main() {
   blocTest<AddAppBloc, AddAppState>(
     'an invalid path registers nothing',
     build: () {
-      when(() => repository.pathProblem(exe)).thenReturn('nombre no válido');
+      when(() => repository.pathProblem(exe))
+          .thenReturn(const AppError.engine('bad name'));
       return build();
     },
     act: (bloc) => bloc
@@ -183,7 +184,7 @@ void main() {
       ..add(const AddAppEvent.submit()),
     verify: (bloc) {
       expect(bloc.state.step, AddAppStep.form);
-      expect(bloc.state.error, const AppError.engine('nombre no válido'));
+      expect(bloc.state.error, const AppError.engine('bad name'));
       verifyNever(() => repository.addApp(any(), any(), any()));
     },
   );
@@ -194,7 +195,7 @@ void main() {
       var attempt = 0;
       when(() => repository.addApp('blur', 'Blur', exe)).thenAnswer(
         (_) async =>
-            attempt++ == 0 ? left(const AppError.engine('falló')) : right('k'),
+            attempt++ == 0 ? left(const AppError.engine('failed')) : right('k'),
       );
       return build();
     },

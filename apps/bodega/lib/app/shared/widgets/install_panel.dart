@@ -1,10 +1,13 @@
 import 'package:bodega/app/bloc/install/install_bloc.dart';
 import 'package:bodega/app/bloc/library/library_bloc.dart';
 import 'package:bodega/app/router.dart';
+import 'package:bodega/app/shared/engine_text.dart';
+import 'package:bodega/app/shared/error_text.dart';
 import 'package:bodega/app/shared/widgets/app_icon.dart';
 import 'package:bodega/device/router/manager.dart';
 import 'package:bodega/device/theme/spacing.dart';
 import 'package:bodega/device/theme/typography.dart';
+import 'package:bodega/l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -15,12 +18,15 @@ class InstallPanel extends StatelessWidget {
 
   String _size(int bytes) => '${(bytes / (1 << 20)).toStringAsFixed(0)} MB';
 
-  String _progress(InstallState state) {
+  String _progress(AppLocalizations l10n, InstallState state) {
     final total = state.total;
-    if (total == null) return 'Descargando · ${_size(state.received)}';
+    if (total == null) return l10n.installDownloading(_size(state.received));
     final percent = (state.fraction! * 100).toStringAsFixed(0);
-    return 'Descargando · $percent % · ${_size(state.received)} de '
-        '${_size(total)}';
+    return l10n.installDownloadingOf(
+      percent,
+      _size(state.received),
+      _size(total),
+    );
   }
 
   @override
@@ -33,29 +39,32 @@ class InstallPanel extends StatelessWidget {
         final styles = AppTextStyle(context);
         final colors = Theme.of(context).colorScheme;
         final bloc = context.read<InstallBloc>();
+        final l10n = context.l10n;
 
         final (String headline, Widget? detail) = switch (state.phase) {
           InstallPhase.downloading => (
-            _progress(state),
+            _progress(l10n, state),
             app.hasChecksum
                 ? null
-                : Text(
-                    'Este instalador no tiene checksum fijo: se confía en '
-                    'HTTPS y en ${app.host}.',
-                    style: styles.caption,
-                  ),
+                : Text(l10n.installNoChecksum(app.host), style: styles.caption),
           ),
-          InstallPhase.installing => (state.step ?? 'Instalando', null),
+          InstallPhase.installing => (
+            switch (state.step) {
+              final step? => stepText(l10n, step),
+              null => l10n.installInstalling,
+            },
+            null,
+          ),
           InstallPhase.done => (
-            'Instalada',
+            l10n.installDone,
             app.notes.isEmpty
                 ? null
                 : Text(app.notes.join('\n\n'), style: styles.bodySecondary),
           ),
           InstallPhase.failed => (
-            'No se pudo instalar',
+            l10n.installFailed,
             SelectableText(
-              state.error?.message ?? '',
+              state.error?.text(l10n) ?? '',
               style: styles.body?.copyWith(color: colors.error),
             ),
           ),
@@ -119,7 +128,7 @@ class InstallPanel extends StatelessWidget {
                             OutlinedButton(
                               onPressed: () =>
                                   bloc.add(const InstallEvent.cancel()),
-                              child: const Text('Cancelar'),
+                              child: Text(l10n.commonCancel),
                             ),
                           if (state.phase == InstallPhase.done)
                             FilledButton(
@@ -136,19 +145,19 @@ class InstallPanel extends StatelessWidget {
                                   context: context,
                                 );
                               },
-                              child: const Text('Abrir'),
+                              child: Text(l10n.commonOpen),
                             ),
                           if (state.bottleLeft)
                             OutlinedButton(
                               onPressed: () =>
                                   bloc.add(const InstallEvent.removeBottle()),
-                              child: const Text('Borrar botella'),
+                              child: Text(l10n.installDeleteBottle),
                             ),
                           if (!state.isRunning)
                             TextButton(
                               onPressed: () =>
                                   bloc.add(const InstallEvent.dismiss()),
-                              child: const Text('Cerrar'),
+                              child: Text(l10n.commonClose),
                             ),
                         ],
                       ),

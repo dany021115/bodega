@@ -158,17 +158,21 @@ void main() {
       Directory('${users('b')}/Dany').createSync();
       await expectLater(
         setBottleUser(home, 'b', 'Dany'),
-        throwsA(contains('ya existe')),
+        throwsA(contains('already exists')),
       );
       for (final bad in ['a/b', 'x' * 21, '...', 'a*b', 'a\tb']) {
         await expectLater(
           setBottleUser(home, 'b', bad),
-          throwsA(contains('nombre')),
+          throwsA(contains('name')),
           reason: bad,
         );
       }
       expect(bottleSettings(home, 'b').user, '');
       expect(badUser('Daniel Medina'), isNull);
+      expect(badUser(''), UserProblem.empty);
+      expect(badUser('a' * 21), UserProblem.tooLong);
+      expect(badUser('a/b'), UserProblem.badCharacter);
+      expect(badUser('..'), UserProblem.dotsOrSpaces);
     });
   });
 
@@ -278,7 +282,7 @@ void main() {
         bottle: 'b',
         intoExisting: true,
         setup: setup('c').path,
-        onStep: steps.add,
+        onStep: (s) => steps.add(s.text),
       );
 
       expect(bottleApps(home, 'b').map((app) => app.id), ['a', 'c']);
@@ -286,15 +290,15 @@ void main() {
       expect(settings.sync, 'none');
       expect(settings.backend, 'dxvk');
       expect(settings.programs.keys, containsAll(['a.exe', 'c.exe']));
-      expect(steps.first, contains('pide msync'));
-      expect(steps, isNot(contains(startsWith('Creando'))));
+      expect(steps.first, contains('asks for msync'));
+      expect(steps, isNot(contains(startsWith('Creating'))));
     });
 
     test('without intoExisting it still refuses one that exists', () async {
       await createBottle(home, 'b');
       await expectLater(
         installEntry(home, entry('a'), bottle: 'b', setup: setup('a').path),
-        throwsA(contains('ya existe')),
+        throwsA(contains('already exists')),
       );
     });
 
@@ -309,7 +313,7 @@ void main() {
             intoExisting: true,
             setup: setup('a').path,
           ),
-          throwsA(contains('no existe o no está lista')),
+          throwsA(contains('does not exist or is not ready')),
         );
         Directory('$home/bottles/rota').createSync();
         await expectLater(
@@ -320,7 +324,7 @@ void main() {
             intoExisting: true,
             setup: setup('a').path,
           ),
-          throwsA(contains('no existe o no está lista')),
+          throwsA(contains('does not exist or is not ready')),
         );
       },
     );

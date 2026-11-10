@@ -1,13 +1,16 @@
+import 'package:bodega/app/shared/engine_text.dart';
 import 'package:bodega/device/theme/radius.dart';
 import 'package:bodega/device/theme/spacing.dart';
 import 'package:bodega/device/theme/typography.dart';
+import 'package:bodega/domain/entities/hint.dart';
+import 'package:bodega/l10n/l10n.dart';
 import 'package:flutter/material.dart';
 
 /// The bottle's name on an application, with the anti-cheat hints of the bottle
 /// when there are any.
 class BottleTag extends StatelessWidget {
   final String bottle;
-  final List<String> hints;
+  final List<Hint> hints;
 
   const BottleTag({super.key, required this.bottle, required this.hints});
 
@@ -42,7 +45,8 @@ class BottleTag extends StatelessWidget {
         if (hints.isNotEmpty) ...[
           const SizedBox(width: AppSpacing.sm),
           Tooltip(
-            message: hints.join('\n'),
+            message: [for (final hint in hints) hintText(context.l10n, hint)]
+                .join('\n'),
             child: Icon(
               Icons.warning_amber_rounded,
               size: 18,

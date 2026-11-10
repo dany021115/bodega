@@ -7,7 +7,7 @@ abstract class RunOptionsState with _$RunOptionsState {
     @Default('') String program,
     @Default('') String args,
 
-    /// `NOMBRE=valor`, one per line.
+    /// `NAME=value`, one per line.
     @Default('') String env,
 
     /// Null keeps what the bottle would choose.
@@ -20,5 +20,8 @@ abstract class RunOptionsState with _$RunOptionsState {
     /// The log of the launch, once it started.
     String? log,
     AppError? error,
+
+    /// 1-based line of [env] that isn't `NAME=value`, after a submit.
+    int? badEnvLine,
   }) = _RunOptionsState;
 }

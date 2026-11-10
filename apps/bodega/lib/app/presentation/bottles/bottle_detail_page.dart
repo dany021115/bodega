@@ -9,7 +9,9 @@ import 'package:bodega/app/presentation/bottles/widgets/bottle_empty_apps.dart';
 import 'package:bodega/app/presentation/bottles/widgets/library_toggle.dart';
 import 'package:bodega/app/presentation/bottles/widgets/run_options_dialog.dart';
 import 'package:bodega/app/router.dart';
+import 'package:bodega/app/shared/error_text.dart';
 import 'package:bodega/app/shared/graphics_of.dart';
+import 'package:bodega/app/shared/graphics_text.dart';
 import 'package:bodega/app/shared/widgets/app_card.dart';
 import 'package:bodega/app/shared/widgets/app_menu.dart';
 import 'package:bodega/app/shared/widgets/app_row.dart';
@@ -25,7 +27,9 @@ import 'package:bodega/device/theme/spacing.dart';
 import 'package:bodega/device/theme/typography.dart';
 import 'package:bodega/di.dart';
 import 'package:bodega/domain/entities/bottle_detail.dart';
+import 'package:bodega/domain/entities/hint.dart';
 import 'package:bodega/domain/entities/library_app.dart';
+import 'package:bodega/l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -62,8 +66,6 @@ class BottleDetailView extends StatelessWidget {
   final String name;
 
   const BottleDetailView({super.key, required this.name});
-
-  static String _count(int apps) => apps == 1 ? '1 app' : '$apps apps';
 
   void _setInLibrary(BuildContext context, LibraryApp app) {
     context.read<BottleDetailBloc>().add(
@@ -129,7 +131,14 @@ class BottleDetailView extends StatelessWidget {
       builder: (itemContext) {
         void menu(BuildContext button) => _menu(button, detail, app);
         void stop() => confirmStopBottle(itemContext, detail.name);
-        final graphics = graphicsOf(itemContext, detail.name, app.exe)?.label;
+        final graphics = switch (graphicsOf(
+          itemContext,
+          detail.name,
+          app.exe,
+        )) {
+          final g? => graphicsLabel(itemContext.l10n, g),
+          null => null,
+        };
         return isGrid
             ? AppCard(
                 key: ValueKey(app.key),
@@ -164,6 +173,7 @@ class BottleDetailView extends StatelessWidget {
     required bool isBusy,
   }) {
     final styles = AppTextStyle(context);
+    final l10n = context.l10n;
     final isGrid = context.select((ViewModeBloc bloc) => bloc.state.isGrid);
     final running = context.select(
       (LibraryBloc bloc) => bloc.state.open.contains(detail.name),
@@ -211,11 +221,14 @@ class BottleDetailView extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Apps instaladas', style: styles.screenTitle),
+                  Text(l10n.bottlesInstalledApps, style: styles.screenTitle),
                   const SizedBox(height: AppSpacing.xs),
                   Text(
-                    '${_count(detail.apps.length)} en ${detail.name} · '
-                    '$inLibrary en tu biblioteca',
+                    l10n.bottlesAppCount(
+                      detail.apps.length,
+                      detail.name,
+                      inLibrary,
+                    ),
                     style: styles.bodySecondary,
                   ),
                 ],
@@ -229,7 +242,7 @@ class BottleDetailView extends StatelessWidget {
             ),
             const SizedBox(width: AppSpacing.md),
             GradientButton(
-              label: 'Agregar app',
+              label: l10n.bottlesAddApp,
               icon: Icons.add_rounded,
               onPressed: canAdd ? add : null,
             ),
@@ -286,7 +299,7 @@ class BottleDetailView extends StatelessWidget {
       (LibraryBloc bloc) => bloc.state.open.contains(name),
     );
     final hints = context.select(
-      (LibraryBloc bloc) => bloc.state.hints[name] ?? const <String>[],
+      (LibraryBloc bloc) => bloc.state.hints[name] ?? const <Hint>[],
     );
 
     // Whatever changes the apps (an install, the add-app dialog, a program that
@@ -315,7 +328,7 @@ class BottleDetailView extends StatelessWidget {
                 context: context,
               );
             } else if (state.error case final error?) {
-              AppToast.error(context, error.message);
+              AppToast.error(context, error.text(context.l10n));
             }
           },
           builder: (context, state) {
@@ -324,9 +337,9 @@ class BottleDetailView extends StatelessWidget {
             if (detail == null) {
               return EmptyState(
                 icon: Icons.wine_bar_rounded,
-                title: 'No se pudo abrir la botella',
-                message: state.error?.message ?? name,
-                actionLabel: 'Volver a Biblioteca',
+                title: context.l10n.bottlesOpenFailed,
+                message: state.error?.text(context.l10n) ?? name,
+                actionLabel: context.l10n.bottlesBackToLibrary,
                 onAction: () =>
                     RouterManager.go(AppRoute.library, context: context),
               );

@@ -1,9 +1,11 @@
 import 'package:bodega/app/bloc/catalog/catalog_bloc.dart';
 import 'package:bodega/app/presentation/catalog/widgets/anti_cheat_section.dart';
 import 'package:bodega/app/presentation/catalog/widgets/catalog_card.dart';
+import 'package:bodega/app/shared/error_text.dart';
 import 'package:bodega/app/shared/widgets/custom_loading.dart';
 import 'package:bodega/device/theme/spacing.dart';
 import 'package:bodega/device/theme/typography.dart';
+import 'package:bodega/l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:responsive_framework/responsive_framework.dart';
@@ -47,13 +49,19 @@ class _CatalogPageState extends State<CatalogPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Instalar', style: styles.screenTitle),
+                      Text(
+                        context.l10n.catalogTitle,
+                        style: styles.screenTitle,
+                      ),
                       const SizedBox(height: AppSpacing.lg),
                       TextFormField(
                         initialValue: state.query,
-                        decoration: const InputDecoration(
-                          hintText: 'Buscar una aplicación o un juego',
-                          prefixIcon: Icon(Icons.search_rounded, size: 20),
+                        decoration: InputDecoration(
+                          hintText: context.l10n.catalogSearch,
+                          prefixIcon: const Icon(
+                            Icons.search_rounded,
+                            size: 20,
+                          ),
                         ),
                         onChanged: (query) => context.read<CatalogBloc>().add(
                           CatalogEvent.search(query),
@@ -73,7 +81,7 @@ class _CatalogPageState extends State<CatalogPage> {
                     ),
                     sliver: SliverToBoxAdapter(
                       child: SelectableText(
-                        error.message,
+                        error.text(context.l10n),
                         style: styles.body?.copyWith(
                           color: Theme.of(context).colorScheme.error,
                         ),
@@ -122,7 +130,7 @@ class _CatalogPageState extends State<CatalogPage> {
                     ),
                     sliver: SliverToBoxAdapter(
                       child: Text(
-                        'Ninguna aplicación del catálogo coincide.',
+                        context.l10n.catalogNoResults,
                         style: styles.bodySecondary,
                       ),
                     ),

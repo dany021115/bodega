@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:bloc_test/bloc_test.dart';
 import 'package:bodega/app/bloc/library/library_bloc.dart';
+import 'package:bodega/domain/entities/hint.dart';
 import 'package:bodega/domain/entities/library_app.dart';
 import 'package:bodega/domain/repository/bottle_repository.dart';
 import 'package:bodega/domain/repository/library_repository.dart';
@@ -19,6 +20,14 @@ const _blur = LibraryApp(
   id: 'custom',
   title: 'Blur',
 );
+
+const _eac = Hint(
+  id: 'easyAntiCheat',
+  args: {'game': 'Steam', 'platform': 'mac'},
+  text: 'Easy Anti-Cheat failed',
+);
+
+const _freetype = Hint(id: 'freetype', text: 'FreeType is missing');
 
 void main() {
   late _MockLibrary repository;
@@ -153,7 +162,7 @@ void main() {
     when(() => repository.open('steam', key: 'b'))
         .thenAnswer((_) async => right('/l/a.log'));
     when(() => repository.antiCheatHints('steam', any()))
-        .thenReturn(const ['EAC falló']);
+        .thenReturn(const [_eac]);
     final bloc = LibraryBloc(repository, bottles)
       ..add(const LibraryEvent.open('steam'));
     await settle();
@@ -162,7 +171,7 @@ void main() {
     bloc.add(const LibraryEvent.open('steam', 'b'));
     await settle();
 
-    expect(bloc.state.hints['steam'], ['EAC falló']);
+    expect(bloc.state.hints['steam'], [_eac]);
     await bloc.close();
   });
 
@@ -221,7 +230,7 @@ void main() {
     'a hint comes out once, and stays on the card',
     build: () {
       when(() => repository.antiCheatHints('steam', any()))
-          .thenReturn(const ['EAC falló']);
+          .thenReturn(const [_eac]);
       return LibraryBloc(repository, bottles);
     },
     act: (bloc) async {
@@ -233,14 +242,14 @@ void main() {
     },
     verify: (bloc) {
       expect(bloc.state.toastId, 1);
-      expect(bloc.state.toast, 'EAC falló');
-      expect(bloc.state.hints['steam'], ['EAC falló']);
+      expect(bloc.state.toast, _eac);
+      expect(bloc.state.hints['steam'], [_eac]);
     },
   );
 
   test('closing also reads the hints of the log', () async {
     when(() => repository.hintsIn('/l/a.log'))
-        .thenAnswer((_) async => const ['falta FreeType']);
+        .thenAnswer((_) async => const [_freetype]);
     firstExit.complete();
     bottleEmpty.complete();
 
@@ -249,7 +258,7 @@ void main() {
     await bloc.stream.firstWhere((state) => state.toastId == 1);
 
     expect(bloc.state.open, isEmpty);
-    expect(bloc.state.hints['steam'], ['falta FreeType']);
+    expect(bloc.state.hints['steam'], [_freetype]);
     await bloc.close();
   });
 }

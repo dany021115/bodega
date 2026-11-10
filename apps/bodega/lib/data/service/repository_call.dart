@@ -18,9 +18,7 @@ Future<Either<AppError, T>> repositoryCall<T>(
   } on FormatException catch (e) {
     return left(AppError.engine(e.message));
   } on DioException catch (e) {
-    return left(
-      AppError.network('Error de red: ${e.message ?? e.error ?? e.type}'),
-    );
+    return left(AppError.network('${e.message ?? e.error ?? e.type}'));
   } on Object catch (e) {
     return left(AppError.unknown('$e'));
   }

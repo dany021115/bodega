@@ -1,3 +1,5 @@
+import 'package:bodega/app/shared/engine_text.dart';
+import 'package:bodega/l10n/l10n.dart';
 import 'package:bodega/device/helpers/app_toast.dart';
 import 'package:bodega/device/theme/radius.dart';
 import 'package:bodega/device/theme/spacing.dart';
@@ -23,9 +25,12 @@ class RequirementCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(issue.title, style: styles.subsectionTitle),
+            Text(
+              issueTitle(context.l10n, issue),
+              style: styles.subsectionTitle,
+            ),
             const SizedBox(height: AppSpacing.sm),
-            Text(issue.detail, style: styles.bodySecondary),
+            Text(issueDetail(context.l10n, issue), style: styles.bodySecondary),
             if (command != null) ...[
               const SizedBox(height: AppSpacing.md),
               Container(
@@ -42,11 +47,11 @@ class RequirementCard extends StatelessWidget {
                 onPressed: () async {
                   await Clipboard.setData(ClipboardData(text: command));
                   if (context.mounted) {
-                    AppToast.success(context, 'Comando copiado');
+                    AppToast.success(context, context.l10n.setupCommandCopied);
                   }
                 },
                 icon: const Icon(Icons.copy_rounded, size: 18),
-                label: const Text('Copiar comando'),
+                label: Text(context.l10n.setupCopyCommand),
               ),
             ],
           ],

@@ -5,6 +5,7 @@ import 'package:bodega/device/theme/color.dart';
 import 'package:bodega/device/theme/spacing.dart';
 import 'package:bodega/device/theme/typography.dart';
 import 'package:bodega/domain/entities/catalog_app.dart';
+import 'package:bodega/l10n/l10n.dart';
 import 'package:flutter/material.dart';
 
 /// A catalog app in the add dialog. Blocked ones are dimmed and can't install.
@@ -18,11 +19,12 @@ class PopularAppCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final styles = AppTextStyle(context);
     final blocked = app.status == CatalogStatus.blocked;
+    final l10n = context.l10n;
     final (label, color) = switch (app.status) {
-      CatalogStatus.tested => ('Probado', AppColor.statusTested),
-      CatalogStatus.reported => ('Reportado', AppColor.statusReported),
-      CatalogStatus.untested => ('Sin probar', AppColor.statusUntested),
-      CatalogStatus.blocked => ('Sin soporte', AppColor.statusBlocked),
+      CatalogStatus.tested => (l10n.catalogTested, AppColor.statusTested),
+      CatalogStatus.reported => (l10n.catalogReported, AppColor.statusReported),
+      CatalogStatus.untested => (l10n.catalogUntested, AppColor.statusUntested),
+      CatalogStatus.blocked => (l10n.addAppUnsupported, AppColor.statusBlocked),
     };
 
     return Opacity(
@@ -61,7 +63,7 @@ class PopularAppCard extends StatelessWidget {
               ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 132),
                 child: GradientButton(
-                  label: blocked ? 'No disponible' : 'Instalar',
+                  label: blocked ? l10n.addAppUnavailable : l10n.catalogInstall,
                   onPressed: blocked ? null : onInstall,
                 ),
               ),

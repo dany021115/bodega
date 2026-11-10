@@ -93,14 +93,14 @@ void main() {
     'without the anti-cheat list the catalog keeps working',
     build: () {
       when(() => antiCheat.games())
-          .thenAnswer((_) async => left(const AppError.network('sin red')));
+          .thenAnswer((_) async => left(const AppError.network('offline')));
       return CatalogBloc(catalog, antiCheat);
     },
     act: (bloc) => bloc
       ..add(const CatalogEvent.load())
       ..add(const CatalogEvent.search('steam')),
     verify: (bloc) {
-      expect(bloc.state.antiCheatError, const AppError.network('sin red'));
+      expect(bloc.state.antiCheatError, const AppError.network('offline'));
       expect(bloc.state.error, isNull);
       expect(bloc.state.visibleApps.single.id, 'steam');
     },

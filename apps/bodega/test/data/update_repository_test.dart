@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:bodega/data/repository/update_repository_impl.dart';
 import 'package:bodega/data/service/downloader.dart';
 import 'package:bodega/data/service/preference.dart';
+import 'package:bodega/domain/entities/app_error.dart';
 import 'package:bodega/domain/entities/app_update.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -18,7 +19,7 @@ void main() {
   late DateTime clock;
   var tag = 'v1.4.0';
   var requests = 0;
-  var dmg = utf8.encode('dmg nuevo');
+  var dmg = utf8.encode('new dmg');
   var sums = '';
 
   String sha(List<int> bytes) => Process.runSync('/usr/bin/shasum', [
@@ -31,7 +32,7 @@ void main() {
     tmp = Directory.systemTemp.createTempSync('bodega-update');
     tag = 'v1.4.0';
     requests = 0;
-    dmg = utf8.encode('dmg nuevo');
+    dmg = utf8.encode('new dmg');
     server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     base = 'http://127.0.0.1:${server.port}';
     sums = '${sha(dmg)}  Bodega-1.4.0-macos-arm64.dmg\n';
@@ -97,7 +98,7 @@ void main() {
   });
 
   Future<AppUpdate?> check() async =>
-      (await repository.check()).getOrElse((error) => fail(error.message));
+      (await repository.check()).getOrElse((error) => fail('$error'));
 
   test('a newer release is an update for this Mac (A1, A2)', () async {
     final update = await check();
@@ -149,13 +150,16 @@ void main() {
     final file = (await repository.download(
       update,
       (_, _) {},
-    )).getOrElse((error) => fail(error.message));
-    expect(File(file!).readAsStringSync(), 'dmg nuevo');
+    )).getOrElse((error) => fail('$error'));
+    expect(File(file!).readAsStringSync(), 'new dmg');
 
     sums = '${'0' * 64}  Bodega-1.4.0-macos-arm64.dmg\n';
     File(file).deleteSync();
     final bad = await repository.download(update, (_, _) {});
-    expect(bad.getLeft().toNullable()?.message, contains('no coincide'));
+    expect(
+      bad.getLeft().toNullable(),
+      const AppError.updateChecksumMismatch('Bodega-1.4.0-macos-arm64.dmg'),
+    );
     expect(File(file).existsSync(), isFalse);
   });
 
@@ -163,18 +167,18 @@ void main() {
       'data (A4, A5)', () async {
     final apps = Directory('${tmp.path}/Apps')..createSync();
     final app = '${apps.path}/Bodega.app';
-    _write('$app/Contents/Info.plist', utf8.encode('vieja'));
+    _write('$app/Contents/Info.plist', utf8.encode('old'));
     _write(
-      '${tmp.path}/nueva/Bodega.app/Contents/Info.plist',
-      utf8.encode('nueva'),
+      '${tmp.path}/new/Bodega.app/Contents/Info.plist',
+      utf8.encode('new'),
     );
-    final data = _write('${tmp.path}/datos/botella.json', utf8.encode('{}'));
+    final data = _write('${tmp.path}/data/bottle.json', utf8.encode('{}'));
     final image = '${tmp.path}/Bodega.dmg';
     await Process.run('/usr/bin/hdiutil', [
       'create',
       '-quiet',
       '-srcfolder',
-      '${tmp.path}/nueva',
+      '${tmp.path}/new',
       '-ov',
       image,
     ]);
@@ -209,7 +213,7 @@ void main() {
       environment: {'PATH': '${bin.path}:/usr/bin:/bin'},
     );
     expect(swap.exitCode, 0, reason: '${swap.stderr}');
-    expect(File('$app/Contents/Info.plist').readAsStringSync(), 'nueva');
+    expect(File('$app/Contents/Info.plist').readAsStringSync(), 'new');
     expect(Directory('$app.old').existsSync(), isFalse);
     expect(Directory('${apps.path}/.Bodega-update.app').existsSync(), isFalse);
     expect(File('${tmp.path}/opened').readAsStringSync().trim(), app);
@@ -217,11 +221,8 @@ void main() {
   }, skip: File('/usr/bin/hdiutil').existsSync() ? false : 'needs hdiutil');
 
   test('an AppImage takes the place of the running one (A4)', () async {
-    final appImage = _write(
-      '${tmp.path}/Bodega.AppImage',
-      utf8.encode('vieja'),
-    );
-    final download = _write('${tmp.path}/nueva.AppImage', utf8.encode('nueva'));
+    final appImage = _write('${tmp.path}/Bodega.AppImage', utf8.encode('old'));
+    final download = _write('${tmp.path}/new.AppImage', utf8.encode('new'));
     repository
       ..os = 'linux'
       ..environment = {'APPIMAGE': appImage};
@@ -229,7 +230,7 @@ void main() {
     final (command, args) = await repository.prepare(download);
     expect(command, appImage);
     expect(args, isEmpty);
-    expect(File(appImage).readAsStringSync(), 'nueva');
+    expect(File(appImage).readAsStringSync(), 'new');
     expect(File(appImage).statSync().mode & 0x40, isNonZero);
     expect(File(download).existsSync(), isFalse);
   });

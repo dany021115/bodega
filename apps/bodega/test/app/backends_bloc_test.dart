@@ -1,6 +1,7 @@
 import 'package:bloc_test/bloc_test.dart';
 import 'package:bodega/app/bloc/backends/backends_bloc.dart';
 import 'package:bodega/domain/entities/app_error.dart';
+import 'package:bodega/domain/entities/progress_step.dart';
 import 'package:bodega/domain/entities/backend_info.dart';
 import 'package:bodega/domain/repository/backend_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -112,7 +113,12 @@ void main() {
           cancelled: any(named: 'cancelled'),
         ),
       ).thenAnswer((call) async {
-        (call.namedArguments[#onStep] as void Function(String))('Importando');
+        (call.namedArguments[#onStep] as void Function(ProgressStep))(
+          const ProgressStep(
+            id: 'importingD3DMetal',
+            text: 'Importing D3DMetal',
+          ),
+        );
         return right('3.0');
       });
       when(() => repository.check('prueba', 'd3dmetal'))

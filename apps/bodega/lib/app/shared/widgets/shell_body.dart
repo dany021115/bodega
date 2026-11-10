@@ -3,9 +3,12 @@ import 'package:bodega/app/bloc/catalog/catalog_bloc.dart';
 import 'package:bodega/app/bloc/install/install_bloc.dart';
 import 'package:bodega/app/bloc/library/library_bloc.dart';
 import 'package:bodega/app/bloc/update/update_bloc.dart';
+import 'package:bodega/app/shared/engine_text.dart';
+import 'package:bodega/app/shared/error_text.dart';
 import 'package:bodega/app/shared/widgets/install_panel.dart';
 import 'package:bodega/app/shared/widgets/update_dialog.dart';
 import 'package:bodega/device/helpers/app_toast.dart';
+import 'package:bodega/l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -32,14 +35,16 @@ class ShellBody extends StatelessWidget {
         BlocListener<LibraryBloc, LibraryState>(
           listenWhen: (previous, current) =>
               previous.toastId != current.toastId,
-          listener: (context, state) =>
-              AppToast.warning(context, state.toast ?? ''),
+          listener: (context, state) => AppToast.warning(
+            context,
+            state.toast == null ? '' : hintText(context.l10n, state.toast!),
+          ),
         ),
         BlocListener<LibraryBloc, LibraryState>(
           listenWhen: (previous, current) =>
               current.error != null && previous.error != current.error,
           listener: (context, state) =>
-              AppToast.error(context, state.error!.message),
+              AppToast.error(context, state.error!.text(context.l10n)),
         ),
         BlocListener<InstallBloc, InstallState>(
           listenWhen: (previous, current) =>

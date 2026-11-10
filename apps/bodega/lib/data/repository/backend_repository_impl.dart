@@ -2,8 +2,10 @@ import 'dart:io';
 
 import 'package:bodega/data/service/downloader.dart';
 import 'package:bodega/data/service/engine_home.dart';
+import 'package:bodega/data/service/progress_mapper.dart';
 import 'package:bodega/data/service/repository_call.dart';
 import 'package:bodega/domain/entities/app_error.dart';
+import 'package:bodega/domain/entities/progress_step.dart';
 import 'package:bodega/domain/entities/backend_info.dart';
 import 'package:bodega/domain/entities/exe_graphics.dart';
 import 'package:bodega/domain/repository/backend_repository.dart';
@@ -51,7 +53,7 @@ class BackendRepositoryImpl implements BackendRepository {
     void Function(int received, int? total) onProgress,
   ) => repositoryCall(() async {
     final pin = engine.pinnedBackend(name);
-    if (pin == null) throw 'backend sin instalador: $name';
+    if (pin == null) throw AppError.backendNotPinned(name);
     final tarball = '${_home.path}/downloads/${pin.url.split('/').last}';
     if (!File(tarball).existsSync()) {
       final path = await _downloader.fetch(
@@ -104,13 +106,13 @@ class BackendRepositoryImpl implements BackendRepository {
   @override
   Future<Either<AppError, String>> installD3DMetalDmg(
     String dmg, {
-    required void Function(String step) onStep,
+    required void Function(ProgressStep step) onStep,
     required bool Function() cancelled,
   }) => repositoryCall(
     () => engine.installD3DMetalDmg(
       _home.path,
       dmg,
-      onStep: onStep,
+      onStep: (step) => onStep(progressStep(step)),
       cancelled: cancelled,
     ),
   );

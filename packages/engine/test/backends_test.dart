@@ -115,7 +115,7 @@ void main() {
 
     await expectLater(
       installBackend(home, 'dxmt', tarball: tarball, sha256: '0' * 64),
-      throwsA(contains('checksum incorrecto')),
+      throwsA(contains('wrong checksum')),
     );
     expect(Directory('$home/backends/dxmt').existsSync(), isFalse);
 
@@ -136,7 +136,7 @@ void main() {
     expect(slots(), ['dxmt']);
     await expectLater(
       installBackend(home, 'dxmt', tarball: tarball, sha256: sum),
-      throwsA(contains('ya instalado')),
+      throwsA(contains('already installed')),
     );
 
     // A file:// download, then again from the finished file.
@@ -154,12 +154,12 @@ void main() {
     final bad = await fakeLayer('$tmp/bad', ['x86_64-windows/other.dll']);
     await expectLater(
       installBackend(home, 'dxvk2', tarball: bad.$1, sha256: bad.$2),
-      throwsA(contains('sin instalador')),
+      throwsA(contains('without installer')),
     );
     Directory('$home/backends/dxvk').deleteSync(recursive: true);
     await expectLater(
       installBackend(home, 'dxvk', tarball: bad.$1, sha256: bad.$2),
-      throwsA(contains('sin x86_64-windows/d3d11.dll')),
+      throwsA(contains('without x86_64-windows/d3d11.dll')),
     );
     expect(slots(), ['dxmt']);
     await expectLater(
@@ -188,7 +188,7 @@ void main() {
     expect(File('$dest/wine/x86_64-windows/d3d12.dll').existsSync(), isTrue);
     await expectLater(
       importD3DMetal(home, '$tmp/ok'),
-      throwsA(contains('ya instalado')),
+      throwsA(contains('already installed')),
     );
     Directory(dest).deleteSync(recursive: true);
 
@@ -214,7 +214,7 @@ void main() {
     File('$tmp/other/wine/x86_64-unix/dxgi.so').writeAsStringSync('otra');
     await expectLater(
       importD3DMetal(home, '$tmp/other'),
-      throwsA(contains('no es la misma biblioteca')),
+      throwsA(contains('is not the same library')),
     );
     fakeD3DMetal('$tmp/hole', skip: ['wine/x86_64-windows/d3d12.dll']);
     await expectLater(
@@ -242,7 +242,7 @@ void main() {
     setBackend(home, 't', 'wine');
     expect(await origin(), 'dxmt exe');
     setBackend(home, 't', 'auto', exe: r'C:\x\BLUR.EXE');
-    expect(await origin(), 'wine botella');
+    expect(await origin(), 'wine bottle');
 
     final before = File('$dir/settings.json').readAsStringSync();
     expect(() => setBackend(home, 't', 'foo'), throwsA(contains('foo')));
@@ -312,10 +312,10 @@ void main() {
 
     setBackend(home, 't', 'dxvk');
     setBackend(home, 't', 'dxmt', exe: 'x.exe');
-    expect(await pick(option: 'wine'), 'wine opcion');
+    expect(await pick(option: 'wine'), 'wine option');
     expect(await pick(), 'dxmt exe');
     setBackend(home, 't', 'auto', exe: 'x.exe');
-    expect(await pick(), 'dxvk botella');
+    expect(await pick(), 'dxvk bottle');
     expect(await pick(option: 'auto'), 'wine auto');
     setBackend(home, 't', 'auto');
     expect(await pick(), 'wine auto');
@@ -461,15 +461,18 @@ void main() {
 
       final steps = <String>[];
       expect(await installD3DMetalDmg(home, eval), '3.0');
-      expect(await installD3DMetalDmg(home, outer, onStep: steps.add), '3.0');
-      expect(steps, contains('Importando D3DMetal'));
+      expect(
+        await installD3DMetalDmg(home, outer, onStep: (s) => steps.add(s.text)),
+        '3.0',
+      );
+      expect(steps, contains('Importing D3DMetal'));
       expect(
         Link('$home/backends/d3dmetal/wine/x86_64-unix/d3d11.so').targetSync(),
         '../../external/libd3dshared.dylib',
       );
       await expectLater(
         installD3DMetalDmg(home, empty),
-        throwsA(contains('falta redist/lib')),
+        throwsA(contains('missing redist/lib')),
       );
       expect(await mounts(), isNot(contains(tmp)));
     },

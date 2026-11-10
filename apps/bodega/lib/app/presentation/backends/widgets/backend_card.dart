@@ -1,6 +1,8 @@
+import 'package:bodega/l10n/l10n.dart';
 import 'package:bodega/app/bloc/backends/backends_bloc.dart';
 import 'package:bodega/app/presentation/backends/widgets/gptk_section.dart';
 import 'package:bodega/app/presentation/backends/widgets/probe_dialog.dart';
+import 'package:bodega/app/shared/engine_text.dart';
 import 'package:bodega/app/shared/widgets/status_chip.dart';
 import 'package:bodega/device/theme/color.dart';
 import 'package:bodega/device/theme/spacing.dart';
@@ -16,12 +18,14 @@ class BackendCard extends StatelessWidget {
 
   const BackendCard({super.key, required this.backend, required this.state});
 
-  static const _descriptions = {
-    'wine': 'wined3d y vkd3d. Viene con el motor.',
-    'dxmt': 'D3D10 y D3D11 sobre Metal. El que usan los launchers.',
-    'dxvk': 'D3D10 y D3D11 sobre Vulkan, con MoltenVK.',
-    'd3dmetal': 'D3D11 y D3D12 sobre Metal, de Apple. Lo importas tú.',
-  };
+  static String _description(AppLocalizations l10n, String name) =>
+      switch (name) {
+        'wine' => l10n.backendsWineDescription,
+        'dxmt' => l10n.backendsDxmtDescription,
+        'dxvk' => l10n.backendsDxvkDescription,
+        'd3dmetal' => l10n.backendsD3dmetalDescription,
+        _ => '',
+      };
 
   Future<void> _pickFile(BuildContext context) async {
     final bloc = context.read<BackendsBloc>();
@@ -45,6 +49,7 @@ class BackendCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final styles = AppTextStyle(context);
+    final l10n = context.l10n;
     final bloc = context.read<BackendsBloc>();
     final name = backend.name;
     final isBusy = state.busy == name;
@@ -62,22 +67,22 @@ class BackendCard extends StatelessWidget {
               children: [
                 Expanded(child: Text(name, style: styles.cardTitle)),
                 if (backend.installed)
-                  const StatusChip(
-                    label: 'Instalado',
+                  StatusChip(
+                    label: l10n.backendsInstalled,
                     color: AppColor.statusTested,
                   )
                 else
-                  const StatusChip(
-                    label: 'No instalado',
+                  StatusChip(
+                    label: l10n.backendsNotInstalled,
                     color: AppColor.statusUntested,
                   ),
               ],
             ),
             const SizedBox(height: AppSpacing.xs),
-            Text(_descriptions[name] ?? '', style: styles.bodySecondary),
+            Text(_description(l10n, name), style: styles.bodySecondary),
             if (backend.use.isNotEmpty) ...[
               const SizedBox(height: AppSpacing.xs),
-              Text('Sirve para: ${backend.use}', style: styles.caption),
+              Text(l10n.backendsUse(backend.use), style: styles.caption),
             ],
             if (name == 'd3dmetal') ...[
               const SizedBox(height: AppSpacing.md),
@@ -94,11 +99,14 @@ class BackendCard extends StatelessWidget {
                 liveRegion: true,
                 child: Text(
                   isChecking
-                      ? 'Comprobando; cada caso puede tardar hasta 90 s'
-                      : state.gptkStep ??
-                            (state.isDownloading && state.fraction != 1
-                                ? 'Descargando'
-                                : 'Instalando'),
+                      ? l10n.backendsChecking
+                      : switch (state.gptkStep) {
+                          final step? => stepText(l10n, step),
+                          null =>
+                            state.isDownloading && state.fraction != 1
+                                ? l10n.backendsDownloading
+                                : l10n.backendsInstalling,
+                        },
                   style: styles.caption,
                 ),
               ),
@@ -111,24 +119,24 @@ class BackendCard extends StatelessWidget {
                 if (isBusy && state.isDownloading && state.fraction != 1)
                   OutlinedButton(
                     onPressed: () => bloc.add(const BackendsEvent.cancel()),
-                    child: const Text('Cancelar'),
+                    child: Text(l10n.commonCancel),
                   ),
                 if (!backend.installed && backend.downloadable) ...[
                   FilledButton(
                     onPressed: blocked
                         ? null
                         : () => bloc.add(BackendsEvent.download(name)),
-                    child: const Text('Instalar'),
+                    child: Text(l10n.commonInstall),
                   ),
                   OutlinedButton(
                     onPressed: blocked ? null : () => _pickFile(context),
-                    child: const Text('Elegir archivo…'),
+                    child: Text(l10n.commonChooseFile),
                   ),
                 ],
                 if (backend.installed)
                   OutlinedButton(
                     onPressed: blocked ? null : () => _check(context),
-                    child: const Text('Comprobar'),
+                    child: Text(l10n.backendsCheck),
                   ),
               ],
             ),
@@ -139,13 +147,13 @@ class BackendCard extends StatelessWidget {
                   if (result.ok)
                     const StatusChip(label: 'OK', color: AppColor.statusTested)
                   else
-                    const StatusChip(
-                      label: 'Falla',
+                    StatusChip(
+                      label: l10n.backendsFails,
                       color: AppColor.statusBlocked,
                     ),
                   const SizedBox(width: AppSpacing.sm),
                   Text(
-                    '${result.bits} bits, D3D${result.d3d}',
+                    l10n.backendsResult(result.bits, result.d3d),
                     style: styles.body,
                   ),
                 ],

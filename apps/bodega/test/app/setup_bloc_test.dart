@@ -33,7 +33,12 @@ void main() {
     build: () {
       statusIs(
         issues: const [
-          HostIssue(title: 'Falta Rosetta', detail: 'x', command: 'cmd'),
+          HostIssue(
+            id: 'rosetta',
+            title: 'Rosetta is missing',
+            detail: 'x',
+            command: 'cmd',
+          ),
         ],
         installed: true,
       );
@@ -42,7 +47,7 @@ void main() {
     act: (bloc) => bloc.add(const SetupEvent.check()),
     verify: (bloc) {
       expect(bloc.state.isChecking, isFalse);
-      expect(bloc.state.issues.single.title, 'Falta Rosetta');
+      expect(bloc.state.issues.single.title, 'Rosetta is missing');
       expect(bloc.state.isReady, isFalse);
     },
   );
@@ -96,7 +101,7 @@ void main() {
     build: () {
       when(() => runtime.install(engine: 'e.tar.xz', hostlibs: 'h.tar.xz'))
           .thenAnswer(
-            (_) async => left(const AppError.engine('falta el .sha256')),
+            (_) async => left(const AppError.engine('the .sha256 is missing')),
           );
       return SetupBloc(runtime);
     },
@@ -106,7 +111,7 @@ void main() {
       ..add(const SetupEvent.install()),
     verify: (bloc) {
       expect(bloc.state.isInstalling, isFalse);
-      expect(bloc.state.error, const AppError.engine('falta el .sha256'));
+      expect(bloc.state.error, const AppError.engine('the .sha256 is missing'));
       expect(bloc.state.engine, 'e.tar.xz');
     },
   );

@@ -1,3 +1,5 @@
+import 'package:bodega/app/shared/error_text.dart';
+import 'package:bodega/l10n/l10n.dart';
 import 'package:bodega/app/bloc/backends/backends_bloc.dart';
 import 'package:bodega/app/bloc/setup/setup_bloc.dart';
 import 'package:bodega/app/presentation/backends/widgets/backend_card.dart';
@@ -38,7 +40,7 @@ class _BackendsPageState extends State<BackendsPage> {
               if (state.error case final error?) ...[
                 const SizedBox(height: AppSpacing.md),
                 SelectableText(
-                  error.message,
+                  error.text(context.l10n),
                   style: styles.body?.copyWith(
                     color: Theme.of(context).colorScheme.error,
                   ),

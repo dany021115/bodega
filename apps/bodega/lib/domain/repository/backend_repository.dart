@@ -1,4 +1,5 @@
 import 'package:bodega/domain/entities/app_error.dart';
+import 'package:bodega/domain/entities/progress_step.dart';
 import 'package:bodega/domain/entities/backend_info.dart';
 import 'package:bodega/domain/entities/exe_graphics.dart';
 import 'package:fpdart/fpdart.dart';
@@ -30,7 +31,7 @@ abstract class BackendRepository {
   /// one there was. Returns the version installed.
   Future<Either<AppError, String>> installD3DMetalDmg(
     String dmg, {
-    required void Function(String step) onStep,
+    required void Function(ProgressStep step) onStep,
     required bool Function() cancelled,
   });
 

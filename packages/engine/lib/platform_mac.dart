@@ -123,8 +123,10 @@ class MacPlatform extends HostPlatform {
   Future<List<HostIssue>> checkHost() async => [
     if (!(await rosettaInstalled()))
       (
-        title: 'Falta Rosetta',
-        detail: 'Los juegos de Windows corren sobre Rosetta 2.',
+        id: 'rosetta',
+        args: const {},
+        title: 'Rosetta is missing',
+        detail: 'Windows games run on Rosetta 2.',
         command: 'softwareupdate --install-rosetta --agree-to-license',
       ),
   ];
@@ -216,9 +218,9 @@ class MacPlatform extends HostPlatform {
 
   @override
   String backendUse(String backend) => switch (backend) {
-    'd3dmetal' => 'DirectX 11 y 12, solo 64 bits',
-    'dxmt' || 'dxvk' => 'DirectX 10 y 11, 32 y 64 bits',
-    _ => 'Todo: DirectX 9 y anteriores, y lo que no encaje en los demás',
+    'd3dmetal' => 'DirectX 11 and 12, 64-bit only',
+    'dxmt' || 'dxvk' => 'DirectX 10 and 11, 32 and 64 bits',
+    _ => 'Everything: DirectX 9 and older, and whatever the others don\'t fit',
   };
 
   @override
@@ -314,7 +316,7 @@ Future<void> _ensureGamepads(String home, String name) async {
         '/f',
       ],
       backend: 'wine',
-      label: 'mandos',
+      label: 'gamepads',
     );
     if (await exitOf(log) != 0) return;
   }

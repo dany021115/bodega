@@ -21,7 +21,7 @@ void main() {
 
     final apps = (await CatalogRepositoryImpl(
       TestHome(home.path),
-    ).apps()).getOrElse((error) => fail(error.message));
+    ).apps()).getOrElse((error) => fail('$error'));
 
     final steam = apps.first;
     expect(steam.bottle, 'steam');
@@ -40,7 +40,7 @@ void main() {
 
     final result = await CatalogRepositoryImpl(TestHome(home.path)).apps();
 
-    final apps = result.getOrElse((error) => fail(error.message));
+    final apps = result.getOrElse((error) => fail('$error'));
     expect(apps, hasLength(7));
     expect(apps.first.id, 'steam');
     expect(apps.first.bottle, 'mi-steam');

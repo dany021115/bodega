@@ -30,12 +30,15 @@ import 'package:bodega/device/theme/theme.dart';
 import 'package:bodega/di.dart';
 import 'package:bodega/domain/entities/anti_cheat_game.dart';
 import 'package:bodega/domain/entities/app_error.dart';
+import 'package:bodega/domain/entities/progress_step.dart';
 import 'package:bodega/domain/entities/backend_info.dart';
 import 'package:bodega/domain/entities/bottle.dart';
 import 'package:bodega/domain/entities/bottle_detail.dart';
 import 'package:bodega/domain/entities/catalog_app.dart';
+import 'package:bodega/domain/entities/hint.dart';
 import 'package:bodega/domain/entities/host_capabilities.dart';
 import 'package:bodega/domain/entities/library_app.dart';
+import 'package:bodega/l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -83,11 +86,11 @@ class _MockSetup extends MockBloc<SetupEvent, SetupState>
     implements SetupBloc {}
 
 // The longest texts and every chip at once: what would overflow first.
-final _long = 'Una nota larga que ocupa varias líneas en la pantalla. ' * 6;
+final _long = 'A long note that takes several lines on the screen. ' * 6;
 final _longName = 'una-botella-con-un-nombre-muy-largo-${'x' * 28}';
 final _app = CatalogApp(
   id: 'ea-app',
-  title: 'Rockstar Games Launcher con un nombre que no cabe en la tarjeta',
+  title: 'Rockstar Games Launcher with a name that does not fit on the card',
   status: CatalogStatus.reported,
   statusNote: _long,
   flaky: _long,
@@ -110,12 +113,12 @@ final _catalog = CatalogState(
   query: 'ro',
   antiCheat: [
     AntiCheatGame(
-      title: 'Rogue con un título también larguísimo $_long',
+      title: 'Rogue with a very long title too $_long',
       anticheats: const ['Easy Anti-Cheat', 'BattlEye', 'nProtect GameGuard'],
       verdict: AntiCheatVerdict.blocked,
     ),
   ],
-  antiCheatError: const AppError.network('sin red'),
+  antiCheatError: const AppError.network('no network'),
   error: AppError.engine(_long),
 );
 
@@ -125,7 +128,7 @@ List<LibraryApp> _apps(String bottle) => [
       bottle: bottle,
       key: 'p/$i.exe',
       id: i.isEven ? 'steam' : 'custom',
-      title: 'Una aplicación con un título bastante largo $i',
+      title: 'An application with a rather long title $i',
     ),
 ];
 
@@ -280,8 +283,8 @@ void main() {
         ],
         open: {'steam', _longName},
         hints: {
-          'steam': [_long],
-          _longName: [_long],
+          'steam': [Hint(id: 'other', text: _long)],
+          _longName: [Hint(id: 'other', text: _long)],
         },
       ),
     );
@@ -302,6 +305,9 @@ void main() {
     BlocProvider<SetupBloc>.value(value: setup),
   ];
 
+  // The locale [pump] renders in; null is the test's own, English.
+  Locale? testLocale;
+
   // [width] is the window's: the sidebar takes its part, as in the app.
   Future<void> pump(
     WidgetTester tester,
@@ -317,6 +323,9 @@ void main() {
       MultiBlocProvider(
         providers: providers(),
         child: MaterialApp(
+          locale: testLocale,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           theme: light ? AppTheme.getLightTheme() : AppTheme.getDarkTheme(),
           builder: (context, child) => ResponsiveBreakpoints.builder(
             child: child!,
@@ -350,124 +359,132 @@ void main() {
 
   // The minimum window, the narrowest with two catalog columns, the default
   // one, and a big one.
-  for (final width in [720.0, 801.0, 1150.0, 1921.0]) {
-    testWidgets('nothing overflows at $width px', (tester) async {
-      await pump(tester, width, const CatalogPage());
-      await pump(tester, width, const CatalogDetailPage(id: 'steam'));
-      await pump(tester, width, const LibraryPage());
-      await pump(tester, width, bottleView());
-      await pump(tester, width, const BackendsPage());
-    });
+  for (final locale in AppLocalizations.supportedLocales) {
+    group('in ${locale.languageCode}', () {
+      setUp(() => testLocale = locale);
+      tearDown(() => testLocale = null);
+      for (final width in [720.0, 801.0, 1150.0, 1921.0]) {
+        testWidgets('nothing overflows at $width px', (tester) async {
+          await pump(tester, width, const CatalogPage());
+          await pump(tester, width, const CatalogDetailPage(id: 'steam'));
+          await pump(tester, width, const LibraryPage());
+          await pump(tester, width, bottleView());
+          await pump(tester, width, const BackendsPage());
+        });
 
-    testWidgets('an empty or incomplete bottle fits at $width px', (
-      tester,
-    ) async {
-      showBottle(_bottle(ready: false, apps: const []));
-      await pump(tester, width, bottleView());
-    });
-
-    testWidgets('an empty library fits at $width px', (tester) async {
-      whenListen(
-        library,
-        const Stream<LibraryState>.empty(),
-        initialState: const LibraryState(),
-      );
-      await pump(tester, width, const LibraryPage());
-    });
-
-    testWidgets('a bottle with its sections folded fits at $width px', (
-      tester,
-    ) async {
-      whenListen(
-        sections,
-        const Stream<SectionsState>.empty(),
-        initialState: const SectionsState(
-          collapsed: {'actions', 'settings', 'details'},
-        ),
-      );
-      await pump(tester, width, bottleView());
-    });
-
-    testWidgets('running with options fits at $width px', (tester) async {
-      final options = _MockRunOptions();
-      whenListen(
-        options,
-        const Stream<RunOptionsState>.empty(),
-        initialState: RunOptionsState(
-          bottle: 'steam',
-          program: '/g/$_longName$_longName.exe',
-          env: 'A=1',
-          save: true,
-          error: AppError.engine(_long),
-        ),
-      );
-      await pump(
-        tester,
-        width,
-        BlocProvider<RunOptionsBloc>.value(
-          value: options,
-          child: const RunOptionsDialog(backends: ['dxmt', 'dxvk']),
-        ),
-      );
-    });
-
-    for (final step in [
-      AddAppStep.form,
-      AddAppStep.installing,
-      AddAppStep.pickInstalled,
-    ]) {
-      testWidgets('adding an app at ${step.name} fits at $width px', (
-        tester,
-      ) async {
-        whenListen(
-          addApp,
-          const Stream<AddAppState>.empty(),
-          initialState: AddAppState(
-            step: step,
-            bottle: 'prueba',
-            exe: '/g/$_longName$_longName.exe',
-            title: 'Blur',
-            error: AppError.engine(_long),
-          ),
-        );
-        await pump(tester, width, const AddAppDialog());
-      });
-    }
-
-    for (final phase in [
-      InstallPhase.downloading,
-      InstallPhase.installing,
-      InstallPhase.done,
-      InstallPhase.failed,
-    ]) {
-      testWidgets('the ${phase.name} panel fits at $width px', (tester) async {
-        whenListen(
-          install,
-          const Stream<InstallState>.empty(),
-          initialState: InstallState(
-            phase: phase,
-            app: _app,
-            received: 150 << 20,
-            total: 300 << 20,
-            step: _long,
-            error: AppError.engine(_long),
-            bottleLeft: phase == InstallPhase.failed,
-          ),
-        );
-        await pump(
+        testWidgets('an empty or incomplete bottle fits at $width px', (
           tester,
-          width,
-          const Scaffold(
-            body: Column(
-              children: [
-                Expanded(child: SizedBox.expand()),
-                InstallPanel(),
-              ],
+        ) async {
+          showBottle(_bottle(ready: false, apps: const []));
+          await pump(tester, width, bottleView());
+        });
+
+        testWidgets('an empty library fits at $width px', (tester) async {
+          whenListen(
+            library,
+            const Stream<LibraryState>.empty(),
+            initialState: const LibraryState(),
+          );
+          await pump(tester, width, const LibraryPage());
+        });
+
+        testWidgets('a bottle with its sections folded fits at $width px', (
+          tester,
+        ) async {
+          whenListen(
+            sections,
+            const Stream<SectionsState>.empty(),
+            initialState: const SectionsState(
+              collapsed: {'actions', 'settings', 'details'},
             ),
-          ),
-        );
-      });
-    }
+          );
+          await pump(tester, width, bottleView());
+        });
+
+        testWidgets('running with options fits at $width px', (tester) async {
+          final options = _MockRunOptions();
+          whenListen(
+            options,
+            const Stream<RunOptionsState>.empty(),
+            initialState: RunOptionsState(
+              bottle: 'steam',
+              program: '/g/$_longName$_longName.exe',
+              env: 'A=1',
+              save: true,
+              error: AppError.engine(_long),
+            ),
+          );
+          await pump(
+            tester,
+            width,
+            BlocProvider<RunOptionsBloc>.value(
+              value: options,
+              child: const RunOptionsDialog(backends: ['dxmt', 'dxvk']),
+            ),
+          );
+        });
+
+        for (final step in [
+          AddAppStep.form,
+          AddAppStep.installing,
+          AddAppStep.pickInstalled,
+        ]) {
+          testWidgets('adding an app at ${step.name} fits at $width px', (
+            tester,
+          ) async {
+            whenListen(
+              addApp,
+              const Stream<AddAppState>.empty(),
+              initialState: AddAppState(
+                step: step,
+                bottle: 'test',
+                exe: '/g/$_longName$_longName.exe',
+                title: 'Blur',
+                error: AppError.engine(_long),
+              ),
+            );
+            await pump(tester, width, const AddAppDialog());
+          });
+        }
+
+        for (final phase in [
+          InstallPhase.downloading,
+          InstallPhase.installing,
+          InstallPhase.done,
+          InstallPhase.failed,
+        ]) {
+          testWidgets('the ${phase.name} panel fits at $width px', (
+            tester,
+          ) async {
+            whenListen(
+              install,
+              const Stream<InstallState>.empty(),
+              initialState: InstallState(
+                phase: phase,
+                app: _app,
+                received: 150 << 20,
+                total: 300 << 20,
+                step: ProgressStep(id: 'unknown', text: _long),
+                error: AppError.engine(_long),
+                bottleLeft: phase == InstallPhase.failed,
+              ),
+            );
+            await pump(
+              tester,
+              width,
+              const Scaffold(
+                body: Column(
+                  children: [
+                    Expanded(child: SizedBox.expand()),
+                    InstallPanel(),
+                  ],
+                ),
+              ),
+            );
+          });
+        }
+      }
+    });
   }
 
   group('the bottle screen', () {
@@ -491,31 +508,31 @@ void main() {
       expect(panel, findsNothing);
       expect(
         tester.getTopLeft(find.byType(BottleColumn)).dy,
-        greaterThan(tester.getTopLeft(find.text('Apps instaladas')).dy),
+        greaterThan(tester.getTopLeft(find.text('Installed apps')).dy),
       );
     });
 
     testWidgets('says the state of the bottle', (tester) async {
       await pump(tester, 1150, bottleView());
-      expect(find.text('Abierta'), findsOneWidget);
+      expect(find.text('Open'), findsOneWidget);
 
       showBottle(_bottle(ready: false));
       await tester.pumpWidget(const SizedBox());
       await pump(tester, 1150, bottleView());
-      expect(find.text('Incompleta'), findsOneWidget);
+      expect(find.text('Incomplete'), findsOneWidget);
     });
 
     testWidgets('it stays closed when it is', (tester) async {
       showLibrary(const LibraryState());
       await pump(tester, 1150, bottleView());
-      expect(find.text('Cerrada'), findsOneWidget);
-      expect(find.text('Parar'), findsNothing);
+      expect(find.text('Closed'), findsOneWidget);
+      expect(find.text('Stop'), findsNothing);
     });
 
     testWidgets('an empty one invites to install', (tester) async {
       showBottle(_bottle(apps: const []));
       await pump(tester, 1150, bottleView(), height: 900);
-      expect(find.text('Esta botella está vacía'), findsOneWidget);
+      expect(find.text('This bottle is empty'), findsOneWidget);
       final invite = find.descendant(
         of: find.byType(BottleEmptyApps),
         matching: find.byType(GradientButton),
@@ -534,13 +551,13 @@ void main() {
       );
       await pump(tester, 1150, const BottleDetailView(name: 'nope'));
       expect(find.text('no existe la botella nope'), findsOneWidget);
-      expect(find.text('Volver a Biblioteca'), findsOneWidget);
+      expect(find.text('Back to Library'), findsOneWidget);
     });
 
     testWidgets('each control panel runs its program', (tester) async {
       await pump(tester, 1150, bottleView(), height: 2400);
-      await tester.tap(find.text('Mandos'));
-      await tester.tap(find.text('Configuración de Wine'));
+      await tester.tap(find.text('Gamepads'));
+      await tester.tap(find.text('Wine configuration'));
       await tester.tap(find.text('Terminal'));
       await tester.pump();
       verify(
@@ -563,9 +580,9 @@ void main() {
         ),
         findsOneWidget,
       );
-      expect(find.text('Pantalla de alta densidad'), findsOneWidget);
+      expect(find.text('High-density display'), findsOneWidget);
       expect(find.text('DLSS'), findsOneWidget);
-      expect(find.text('Anunciar AVX'), findsOneWidget);
+      expect(find.text('Advertise AVX'), findsOneWidget);
     });
 
     testWidgets('a host without AVX or DLSS does not offer them', (
@@ -579,7 +596,7 @@ void main() {
         ),
       );
       await pump(tester, 1150, bottleView(), height: 2400);
-      expect(find.text('Anunciar AVX'), findsNothing);
+      expect(find.text('Advertise AVX'), findsNothing);
       expect(find.text('DLSS'), findsNothing);
     });
 
@@ -587,10 +604,7 @@ void main() {
       tester,
     ) async {
       await pump(tester, 1150, bottleView(), height: 2400);
-      expect(
-        find.text('Cambiarlo cierra lo que esté abierto.'),
-        findsOneWidget,
-      );
+      expect(find.text('Changing it closes what\'s open.'), findsOneWidget);
 
       showSetup(
         const SetupState(
@@ -601,7 +615,7 @@ void main() {
       );
       await tester.pumpWidget(const SizedBox());
       await pump(tester, 1150, bottleView(), height: 2400);
-      expect(find.text('Cambiarlo cierra lo que esté abierto.'), findsNothing);
+      expect(find.text('Changing it closes what\'s open.'), findsNothing);
     });
 
     testWidgets('an incomplete bottle offers only to delete it', (
@@ -614,11 +628,9 @@ void main() {
         of: find.text(label),
         matching: find.byWidgetPredicate((w) => w is ButtonStyleButton),
       );
-      final run = tester.widget<ButtonStyleButton>(
-        button('Ejecutar con opciones…'),
-      );
+      final run = tester.widget<ButtonStyleButton>(button('Run with options…'));
       expect(run.onPressed, isNull);
-      final delete = tester.widget<ButtonStyleButton>(button('Borrar botella'));
+      final delete = tester.widget<ButtonStyleButton>(button('Delete bottle'));
       expect(delete.onPressed, isNotNull);
     });
 
@@ -629,9 +641,9 @@ void main() {
         initialState: const SectionsState(collapsed: {'settings'}),
       );
       await pump(tester, 1150, bottleView(), height: 1200);
-      expect(find.text('Configuración'), findsOneWidget);
+      expect(find.text('Settings'), findsOneWidget);
       expect(find.text('msync'), findsNothing);
-      expect(find.text('Borrar botella'), findsOneWidget);
+      expect(find.text('Delete bottle'), findsOneWidget);
     });
 
     testWidgets('its applications open by their key', (tester) async {
@@ -674,7 +686,7 @@ void main() {
       await pump(tester, 1150, bottleView(), height: 1200);
       await tester.tap(find.byIcon(Icons.more_horiz_rounded));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Quitar de la botella'));
+      await tester.tap(find.text('Remove from bottle'));
       await tester.pumpAndSettle();
       verify(() => bottle.add(const BottleDetailEvent.hideApp('steam:9')))
           .called(1);
@@ -687,9 +699,9 @@ void main() {
     ) async {
       await pump(tester, 1150, const LibraryPage(), height: 1200);
       expect(find.text('steam'), findsNWidgets(2));
-      expect(find.text('En ejecución'), findsNWidgets(2));
-      expect(find.byTooltip('Parar'), findsNWidgets(2));
-      expect(find.byTooltip('Jugar'), findsOneWidget);
+      expect(find.text('Running'), findsNWidgets(2));
+      expect(find.byTooltip('Stop'), findsNWidgets(2));
+      expect(find.byTooltip('Play'), findsOneWidget);
     });
 
     testWidgets('shows a hint once per bottle', (tester) async {
@@ -700,7 +712,7 @@ void main() {
 
     testWidgets('opens the application asked', (tester) async {
       await pump(tester, 1150, const LibraryPage(), height: 1200);
-      await tester.tap(find.byTooltip('Jugar'));
+      await tester.tap(find.byTooltip('Play'));
       await tester.pump();
       verify(() => library.add(const LibraryEvent.open('blur', 'b'))).called(1);
     });
@@ -717,12 +729,12 @@ void main() {
     Finder inCard(String text) =>
         find.descendant(of: d3dmetal, matching: find.text(text));
     expect(inCard('Game Porting Toolkit 3.0'), findsOneWidget);
-    expect(inCard('Probada'), findsOneWidget);
-    expect(inCard('Beta, sin probar'), findsOneWidget);
-    expect(inCard('Instalar'), findsNWidgets(2));
-    expect(inCard('Ya lo tengo: elegir dmg…'), findsOneWidget);
-    expect(inCard('Elegir carpeta…'), findsNothing);
-    expect(find.textContaining('licencia la aceptas tú'), findsOneWidget);
+    expect(inCard('Tested'), findsOneWidget);
+    expect(inCard('Beta, untested'), findsOneWidget);
+    expect(inCard('Install'), findsNWidgets(2));
+    expect(inCard('I have it: choose dmg…'), findsOneWidget);
+    expect(inCard('Choose folder…'), findsNothing);
+    expect(find.textContaining('you accept its license'), findsOneWidget);
   });
 
   testWidgets('the detail offers each case', (tester) async {
@@ -739,20 +751,20 @@ void main() {
 
     final free = _app.copyWith(bottle: null);
     await showing(free);
-    expect(find.widgetWithText(FilledButton, 'Instalar'), findsOneWidget);
+    expect(find.widgetWithText(FilledButton, 'Install'), findsOneWidget);
 
     await showing(_app.copyWith(appKey: 'program/x.exe'));
-    expect(find.widgetWithText(FilledButton, 'Abrir'), findsOneWidget);
+    expect(find.widgetWithText(FilledButton, 'Open'), findsOneWidget);
 
     await showing(free.copyWith(status: CatalogStatus.blocked));
     final blocked = tester.widget<FilledButton>(
-      find.widgetWithText(FilledButton, 'Instalar'),
+      find.widgetWithText(FilledButton, 'Install'),
     );
     expect(blocked.onPressed, isNull);
-    expect(find.textContaining('No se puede instalar'), findsOneWidget);
+    expect(find.textContaining("Can't be installed"), findsOneWidget);
 
     await showing(free.copyWith(backendInstalled: false));
-    expect(find.widgetWithText(FilledButton, 'Instalar dxmt'), findsOneWidget);
+    expect(find.widgetWithText(FilledButton, 'Install dxmt'), findsOneWidget);
   });
 
   testWidgets('the detail opens the application by its key', (tester) async {
@@ -780,11 +792,15 @@ void main() {
     await tester.pumpWidget(
       MultiBlocProvider(
         providers: providers(),
-        child: MaterialApp.router(routerConfig: router),
+        child: MaterialApp.router(
+          routerConfig: router,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+        ),
       ),
     );
     await tester.pump();
-    await tester.tap(find.widgetWithText(FilledButton, 'Abrir'));
+    await tester.tap(find.widgetWithText(FilledButton, 'Open'));
     await tester.pumpAndSettle();
     verify(
       () => library.add(const LibraryEvent.open('ea-app', 'program/x.exe')),
@@ -804,6 +820,8 @@ void main() {
           providers: [...providers()],
           child: MaterialApp.router(
             routerConfig: router,
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
             builder: (context, child) => ResponsiveBreakpoints.builder(
               child: child!,
               breakpoints: appBreakpoints,

@@ -4,31 +4,31 @@ import 'dart:io';
 import 'package:engine/engine.dart';
 
 const _usage = '''
-uso: bodega install <engine.tar.gz> <hostlibs.tar.gz>
-     bodega create <botella>
-     bodega run [--backend <b>] [--hud] <botella> <programa> [args…]
-     bodega wait <botella>
-     bodega stop <botella>
-     bodega rename <botella> <nombre-nuevo>
-     bodega library <botella> <clave> on|off
-     bodega hud <botella> <clave> on|off
-     bodega backend list
-     bodega backend install <dxmt|dxvk> [tarball]
-     bodega backend import d3dmetal <carpeta>
-     bodega backend set <botella> <backend> [--exe <nombre.exe>]
-     bodega backend test <botella> <backend>
-     bodega sync <botella> <msync|none>
-     bodega option <botella> gpu auto|discrete
-     bodega option <botella> gamemode on|off
-     bodega sdl install [archivo.dmg]
-     bodega pads
-     bodega catalog list [texto]
-     bodega catalog show <id>
-     bodega catalog install <id> [botella]
-     bodega fix list [texto]
-     bodega fix show <id|appid-de-steam>
-     bodega apps
-     bodega open [--backend <b>] [--hud] <botella> [clave]''';
+usage: bodega install <engine.tar.gz> <hostlibs.tar.gz>
+       bodega create <bottle>
+       bodega run [--backend <b>] [--hud] <bottle> <program> [args…]
+       bodega wait <bottle>
+       bodega stop <bottle>
+       bodega rename <bottle> <new-name>
+       bodega library <bottle> <key> on|off
+       bodega hud <bottle> <key> on|off
+       bodega backend list
+       bodega backend install <dxmt|dxvk> [tarball]
+       bodega backend import d3dmetal <folder>
+       bodega backend set <bottle> <backend> [--exe <name.exe>]
+       bodega backend test <bottle> <backend>
+       bodega sync <bottle> <msync|none>
+       bodega option <bottle> gpu auto|discrete
+       bodega option <bottle> gamemode on|off
+       bodega sdl install [file.dmg]
+       bodega pads
+       bodega catalog list [text]
+       bodega catalog show <id>
+       bodega catalog install <id> [bottle]
+       bodega fix list [text]
+       bodega fix show <id|steam-appid>
+       bodega apps
+       bodega open [--backend <b>] [--hud] <bottle> [key]''';
 
 Future<void> main(List<String> args) async {
   final Future<int> Function(String home)? verb = switch (args) {
@@ -40,25 +40,25 @@ Future<void> main(List<String> args) async {
       stdout.writeln(
         await installSdl(home, dmg: rest.isEmpty ? null : rest.single),
       );
-      stdout.writeln('Las botellas usarán SDL2 al volver a abrirlas.');
+      stdout.writeln('Bottles will use SDL2 the next time they open.');
       return 0;
     },
     ['pads'] => (home) async {
       final report = await hostPlatform.gamepads();
       if (report == null) {
         stdout.writeln(
-          'En ${hostPlatform.displayName} Bodega prepara los mandos solo; no hay nada que revisar.',
+          'On ${hostPlatform.displayName} Bodega sets up gamepads by itself; there is nothing to check.',
         );
         return 0;
       }
-      if (report.pads.isEmpty) stdout.writeln('No hay mandos conectados.');
+      if (report.pads.isEmpty) stdout.writeln('No gamepads connected.');
       for (final pad in report.pads) {
         stdout.writeln(
-          '${pad.readable ? 'ok' : 'SIN PERMISO'}  ${pad.name} '
+          '${pad.readable ? 'ok' : 'NO PERMISSION'}  ${pad.name} '
           '(${pad.vid}:${pad.pid})  ${pad.node}',
         );
       }
-      stdout.writeln('SDL2: ${report.sdl ? 'instalada' : 'falta'}');
+      stdout.writeln('SDL2: ${report.sdl ? 'installed' : 'missing'}');
       for (final issue in report.issues) {
         stdout.writeln('\n${issue.title}\n  ${issue.detail}');
         if (issue.command != null) stdout.writeln('  ${issue.command}');
@@ -105,8 +105,8 @@ Future<void> main(List<String> args) async {
       final fix = app == null ? null : fixForApp(app.key);
       if (fix != null) {
         stdout.writeln(
-          'arreglo: ${fix.title}, ${_stepsHere(fix)}'
-          '${fix.optIn ? ' (opcional: no se aplica sola)' : ''}',
+          'fix: ${fix.title}, ${_stepsHere(fix)}'
+          '${fix.optIn ? ' (optional: not applied by itself)' : ''}',
         );
       }
       final log = await openApp(
@@ -125,7 +125,7 @@ Future<void> main(List<String> args) async {
       return 0;
     },
     ['sync', final bottle, final mode] => (home) async {
-      if (await setSync(home, bottle, mode)) stdout.writeln('botella detenida');
+      if (await setSync(home, bottle, mode)) stdout.writeln('bottle stopped');
       return 0;
     },
     ['option', final bottle, 'gpu', final mode]
@@ -169,17 +169,17 @@ Future<void> main(List<String> args) async {
         final entry = catalogEntry(id);
         final bottle = rest.firstOrNull ?? id;
         stdout.writeln(
-          'instalada en: ${await installEntry(home, entry, bottle: bottle, onStep: stdout.writeln)}',
+          'installed in: ${await installEntry(home, entry, bottle: bottle, onStep: (step) => stdout.writeln(step.text))}',
         );
-        entry.notes.forEach((note) => stdout.writeln('nota: $note'));
-        stdout.writeln('ábrela con: bodega open $bottle');
+        entry.notes.forEach((note) => stdout.writeln('note: $note'));
+        stdout.writeln('open it with: bodega open $bottle');
         return 0;
       },
     ['wait', final bottle] => (home) => waitBottle(home, bottle),
     ['stop', final bottle] => (home) => stopBottle(home, bottle),
     ['rename', final from, final to] => (home) async {
       await renameBottle(home, from, to);
-      stdout.writeln('botella renombrada: $to');
+      stdout.writeln('bottle renamed: $to');
       return 0;
     },
     ['library', final bottle, final key, final mode]
@@ -196,7 +196,7 @@ Future<void> main(List<String> args) async {
       },
     ['backend', 'list'] => (home) async {
       listBackends(home).forEach((name, installed) {
-        stdout.writeln('$name: ${installed ? 'instalado' : 'no instalado'}');
+        stdout.writeln('$name: ${installed ? 'installed' : 'not installed'}');
       });
       return 0;
     },
@@ -211,9 +211,9 @@ Future<void> main(List<String> args) async {
     ['backend', 'import', 'd3dmetal', final folder] => (home) async {
       stdout
         ..writeln(await importD3DMetal(home, folder))
-        ..writeln('compruébalo: bodega backend test <botella> d3dmetal')
+        ..writeln('check it: bodega backend test <bottle> d3dmetal')
         ..writeln(
-          'su uso se rige por la licencia de Apple del Game Porting Toolkit',
+          'its use is governed by Apple\'s Game Porting Toolkit license',
         );
       return 0;
     },
@@ -230,7 +230,7 @@ Future<void> main(List<String> args) async {
       final results = await backendTest(home, bottle, backend);
       for (final r in results) {
         stdout.writeln(
-          '${r.ok ? 'OK   ' : 'FALLA'} D3D${r.d3d} ${r.bits} bits  log: ${r.log}',
+          '${r.ok ? 'OK  ' : 'FAIL'} D3D${r.d3d} ${r.bits} bits  log: ${r.log}',
         );
       }
       return results.every((r) => r.ok) ? 0 : 1;
@@ -272,7 +272,7 @@ Future<int> _follow(
   final told = <String>{};
   void antiCheat() {
     for (final hint in antiCheatHints(home, bottle, since: since)) {
-      if (told.add(hint)) stderr.writeln('pista: $hint');
+      if (told.add(hint.text)) stderr.writeln('hint: ${hint.text}');
     }
   }
 
@@ -295,25 +295,25 @@ void _list(List<CatalogEntry> entries) {
 void _show(CatalogEntry entry) {
   stdout
     ..writeln('${entry.title} (${entry.id})')
-    ..writeln('estado: ${entry.status}: ${entry.statusNote}')
+    ..writeln('status: ${entry.status}: ${entry.statusNote}')
     ..writeln('backend: ${entry.backend}, sync: ${entry.sync}');
-  if (entry.flaky case final flaky?) stdout.writeln('inestable: $flaky');
+  if (entry.flaky case final flaky?) stdout.writeln('flaky: $flaky');
   for (final note in entry.notes) {
-    stdout.writeln('nota: $note');
+    stdout.writeln('note: $note');
   }
   for (final issue in entry.knownIssues) {
-    stdout.writeln('problema: ${issue.symptom} -> ${issue.fix}');
+    stdout.writeln('issue: ${issue.symptom} -> ${issue.fix}');
   }
   stdout.writeln(
-    'fuente: ${entry.source['repo']} ${entry.source['commit']}, '
+    'source: ${entry.source['repo']} ${entry.source['commit']}, '
     '${entry.source['path']} (${entry.source['license']}); '
-    'verificado: ${entry.source['verified']}',
+    'verified: ${entry.source['verified']}',
   );
 }
 
 String _stepsHere(GameFix fix) {
   final count = fix.steps.where((step) => step.applies).length;
-  return '$count de ${fix.steps.length} pasos son de este equipo '
+  return '$count of ${fix.steps.length} steps are for this machine '
       '(${hostPlatform.displayName})';
 }
 
@@ -323,7 +323,7 @@ void _listFixes(List<GameFix> fixes) {
       '${fix.id.padRight(34)}  ${fix.steam.toString().padRight(8)}  '
       '${fix.title.padRight(34)}  '
       '${fix.steps.where((step) => step.applies).length}/${fix.steps.length}'
-      '${fix.optIn ? '  opcional' : ''}',
+      '${fix.optIn ? '  optional' : ''}',
     );
   }
 }
@@ -332,35 +332,35 @@ void _showFix(GameFix fix) {
   stdout
     ..writeln('${fix.title} (${fix.id}), Steam ${fix.steam}')
     ..writeln(
-      _stepsHere(fix) + (fix.optIn ? '; opcional: no se aplica sola' : ''),
+      _stepsHere(fix) + (fix.optIn ? '; optional: not applied by itself' : ''),
     );
   for (final step in fix.steps) {
     final what = switch (step.type) {
       'env' => 'variable ${step.name}=${step.value}',
       'registry' =>
-        'registro ${step.key} ${step.name} (${step.valueType}) = ${step.data}',
+        'registry ${step.key} ${step.name} (${step.valueType}) = ${step.data}',
       _ => 'dlloverride ${step.value}',
     };
     stdout.writeln(
-      '  ${step.applies ? 'aplica' : 'no aplica'}  $what  [${step.platforms.join(', ')}]',
+      '  ${step.applies ? 'applies     ' : 'does not apply'}  $what  [${step.platforms.join(', ')}]',
     );
   }
   for (final note in fix.notes) {
-    stdout.writeln('nota (en inglés): $note');
+    stdout.writeln('note: $note');
   }
   for (final issue in fix.knownIssues) {
-    stdout.writeln('problema (en inglés): ${issue.symptom} -> ${issue.fix}');
+    stdout.writeln('issue: ${issue.symptom} -> ${issue.fix}');
   }
   final verified = fix.verified;
   stdout.writeln(
-    'fuente: gauthierpiarrette/highball-db ${fixesSourceCommit.substring(0, 7)}, '
+    'source: gauthierpiarrette/highball-db ${fixesSourceCommit.substring(0, 7)}, '
     '${fix.source} (CC0-1.0); '
-    'verificado: ${verified == null ? 'no' : '${verified['date']} en ${verified['chip']}'}',
+    'verified: ${verified == null ? 'no' : '${verified['date']} on ${verified['chip']}'}',
   );
 }
 
 Future<void> _hints(String log) async {
   for (final hint in await hintsIn(log)) {
-    stderr.writeln('pista: $hint');
+    stderr.writeln('hint: ${hint.text}');
   }
 }

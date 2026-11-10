@@ -2,6 +2,7 @@ import 'package:bodega/device/theme/color.dart';
 import 'package:bodega/device/theme/radius.dart';
 import 'package:bodega/device/theme/spacing.dart';
 import 'package:bodega/device/theme/typography.dart';
+import 'package:bodega/l10n/l10n.dart';
 import 'package:flutter/material.dart';
 
 /// Whether the library shows an application. Off, it still belongs to its
@@ -54,7 +55,9 @@ class LibraryToggle extends StatelessWidget {
                   ),
                   const SizedBox(width: AppSpacing.xs),
                   Text(
-                    inLibrary ? 'En biblioteca' : 'Agregar a biblioteca',
+                    inLibrary
+                        ? context.l10n.bottlesInLibrary
+                        : context.l10n.bottlesAddToLibrary,
                     maxLines: 1,
                     style: AppTextStyle(context).caption
                         ?.copyWith(color: color),

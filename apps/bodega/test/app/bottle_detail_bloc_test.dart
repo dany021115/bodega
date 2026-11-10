@@ -163,7 +163,7 @@ void main() {
     'a failed setting is shown and the bottle stays',
     build: () {
       when(() => repository.setWindowsVersion('steam', 'win7')).thenAnswer(
-        (_) async => left(const AppError.engine('winecfg salió con 1')),
+        (_) async => left(const AppError.engine('winecfg exited with 1')),
       );
       return build();
     },
@@ -174,7 +174,7 @@ void main() {
     },
     wait: const Duration(milliseconds: 10),
     verify: (bloc) {
-      expect(bloc.state.error, const AppError.engine('winecfg salió con 1'));
+      expect(bloc.state.error, const AppError.engine('winecfg exited with 1'));
       expect(bloc.state.detail, _detail);
     },
   );
@@ -199,7 +199,7 @@ void main() {
     'an engine error stays in the state, with the bottle still shown',
     build: () {
       when(() => repository.delete('steam'))
-          .thenAnswer((_) async => left(const AppError.engine('no se pudo')));
+          .thenAnswer((_) async => left(const AppError.engine('it failed')));
       return build();
     },
     act: (bloc) async {
@@ -209,7 +209,7 @@ void main() {
     },
     wait: const Duration(milliseconds: 10),
     verify: (bloc) {
-      expect(bloc.state.error, const AppError.engine('no se pudo'));
+      expect(bloc.state.error, const AppError.engine('it failed'));
       expect(bloc.state.deleted, isFalse);
       expect(bloc.state.isBusy, isFalse);
       expect(bloc.state.detail, _detail);
@@ -257,7 +257,7 @@ void main() {
     'a failed rename keeps the name and says why',
     build: () {
       when(() => repository.renameBottle('steam', 'juegos'))
-          .thenAnswer((_) async => left(const AppError.engine('ya existe')));
+          .thenAnswer((_) async => left(const AppError.engine('it exists')));
       return build();
     },
     act: (bloc) async {
@@ -267,7 +267,7 @@ void main() {
     },
     wait: const Duration(milliseconds: 10),
     verify: (bloc) {
-      expect(bloc.state.error, const AppError.engine('ya existe'));
+      expect(bloc.state.error, const AppError.engine('it exists'));
       expect(bloc.state.renamedTo, isNull);
       expect(bloc.state.detail, _detail);
     },

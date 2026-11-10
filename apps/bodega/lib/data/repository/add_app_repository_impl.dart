@@ -15,9 +15,12 @@ class AddAppRepositoryImpl implements AddAppRepository {
   AddAppRepositoryImpl(this._home);
 
   @override
-  String? pathProblem(String path) {
-    if (!File(path).existsSync()) return 'No existe $path';
-    return engine.winPathProblem(path);
+  AppError? pathProblem(String path) {
+    if (!File(path).existsSync()) return AppError.fileMissing(path);
+    return switch (engine.winPathProblem(path)) {
+      final problem? => AppError.engine(problem),
+      null => null,
+    };
   }
 
   @override

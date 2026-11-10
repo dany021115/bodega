@@ -1,6 +1,7 @@
 import 'package:bloc/bloc.dart';
 import 'package:bodega/domain/entities/app_error.dart';
 import 'package:bodega/domain/entities/bottle_detail.dart';
+import 'package:bodega/domain/entities/user_problem.dart';
 import 'package:bodega/domain/repository/bottle_repository.dart';
 import 'package:fpdart/fpdart.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
@@ -125,7 +126,7 @@ class BottleDetailBloc extends Bloc<BottleDetailEvent, BottleDetailState> {
   }
 
   /// U3, for the dialog to check the name while it is typed.
-  String? userProblem(String user) => _repository.userProblem(user);
+  UserProblem? userProblem(String user) => _repository.userProblem(user);
 
   Future<void> _change(
     Emitter<BottleDetailState> emit,

@@ -1,3 +1,4 @@
+import 'package:bodega/l10n/l10n.dart';
 import 'package:bodega/device/theme/gradient.dart';
 import 'package:bodega/device/theme/radius.dart';
 import 'package:bodega/device/theme/spacing.dart';
@@ -60,14 +61,14 @@ class ViewToggle extends StatelessWidget {
             _option(
               context,
               icon: Icons.grid_view_rounded,
-              tooltip: 'Vista en cuadrícula',
+              tooltip: context.l10n.shellGridView,
               selected: isGrid,
               onTap: () => onChanged(true),
             ),
             _option(
               context,
               icon: Icons.view_list_rounded,
-              tooltip: 'Vista en lista',
+              tooltip: context.l10n.shellListView,
               selected: !isGrid,
               onTap: () => onChanged(false),
             ),

@@ -67,19 +67,23 @@ List<HostIssue> gamepadIssues(
   for (final pad in pads)
     if (!pad.readable)
       (
-        title: 'Sin permiso para el mando ${pad.name}',
+        id: 'padPermission',
+        args: {'name': pad.name, 'node': pad.node},
+        title: 'No permission for the gamepad ${pad.name}',
         detail:
-            'Bodega no puede abrir ${pad.node}, así que Wine no verá el mando. '
-            'Hacen falta las reglas udev de mandos (en Arch, el paquete está '
-            'en multilib). Luego desconecta y vuelve a conectar el mando.',
+            'Bodega can\'t open ${pad.node}, so Wine won\'t see the gamepad. '
+            'It needs the gamepad udev rules (on Arch, the package is in '
+            'multilib). Then unplug the gamepad and plug it back in.',
         command: install('steam-devices', null, 'steam-devices'),
       ),
   if (!sdl)
     (
-      title: 'Falta SDL2',
+      id: 'sdl',
+      args: const {},
+      title: 'SDL2 is missing',
       detail:
-          'Wine usa SDL2 para entender los mandos. Sin ella usa udev, que '
-          'reconoce menos mandos.',
+          'Wine uses SDL2 to understand gamepads. Without it, it uses udev, '
+          'which knows fewer gamepads.',
       command: install('libsdl2-2.0-0', 'SDL2', 'sdl2-compat'),
     ),
 ];

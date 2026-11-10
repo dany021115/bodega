@@ -59,7 +59,7 @@ _Store _readStore(String dir) {
     store.apps.forEach((app) => _appOf('', app, store.offLibrary));
     return store;
   } on Object catch (e) {
-    throw '${file.path} no es válido: $e';
+    throw '${file.path} is not valid: $e';
   }
 }
 
@@ -140,13 +140,13 @@ void addApp(
 }) {
   final dir = _existing(home, bottle);
   final path = exe.startsWith('/') ? exe : findCI('$dir/prefix/drive_c', exe);
-  if (!File(path).existsSync()) throw 'no existe $path';
+  if (!File(path).existsSync()) throw '$path does not exist';
   final key = appKey(exe);
   final store = _readStore(dir);
   if (store.apps.any(
     (app) => _appOf(bottle, app, store.offLibrary).key == key,
   )) {
-    throw 'la botella $bottle ya tiene esa aplicación';
+    throw 'the bottle $bottle already has that application';
   }
   _registerApp(dir, 'custom', title, exe, args);
   if (env.isNotEmpty) {
@@ -175,7 +175,7 @@ void addApp(
 void setAppHud(String home, String bottle, String key, bool value) {
   final dir = _existing(home, bottle);
   final app = _appsIn(bottle, dir).where((app) => app.key == key).firstOrNull;
-  if (app == null) throw '$bottle no tiene la aplicación $key';
+  if (app == null) throw '$bottle has no application $key';
   final settings = _settings(dir);
   final program = _exeKey(app.exe);
   final current = settings.programs[program];
@@ -213,7 +213,7 @@ void hideApp(String home, String bottle, String key) {
 void setInLibrary(String home, String bottle, String key, bool value) {
   final dir = _existing(home, bottle);
   if (!_appsIn(bottle, dir).any((app) => app.key == key)) {
-    throw '$bottle no tiene la aplicación $key';
+    throw '$bottle has no application $key';
   }
   final store = _readStore(dir);
   store.offLibrary.remove(key);
@@ -234,13 +234,14 @@ List<InstalledApp> _appsIn(String bottle, String dir) {
   ];
   final seen = {...registered.map((app) => app.key), ...store.hidden};
   final drive = '$dir/prefix/drive_c';
-  final detected = [
-    ..._shortcutApps(bottle, drive, store.offLibrary),
-    ..._steamGames(bottle, drive, store.offLibrary),
-  ]
-      .where((app) => seen.add(app.key))
-      .map((app) => _withHud(app, settings))
-      .toList();
+  final detected =
+      [
+            ..._shortcutApps(bottle, drive, store.offLibrary),
+            ..._steamGames(bottle, drive, store.offLibrary),
+          ]
+          .where((app) => seen.add(app.key))
+          .map((app) => _withHud(app, settings))
+          .toList();
   detected.sort(
     (a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()),
   );
@@ -381,14 +382,14 @@ Future<String> openApp(
 }) async {
   final apps = bottleApps(home, bottle);
   if (apps.isEmpty) {
-    throw '$bottle no tiene una aplicación instalada; usa bodega run $bottle '
-        '<programa>';
+    throw '$bottle has no installed application; use bodega run $bottle '
+        '<program>';
   }
   await hostPlatform.prepareBottle(home, bottle);
   final app = key == null
       ? apps.first
       : apps.where((app) => app.key == key).firstOrNull ??
-            (throw '$bottle no tiene la aplicación $key');
+            (throw '$bottle has no application $key');
   final fix = fixForApp(app.key);
   // A Steam already open starts the game with its own environment, so the
   // fix's variables would not reach it: the log says so instead of hiding it.

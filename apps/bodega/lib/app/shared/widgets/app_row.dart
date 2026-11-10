@@ -5,6 +5,7 @@ import 'package:bodega/device/theme/radius.dart';
 import 'package:bodega/device/theme/spacing.dart';
 import 'package:bodega/device/theme/typography.dart';
 import 'package:bodega/domain/entities/library_app.dart';
+import 'package:bodega/l10n/l10n.dart';
 import 'package:flutter/material.dart';
 
 /// An application as a list row. A double click plays it, and the menu button
@@ -41,6 +42,7 @@ class AppRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     final styles = AppTextStyle(context);
+    final l10n = context.l10n;
     final menu = onMenu;
     // Set by the button's Builder, so a right click opens the menu in the same
     // place as the button does.
@@ -91,7 +93,7 @@ class AppRow extends StatelessWidget {
               child: Semantics(
                 button: true,
                 label: app.title,
-                hint: 'Doble toque para abrir',
+                hint: l10n.libraryOpenHint,
                 onTap: running ? null : onPlay,
                 child: Row(
                   children: [
@@ -142,7 +144,7 @@ class AppRow extends StatelessWidget {
                     const SizedBox(width: AppSpacing.xs),
                     Flexible(
                       child: Text(
-                        running ? 'En ejecución' : 'Cerrada',
+                        running ? l10n.libraryRunning : l10n.libraryClosed,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: styles.caption?.copyWith(
@@ -159,7 +161,7 @@ class AppRow extends StatelessWidget {
             ),
           ),
           GradientButton(
-            label: running ? 'Parar' : 'Jugar',
+            label: running ? l10n.libraryStop : l10n.libraryPlay,
             icon: running ? Icons.stop_rounded : Icons.play_arrow_rounded,
             onPressed: running ? onStop : onPlay,
           ),
@@ -168,7 +170,7 @@ class AppRow extends StatelessWidget {
               builder: (button) {
                 anchor = button;
                 return IconButton(
-                  tooltip: 'Opciones de ${app.title}',
+                  tooltip: l10n.libraryOptionsOf(app.title),
                   icon: const Icon(Icons.more_horiz_rounded),
                   onPressed: () => menu(button),
                 );

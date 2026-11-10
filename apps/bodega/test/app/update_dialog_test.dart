@@ -1,3 +1,4 @@
+import 'package:bodega/l10n/app_localizations.dart';
 import 'package:bloc_test/bloc_test.dart';
 import 'package:bodega/app/bloc/update/update_bloc.dart';
 import 'package:bodega/app/shared/widgets/update_dialog.dart';
@@ -16,7 +17,7 @@ void main() {
   const mac = AppUpdate(
     version: '1.4.0',
     current: '1.3.0',
-    notes: 'Arreglos de Blur',
+    notes: 'Blur fixes',
     page: 'https://x/page',
     installer: 'https://x/Bodega.dmg',
     sums: 'https://x/SHA256SUMS-macos',
@@ -29,6 +30,8 @@ void main() {
     when(() => bloc.state).thenReturn(state);
     await tester.pumpWidget(
       MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
         home: BlocProvider<UpdateBloc>.value(
           value: bloc,
           child: const Scaffold(body: UpdateDialog()),
@@ -39,15 +42,15 @@ void main() {
 
   testWidgets('an update this Mac can install (A3)', (tester) async {
     await show(tester, const UpdateState(update: mac));
-    expect(find.text('Hay una versión nueva'), findsOneWidget);
-    expect(find.text('Bodega 1.4.0 (tienes 1.3.0)'), findsOneWidget);
-    expect(find.text('Arreglos de Blur'), findsOneWidget);
+    expect(find.text('A new version is out'), findsOneWidget);
+    expect(find.text('Bodega 1.4.0 (you have 1.3.0)'), findsOneWidget);
+    expect(find.text('Blur fixes'), findsOneWidget);
     expect(
-      find.text('Tus botellas, juegos y ajustes se quedan como están.'),
+      find.text('Your bottles, games and settings stay as they are.'),
       findsOneWidget,
     );
-    expect(find.text('Ahora no'), findsOneWidget);
-    await tester.tap(find.text('Actualizar'));
+    expect(find.text('Not now'), findsOneWidget);
+    await tester.tap(find.text('Update'));
     verify(() => bloc.add(const UpdateEvent.install())).called(1);
   });
 
@@ -65,8 +68,8 @@ void main() {
         ),
       ),
     );
-    expect(find.text('Actualizar'), findsNothing);
-    expect(find.text('Ver la versión'), findsOneWidget);
+    expect(find.text('Update'), findsNothing);
+    expect(find.text('See the release'), findsOneWidget);
     expect(
       find.text('sudo apt install ./Bodega-1.4.0-linux-amd64.deb'),
       findsOneWidget,
@@ -85,9 +88,9 @@ void main() {
         total: 10 << 20,
       ),
     );
-    expect(find.text('Descargando: 5 de 10 MB'), findsOneWidget);
-    expect(find.text('Ahora no'), findsNothing);
-    await tester.tap(find.text('Cancelar'));
+    expect(find.text('Downloading: 5 of 10 MB'), findsOneWidget);
+    expect(find.text('Not now'), findsNothing);
+    await tester.tap(find.text('Cancel'));
     verify(() => bloc.add(const UpdateEvent.cancel())).called(1);
   });
 
@@ -99,11 +102,11 @@ void main() {
       const UpdateState(
         update: mac,
         error: AppError.engine(
-          'la descarga de Bodega.dmg no coincide con su SHA256',
+          'the download of Bodega.dmg does not match its SHA256',
         ),
       ),
     );
-    expect(find.textContaining('no coincide con su SHA256'), findsOneWidget);
-    expect(find.text('Actualizar'), findsOneWidget);
+    expect(find.textContaining('does not match its SHA256'), findsOneWidget);
+    expect(find.text('Update'), findsOneWidget);
   });
 }

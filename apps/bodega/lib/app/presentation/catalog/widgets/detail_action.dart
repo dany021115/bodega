@@ -7,6 +7,7 @@ import 'package:bodega/device/router/manager.dart';
 import 'package:bodega/device/theme/spacing.dart';
 import 'package:bodega/device/theme/typography.dart';
 import 'package:bodega/domain/entities/catalog_app.dart';
+import 'package:bodega/l10n/l10n.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -34,10 +35,10 @@ class _DetailActionState extends State<DetailAction> {
 
   Future<void> _pickSetup() async {
     final file = await openFile(
-      acceptedTypeGroups: const [
+      acceptedTypeGroups: [
         XTypeGroup(
-          label: 'Instaladores',
-          extensions: ['exe', 'msi', 'EXE', 'MSI'],
+          label: context.l10n.catalogInstallers,
+          extensions: const ['exe', 'msi', 'EXE', 'MSI'],
         ),
       ],
     );
@@ -48,6 +49,7 @@ class _DetailActionState extends State<DetailAction> {
   Widget build(BuildContext context) {
     final app = widget.app;
     final styles = AppTextStyle(context);
+    final l10n = context.l10n;
     final install = context.watch<InstallBloc>().state;
     final ready = [
       for (final bottle in context.watch<BottlesBloc>().state.bottles)
@@ -64,7 +66,7 @@ class _DetailActionState extends State<DetailAction> {
           );
           RouterManager.go(AppRoute.library, context: context);
         },
-        child: const Text('Abrir'),
+        child: Text(l10n.commonOpen),
       );
     }
 
@@ -72,12 +74,9 @@ class _DetailActionState extends State<DetailAction> {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const FilledButton(onPressed: null, child: Text('Instalar')),
+          FilledButton(onPressed: null, child: Text(l10n.catalogInstall)),
           const SizedBox(height: AppSpacing.xs),
-          Text(
-            'No se puede instalar: está bloqueada, por lo que dice arriba.',
-            style: styles.caption,
-          ),
+          Text(l10n.catalogBlockedNote, style: styles.caption),
         ],
       );
     }
@@ -85,7 +84,7 @@ class _DetailActionState extends State<DetailAction> {
     if (!app.backendInstalled) {
       return FilledButton(
         onPressed: () => RouterManager.go(AppRoute.backends, context: context),
-        child: Text('Instalar ${app.backend}'),
+        child: Text(l10n.catalogInstallBackend(app.backend)),
       );
     }
 
@@ -97,9 +96,9 @@ class _DetailActionState extends State<DetailAction> {
           DropdownButtonFormField<String?>(
             initialValue: bottle,
             isExpanded: true,
-            decoration: const InputDecoration(labelText: 'Botella'),
+            decoration: InputDecoration(labelText: l10n.catalogBottle),
             items: [
-              const DropdownMenuItem(value: null, child: Text('Botella nueva')),
+              DropdownMenuItem(value: null, child: Text(l10n.catalogNewBottle)),
               for (final name in ready)
                 DropdownMenuItem(value: name, child: Text(name)),
             ],
@@ -109,11 +108,7 @@ class _DetailActionState extends State<DetailAction> {
           ),
           if (bottle != null) ...[
             const SizedBox(height: AppSpacing.xs),
-            Text(
-              'Instalar en una botella que ya existe cierra lo que tenga '
-              'abierto, y la deja con su backend y su sync.',
-              style: styles.caption,
-            ),
+            Text(l10n.catalogExistingBottleNote, style: styles.caption),
           ],
           const SizedBox(height: AppSpacing.md),
           Row(
@@ -121,8 +116,8 @@ class _DetailActionState extends State<DetailAction> {
               Expanded(
                 child: Text(
                   _setup == null
-                      ? 'Instalador: se descarga'
-                      : 'Instalador: ${_setup!.split('/').last}',
+                      ? l10n.catalogInstallerDownloaded
+                      : l10n.catalogInstallerFile(_setup!.split('/').last),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: styles.body,
@@ -131,11 +126,11 @@ class _DetailActionState extends State<DetailAction> {
               if (_setup != null)
                 TextButton(
                   onPressed: () => setState(() => _setup = null),
-                  child: const Text('Descargar'),
+                  child: Text(l10n.catalogDownload),
                 ),
               OutlinedButton(
                 onPressed: install.isRunning ? null : _pickSetup,
-                child: const Text('Elegir archivo…'),
+                child: Text(l10n.catalogPickFile),
               ),
             ],
           ),
@@ -148,13 +143,13 @@ class _DetailActionState extends State<DetailAction> {
                   : () => context.read<InstallBloc>().add(
                       InstallEvent.start(app, bottle: bottle, setup: _setup),
                     ),
-              child: const Text('Instalar'),
+              child: Text(l10n.catalogInstall),
             ),
           ),
           if (install.isRunning) ...[
             const SizedBox(height: AppSpacing.xs),
             Text(
-              'Hay otra instalación en marcha: ${install.app?.title}.',
+              l10n.catalogInstallRunning(install.app?.title ?? ''),
               style: styles.caption,
             ),
           ],

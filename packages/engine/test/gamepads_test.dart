@@ -54,6 +54,11 @@ void main() {
     );
     final issues = gamepadIssues(pads, sdl: true, install: _install);
     expect(issues, hasLength(1));
+    expect(issues.single.id, 'padPermission');
+    expect(issues.single.args, {
+      'name': '8BitDo Ultimate 2 Wireless Controller',
+      'node': '/dev/input/event27',
+    });
     expect(issues.single.title, contains('8BitDo Ultimate 2'));
     expect(issues.single.detail, contains('/dev/input/event27'));
     // Fedora has no package for it: the command is left for the distro to fill.
@@ -65,7 +70,8 @@ void main() {
 
   test('missing SDL2 is reported with or without pads', () {
     final issues = gamepadIssues(const [], sdl: false, install: _install);
-    expect(issues.single.title, 'Falta SDL2');
+    expect(issues.single.id, 'sdl');
+    expect(issues.single.title, 'SDL2 is missing');
     expect(issues.single.command, contains('sdl2-compat'));
   });
 

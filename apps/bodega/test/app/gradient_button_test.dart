@@ -1,3 +1,4 @@
+import 'package:bodega/l10n/app_localizations.dart';
 import 'package:bodega/app/shared/widgets/gradient_button.dart';
 import 'package:bodega/device/theme/theme.dart';
 import 'package:flutter/material.dart';
@@ -10,11 +11,13 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     await tester.pumpWidget(
       MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
         theme: AppTheme.getDarkTheme(),
         home: Scaffold(
           body: Center(
             child: GradientButton(
-              label: 'Jugar un título largo de prueba que no debe desbordar',
+              label: 'Play a long test title that must not overflow',
               icon: Icons.play_arrow_rounded,
               onPressed: onPressed,
             ),

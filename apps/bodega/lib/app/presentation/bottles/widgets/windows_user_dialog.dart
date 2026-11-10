@@ -1,5 +1,8 @@
+import 'package:bodega/app/shared/engine_text.dart';
 import 'package:bodega/device/theme/spacing.dart';
+import 'package:bodega/domain/entities/user_problem.dart';
 import 'package:bodega/device/theme/typography.dart';
+import 'package:bodega/l10n/l10n.dart';
 import 'package:flutter/material.dart';
 
 /// U5: the name chosen, '' for the host's, or null if it was cancelled.
@@ -7,7 +10,7 @@ Future<String?> showWindowsUserDialog(
   BuildContext context, {
   required String current,
   required String macUser,
-  required String? Function(String user) problem,
+  required UserProblem? Function(String user) problem,
 }) => showDialog<String>(
   context: context,
   builder: (_) =>
@@ -20,7 +23,7 @@ class WindowsUserDialog extends StatefulWidget {
   final String macUser;
 
   /// Why a name cannot be used (U3), or null.
-  final String? Function(String user) problem;
+  final UserProblem? Function(String user) problem;
 
   const WindowsUserDialog({
     super.key,
@@ -49,25 +52,25 @@ class _WindowsUserDialogState extends State<WindowsUserDialog> {
     final name = _name.text.trim();
     final why = name.isEmpty ? null : widget.problem(name);
     final canSave = name.isNotEmpty && why == null && name != _shown;
+    final l10n = context.l10n;
 
     return AlertDialog(
-      title: const Text('Usuario de Windows'),
+      title: Text(l10n.bottlesWindowsUser),
       content: SizedBox(
         width: 380,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(
-              'El nombre que ven los juegos de esta botella. Al cambiarlo se '
-              'cierra lo que esté abierto; tus partidas guardadas se quedan.',
-              style: styles.bodySecondary,
-            ),
+            Text(l10n.bottlesWindowsUserBody, style: styles.bodySecondary),
             const SizedBox(height: AppSpacing.md),
             TextField(
               controller: _name,
               autofocus: true,
-              decoration: InputDecoration(labelText: 'Nombre', errorText: why),
+              decoration: InputDecoration(
+                labelText: l10n.bottlesName,
+                errorText: why == null ? null : userProblemText(l10n, why),
+              ),
               onChanged: (_) => setState(() {}),
               onSubmitted: canSave
                   ? (_) => Navigator.of(context).pop(name)
@@ -80,15 +83,15 @@ class _WindowsUserDialogState extends State<WindowsUserDialog> {
         if (widget.current.isNotEmpty)
           TextButton(
             onPressed: () => Navigator.of(context).pop(''),
-            child: Text('Usar ${widget.macUser}'),
+            child: Text(l10n.bottlesUseHostUser(widget.macUser)),
           ),
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancelar'),
+          child: Text(l10n.commonCancel),
         ),
         FilledButton(
           onPressed: canSave ? () => Navigator.of(context).pop(name) : null,
-          child: const Text('Guardar'),
+          child: Text(l10n.commonSave),
         ),
       ],
     );

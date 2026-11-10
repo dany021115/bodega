@@ -1,7 +1,14 @@
 part of 'engine.dart';
 
-/// Something the host lacks before bottles can run (R10).
-typedef HostIssue = ({String title, String detail, String? command});
+/// Something the host lacks before bottles can run (R10). [id] and [args]
+/// let a UI write its own text; [title] and [detail] are the English one.
+typedef HostIssue = ({
+  String id,
+  Map<String, String> args,
+  String title,
+  String detail,
+  String? command,
+});
 
 /// What the host offers, so that a UI hides the rest (R11).
 typedef HostCapabilities = ({
@@ -23,7 +30,7 @@ abstract class HostPlatform {
   static HostPlatform detect() => switch (Platform.operatingSystem) {
     'macos' => MacPlatform(),
     'linux' => LinuxPlatform(),
-    final other => throw 'sistema no soportado: $other',
+    final other => throw 'unsupported system: $other',
   };
 
   /// `Mac` or `Linux`, for texts.

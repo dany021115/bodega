@@ -22,7 +22,7 @@ abstract class BackendsState with _$BackendsState {
     String? gptkWaiting,
 
     /// What the D3DMetal install is doing (I3).
-    String? gptkStep,
+    ProgressStep? gptkStep,
 
     /// The D3DMetal version just installed, for the page to say so.
     String? gptkInstalled,

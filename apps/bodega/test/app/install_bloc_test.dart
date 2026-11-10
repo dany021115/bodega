@@ -4,6 +4,7 @@ import 'package:bloc_test/bloc_test.dart';
 import 'package:bodega/app/bloc/install/install_bloc.dart';
 import 'package:bodega/domain/entities/app_error.dart';
 import 'package:bodega/domain/entities/catalog_app.dart';
+import 'package:bodega/domain/entities/progress_step.dart';
 import 'package:bodega/domain/repository/install_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fpdart/fpdart.dart';
@@ -62,7 +63,7 @@ void main() {
           bottle: any(named: 'bottle'),
         ),
       ).thenAnswer((call) async {
-        (call.positionalArguments[2] as void Function(String))('Creando');
+        (call.positionalArguments[2] as void Function(ProgressStep))(_creating);
         return right(unit);
       });
       return InstallBloc(repository);
@@ -101,7 +102,7 @@ void main() {
         bottle: 'rockstar',
         received: 100,
         total: 100,
-        step: 'Creando',
+        step: _creating,
       ),
       InstallState(
         phase: InstallPhase.done,
@@ -109,7 +110,7 @@ void main() {
         bottle: 'rockstar',
         received: 100,
         total: 100,
-        step: 'Creando',
+        step: _creating,
       ),
     ],
   );
@@ -150,13 +151,13 @@ void main() {
   blocTest<InstallBloc, InstallState>(
     'a network error fails with no bottle to delete',
     build: () {
-      downloads(left(const AppError.network('sin red')));
+      downloads(left(const AppError.network('offline')));
       return InstallBloc(repository);
     },
     act: (bloc) => bloc.add(const InstallEvent.start(_app)),
     verify: (bloc) {
       expect(bloc.state.phase, InstallPhase.failed);
-      expect(bloc.state.error, const AppError.network('sin red'));
+      expect(bloc.state.error, const AppError.network('offline'));
       expect(bloc.state.bottleLeft, isFalse);
       verifyNever(
         () => repository.install(
@@ -182,7 +183,7 @@ void main() {
         ),
       ).thenAnswer(
         (_) async => left(
-          const AppError.engine('el instalador salió con 1; log: /l/a.log'),
+          const AppError.engine('the installer exited with 1; log: /l/a.log'),
         ),
       );
       when(() => repository.bottleExists('rockstar')).thenReturn(true);
@@ -193,7 +194,10 @@ void main() {
     act: (bloc) async {
       bloc.add(const InstallEvent.start(_app));
       await bloc.stream.firstWhere((s) => s.phase == InstallPhase.failed);
-      expect(bloc.state.error?.message, contains('/l/a.log'));
+      expect(
+        bloc.state.error,
+        const AppError.engine('the installer exited with 1; log: /l/a.log'),
+      );
       expect(bloc.state.bottleLeft, isTrue);
       bloc.add(const InstallEvent.removeBottle());
     },
@@ -251,7 +255,7 @@ void main() {
           any(),
           bottle: any(named: 'bottle'),
         ),
-      ).thenAnswer((_) async => left(const AppError.engine('falló')));
+      ).thenAnswer((_) async => left(const AppError.engine('failed')));
       when(() => repository.bottleExists(any())).thenReturn(true);
       return InstallBloc(repository);
     },
@@ -298,3 +302,5 @@ void main() {
     },
   );
 }
+
+const _creating = ProgressStep(id: 'creatingBottle', text: 'Creating');

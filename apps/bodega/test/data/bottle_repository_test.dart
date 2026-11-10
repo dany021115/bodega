@@ -38,7 +38,7 @@ void main() {
 
   test('the detail, leaving out programs with no backend', () async {
     final detail = (await repository.detail('steam'))
-        .getOrElse((error) => fail(error.message));
+        .getOrElse((error) => fail('$error'));
 
     expect(detail.backend, 'wine');
     expect(detail.sync, 'none');
@@ -56,7 +56,7 @@ void main() {
     await repository.setBackend('steam', 'auto', exe: 'steam.exe');
 
     final detail = (await repository.detail('steam'))
-        .getOrElse((error) => fail(error.message));
+        .getOrElse((error) => fail('$error'));
     expect(detail.exceptions, isEmpty);
     expect(detail.backend, 'wine');
   });
@@ -71,7 +71,7 @@ void main() {
     await sink.close();
 
     final lines = (await repository.logLines(log.path))
-        .getOrElse((error) => fail(error.message));
+        .getOrElse((error) => fail('$error'));
 
     expect(lines, hasLength(2000));
     expect(lines.first, 'line 501');
@@ -79,9 +79,9 @@ void main() {
   });
 
   test('an unknown bottle is an engine error, with its text', () async {
-    final error = (await repository.detail('no-existe')).getLeft().toNullable();
+    final error = (await repository.detail('missing')).getLeft().toNullable();
     expect(error, isA<EngineError>());
-    expect(error!.message, contains('no existe'));
+    expect((error! as EngineError).message, contains('does not exist'));
   });
 
   test('the detail brings the applications of the bottle', () async {
@@ -97,7 +97,7 @@ void main() {
     );
 
     final detail = (await repository.detail('steam'))
-        .getOrElse((error) => fail(error.message));
+        .getOrElse((error) => fail('$error'));
 
     expect(detail.apps.map((app) => app.key), ['a/a.exe', 'b/b.exe']);
     expect(detail.apps.first.bottle, 'steam');
@@ -117,7 +117,7 @@ void main() {
     await repository.hideApp('steam', 'a/a.exe');
 
     final detail = (await repository.detail('steam'))
-        .getOrElse((error) => fail(error.message));
+        .getOrElse((error) => fail('$error'));
     expect(detail.apps, isEmpty);
   });
 
@@ -135,10 +135,10 @@ void main() {
       'steam',
       'a/a.exe',
       false,
-    )).getOrElse((error) => fail(error.message));
+    )).getOrElse((error) => fail('$error'));
 
     final detail = (await repository.detail('steam'))
-        .getOrElse((error) => fail(error.message));
+        .getOrElse((error) => fail('$error'));
     expect(detail.apps.single.key, 'a/a.exe');
     expect(detail.apps.single.inLibrary, isFalse);
   });
@@ -146,12 +146,12 @@ void main() {
   test('renaming moves the bottle to its new name', () async {
     (await repository.renameBottle(
       'steam',
-      'juegos',
-    )).getOrElse((error) => fail(error.message));
+      'games',
+    )).getOrElse((error) => fail('$error'));
 
-    final detail = (await repository.detail('juegos'))
-        .getOrElse((error) => fail(error.message));
-    expect(detail.name, 'juegos');
+    final detail = (await repository.detail('games'))
+        .getOrElse((error) => fail('$error'));
+    expect(detail.name, 'games');
     expect(Directory('${home.path}/bottles/steam').existsSync(), isFalse);
   });
 }

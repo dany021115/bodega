@@ -4,6 +4,7 @@ import 'package:bodega/app/bloc/library/library_bloc.dart';
 import 'package:bodega/app/bloc/new_bottle/new_bottle_bloc.dart';
 import 'package:bodega/app/presentation/bottles/widgets/bottle_column.dart';
 import 'package:bodega/app/router.dart';
+import 'package:bodega/app/shared/error_text.dart';
 import 'package:bodega/app/shared/widgets/custom_loading.dart';
 import 'package:bodega/app/shared/widgets/gradient_button.dart';
 import 'package:bodega/device/router/manager.dart';
@@ -13,6 +14,7 @@ import 'package:bodega/device/theme/spacing.dart';
 import 'package:bodega/device/theme/typography.dart';
 import 'package:bodega/di.dart';
 import 'package:bodega/domain/entities/backend_info.dart';
+import 'package:bodega/l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -34,15 +36,13 @@ Future<void> showNewBottleDialog(BuildContext context) {
 class NewBottleDialog extends StatelessWidget {
   const NewBottleDialog({super.key});
 
-  String? _nameError(NewBottleState state) {
+  String? _nameError(AppLocalizations l10n, NewBottleState state) {
     if (state.name.isEmpty) return null;
-    if (!_nameRule.hasMatch(state.name)) {
-      return 'Usa letras, números, guiones o guion bajo, hasta 64 caracteres.';
-    }
+    if (!_nameRule.hasMatch(state.name)) return l10n.bottlesNewNameInvalid;
     final taken = state.taken.any(
       (bottle) => bottle.toLowerCase() == state.name.toLowerCase(),
     );
-    return taken ? 'Ya tienes una botella con ese nombre.' : null;
+    return taken ? l10n.bottlesNameTaken : null;
   }
 
   @override
@@ -61,6 +61,7 @@ class NewBottleDialog extends StatelessWidget {
         final styles = AppTextStyle(context);
         final colors = Theme.of(context).colorScheme;
         final busy = state.isCreating;
+        final l10n = context.l10n;
 
         return PopScope(
           // A bottle being made is not closed halfway.
@@ -94,18 +95,20 @@ class NewBottleDialog extends StatelessWidget {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text('Nueva botella', style: styles.sectionTitle),
+                              Text(
+                                l10n.bottlesNewTitle,
+                                style: styles.sectionTitle,
+                              ),
                               const SizedBox(height: AppSpacing.xs),
                               Text(
-                                'Es el espacio donde se instalan tus apps y '
-                                'juegos.',
+                                l10n.bottlesNewSubtitle,
                                 style: styles.caption,
                               ),
                             ],
                           ),
                         ),
                         IconButton(
-                          tooltip: 'Cerrar',
+                          tooltip: l10n.commonClose,
                           icon: const Icon(Icons.close_rounded),
                           onPressed: busy
                               ? null
@@ -123,7 +126,7 @@ class NewBottleDialog extends StatelessWidget {
                             child: Semantics(
                               liveRegion: true,
                               child: Text(
-                                'Creando la botella…',
+                                l10n.bottlesCreating,
                                 style: styles.body,
                               ),
                             ),
@@ -134,8 +137,8 @@ class NewBottleDialog extends StatelessWidget {
                       TextField(
                         autofocus: true,
                         decoration: InputDecoration(
-                          labelText: 'Nombre',
-                          errorText: _nameError(state),
+                          labelText: l10n.bottlesName,
+                          errorText: _nameError(l10n, state),
                         ),
                         onChanged: (name) =>
                             bloc.add(NewBottleEvent.nameChanged(name)),
@@ -147,8 +150,8 @@ class NewBottleDialog extends StatelessWidget {
                             child: DropdownButtonFormField<String>(
                               isExpanded: true,
                               initialValue: state.windows,
-                              decoration: const InputDecoration(
-                                labelText: 'Versión de Windows',
+                              decoration: InputDecoration(
+                                labelText: l10n.bottlesWindowsVersion,
                               ),
                               items: [
                                 for (final MapEntry(:key, :value)
@@ -174,10 +177,13 @@ class NewBottleDialog extends StatelessWidget {
                                   DropdownButtonFormField<String>(
                                     isExpanded: true,
                                     initialValue: state.backend,
-                                    decoration: const InputDecoration(
-                                      labelText: 'Gráficos',
+                                    decoration: InputDecoration(
+                                      labelText: l10n.runOptionsGraphics,
                                     ),
-                                    items: _backendItems(backends.backends),
+                                    items: _backendItems(
+                                      l10n,
+                                      backends.backends,
+                                    ),
                                     onChanged: (backend) {
                                       if (backend != null) {
                                         bloc.add(
@@ -210,8 +216,7 @@ class NewBottleDialog extends StatelessWidget {
                             const SizedBox(width: AppSpacing.sm),
                             Expanded(
                               child: Text(
-                                'La primera vez puede tardar unos minutos. '
-                                'Luego agregas apps desde la botella.',
+                                l10n.bottlesNewNote,
                                 style: styles.caption,
                               ),
                             ),
@@ -221,7 +226,7 @@ class NewBottleDialog extends StatelessWidget {
                       if (state.error case final error?) ...[
                         const SizedBox(height: AppSpacing.md),
                         SelectableText(
-                          error.message,
+                          error.text(l10n),
                           style: styles.body?.copyWith(color: colors.error),
                         ),
                       ],
@@ -231,11 +236,11 @@ class NewBottleDialog extends StatelessWidget {
                         children: [
                           TextButton(
                             onPressed: () => Navigator.of(context).pop(),
-                            child: const Text('Cancelar'),
+                            child: Text(l10n.commonCancel),
                           ),
                           const SizedBox(width: AppSpacing.sm),
                           GradientButton(
-                            label: 'Crear botella',
+                            label: l10n.bottlesCreate,
                             onPressed: state.canSubmit
                                 ? () => bloc.add(const NewBottleEvent.submit())
                                 : null,
@@ -253,8 +258,11 @@ class NewBottleDialog extends StatelessWidget {
     );
   }
 
-  List<DropdownMenuItem<String>> _backendItems(List<BackendInfo> backends) => [
-    const DropdownMenuItem(value: 'auto', child: Text('Automático')),
+  List<DropdownMenuItem<String>> _backendItems(
+    AppLocalizations l10n,
+    List<BackendInfo> backends,
+  ) => [
+    DropdownMenuItem(value: 'auto', child: Text(l10n.bottlesAutomatic)),
     for (final backend in backends)
       if (backend.installed)
         DropdownMenuItem(value: backend.name, child: Text(backend.name)),

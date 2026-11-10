@@ -13,12 +13,12 @@ void main() {
     final repository = RuntimeRepositoryImpl(TestHome(home.path));
 
     final result = await repository.install(
-      engine: '${home.path}/no-existe-engine.tar.xz',
-      hostlibs: '${home.path}/no-existe-hostlibs.tar.xz',
+      engine: '${home.path}/missing-engine.tar.xz',
+      hostlibs: '${home.path}/missing-hostlibs.tar.xz',
     );
 
     final error = result.getLeft().toNullable();
     expect(error, isA<EngineError>());
-    expect(error!.message, isNotEmpty);
+    expect((error! as EngineError).message, isNotEmpty);
   });
 }

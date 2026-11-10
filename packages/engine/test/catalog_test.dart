@@ -125,7 +125,7 @@ void catalog() {
       final dir = await installEntry(
         home,
         fake(makeExe, env: {'FOO': '1'}),
-        onStep: steps.add,
+        onStep: (s) => steps.add(s.text),
       );
       expect(dir, '$home/bottles/x');
       final prefix = '$dir/prefix';
@@ -145,13 +145,13 @@ void catalog() {
       expect(app['exe'], 'Prog/x.exe');
       expect(File('$prefix/server.log').readAsStringSync(), contains('k'));
       expect(File('$home/downloads/x-setup.exe').existsSync(), isFalse);
-      expect(steps.first, startsWith('sin checksum fijo'));
+      expect(steps.first, startsWith('no pinned checksum'));
       final logs = Directory('$dir/logs').listSync().map((e) => e.path);
       expect(logs, contains(endsWith('-x-setup.log')));
 
       await expectLater(
         installEntry(home, fake(makeExe)),
-        throwsA(allOf(contains('ya existe'), contains('rm -rf'))),
+        throwsA(allOf(contains('already exists'), contains('rm -rf'))),
       );
     });
 
@@ -159,8 +159,8 @@ void catalog() {
       for (final (entry, error) in [
         (fake(makeExe, status: 'blocked'), 'motivo'),
         (fake(makeExe, backend: 'dxmt'), 'bodega backend install dxmt'),
-        (fake(makeExe, url: 'http://example.com/x.exe'), 'no es https'),
-        (fake(makeExe, sha256: '0' * 64), 'checksum incorrecto'),
+        (fake(makeExe, url: 'http://example.com/x.exe'), 'is not https'),
+        (fake(makeExe, sha256: '0' * 64), 'wrong checksum'),
       ]) {
         await expectLater(installEntry(home, entry), throwsA(contains(error)));
         expect(Directory('$home/bottles/x').existsSync(), isFalse);
@@ -203,7 +203,7 @@ void catalog() {
 
       await expectLater(
         installEntry(home, fake('$makeExe; exit 5', id: 'bad')),
-        throwsA(allOf(contains('salió con 5'), contains('-bad-setup.log'))),
+        throwsA(allOf(contains('exited with 5'), contains('-bad-setup.log'))),
       );
       expect(File('$home/bottles/bad/apps.json').existsSync(), isFalse);
       expect(Directory('$home/bottles/bad/logs').existsSync(), isTrue);
@@ -216,7 +216,7 @@ void catalog() {
     test('missing exe', () async {
       await expectLater(
         installEntry(home, fake('true')),
-        throwsA(contains('no está Prog/x.exe')),
+        throwsA(contains('Prog/x.exe is missing')),
       );
       expect(File('$home/bottles/x/apps.json').existsSync(), isFalse);
     });
@@ -252,7 +252,7 @@ void catalog() {
             ],
           ),
         ),
-        throwsA(contains('reg add salió con 3')),
+        throwsA(contains('reg add exited with 3')),
       );
     });
 
@@ -280,7 +280,7 @@ void catalog() {
           fake(hang, id: 'never'),
           limit: const Duration(seconds: 1),
         ),
-        throwsA(contains('no está')),
+        throwsA(contains('is missing')),
       );
     });
   });
@@ -303,8 +303,13 @@ void catalog() {
 
     final hints = antiCheatHints(home, 'b');
     expect(hints, hasLength(1));
-    expect(hints.single, startsWith('POLYGON usa Easy Anti-Cheat'));
-    expect(hints.single, contains('No es un fallo de tu instalación'));
+    expect(hints.single.id, 'easyAntiCheat');
+    expect(hints.single.args, {
+      'game': 'POLYGON',
+      'platform': hostPlatform.displayName,
+    });
+    expect(hints.single.text, startsWith('POLYGON uses Easy Anti-Cheat'));
+    expect(hints.single.text, contains('It is not a fault of your install'));
 
     final after = log.lastModifiedSync().add(const Duration(seconds: 2));
     expect(antiCheatHints(home, 'b', since: after), isEmpty);
@@ -426,7 +431,7 @@ void engineForApp() {
         fake(id: 'y', sha256: '0' * 64),
         setup: again.path,
       ),
-      throwsA(contains('checksum incorrecto')),
+      throwsA(contains('wrong checksum')),
     );
     expect(Directory('$home/bottles/y').existsSync(), isFalse);
     expect(again.existsSync(), isTrue);
@@ -456,7 +461,7 @@ void engineForApp() {
     expect(outside.existsSync(), isTrue);
     await expectLater(
       removeBottle(home, 't'),
-      throwsA(contains('no existe la botella')),
+      throwsA(contains('bottle t does not exist')),
     );
   });
 
@@ -483,11 +488,11 @@ void engineForApp() {
     expect(installedApps(home).single.title, 'Dentro');
     expect(
       () => addApp(home, 'a', 'Otra', 'Juego/j.exe'),
-      throwsA(contains('ya tiene')),
+      throwsA(contains('already has')),
     );
     expect(
       () => addApp(home, 'b', 'Nada', 'Juego/j.exe'),
-      throwsA(contains('no existe')),
+      throwsA(contains('does not exist')),
     );
 
     final inside = await openApp(home, 'a');

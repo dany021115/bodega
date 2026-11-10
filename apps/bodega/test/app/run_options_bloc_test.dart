@@ -35,8 +35,8 @@ void main() {
   });
 
   RunOptionsState form({
-    String program = r'C:\Juego\a.exe',
-    String args = '-uno "dos tres"',
+    String program = r'C:\Game\a.exe',
+    String args = '-one "two three"',
     String env = 'DXVK_HUD=fps\n\nWINEDEBUG=+d3d',
     bool save = false,
   }) => RunOptionsState(
@@ -47,7 +47,7 @@ void main() {
     backend: 'dxvk',
     avx: false,
     save: save,
-    title: 'Mi juego',
+    title: 'My game',
   );
 
   blocTest<RunOptionsBloc, RunOptionsState>(
@@ -61,8 +61,8 @@ void main() {
       verify(
         () => repository.launch(
           'steam',
-          r'C:\Juego\a.exe',
-          args: ['-uno', 'dos tres'],
+          r'C:\Game\a.exe',
+          args: ['-one', 'two three'],
           env: {'DXVK_HUD': 'fps', 'WINEDEBUG': '+d3d'},
           backend: 'dxvk',
           avx: false,
@@ -90,9 +90,9 @@ void main() {
       verify(
         () => repository.saveLauncher(
           'steam',
-          'Mi juego',
-          r'C:\Juego\a.exe',
-          args: ['-uno', 'dos tres'],
+          'My game',
+          r'C:\Game\a.exe',
+          args: ['-one', 'two three'],
           env: {'DXVK_HUD': 'fps', 'WINEDEBUG': '+d3d'},
         ),
       ).called(1);
@@ -101,13 +101,13 @@ void main() {
   );
 
   blocTest<RunOptionsBloc, RunOptionsState>(
-    'a variable that is not NOMBRE=valor does not launch',
+    'a variable that is not NAME=value does not launch',
     build: () => RunOptionsBloc(repository),
     act: (bloc) => bloc
-      ..add(RunOptionsEvent.changed(form(env: 'BIEN=1\nmal')))
+      ..add(RunOptionsEvent.changed(form(env: 'GOOD=1\nbad')))
       ..add(const RunOptionsEvent.submit()),
     verify: (bloc) {
-      expect(bloc.state.error?.message, contains('línea 2'));
+      expect(bloc.state.badEnvLine, 2);
       expect(bloc.state.log, isNull);
       verifyNever(
         () => repository.launch(
@@ -135,15 +135,18 @@ void main() {
           avx: any(named: 'avx'),
         ),
       ).thenAnswer(
-        (_) async => left(const AppError.engine('"raro:" en /g/raro:/a.exe')),
+        (_) async => left(const AppError.engine('"odd:" in /g/odd:/a.exe')),
       );
       return RunOptionsBloc(repository);
     },
     act: (bloc) => bloc
-      ..add(RunOptionsEvent.changed(form(program: '/g/raro:/a.exe')))
+      ..add(RunOptionsEvent.changed(form(program: '/g/odd:/a.exe')))
       ..add(const RunOptionsEvent.submit()),
     verify: (bloc) {
-      expect(bloc.state.error?.message, contains('raro:'));
+      expect(
+        bloc.state.error,
+        const AppError.engine('"odd:" in /g/odd:/a.exe'),
+      );
       expect(bloc.state.isRunning, isFalse);
     },
   );
@@ -155,7 +158,7 @@ void main() {
       'A': '1',
       'B_2': ' x=y',
     });
-    expect(parseEnv('=1').isLeft(), isTrue);
-    expect(parseEnv('1A=1').isLeft(), isTrue);
+    expect(parseEnv('=1').getLeft().toNullable(), 1);
+    expect(parseEnv('A=1\n1A=1').getLeft().toNullable(), 2);
   });
 }

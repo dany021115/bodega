@@ -85,7 +85,7 @@ void main() {
     build: () {
       when(
         () => repository.create('juegos', windows: 'win11', backend: 'auto'),
-      ).thenAnswer((_) async => left(const AppError.engine('wineboot falló')));
+      ).thenAnswer((_) async => left(const AppError.engine('wineboot failed')));
       return build();
     },
     act: (bloc) async {
@@ -96,7 +96,7 @@ void main() {
     },
     wait: const Duration(milliseconds: 10),
     verify: (bloc) {
-      expect(bloc.state.error, const AppError.engine('wineboot falló'));
+      expect(bloc.state.error, const AppError.engine('wineboot failed'));
       expect(bloc.state.createdName, isNull);
       expect(bloc.state.isCreating, isFalse);
     },

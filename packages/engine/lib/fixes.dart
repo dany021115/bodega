@@ -19,7 +19,7 @@ class FixStep {
       data = json['data'] as String?,
       platforms = List<String>.from(json['platforms'] as List) {
     if (!const {'env', 'registry', 'dlloverride'}.contains(type)) {
-      throw FormatException('paso de arreglo desconocido: $type');
+      throw FormatException('unknown fix step: $type');
     }
   }
 
@@ -99,7 +99,7 @@ GameFix gameFix(String idOrApp) =>
     gameFixes()
         .where((fix) => fix.id == idOrApp || '${fix.steam}' == idOrApp)
         .firstOrNull ??
-    (throw 'no hay arreglo para: $idOrApp (bodega fix list)');
+    (throw 'no fix for: $idOrApp (bodega fix list)');
 
 /// The fix for the application with this [key] (`steam:<appid>`), if any.
 GameFix? fixForApp(String key) {
@@ -122,7 +122,7 @@ String? fixValue(String value) {
 
 /// The note that goes in the log when a fix could not reach the game; [hintsIn]
 /// turns it into advice.
-const fixNotApplied = 'arreglo sin aplicar: Steam ya estaba abierto';
+const fixNotApplied = 'fix not applied: Steam was already open';
 
 /// Whether Steam runs in the bottle. With no wineserver nothing does, which
 /// takes no time to know (design §5); else `tasklist` tells, without a window.
@@ -174,7 +174,7 @@ Future<void> _applyFixRegistry(String home, String bottle, GameFix fix) async {
     ], backend: 'wine');
     final code = await exitOf(log);
     if (code != 0) {
-      throw 'reg add de ${fix.title} salió con $code; log: $log';
+      throw 'reg add for ${fix.title} exited with $code; log: $log';
     }
   }
 }

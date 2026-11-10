@@ -63,7 +63,7 @@ class AddAppBloc extends Bloc<AddAppEvent, AddAppState> {
 
     // An unusable path fails here, before Wine or the library see it.
     if (_repository.pathProblem(exe) case final problem?) {
-      return emit(state.copyWith(error: AppError.engine(problem)));
+      return emit(state.copyWith(error: problem));
     }
 
     final bottle = state.bottle;

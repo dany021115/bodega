@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 abstract class AppColor {
-  // === BASE (tema oscuro, único) ===
+  // === BASE (dark theme, the only one) ===
   static const Color background = Color(0xFF070B1A);
   static const Color sidebar = Color(0xFF0B1126);
   static const Color bottlePanel = Color(0xFF0A1030);

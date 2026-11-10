@@ -194,7 +194,7 @@ void main() {
 
     await expectLater(
       downloader.fetch(url, dest, cancel: CancelToken()),
-      throwsA(isA<NetworkError>()),
+      throwsA(isA<DownloadNotHttpsError>()),
     );
 
     expect(lastRange, isNull);
@@ -211,7 +211,7 @@ void main() {
 
     await expectLater(
       strict.fetch('https://a.example/setup', dest, cancel: CancelToken()),
-      throwsA(isA<NetworkError>()),
+      throwsA(isA<DownloadNotHttpsError>()),
     );
 
     expect(File('$dest.part').existsSync(), isFalse);

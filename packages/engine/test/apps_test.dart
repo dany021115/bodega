@@ -216,7 +216,7 @@ void main() {
       File('$home/bottles/a/apps.json').writeAsStringSync('{roto');
       expect(() => bottleApps(home, 'a'), throwsA(contains('apps.json')));
       File('$home/bottles/a/apps.json').writeAsStringSync('{"apps": [{}]}');
-      expect(() => bottleApps(home, 'a'), throwsA(contains('no es válido')));
+      expect(() => bottleApps(home, 'a'), throwsA(contains('is not valid')));
     });
   });
 
@@ -416,11 +416,11 @@ void main() {
       expect(bottleApps(home, 'b').map((a) => a.title), ['A', 'B']);
       expect(
         () => addApp(home, 'b', 'Otra', 'p/A.EXE'),
-        throwsA(contains('ya tiene')),
+        throwsA(contains('already has')),
       );
       expect(
         () => addApp(home, 'b', 'Nada', 'P/c.exe'),
-        throwsA(contains('no existe')),
+        throwsA(contains('does not exist')),
       );
     });
 
@@ -474,7 +474,7 @@ void main() {
     group('gamepads', () {
       List<String> regLogs(String name) => [
         for (final log in bottleLogs(home, name))
-          if (log.name.endsWith('-mandos.log')) log.path,
+          if (log.name.endsWith('-gamepads.log')) log.path,
       ];
 
       test('a new bottle takes them straight from macOS', () async {
@@ -547,7 +547,7 @@ void main() {
       await createBottle(home, 'b');
       await expectLater(
         openApp(home, 'b'),
-        throwsA(contains('no tiene una aplicación')),
+        throwsA(contains('has no installed application')),
       );
     });
   });
@@ -641,7 +641,7 @@ void main() {
       bottle('b');
       expect(
         () => setInLibrary(home, 'b', 'p/nada.exe', false),
-        throwsA(contains('no tiene la aplicación')),
+        throwsA(contains('has no application')),
       );
     });
 
@@ -700,7 +700,7 @@ void main() {
       bottle('b');
       expect(
         () => setAppHud(home, 'b', 'p/nada.exe', true),
-        throwsA(contains('no tiene la aplicación')),
+        throwsA(contains('has no application')),
       );
     });
 
@@ -755,7 +755,7 @@ void main() {
         await createBottle(home, 'c');
         await expectLater(
           renameBottle(home, 'b', 'c'),
-          throwsA(contains('ya existe la botella c')),
+          throwsA(contains('bottle c already exists')),
         );
         await expectLater(
           renameBottle(home, 'b', 'a b'),
@@ -763,7 +763,7 @@ void main() {
         );
         await expectLater(
           renameBottle(home, 'nada', 'x'),
-          throwsA(contains('no existe la botella nada')),
+          throwsA(contains('bottle nada does not exist')),
         );
         expect(Directory('$home/bottles/b').existsSync(), isTrue);
       },
@@ -773,7 +773,7 @@ void main() {
       final hang = File('$home/bottles/b/prefix/hang')..writeAsStringSync('');
       await expectLater(
         renameBottle(home, 'b', 'c'),
-        throwsA(contains('está abierta')),
+        throwsA(contains('is open')),
       );
       hang.deleteSync();
       expect(Directory('$home/bottles/b').existsSync(), isTrue);

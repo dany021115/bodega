@@ -1,3 +1,4 @@
+import 'package:bodega/l10n/l10n.dart';
 import 'package:bodega/device/theme/color.dart';
 import 'package:bodega/device/theme/gradient.dart';
 import 'package:bodega/device/theme/radius.dart';
@@ -27,15 +28,17 @@ class BottleRow extends StatelessWidget {
     this.appCount,
   });
 
-  String get _state => !bottle.ready
-      ? 'incompleta'
+  String _state(AppLocalizations l10n) => !bottle.ready
+      ? l10n.shellBottleIncomplete
       : isOpen
-      ? 'abierta'
-      : 'cerrada';
+      ? l10n.shellBottleOpen
+      : l10n.shellBottleClosed;
 
   @override
   Widget build(BuildContext context) {
     final styles = AppTextStyle(context);
+    final l10n = context.l10n;
+    final state = _state(l10n);
     final colors = Theme.of(context).colorScheme;
     final foreground = selected ? colors.onSurface : colors.onSurfaceVariant;
     final brand = AppGradient.brand;
@@ -65,10 +68,10 @@ class BottleRow extends StatelessWidget {
     return Semantics(
       button: true,
       selected: selected,
-      label: 'Botella ${bottle.name}, $_state',
+      label: l10n.shellBottleSemantics(bottle.name, state),
       excludeSemantics: true,
       child: Tooltip(
-        message: expanded ? '' : '${bottle.name} ($_state)',
+        message: expanded ? '' : l10n.shellBottleTooltip(bottle.name, state),
         child: Material(
           color: Colors.transparent,
           borderRadius: AppRadius.xsBorder,
@@ -110,7 +113,7 @@ class BottleRow extends StatelessWidget {
                           ),
                           if (count != null) ...[
                             Text(
-                              count == 1 ? '1 app' : '$count apps',
+                              l10n.shellAppCount(count),
                               style: styles.caption,
                             ),
                             const SizedBox(width: AppSpacing.sm),

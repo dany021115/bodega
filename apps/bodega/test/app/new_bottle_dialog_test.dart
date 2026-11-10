@@ -6,6 +6,7 @@ import 'package:bodega/app/shared/widgets/gradient_button.dart';
 import 'package:bodega/device/theme/theme.dart';
 import 'package:bodega/domain/entities/app_error.dart';
 import 'package:bodega/domain/entities/backend_info.dart';
+import 'package:bodega/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -39,6 +40,8 @@ Future<void> _pump(
   await tester.pumpWidget(
     MaterialApp(
       theme: AppTheme.getDarkTheme(),
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
       home: MultiBlocProvider(
         providers: [
           BlocProvider<NewBottleBloc>.value(value: bottle),
@@ -55,7 +58,7 @@ void main() {
     await _pump(
       tester,
       state: NewBottleState(
-        name: 'un-nombre-de-botella-que-no-cabe-en-el-campo-' * 3,
+        name: 'a-bottle-name-that-does-not-fit-in-the-field-' * 3,
         taken: const ['gaming'],
       ),
       backends: BackendsState(
@@ -63,7 +66,7 @@ void main() {
         backends: [
           for (var i = 0; i < 3; i++)
             BackendInfo(
-              name: 'backend-con-nombre-largo-$i',
+              name: 'backend-with-a-long-name-$i',
               installed: true,
               downloadable: false,
             ),
@@ -71,9 +74,9 @@ void main() {
       ),
     );
 
-    expect(find.text('Nueva botella'), findsOneWidget);
-    expect(find.text('Crear botella'), findsOneWidget);
-    expect(find.text('Automático'), findsOneWidget);
+    expect(find.text('New bottle'), findsOneWidget);
+    expect(find.text('Create bottle'), findsOneWidget);
+    expect(find.text('Automatic'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -85,7 +88,10 @@ void main() {
       state: const NewBottleState(name: 'gaming', taken: ['Gaming']),
     );
 
-    expect(find.text('Ya tienes una botella con ese nombre.'), findsOneWidget);
+    expect(
+      find.text('You already have a bottle with that name.'),
+      findsOneWidget,
+    );
     final button = tester.widget<GradientButton>(find.byType(GradientButton));
     expect(button.onPressed, isNull);
   });
@@ -95,11 +101,11 @@ void main() {
   ) async {
     await _pump(
       tester,
-      state: const NewBottleState(name: 'juegos', isCreating: true),
+      state: const NewBottleState(name: 'games', isCreating: true),
     );
 
-    expect(find.text('Creando la botella…'), findsOneWidget);
-    expect(find.text('Crear botella'), findsNothing);
+    expect(find.text('Creating the bottle…'), findsOneWidget);
+    expect(find.text('Create bottle'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 
@@ -107,13 +113,13 @@ void main() {
     await _pump(
       tester,
       state: const NewBottleState(
-        name: 'juegos',
-        error: AppError.engine('no se pudo crear la botella'),
+        name: 'games',
+        error: AppError.engine("couldn't create the bottle"),
       ),
     );
 
     expect(
-      find.widgetWithText(SelectableText, 'no se pudo crear la botella'),
+      find.widgetWithText(SelectableText, "couldn't create the bottle"),
       findsOneWidget,
     );
   });

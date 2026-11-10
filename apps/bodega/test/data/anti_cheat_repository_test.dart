@@ -41,7 +41,7 @@ void main() {
     DioException(
       requestOptions: RequestOptions(),
       type: DioExceptionType.connectionError,
-      message: 'sin red',
+      message: 'offline',
     ),
   );
 
@@ -75,7 +75,7 @@ void main() {
     final error = (await repository.games()).getLeft().toNullable();
 
     expect(error, isA<NetworkError>());
-    expect(error!.message, contains('sin red'));
+    expect((error! as NetworkError).detail, contains('offline'));
     expect(File('${home.path}/cache/anticheat.json').existsSync(), isFalse);
   });
 }

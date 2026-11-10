@@ -3,6 +3,7 @@ import 'package:bodega/device/theme/radius.dart';
 import 'package:bodega/device/theme/spacing.dart';
 import 'package:bodega/device/theme/typography.dart';
 import 'package:bodega/domain/entities/library_app.dart';
+import 'package:bodega/l10n/l10n.dart';
 import 'package:flutter/material.dart';
 
 enum _Action { open, options, hide }
@@ -37,13 +38,13 @@ class _AppTileState extends State<AppTile> {
     super.dispose();
   }
 
-  List<PopupMenuEntry<_Action>> _items() => const [
-    PopupMenuItem(value: _Action.open, child: Text('Abrir')),
+  List<PopupMenuEntry<_Action>> _items() => [
+    PopupMenuItem(value: _Action.open, child: Text(context.l10n.commonOpen)),
     PopupMenuItem(
       value: _Action.options,
-      child: Text('Ejecutar con opciones…'),
+      child: Text(context.l10n.bottlesRunWithOptions),
     ),
-    PopupMenuItem(value: _Action.hide, child: Text('Ocultar')),
+    PopupMenuItem(value: _Action.hide, child: Text(context.l10n.bottlesHide)),
   ];
 
   void _run(_Action? action) {
@@ -86,7 +87,7 @@ class _AppTileState extends State<AppTile> {
           child: Semantics(
             button: true,
             label: app.title,
-            hint: 'Doble toque para abrir',
+            hint: context.l10n.bottlesDoubleTapToOpen,
             onTap: widget.onOpen,
             child: FocusableActionDetector(
               focusNode: _focus,
@@ -151,7 +152,7 @@ class _AppTileState extends State<AppTile> {
           top: 0,
           right: 0,
           child: PopupMenuButton<_Action>(
-            tooltip: 'Opciones de ${app.title}',
+            tooltip: context.l10n.bottlesAppOptions(app.title),
             iconSize: 16,
             icon: const Icon(Icons.more_horiz_rounded),
             itemBuilder: (_) => _items(),

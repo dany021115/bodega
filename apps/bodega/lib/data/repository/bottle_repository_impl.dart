@@ -9,6 +9,7 @@ import 'package:bodega/data/service/repository_call.dart';
 import 'package:bodega/domain/entities/app_error.dart';
 import 'package:bodega/domain/entities/bottle.dart';
 import 'package:bodega/domain/entities/bottle_detail.dart';
+import 'package:bodega/domain/entities/user_problem.dart';
 import 'package:bodega/domain/repository/bottle_repository.dart';
 import 'package:engine/engine.dart' as engine;
 import 'package:fpdart/fpdart.dart';
@@ -68,7 +69,11 @@ class BottleRepositoryImpl implements BottleRepository {
       });
 
   @override
-  String? userProblem(String user) => engine.badUser(user.trim());
+  UserProblem? userProblem(String user) =>
+      switch (engine.badUser(user.trim())) {
+        final problem? => UserProblem.values.byName(problem.name),
+        null => null,
+      };
 
   @override
   Future<Either<AppError, Unit>> setWindowsVersion(

@@ -1,3 +1,4 @@
+import 'package:bodega/l10n/app_localizations.dart';
 import 'package:bodega/app/presentation/setup/widgets/requirement_card.dart';
 import 'package:bodega/device/theme/theme.dart';
 import 'package:bodega/domain/entities/host_issue.dart';
@@ -10,12 +11,15 @@ void main() {
   ) async {
     await tester.pumpWidget(
       MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
         theme: AppTheme.getDarkTheme(),
         home: const Scaffold(
           body: RequirementCard(
             issue: HostIssue(
-              title: 'Falta Rosetta',
-              detail: 'Hace falta para correr Wine x86_64.',
+              id: 'other',
+              title: 'Rosetta is missing',
+              detail: 'Wine x86_64 needs it.',
               command: 'softwareupdate --install-rosetta',
             ),
           ),
@@ -23,8 +27,8 @@ void main() {
       ),
     );
 
-    expect(find.text('Falta Rosetta'), findsOneWidget);
-    expect(find.text('Hace falta para correr Wine x86_64.'), findsOneWidget);
+    expect(find.text('Rosetta is missing'), findsOneWidget);
+    expect(find.text('Wine x86_64 needs it.'), findsOneWidget);
     expect(
       find.byWidgetPredicate(
         (widget) =>
@@ -33,6 +37,6 @@ void main() {
       ),
       findsOneWidget,
     );
-    expect(find.text('Copiar comando'), findsOneWidget);
+    expect(find.text('Copy command'), findsOneWidget);
   });
 }
