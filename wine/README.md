@@ -23,7 +23,7 @@ stands upstream. The paragraphs under each table give the details and the measur
 
 | Folder | Patches | On top of | Engine line |
 |---|---|---|---|
-| [`patches/`](patches/) | 24 | CodeWeavers' CrossOver 26.3 Wine source | Intel (Wine 11, `x64-crossover26.3-r*`) |
+| [`patches/`](patches/) | 28 | CodeWeavers' CrossOver 26.3 Wine source | Intel (Wine 11, `x64-crossover26.3-r*`) |
 | [`patches-arm64/`](patches-arm64/) | 25 | WineHQ Wine 11.18 | arm64 |
 | [`fex/patches/`](fex/patches/) | 23 | FEX 2610 | arm64 |
 | [`moltenvk-arm64/`](moltenvk-arm64/) | 16 + 4 | MoltenVK 1.4.2 and the SPIRV-Cross it pins | arm64 |
