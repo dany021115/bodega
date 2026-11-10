@@ -28,6 +28,10 @@
 	<string>Bodega busca en Descargas el Game Porting Toolkit que bajaste de Apple, para instalar D3DMetal.</string>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Los juegos usan la red local para las partidas en LAN con otros equipos de tu casa.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Los juegos de Windows usan el micrófono para el chat de voz.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Un programa de Windows quiere usar la cámara.</string>
 	<key>NSMainNibFile</key>
 	<string>MainMenu</string>
 	<key>NSPrincipalClass</key>

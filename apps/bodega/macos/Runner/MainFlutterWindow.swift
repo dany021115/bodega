@@ -1,3 +1,4 @@
+import AVFoundation
 import Cocoa
 import FlutterMacOS
 
@@ -17,6 +18,13 @@ class MainFlutterWindow: NSWindow {
     }
 
     RegisterGeneratedPlugins(registry: flutterViewController)
+
+    // Games open the microphone (voice chat) through Wine, and macOS asks
+    // Bodega. Asked here, once, so no game waits on the question with its
+    // window frozen (MW3 stayed black).
+    if AVCaptureDevice.authorizationStatus(for: .audio) == .notDetermined {
+      AVCaptureDevice.requestAccess(for: .audio) { _ in }
+    }
 
     super.awakeFromNib()
   }
