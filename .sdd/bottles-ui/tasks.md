@@ -25,10 +25,10 @@
 - [ ] **T10 (USER)** Commit milestone 2, and **test U5 to U8.**
 
 ## Milestone 3: management
-- [ ] **T11** Duplicate and rename (M13), export and import (M14), cache (M15).
-  **Check:** their tests; and with a real temporary bottle, headless, a program runs in the copy, in the renamed bottle and in the imported one, and `z:` is still a link.
-- [ ] **T12** New bottle and import (V13), duplicate, rename and export (V14), Preferences (V15).
-  **Check:** tests for `NewBottleBloc`, `BottleDetailBloc` and `PreferencesBloc`; `pages_test.dart`.
+- [x] **T11** Duplicate and rename (M13), export and import (M14), cache (M15).
+  **Check (done on CachyOS):** `duplicateBottle`, `exportBottle`/`importBottle` and `downloads` tests in `apps_test.dart`; full `dart test`: 156 pass. CLI: `bodega duplicate`, `export`, `import`, `downloads [clear]`. Real, headless, in a temporary `BODEGA_HOME` with the bundled Wine 11.21: `cmd /c echo` runs in the original, the copy, the renamed copy and two imports (`t11c-2`, `t11c-3`), and in every one `z:` is still `/` and `c:` is still `../drive_c`; the 371 MB archive has no `logs` or `icons`; `downloads` counts 3.0 MB and not a link to `/opt/bodega`, which `clear` leaves alone. The check found a bug, fixed with its test: an imported bottle had no `logs` folder, and its first run failed. Rename was already in M1. **Not tested:** `cp -cR` on a Mac.
+- [x] **T12** New bottle and import (V13), duplicate, rename and export (V14), Preferences (V15).
+  **Check (done on CachyOS):** tests for `NewBottleBloc` (import), `BottleDetailBloc` (duplicate, export, their errors), `PreferencesBloc` and `LanguageBloc`; `pages_test.dart` renders Preferences and a bottle at work at the 4 widths in English and Spanish; `flutter analyze` clean, `check_layers.sh` OK, `flutter test` 335 of 342 (the 7 `update_repository_test` that need macOS's `shasum`). The fit tests found the new bottle dialog overflowing at 720 × 480 with the import button: its footer now wraps and the dialog scrolls. Screenshots of the bottle and of Preferences in both languages checked by eye, then deleted. **Not tested:** the file pickers and `Abrir en Finder`, which need a window.
 - [ ] **T13** `.claude/CLAUDE.md` and `rules/`: what is taken from CrossOver, the new classes and `AppTile`.
   **Check:** those texts exist, and `check_layers.sh` passes.
 - [ ] **T14** Final build: `flutter build macos`, open it with `open` in a temporary folder and confirm that it starts and calls the engine, as in `flutter-app`.
@@ -48,4 +48,4 @@ On your Mac, with `flutter run -d macos`.
 - [ ] **U8** In a test bottle: high resolution and Windows version. **Expected:** it warns before closing, it looks sharp, and `winver` confirms it.
 - [ ] **U9** Create a bottle, duplicate it, rename it and delete it. **Expected:** it warns, and each step works.
 - [ ] **U10** Export one and import it. **Expected:** it appears and opens.
-- [ ] **U11** Preferences: folder, cache and theme. **Expected:** `Vaciar` ("Empty") leaves it at zero. Tell me what you would improve about the look.
+- [ ] **U11** Preferences: folder, cache and language. **Expected:** `Vaciar` ("Empty") leaves it at zero, and English or Español changes the app at once; `Sistema` follows the Mac again. Tell me what you would improve about the look.

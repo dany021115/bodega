@@ -120,4 +120,35 @@ void main() {
       ),
     ),
   );
+
+  test('importing a file names the bottle it made', () async {
+    when(() => repository.importBottle('/tmp/steam.tar.gz'))
+        .thenAnswer((_) async => right('steam-2'));
+    final bloc = build();
+    await Future<void>.delayed(Duration.zero);
+
+    bloc.add(const NewBottleEvent.import('/tmp/steam.tar.gz'));
+    await Future<void>.delayed(Duration.zero);
+
+    verify(() => repository.importBottle('/tmp/steam.tar.gz')).called(1);
+    expect(bloc.state.createdName, 'steam-2');
+    expect(bloc.state.isImporting, isFalse);
+    await bloc.close();
+  });
+
+  test('a failed import says why and makes nothing', () async {
+    when(() => repository.importBottle('/tmp/bad.tar.gz'))
+        .thenAnswer((_) async => left(const AppError.engine('not a bottle')));
+    final bloc = build();
+    await Future<void>.delayed(Duration.zero);
+
+    bloc.add(const NewBottleEvent.import('/tmp/bad.tar.gz'));
+    await Future<void>.delayed(Duration.zero);
+
+    expect(bloc.state.error, const AppError.engine('not a bottle'));
+    expect(bloc.state.createdName, isNull);
+    expect(bloc.state.isImporting, isFalse);
+    verifyNever(() => repository.create(any()));
+    await bloc.close();
+  });
 }

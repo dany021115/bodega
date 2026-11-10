@@ -10,6 +10,10 @@ usage: bodega install <engine.tar.gz> <hostlibs.tar.gz>
        bodega wait <bottle>
        bodega stop <bottle>
        bodega rename <bottle> <new-name>
+       bodega duplicate <bottle> <new-name>
+       bodega export <bottle> <file.tar.gz>
+       bodega import <file.tar.gz>
+       bodega downloads [clear]
        bodega library <bottle> <key> on|off
        bodega hud <bottle> <key> on|off
        bodega backend list
@@ -180,6 +184,30 @@ Future<void> main(List<String> args) async {
     ['rename', final from, final to] => (home) async {
       await renameBottle(home, from, to);
       stdout.writeln('bottle renamed: $to');
+      return 0;
+    },
+    ['duplicate', final from, final to] => (home) async {
+      await duplicateBottle(home, from, to);
+      stdout.writeln('bottle duplicated: $to');
+      return 0;
+    },
+    ['export', final bottle, final file] => (home) async {
+      await exportBottle(home, bottle, file);
+      stdout.writeln('bottle exported: $file');
+      return 0;
+    },
+    ['import', final file] => (home) async {
+      stdout.writeln('bottle imported: ${await importBottle(home, file)}');
+      return 0;
+    },
+    ['downloads'] => (home) async {
+      final mb = (downloadsSize(home) / (1 << 20)).toStringAsFixed(1);
+      stdout.writeln('downloads: $mb MB');
+      return 0;
+    },
+    ['downloads', 'clear'] => (home) async {
+      clearDownloads(home);
+      stdout.writeln('downloads emptied');
       return 0;
     },
     ['library', final bottle, final key, final mode]

@@ -12,12 +12,14 @@ abstract class NewBottleState with _$NewBottleState {
     /// Names of the bottles already made, to refuse a repeated one.
     @Default([]) List<String> taken,
     @Default(false) bool isCreating,
+    @Default(false) bool isImporting,
     String? createdName,
     AppError? error,
   }) = _NewBottleState;
 
   bool get canSubmit =>
       !isCreating &&
+      !isImporting &&
       _validName.hasMatch(name) &&
       !taken.any((bottle) => bottle.toLowerCase() == name.toLowerCase());
 }

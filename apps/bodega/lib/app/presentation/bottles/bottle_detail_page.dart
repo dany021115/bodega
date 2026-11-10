@@ -313,6 +313,8 @@ class BottleDetailView extends StatelessWidget {
           listenWhen: (previous, current) =>
               previous.deleted != current.deleted ||
               previous.renamedTo != current.renamedTo ||
+              previous.duplicatedTo != current.duplicatedTo ||
+              previous.exportedTo != current.exportedTo ||
               (current.error != null && previous.error != current.error),
           listener: (context, state) {
             if (state.deleted) {
@@ -327,6 +329,16 @@ class BottleDetailView extends StatelessWidget {
                 params: {'name': newName},
                 context: context,
               );
+            } else if (state.duplicatedTo case final copy?) {
+              context.read<BottlesBloc>().add(const BottlesEvent.load());
+              context.read<LibraryBloc>().add(const LibraryEvent.load());
+              RouterManager.go(
+                AppRoute.bottleDetail,
+                params: {'name': copy},
+                context: context,
+              );
+            } else if (state.exportedTo case final file?) {
+              AppToast.success(context, context.l10n.bottlesExported(file));
             } else if (state.error case final error?) {
               AppToast.error(context, error.text(context.l10n));
             }
@@ -350,6 +362,7 @@ class BottleDetailView extends StatelessWidget {
               isBusy: state.isBusy,
               isOpen: isOpen,
               hints: hints,
+              working: state.working,
             );
 
             return LayoutBuilder(

@@ -48,6 +48,15 @@ class NewBottleBloc extends Bloc<NewBottleEvent, NewBottleState> {
         (_) => emit(state.copyWith(isCreating: false, createdName: name)),
       );
     });
+    on<NewBottleImportEvent>((event, emit) async {
+      if (state.isCreating || state.isImporting) return;
+      emit(state.copyWith(isImporting: true, error: null));
+      final result = await _repository.importBottle(event.file);
+      result.match(
+        (error) => emit(state.copyWith(isImporting: false, error: error)),
+        (name) => emit(state.copyWith(isImporting: false, createdName: name)),
+      );
+    });
 
     add(const NewBottleEvent.load());
   }

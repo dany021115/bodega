@@ -7,7 +7,9 @@ import 'package:bodega/app/bloc/catalog/catalog_bloc.dart';
 import 'package:bodega/app/bloc/gamepads/gamepads_bloc.dart';
 import 'package:bodega/app/bloc/install/install_bloc.dart';
 import 'package:bodega/app/bloc/library/library_bloc.dart';
+import 'package:bodega/app/bloc/language/language_bloc.dart';
 import 'package:bodega/app/bloc/run_options/run_options_bloc.dart';
+import 'package:bodega/app/bloc/preferences/preferences_bloc.dart';
 import 'package:bodega/app/bloc/sections/sections_bloc.dart';
 import 'package:bodega/app/bloc/setup/setup_bloc.dart';
 import 'package:bodega/app/bloc/update/update_bloc.dart';
@@ -21,6 +23,7 @@ import 'package:bodega/app/presentation/bottles/widgets/run_options_dialog.dart'
 import 'package:bodega/app/presentation/catalog/catalog_detail_page.dart';
 import 'package:bodega/app/presentation/catalog/catalog_page.dart';
 import 'package:bodega/app/presentation/library/library_page.dart';
+import 'package:bodega/app/presentation/preferences/preferences_page.dart';
 import 'package:bodega/app/router.dart';
 import 'package:bodega/app/shared/widgets/gradient_button.dart';
 import 'package:bodega/app/shared/widgets/install_panel.dart';
@@ -84,6 +87,12 @@ class _MockGamepads extends MockBloc<GamepadsEvent, GamepadsState>
 
 class _MockSetup extends MockBloc<SetupEvent, SetupState>
     implements SetupBloc {}
+
+class _MockPreferences extends MockBloc<PreferencesEvent, PreferencesState>
+    implements PreferencesBloc {}
+
+class _MockLanguage extends MockBloc<LanguageEvent, LanguageState>
+    implements LanguageBloc {}
 
 // The longest texts and every chip at once: what would overflow first.
 final _long = 'A long note that takes several lines on the screen. ' * 6;
@@ -196,6 +205,8 @@ void main() {
   late _MockGamepads gamepads;
   late _MockViewMode viewMode;
   late _MockSetup setup;
+  late _MockPreferences preferences;
+  late _MockLanguage language;
 
   void showBottle(BottleDetailState state) => whenListen(
     bottle,
@@ -227,6 +238,21 @@ void main() {
     gamepads = _MockGamepads();
     when(() => gamepads.state)
         .thenReturn(const GamepadsState(isLoading: false));
+    preferences = _MockPreferences();
+    whenListen(
+      preferences,
+      const Stream<PreferencesState>.empty(),
+      initialState: PreferencesState(
+        dataFolder: '/home/$_longName/.local/share/bodega',
+        cacheBytes: 1536 << 20,
+      ),
+    );
+    language = _MockLanguage();
+    whenListen(
+      language,
+      const Stream<LanguageState>.empty(),
+      initialState: const LanguageState(),
+    );
     showSetup(const SetupState(isChecking: false, runtime: true));
     whenListen(
       backends,
@@ -303,6 +329,8 @@ void main() {
     BlocProvider<GamepadsBloc>.value(value: gamepads),
     BlocProvider<ViewModeBloc>.value(value: viewMode),
     BlocProvider<SetupBloc>.value(value: setup),
+    BlocProvider<PreferencesBloc>.value(value: preferences),
+    BlocProvider<LanguageBloc>.value(value: language),
   ];
 
   // The locale [pump] renders in; null is the test's own, English.
@@ -370,12 +398,18 @@ void main() {
           await pump(tester, width, const LibraryPage());
           await pump(tester, width, bottleView());
           await pump(tester, width, const BackendsPage());
+          await pump(tester, width, const PreferencesView());
         });
 
         testWidgets('an empty or incomplete bottle fits at $width px', (
           tester,
         ) async {
           showBottle(_bottle(ready: false, apps: const []));
+          await pump(tester, width, bottleView());
+        });
+
+        testWidgets('a bottle at work fits at $width px', (tester) async {
+          showBottle(_bottle().copyWith(working: BottleWork.exporting));
           await pump(tester, width, bottleView());
         });
 

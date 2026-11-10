@@ -258,6 +258,12 @@ class LinuxPlatform extends HostPlatform {
   Future<void> prepareBottle(String home, String name) =>
       _ensureLayers(home, name);
 
+  /// `--reflink=auto` clones on btrfs and XFS and copies elsewhere; `-a` keeps
+  /// links as links.
+  @override
+  Future<void> copyTree(String from, String to) =>
+      _run('cp', ['-a', '--reflink=auto', from, to]);
+
   @override
   List<List<String>> highResRegistry(bool value) => [
     [

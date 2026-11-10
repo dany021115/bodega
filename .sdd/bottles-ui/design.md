@@ -57,11 +57,11 @@ The 760 threshold leaves at least 490 px for the applications.
 
 ## 8. Copy, export, import
 
-`cp -cR` clones on APFS and, according to its man page, falls back to a normal copy if it can't. `-R` copies links as links. `tar` also stores them as links.
+`cp -cR` clones on APFS and, according to its man page, falls back to a normal copy if it can't. `-R` copies links as links. `tar` also stores them as links. On Linux the copy is `cp -a --reflink=auto`, which clones on btrfs and XFS and copies elsewhere; both live in `HostPlatform.copyTree`.
 
-`importBottle` validates with `tar -tzf` before extracting. macOS's `tar` already rejects `..` and absolute paths, but checking it gives a clear error and lets us require a single root folder. It is extracted into `.tmp-import`, which `listBottles` ignores, and only renamed at the end.
+`importBottle` validates with `tar -tzf` before extracting. macOS's `tar` already rejects `..` and absolute paths, but checking it gives a clear error and lets us require a single root folder. It is extracted into `.tmp-import`, which `listBottles` ignores, and only renamed at the end. Both `tar`s refuse by default to extract through a link the archive itself created, so a link such as `z:` cannot carry files out of the bottle: bsdtar on the Mac by its documented default, GNU tar on Linux checked (an archive with `r/l -> /outside` and `r/l/evil` stops with "Not a directory" and writes nothing outside), and the failed import leaves nothing.
 
-Exporting leaves out `logs` and `icons`: they are not needed and get regenerated.
+Exporting leaves out `logs` and `icons`: they are not needed and get regenerated. A new log creates its `logs` folder, since an imported bottle has none (found in the real check: the first run of an imported bottle failed).
 
 ## 9. Checked before writing this
 

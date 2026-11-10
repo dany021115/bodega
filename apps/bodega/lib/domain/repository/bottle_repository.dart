@@ -51,6 +51,15 @@ abstract class BottleRepository {
 
   Future<Either<AppError, Unit>> renameBottle(String name, String newName);
 
+  /// V14: a copy of [name] called [newName]. Stops the bottle first.
+  Future<Either<AppError, Unit>> duplicate(String name, String newName);
+
+  /// V14: [name] packed into the `.tar.gz` [file]. Stops the bottle first.
+  Future<Either<AppError, Unit>> export(String name, String file);
+
+  /// V13: a bottle unpacked from the `.tar.gz` [file]; returns its name.
+  Future<Either<AppError, String>> importBottle(String file);
+
   /// Shows or hides an application in the library, without touching its bottle.
   Future<Either<AppError, Unit>> setInLibrary(
     String name,

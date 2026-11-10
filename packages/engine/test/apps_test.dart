@@ -780,6 +780,174 @@ void main() {
     });
   });
 
+  // What a bottle keeps of Wine's links: c: inside it, z: at the root (E4).
+  void linkDrives(String name) {
+    final dosdevices = '$home/bottles/$name/prefix/dosdevices';
+    Directory(dosdevices).createSync(recursive: true);
+    Link('$dosdevices/c:').createSync('../drive_c');
+    Link('$dosdevices/z:').createSync('/');
+  }
+
+  void expectLink(String path, String target) {
+    expect(
+      FileSystemEntity.typeSync(path, followLinks: false),
+      FileSystemEntityType.link,
+    );
+    expect(Link(path).targetSync(), target);
+  }
+
+  group('duplicateBottle', () {
+    setUp(() async {
+      final (engine, hostlibs) = await fakeRuntime(tmp, 'engine');
+      await installRuntime(home, engine, hostlibs);
+      await createBottle(home, 'b');
+      linkDrives('b');
+    });
+
+    test('copies the bottle, links as links, into one of its own', () async {
+      File('$home/bottles/b/prefix/drive_c/save.txt').writeAsStringSync('1');
+      await duplicateBottle(home, 'b', 'c');
+      final copy = '$home/bottles/c/prefix';
+      expect(File('$copy/system.reg').existsSync(), isTrue);
+      expectLink('$copy/dosdevices/z:', '/');
+      expectLink('$copy/dosdevices/c:', '../drive_c');
+      File('$copy/drive_c/save.txt').writeAsStringSync('2');
+      expect(
+        File('$home/bottles/b/prefix/drive_c/save.txt').readAsStringSync(),
+        '1',
+      );
+      expect(listBottles(home).map((b) => b.name), ['b', 'c']);
+    });
+
+    test(
+      'refuses a name that exists or an invalid one, touching nothing',
+      () async {
+        await createBottle(home, 'c');
+        File('$home/bottles/c/mine').writeAsStringSync('c');
+        await expectLater(
+          duplicateBottle(home, 'b', 'c'),
+          throwsA(contains('bottle c already exists')),
+        );
+        expect(File('$home/bottles/c/mine').readAsStringSync(), 'c');
+        await expectLater(
+          duplicateBottle(home, 'b', 'a b'),
+          throwsA(isA<FormatException>()),
+        );
+        await expectLater(
+          duplicateBottle(home, 'nada', 'x'),
+          throwsA(contains('bottle nada does not exist')),
+        );
+        expect(listBottles(home).map((b) => b.name), ['b', 'c']);
+      },
+    );
+  });
+
+  group('exportBottle and importBottle', () {
+    late String archive;
+
+    setUp(() async {
+      final (engine, hostlibs) = await fakeRuntime(tmp, 'engine');
+      await installRuntime(home, engine, hostlibs);
+      await createBottle(home, 'b');
+      linkDrives('b');
+      Directory('$home/bottles/b/icons').createSync();
+      archive = '$tmp/b.tar.gz';
+    });
+
+    // [entries] relative to a folder of [tmp] with what they name.
+    Future<String> tarOf(String name, List<String> entries) async {
+      final src = Directory('$tmp/src')..createSync();
+      for (final dir in ['a/prefix', 'b/prefix', 'y']) {
+        Directory('${src.path}/$dir').createSync(recursive: true);
+      }
+      final file = '$tmp/$name';
+      // -P keeps `..` in a name: what a hand-made archive could hold.
+      final run = await Process.run('tar', [
+        '-czPf',
+        file,
+        '-C',
+        src.path,
+        ...entries,
+      ]);
+      expect(run.exitCode, 0, reason: '${run.stderr}');
+      return file;
+    }
+
+    test(
+      'a round trip keeps the links, and leaves out logs and icons',
+      () async {
+        await exportBottle(home, 'b', archive);
+        await removeBottle(home, 'b');
+        expect(await importBottle(home, archive), 'b');
+        final prefix = '$home/bottles/b/prefix';
+        expect(File('$prefix/system.reg').existsSync(), isTrue);
+        expectLink('$prefix/dosdevices/z:', '/');
+        expectLink('$prefix/dosdevices/c:', '../drive_c');
+        expect(Directory('$home/bottles/b/icons').existsSync(), isFalse);
+        expect(Directory('$home/bottles/b/logs').existsSync(), isFalse);
+        // Its first run brings the logs folder back.
+        await exitOf(await runInBottle(home, 'b', 'cmd', ['/c', 'exit']));
+        expect(bottleLogs(home, 'b'), hasLength(1));
+        expect(Directory('$home/bottles/.tmp-import').existsSync(), isFalse);
+      },
+    );
+
+    test('a name that exists gets -2, then -3', () async {
+      await exportBottle(home, 'b', archive);
+      expect(await importBottle(home, archive), 'b-2');
+      expect(await importBottle(home, archive), 'b-3');
+      expect(listBottles(home).map((b) => b.name), ['b', 'b-2', 'b-3']);
+    });
+
+    test(
+      'refuses two roots, a `..`, or no prefix, and leaves nothing',
+      () async {
+        final bad = {
+          await tarOf('two.tar.gz', ['a', 'b']): 'one folder at its root',
+          await tarOf('dots.tar.gz', ['a', 'a/../y']): 'has the path a/../y',
+          await tarOf('bare.tar.gz', ['y']): 'y has no prefix folder',
+        };
+        for (final MapEntry(key: file, value: why) in bad.entries) {
+          await expectLater(importBottle(home, file), throwsA(contains(why)));
+        }
+        expect(
+          Directory('$home/bottles')
+              .listSync()
+              .map((e) => e.path.split('/').last),
+          ['b'],
+        );
+      },
+    );
+
+    test('listBottles skips a folder on its way in', () {
+      Directory('$home/bottles/.tmp-import/x/prefix')
+          .createSync(recursive: true);
+      expect(listBottles(home).map((b) => b.name), ['b']);
+    });
+  });
+
+  group('downloads', () {
+    test('their size, and emptying them, without following links', () {
+      final downloads = Directory('$home/downloads')
+        ..createSync(recursive: true);
+      File('${downloads.path}/a.exe').writeAsBytesSync(List.filled(1000, 1));
+      File('${downloads.path}/d/b.msi')
+        ..createSync(recursive: true)
+        ..writeAsBytesSync(List.filled(24, 1));
+      final outside = File('$tmp/outside/big.bin')
+        ..createSync(recursive: true)
+        ..writeAsBytesSync(List.filled(5000, 1));
+      Link('${downloads.path}/out').createSync(outside.parent.path);
+      expect(downloadsSize(home), 1024);
+      clearDownloads(home);
+      expect(downloads.listSync(), isEmpty);
+      expect(downloadsSize(home), 0);
+      expect(outside.existsSync(), isTrue);
+    });
+
+    test('none yet is zero', () => expect(downloadsSize(home), 0));
+  });
+
   group('appIcon', () {
     final png = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 1, 2, 3];
     final dib = [40, 0, 0, 0, 32, 0, 0, 0, 64, 0, 0, 0, 9, 9];

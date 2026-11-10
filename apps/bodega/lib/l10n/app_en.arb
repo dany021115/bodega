@@ -830,5 +830,57 @@
   "bottlesUserEmpty": "the name is empty",
   "bottlesUserTooLong": "the name is longer than 20 characters",
   "bottlesUserBadCharacter": "the name cannot contain \" / \\ [ ] : ; | = , + * ? < >",
-  "bottlesUserDotsOrSpaces": "the name cannot be only dots or spaces"
+  "bottlesUserDotsOrSpaces": "the name cannot be only dots or spaces",
+  "bottlesDuplicate": "Duplicate…",
+  "bottlesDuplicateTitle": "Duplicate {name}",
+  "bottlesDuplicateAction": "Duplicate",
+  "bottlesDuplicating": "Duplicating…",
+  "bottlesExport": "Export…",
+  "bottlesExportTitle": "Export {name}",
+  "bottlesExporting": "Exporting…",
+  "bottlesExported": "Bottle saved to {file}",
+  "bottlesImport": "Import bottle…",
+  "bottlesImportType": "Exported bottles",
+  "bottlesImporting": "Importing the bottle…",
+  "@bottlesDuplicateTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "@bottlesExportTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "@bottlesExported": {
+    "placeholders": {
+      "file": {
+        "type": "String"
+      }
+    }
+  },
+  "shellPreferences": "Preferences",
+  "preferencesTitle": "Preferences",
+  "preferencesDataFolder": "Data folder",
+  "preferencesOpenFinder": "Open in Finder",
+  "preferencesOpenFolder": "Open folder",
+  "preferencesCache": "Installer cache",
+  "preferencesCacheSize": "{size} MB",
+  "@preferencesCacheSize": {
+    "placeholders": {
+      "size": {
+        "type": "String"
+      }
+    }
+  },
+  "preferencesClear": "Empty",
+  "preferencesClearTitle": "Empty the installer cache?",
+  "preferencesClearMessage": "The downloaded installers are deleted. They are downloaded again when needed.",
+  "preferencesLanguage": "Language",
+  "preferencesLanguageSystem": "System",
+  "bottlesExportAction": "Export"
 }

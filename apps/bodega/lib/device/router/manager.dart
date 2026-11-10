@@ -13,6 +13,7 @@ class RouterManager {
     AppRoute.bottles: (_) => '/bottles',
     AppRoute.bottleDetail: (p) => '/bottles/${p['name']}',
     AppRoute.backends: (_) => '/backends',
+    AppRoute.preferences: (_) => '/preferences',
   };
 
   static String path(AppRoute route, {Map<String, String> params = const {}}) =>

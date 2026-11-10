@@ -188,6 +188,12 @@ class _SideBarState extends State<SideBar> {
                 AppRoute.backends,
                 '/backends',
               ),
+              _section(
+                Icons.settings_rounded,
+                l10n.shellPreferences,
+                AppRoute.preferences,
+                '/preferences',
+              ),
               const SizedBox(height: AppSpacing.xs),
               AppVersion(compact: !expanded),
             ],
