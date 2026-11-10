@@ -1,9 +1,11 @@
 # The only place where version tags are created: on push to main, if the pubspec version has no tag yet.
+# Run it by hand from main to retry a tag whose run failed (a re-run keeps the failed run's context).
 name: tag-version
 
 on:
   push:
     branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: write
