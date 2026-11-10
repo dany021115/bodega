@@ -1,15 +1,19 @@
 # Bodega
 
-Personal macOS launcher to play Windows games on Apple Silicon (M1-M4): Wine x86_64 under Rosetta 2, plus the graphics backends. Closed source, for one user. Answer in Spanish, in simple language. Code in English; UI in Spanish.
+Open-source launcher to play Windows games on Apple Silicon Macs (Wine x86_64 under Rosetta 2, plus the graphics backends) and on x86_64 Linux. Public on GitHub, under the GPL-3.0-or-later; `wine/` is LGPL-2.1-or-later. Answer the user in Spanish, in simple language.
+
+## Language
+
+Everything that goes into git is in English: code, comments, docs, `.sdd/` specs (this overrides the `sdd` skill's Spanish default), commit messages, branch names, tags, pull request titles and bodies, workflow and step names, and script messages. The only Spanish in the repo is the app's Spanish UI text, which the `i18n` change moves to the Spanish translation file. Talking to the user stays in Spanish.
 
 ## Repo
 
 Pub workspace (root `pubspec.yaml`):
 
-- `packages/engine`: pure Dart. The engine and the `bodega` CLI. Knows nothing about Flutter. Runs on macOS and on Linux (x86_64, Ubuntu/Debian 24.04+).
-- `apps/bodega`: the macOS app, with TeeShot's clean architecture.
+- `packages/engine`: pure Dart. The engine and the `bodega` CLI. Knows nothing about Flutter. Runs on macOS and on Linux (x86_64, Ubuntu 24.04+).
+- `apps/bodega`: the app, for macOS and Linux, with TeeShot's clean architecture.
 - `wine/`: the recipe, patches and inputs that build Wine and its host libraries.
-- `.sdd/`: specs, in Spanish. They are the source of truth: if one is wrong, say so and change it, don't code around it. Finished ones are in `.sdd/archive/`.
+- `.sdd/`: specs, in English. They are the source of truth: if one is wrong, say so and change it, don't code around it. Finished ones are in `.sdd/archive/`.
 
 The Wine build lives in `wine/` (it was the `bodega-engine` repo, history included): its recipe and patches there, its GitHub Actions in `.github/workflows/`, where only the jobs that check out this repo run inside `wine/`. Its tarballs are in `../runtimes/`.
 
@@ -68,6 +72,6 @@ See `rules/architecture.md`. The short version: `domain/` is pure Dart, **only `
 - No `git commit` or `git push` without the user's approval. Leave a script and let them run it. Never add AI attribution to commits.
 - Agents run Wine only headless. The user does anything with a window: games, launchers, installers.
 - Never follow symlinks inside a bottle: `dosdevices/z:` points to `/`. Stop a bottle before deleting it.
-- Don't delete `../runtimes/`: 335 MB over a slow Starlink link, from Cuba.
+- Don't delete `../runtimes/`: 335 MB over a slow link.
 - Check against the real thing, not only mocks: real HTTPS and real bottles found what mocks and local servers didn't.
 - Versioning and release rules are in `AGENTS.md`: run the `bump-version` skill before any commit.

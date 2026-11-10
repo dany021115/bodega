@@ -166,7 +166,8 @@ jobs:
           set -euo pipefail
           gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --title "Bodega ${TAG#v}" --generate-notes
           gh release upload "$TAG" dist/* --clobber
-      # The app looks for updates in this public repository, which has the releases and no code (design §6).
+      # Bridge for installs up to 1.4.1: they look for updates in bodega-releases. From 1.4.2 the app
+      # checks this repository, which is public. Delete this step once nobody runs 1.4.1 or older.
       - name: Publish to bodega-releases
         env:
           PUBLIC_TOKEN: ${{ secrets.RELEASES_TOKEN }}
@@ -177,7 +178,7 @@ jobs:
             echo "::warning::no RELEASES_TOKEN secret: $TAG was not published to $PUBLIC_REPO."
             exit 0
           fi
-          # The same notes as the private release, read with this repository's token.
+          # The same notes as the release in this repository, read with its token.
           gh release view "$TAG" --json body -q .body > notes.md
           # The engine is Wine (LGPL): its recipe and patches go with the binaries.
           tar -czf wine-src.tar.gz wine

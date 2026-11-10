@@ -14,10 +14,10 @@ import 'package:fpdart/fpdart.dart';
 import 'package:injectable/injectable.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
-/// The releases live in a public repository with no code, so that anyone can
-/// see them; the code stays private (design §6).
+/// The repository is public, so the app reads its own releases. Up to 1.4.1
+/// it read `bodega-releases`, which the release workflows still fill for them.
 const _latest =
-    'https://api.github.com/repos/dany021115/bodega-releases/releases/latest';
+    'https://api.github.com/repos/dany021115/bodega/releases/latest';
 
 /// Run by `sh` apart from the app: waits for Bodega to close, then puts the
 /// new version in its place and opens it. If the move fails, the old version
