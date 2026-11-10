@@ -1,4 +1,4 @@
-# No usa archivos del repo: empaqueta librerías de Homebrew; se lanza a mano o lo llama release-macos.
+# Uses no files from this repo: it packages Homebrew libraries; it runs by hand or is called by release-macos.
 # FreeType, GnuTLS and MoltenVK from the runner's Intel Homebrew, with what they link, in a tarball of their own
 # that extracts over the engine: the libraries land in engine/lib/wine/x86_64-unix, where the modules'
 # LC_RPATH @loader_path/ finds them by leaf name with no DYLD variables. Nothing is checked out and Wine is not built.

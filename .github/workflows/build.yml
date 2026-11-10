@@ -1,4 +1,4 @@
-# La receta y los parches están en wine/; este workflow se lanza a mano o lo llama release-macos.
+# The recipe and the patches are in wine/; this workflow runs by hand or is called by release-macos.
 # Builds the engine from the pinned CrossOver sources. Manual dispatch only until the first
 # build is green and boots a bottle through Highball; nothing in the app points here yet.
 name: build-engine

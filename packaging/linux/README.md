@@ -1,81 +1,81 @@
-# Paquete Linux: archivos de terceros
+# Linux package: third-party files
 
-`assets.json` fija las versiones, URLs y sha256 de lo que el paquete Linux trae de fuera: Wine, DXVK, vkd3d-proton y appimagetool. `fetch_assets.sh` los baja a `cache/<nombre>/` y verifica cada uno. `cache/` está en `.gitignore`.
+`assets.json` pins the versions, URLs and sha256 of what the Linux package brings in from outside: Wine, DXVK, vkd3d-proton and appimagetool. `fetch_assets.sh` downloads them to `cache/<name>/` and verifies each one. `cache/` is in `.gitignore`.
 
 ```
 cd packaging/linux && ./fetch_assets.sh
 ```
 
-Requiere `curl`, `sha256sum` y `python3`.
+Requires `curl`, `sha256sum` and `python3`.
 
-## Portabilidad del binario (CPU)
+## Binary portability (CPU)
 
-`tool/check_isa.sh` revisa con `readelf -n` el ejecutable `bodega`, la CLI y las `.so` del bundle, y falla si alguno declara `x86-64-v3` o `x86-64-v4` como ISA necesaria. Esa marca la ponen las librerías de una distro tuneada para CPUs nuevas (CachyOS): aunque compiles con `-march=x86-64`, el enlazado hereda la marca de los objetos del sistema. El resultado es un `bodega` que en un equipo más viejo muere con `CPU ISA level is lower than required` (pasó en Manjaro).
+`tool/check_isa.sh` uses `readelf -n` to check the `bodega` executable, the CLI and the bundle's `.so` files, and fails if any of them declares `x86-64-v3` or `x86-64-v4` as its required ISA. That marker is set by the libraries of a distro tuned for new CPUs (CachyOS): even if you compile with `-march=x86-64`, linking inherits the marker from the system's objects. The result is a `bodega` that dies on an older machine with `CPU ISA level is lower than required` (it happened on Manjaro).
 
-- Los releases se construyen en `ubuntu-24.04`, que no la lleva. Pasa de ahí a los demás.
-- Un paquete que solo correrá en la máquina que lo construyó: `BODEGA_ALLOW_NATIVE=1 tool/package_linux.sh`.
+- Releases are built on `ubuntu-24.04`, which does not set it. From there they go to the other distros.
+- A package that will only run on the machine that built it: `BODEGA_ALLOW_NATIVE=1 tool/package_linux.sh`.
 
-## Versiones
+## Versions
 
-| name | versión | archivo | bytes (descarga) | sha256 |
+| name | version | file | bytes (download) | sha256 |
 |---|---|---|---|---|
 | wine | 11.21 | `wine-11.21-staging-amd64-wow64.tar.xz` (Kron4ek) | 99958200 | `a70a9691...fa503ab` |
 | dxvk | 3.1.1 | `dxvk-3.1.1.tar.gz` | 18041512 | `40565b4a...f54e608` |
 | vkd3d-proton | 3.1 | `vkd3d-proton-3.1.tar.zst` | 5665978 | `b85ea821...f02120b` |
 | appimagetool | 1.9.1 | `appimagetool-x86_64.AppImage` | 15092216 | `ed4ce84f...6eb0` |
 
-Origen y comprobación:
+Origin and checks:
 
-- Los cuatro son releases publicados con etiqueta estable (no pre-releases).
-- El digest que GitHub publica para DXVK, vkd3d-proton y appimagetool coincide con el sha256 calculado localmente.
-- El sha256 de Wine coincide con la tabla SHA256 del cuerpo de la release 11.21 de Kron4ek (GitHub no lo publica como digest del asset).
-- appimagetool: GitHub marca como "latest" el tag `continuous`, un build móvil sin versión. Se fija el release etiquetado `1.9.1` (2025-11-18).
+- All four are published releases with a stable tag (not pre-releases).
+- The digest GitHub publishes for DXVK, vkd3d-proton and appimagetool matches the sha256 computed locally.
+- Wine's sha256 matches the SHA256 table in the body of Kron4ek's 11.21 release (GitHub does not publish it as the asset's digest).
+- appimagetool: GitHub marks the `continuous` tag, a moving build with no version, as "latest". The release tagged `1.9.1` (2025-11-18) is pinned instead.
 
-## Estructura de los tarballs (inspeccionados, no ejecutados)
+## Layout of the tarballs (inspected, not run)
 
-Extraídos en el scratchpad, nunca en el repo.
+Extracted in the scratchpad, never in the repo.
 
-**Wine** (`wine-11.21-staging-amd64-wow64/`, raíz única del tar):
+**Wine** (`wine-11.21-staging-amd64-wow64/`, the tar's single root):
 
-- `bin/wine`, `bin/wineserver`: presentes.
-- `lib/wine/x86_64-unix/ntdll.so`: presente.
-- `lib/wine/x86_64-windows/kernel32.dll` y `ntdll.dll`: presentes.
-- `lib/wine/i386-windows/kernel32.dll` y `ntdll.dll`: presentes.
-- No hay `lib/wine/i386-unix/`. La parte WoW64 de 32 bits corre sobre `x86_64-unix`.
-- Otros: `bin/` con winecfg, regedit, msiexec, wineboot y demás; `share/wine/wine.inf`, `share/applications/wine.desktop`, `share/man/`.
-- No hay `.dylib` ni enlaces que haya que seguir.
+- `bin/wine`, `bin/wineserver`: present.
+- `lib/wine/x86_64-unix/ntdll.so`: present.
+- `lib/wine/x86_64-windows/kernel32.dll` and `ntdll.dll`: present.
+- `lib/wine/i386-windows/kernel32.dll` and `ntdll.dll`: present.
+- There is no `lib/wine/i386-unix/`. The 32-bit WoW64 part runs on `x86_64-unix`.
+- Others: `bin/` with winecfg, regedit, msiexec, wineboot and the rest; `share/wine/wine.inf`, `share/applications/wine.desktop`, `share/man/`.
+- There are no `.dylib` files and no links to follow.
 
-**DXVK** (`dxvk-3.1.1/`): `x64/` y `x32/`. Cada uno trae `d3d8.dll`, `d3d9.dll`, `d3d10core.dll`, `d3d11.dll`, `dxgi.dll`. No trae `d3d12`.
+**DXVK** (`dxvk-3.1.1/`): `x64/` and `x32/`. Each one has `d3d8.dll`, `d3d9.dll`, `d3d10core.dll`, `d3d11.dll`, `dxgi.dll`. It has no `d3d12`.
 
-**vkd3d-proton** (`vkd3d-proton-3.1/`): `x64/` y `x86/` (no `x32/`). Cada uno trae `d3d12.dll` y `d3d12core.dll`. Trae también `setup_vkd3d_proton.sh`, que no se ejecuta.
+**vkd3d-proton** (`vkd3d-proton-3.1/`): `x64/` and `x86/` (not `x32/`). Each one has `d3d12.dll` and `d3d12core.dll`. It also has `setup_vkd3d_proton.sh`, which is not run.
 
-## Sync de Wine (strings)
+## Wine sync (strings)
 
-Búsqueda de `sync`, `ntsync`, `ESYNC`, `FSYNC`, `WINE_*` en los binarios:
+Search for `sync`, `ntsync`, `ESYNC`, `FSYNC`, `WINE_*` in the binaries:
 
-- `lib/wine/x86_64-unix/ntdll.so`: no contiene `WINEESYNC`, `WINEFSYNC`, `WINE_NTSYNC` ni `ntsync`. Las coincidencias de `fsync` y `msync` son símbolos de glibc (`fsync@@GLIBC_2.2.5`, `msync@@GLIBC_2.2.5`), no variables de Wine.
-- `bin/wineserver`: contiene `/dev/ntsync`. Ahí está el soporte ntsync; no aparece ningún nombre de variable de entorno.
-- `bin/wine`: solo `WINEDLLPATH`.
+- `lib/wine/x86_64-unix/ntdll.so`: does not contain `WINEESYNC`, `WINEFSYNC`, `WINE_NTSYNC` or `ntsync`. The `fsync` and `msync` matches are glibc symbols (`fsync@@GLIBC_2.2.5`, `msync@@GLIBC_2.2.5`), not Wine variables.
+- `bin/wineserver`: contains `/dev/ntsync`. That is where the ntsync support is; no environment variable name shows up.
+- `bin/wine`: only `WINEDLLPATH`.
 
-Conclusión: los strings no muestran qué variable de entorno activa esync, fsync o ntsync en este build. Hay que probarlo en un equipo real (sin ejecutar Wine desde el agente). Hasta entonces, `syncModes` en el código solo puede contar con `none` como seguro. Los modos `esync`, `fsync` y `ntsync` quedan pendientes de esa prueba.
+Conclusion: the strings do not show which environment variable turns on esync, fsync or ntsync in this build. It has to be tested on a real machine (without running Wine from the agent). Until then, `syncModes` in the code can only count on `none` as safe. The `esync`, `fsync` and `ntsync` modes wait for that test.
 
-## Licencias
+## Licenses
 
-- Wine: el tar no trae archivo de licencia ni NOTICE. Hay que añadir el texto LGPL y la referencia al código fuente desde el paquete (R16), no desde el tar.
-- DXVK: el tar no trae licencia.
-- vkd3d-proton: el tar no trae licencia.
-- appimagetool: no se empaqueta; solo se usa para construir el AppImage.
+- Wine: the tar has no license file and no NOTICE. The LGPL text and the reference to the source code have to be added from the package (R16), not from the tar.
+- DXVK: the tar has no license.
+- vkd3d-proton: the tar has no license.
+- appimagetool: not packaged; it is only used to build the AppImage.
 
-## Tamaños descomprimidos (`du -sb`)
+## Uncompressed sizes (`du -sb`)
 
 - Wine: 853115842 bytes (~814 MiB)
 - DXVK: 45666444 bytes (~44 MiB)
 - vkd3d-proton: 14222247 bytes (~14 MiB)
 
-## Contradicciones con design.md y tasks.md
+## Contradictions with design.md and tasks.md
 
-1. Nombre del asset de Wine: tasks.md dice `wine-staging-<ver>-amd64-wow64.tar.xz`, pero el nombre real es `wine-<ver>-staging-amd64-wow64.tar.xz`. Se usa el real.
-2. Carpetas de vkd3d: design.md y `_ensureLayers` suponen `x64/` y `x32/`. vkd3d-proton trae `x86/`, no `x32/`. Copiar a `syswow64` tiene que mapear `x86/` para vkd3d.
-3. D3D12 viene de vkd3d-proton, no de DXVK. La capa `dxvk` del paquete debe copiar las DLL de ambos (`d3d12.dll`, `d3d12core.dll` incluidas). design.md lo implica al pedir overrides para `d3d12,d3d12core`, pero no lo dice al describir `backends/dxvk/`.
-4. Sin licencias en los tarballs: design.md pide `LICENSES/`, y ese contenido hay que escribirlo desde las fuentes oficiales, no desde estos archivos.
-5. `syncModes` (design.md: `none`, `esync`, `fsync`, `ntsync`): no verificable por strings (ver arriba).
+1. Name of the Wine asset: tasks.md says `wine-staging-<ver>-amd64-wow64.tar.xz`, but the real name is `wine-<ver>-staging-amd64-wow64.tar.xz`. The real one is used.
+2. vkd3d folders: design.md and `_ensureLayers` assume `x64/` and `x32/`. vkd3d-proton has `x86/`, not `x32/`. Copying to `syswow64` has to map `x86/` for vkd3d.
+3. D3D12 comes from vkd3d-proton, not from DXVK. The package's `dxvk` layer must copy the DLLs of both (`d3d12.dll` and `d3d12core.dll` included). design.md implies it when it asks for overrides for `d3d12,d3d12core`, but does not say so when it describes `backends/dxvk/`.
+4. No licenses in the tarballs: design.md asks for `LICENSES/`, and that content has to be written from the official sources, not from these files.
+5. `syncModes` (design.md: `none`, `esync`, `fsync`, `ntsync`): cannot be verified through the strings (see above).

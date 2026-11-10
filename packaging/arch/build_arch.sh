@@ -12,7 +12,7 @@ dir="$(cd "$(dirname "$0")" && pwd)"
 icon="$dir/../../apps/bodega/macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_512.png"
 
 if [[ ! "$(basename "$tarball")" =~ ^Bodega-([0-9]+\.[0-9]+\.[0-9]+)-linux-x86_64\.tar\.gz$ ]]; then
-  echo "error: $tarball no es un Bodega-X.Y.Z-linux-x86_64.tar.gz" >&2
+  echo "error: $tarball is not a Bodega-X.Y.Z-linux-x86_64.tar.gz" >&2
   exit 1
 fi
 version="${BASH_REMATCH[1]}"

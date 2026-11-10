@@ -6,17 +6,17 @@ set -euo pipefail
 
 usage() {
   cat <<'EOF'
-Uso: tool/package_macos.sh [--engine FILE --hostlibs FILE] [--engine-tag TAG] [--hostlibs-tag TAG] [--help]
+Usage: tool/package_macos.sh [--engine FILE --hostlibs FILE] [--engine-tag TAG] [--hostlibs-tag TAG] [--help]
 
-Construye dist/Bodega-X.Y.Z-macos-arm64.dmg. Solo macOS con Apple Silicon.
+Builds dist/Bodega-X.Y.Z-macos-arm64.dmg. Only macOS on Apple Silicon.
 
-  --engine FILE       tarball del motor local (con su .sha256 al lado)
-  --hostlibs FILE     tarball de las librerias del host local (con su .sha256 al lado)
-  --engine-tag TAG    release engine-* a descargar (por defecto, la mas reciente)
-  --hostlibs-tag TAG  release hostlibs-* a descargar (por defecto, la mas reciente)
-  --help              muestra este uso
+  --engine FILE       local engine tarball (with its .sha256 next to it)
+  --hostlibs FILE     local host libraries tarball (with its .sha256 next to it)
+  --engine-tag TAG    engine-* release to download (default: the most recent)
+  --hostlibs-tag TAG  hostlibs-* release to download (default: the most recent)
+  --help              shows this usage
 
-Sin --engine y --hostlibs, los tarballs se bajan de las releases de este repo con gh.
+Without --engine and --hostlibs, the tarballs are downloaded from this repo's releases with gh.
 EOF
 }
 
@@ -26,17 +26,17 @@ engine_tag=""
 hostlibs_tag=""
 while [ $# -gt 0 ]; do
   case "$1" in
-    --engine) engine="${2:?falta FILE tras --engine}"; shift 2 ;;
-    --hostlibs) hostlibs="${2:?falta FILE tras --hostlibs}"; shift 2 ;;
-    --engine-tag) engine_tag="${2:?falta TAG tras --engine-tag}"; shift 2 ;;
-    --hostlibs-tag) hostlibs_tag="${2:?falta TAG tras --hostlibs-tag}"; shift 2 ;;
+    --engine) engine="${2:?missing FILE after --engine}"; shift 2 ;;
+    --hostlibs) hostlibs="${2:?missing FILE after --hostlibs}"; shift 2 ;;
+    --engine-tag) engine_tag="${2:?missing TAG after --engine-tag}"; shift 2 ;;
+    --hostlibs-tag) hostlibs_tag="${2:?missing TAG after --hostlibs-tag}"; shift 2 ;;
     --help|-h) usage; exit 0 ;;
-    *) echo "argumento desconocido: $1" >&2; usage >&2; exit 1 ;;
+    *) echo "unknown argument: $1" >&2; usage >&2; exit 1 ;;
   esac
 done
 
 if [ -n "$engine$hostlibs" ] && { [ -z "$engine" ] || [ -z "$hostlibs" ]; }; then
-  echo "--engine y --hostlibs van juntos" >&2
+  echo "--engine and --hostlibs go together" >&2
   exit 1
 fi
 
@@ -48,14 +48,14 @@ root="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$root"
 
 if [ "$(uname -s)" != "Darwin" ] || [ "$(uname -m)" != "arm64" ]; then
-  echo "solo se construye en macOS con Apple Silicon" >&2
+  echo "this only builds on macOS with Apple Silicon" >&2
   exit 1
 fi
 
 ver="$(awk '/^version:/ { split($2, v, "+"); print v[1]; exit }' apps/bodega/pubspec.yaml)"
 
 if ! arch -x86_64 /usr/bin/true 2>/dev/null; then
-  echo "falta Rosetta: instalala con softwareupdate --install-rosetta --agree-to-license" >&2
+  echo "Rosetta is missing: install it with softwareupdate --install-rosetta --agree-to-license" >&2
   exit 1
 fi
 
@@ -81,7 +81,7 @@ download() {
     tag="$(latest_tag "$prefix")"
   fi
   if [ -z "$tag" ]; then
-    echo "no hay release ${prefix}* en este repositorio: lanza el workflow build-engine con publish_release (y build-hostlibs para hostlibs) o pasa --engine/--hostlibs" >&2
+    echo "no ${prefix}* release in this repository: run the build-engine workflow with publish_release (and build-hostlibs for hostlibs) or pass --engine/--hostlibs" >&2
     exit 1
   fi
   rm -rf "$dir"
@@ -89,7 +89,7 @@ download() {
   gh release download "$tag" --pattern '*.tar.gz' --pattern '*.tar.gz.sha256' --dir "$dir"
   set -- "$dir"/*.tar.gz
   if [ $# -ne 1 ] || [ ! -f "$1" ]; then
-    echo "la release $tag no trae exactamente un .tar.gz" >&2
+    echo "release $tag does not have exactly one .tar.gz" >&2
     exit 1
   fi
   tarball="$1"
@@ -110,7 +110,7 @@ fi
 )
 app="$root/apps/bodega/build/macos/Build/Products/Release/Bodega.app"
 if [ ! -d "$app" ]; then
-  echo "no se encontro $app tras flutter build macos" >&2
+  echo "$app not found after flutter build macos" >&2
   exit 1
 fi
 
@@ -151,7 +151,7 @@ cp "$tmp/bodega-cli" "$out_app/Contents/MacOS/bodega-cli"
 chmod 755 "$out_app/Contents/MacOS/bodega-cli"
 
 # Ad hoc signature. Developer ID and notarization are out of scope: the first launch needs
-# right click, Open (see LEEME.txt).
+# right click, Open (see README.txt).
 codesign --force --deep --sign - "$out_app"
 codesign --verify --deep "$out_app"
 
@@ -159,7 +159,7 @@ dmg_dir="$tmp/dmg"
 mkdir -p "$dmg_dir"
 ditto "$out_app" "$dmg_dir/Bodega.app"
 ln -s /Applications "$dmg_dir/Applications"
-cp "$root/packaging/macos/LEEME.txt" "$dmg_dir/LEEME.txt"
+cp "$root/packaging/macos/README.txt" "$dmg_dir/README.txt"
 
 mkdir -p "$root/dist"
 dmg="$root/dist/Bodega-$ver-macos-arm64.dmg"

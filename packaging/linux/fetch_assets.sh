@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Descarga a packaging/linux/cache/<nombre>/ lo que falte de assets.json y verifica el sha256.
+# Downloads to packaging/linux/cache/<name>/ whatever from assets.json is missing, and checks its sha256.
 set -euo pipefail
 
 dir="$(cd "$(dirname "$0")" && pwd)"

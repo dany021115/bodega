@@ -1,6 +1,6 @@
 # highball-engine
 
-> Este directorio era el repo `bodega-engine`. Desde el 2026-11-05 vive en el monorepo `bodega`, con su historial, y sus workflows están en `.github/workflows/` de la raíz.
+> This directory was the `bodega-engine` repo. Since 2026-11-05 it lives in the `bodega` monorepo, with its history, and its workflows are in the root's `.github/workflows/`.
 
 The Wine engine build for [Highball](https://github.com/gauthierpiarrette/highball), as a
 reproducible recipe: pinned upstream sources, a small patch series, and a CI workflow that turns

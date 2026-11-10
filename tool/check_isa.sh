@@ -14,16 +14,16 @@ bad=0
 for file in "$@"; do
   needed="$(readelf -n "$file" 2>/dev/null | grep 'x86 ISA needed' || true)"
   if grep -qE 'x86-64-v[34]' <<<"$needed"; then
-    echo "error: $file exige una CPU x86-64-v3 o v4:${needed#*needed:}" >&2
+    echo "error: $file requires an x86-64-v3 or v4 CPU:${needed#*needed:}" >&2
     bad=1
   fi
 done
 
 if [ "$bad" != 0 ]; then
   cat >&2 <<'EOF'
-Ese paquete no arrancaria en equipos mas viejos ("CPU ISA level is lower than required").
-Usa el paquete del release, que se construye en ubuntu-24.04 (workflow release-linux).
-Para uno que solo corra en este equipo: BODEGA_ALLOW_NATIVE=1 tool/package_linux.sh
+That package would not start on older machines ("CPU ISA level is lower than required").
+Use the release package, which is built on ubuntu-24.04 (workflow release-linux).
+For one that only runs on this machine: BODEGA_ALLOW_NATIVE=1 tool/package_linux.sh
 EOF
   exit 1
 fi

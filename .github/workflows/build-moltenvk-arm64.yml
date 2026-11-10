@@ -1,4 +1,4 @@
-# Se lanza al cambiar wine/moltenvk-arm64, o a mano.
+# Runs when wine/moltenvk-arm64 changes, or by hand.
 name: build-moltenvk-arm64
 
 # MoltenVK for the arm64 engine line: v1.4.2 plus Highball's patches in moltenvk-arm64/moltenvk, with SPIRV-Cross (its

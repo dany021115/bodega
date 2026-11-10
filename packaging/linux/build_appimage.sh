@@ -6,7 +6,7 @@ set -euo pipefail
 stage="$1"
 version="$2"
 out="$3"
-tool="${APPIMAGETOOL:?falta APPIMAGETOOL con la ruta de appimagetool}"
+tool="${APPIMAGETOOL:?missing APPIMAGETOOL with the path to appimagetool}"
 
 dir="$(cd "$(dirname "$0")" && pwd)"
 icon="$dir/../../apps/bodega/macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_512.png"

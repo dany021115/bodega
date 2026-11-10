@@ -18,29 +18,29 @@ samples, guidance on mobile development, and a full API reference.
 
 ## Linux
 
-Bodega corre en Linux x86_64 con Ubuntu o Debian 24.04 o más nuevo. En otras distros usa el `.tar.gz`.
+Bodega runs on Linux x86_64 with Ubuntu 24.04 or newer. On other distros, use the `.tar.gz`.
 
-### Requisitos
+### Requirements
 
-- Arquitectura x86_64.
-- Vulkan con una GPU real.
-- Audio con PulseAudio o PipeWire (`pipewire-pulse`).
-- Ubuntu o Debian 24.04+.
+- x86_64 architecture.
+- Vulkan with a real GPU.
+- Audio through PulseAudio or PipeWire (`pipewire-pulse`).
+- Ubuntu 24.04 or newer.
 
-### Instalar
+### Install
 
-- `.deb`: `sudo apt install ./Bodega-<ver>-linux-amd64.deb`. Instala en `/opt/bodega`, añade el comando `bodega` y una entrada en el menú.
-- `.tar.gz` (`Bodega-<ver>-linux-x86_64.tar.gz`): extráelo y ejecuta `./bodega` desde la carpeta extraída.
-- AppImage: `chmod +x Bodega-<ver>-linux-x86_64.AppImage` y ejecútalo. Si falla por FUSE, instala `libfuse2t64` (Ubuntu 24.04) o ejecútalo con `--appimage-extract-and-run`.
+- `.deb`: `sudo apt install ./Bodega-<ver>-linux-amd64.deb`. It installs to `/opt/bodega` and adds the `bodega` command and a menu entry.
+- `.tar.gz` (`Bodega-<ver>-linux-x86_64.tar.gz`): extract it and run `./bodega` from the extracted folder.
+- AppImage: `chmod +x Bodega-<ver>-linux-x86_64.AppImage` and run it. If it fails because of FUSE, install `libfuse2t64` (Ubuntu 24.04) or run it with `--appimage-extract-and-run`.
 
-### Datos
+### Data
 
-Las botellas, el runtime y las capas de backends viven en `~/.local/share/bodega` (o `$XDG_DATA_HOME/bodega`).
+Bottles, the runtime and the backend layers live in `~/.local/share/bodega` (or `$XDG_DATA_HOME/bodega`).
 
-### Wine y backends
+### Wine and backends
 
-- El paquete trae Wine 11.21 staging WoW64 (Kron4ek). No hace falta instalar Wine.
-- Backends: `wine` (sin capas) y `dxvk`, que trae DXVK para D3D8 a D3D11 y vkd3d-proton para D3D12.
+- The package ships Wine 11.21 staging WoW64 (Kron4ek). You do not need to install Wine.
+- Backends: `wine` (no layers) and `dxvk`, which brings DXVK for D3D8 to D3D11 and vkd3d-proton for D3D12.
 
 ### CLI
 
@@ -53,29 +53,29 @@ bodega option prueba gpu discrete
 bodega option prueba gamemode on
 ```
 
-### Opciones de Linux
+### Linux options
 
-- HUD: `--hud` muestra fps y tiempos de cuadro. Si está instalado MangoHud (`sudo apt install mangohud`), lo usa y guarda un CSV en `<botella>/logs/perf/` al cerrar el juego. Si no, muestra el HUD de DXVK, sin registro.
-- Registros de Wine: en Linux van en `-all` por defecto, como en Proton. Para depurar, usa `BODEGA_WINEDEBUG`, por ejemplo `BODEGA_WINEDEBUG=fixme-all`.
-- Alta densidad: cambia solo `LogPixels` de Wine.
-- GPU por botella: `auto` o `discrete`. `discrete` usa las variables de offload de PRIME (NVIDIA y Mesa).
-- GameMode: si `gamemoderun` está instalado, envuelve el lanzamiento.
+- HUD: `--hud` shows fps and frame times. If MangoHud is installed (`sudo apt install mangohud`), it uses MangoHud and saves a CSV in `<bottle>/logs/perf/` when the game closes. Otherwise it shows the DXVK HUD, with no log.
+- Wine logs: on Linux they are `-all` by default, as in Proton. To debug, use `BODEGA_WINEDEBUG`, for example `BODEGA_WINEDEBUG=fixme-all`.
+- High density: changes only Wine's `LogPixels`.
+- GPU per bottle: `auto` or `discrete`. `discrete` uses the PRIME offload variables (NVIDIA and Mesa).
+- GameMode: if `gamemoderun` is installed, it wraps the launch.
 
-### Mandos
+### Controllers
 
-Wine usa SDL2 del sistema para los mandos y, sin ella, `udev`. Bodega no configura nada en la botella. `bodega pads` lista los mandos que ve el kernel, si tu usuario puede abrirlos y si falta SDL2, con el paquete de tu distro.
+Wine uses the system's SDL2 for controllers and, without it, `udev`. Bodega does not configure anything in the bottle. `bodega pads` lists the controllers the kernel sees, whether your user can open them and whether SDL2 is missing, with the package for your distro.
 
-Si un mando no aparece en el juego:
+If a controller does not show up in the game:
 
-- Instala las reglas udev de mandos (`steam-devices`: en Ubuntu viene de multiverse, y en Arch de multilib) y vuelve a conectarlo.
-- Instala SDL2 (`libsdl2-2.0-0`, `SDL2` o `sdl2-compat`).
+- Install the udev rules for controllers (`steam-devices`: on Ubuntu it comes from multiverse, and on Arch from multilib) and plug it in again.
+- Install SDL2 (`libsdl2-2.0-0`, `SDL2` or `sdl2-compat`).
 
 ### ntsync
 
-El Wine incluido no tiene variables de esync ni fsync, así que no hay forma de forzarlos. Wine usa ntsync solo si existe `/dev/ntsync` y tu usuario puede acceder a él.
+The bundled Wine has no esync or fsync variables, so there is no way to force them. Wine uses ntsync only if `/dev/ntsync` exists and your user can access it.
 
-- `.deb`: ya queda configurado. Carga el módulo al arrancar y da acceso al usuario de la sesión activa, sin `chmod`.
-- `.tar.gz` y AppImage: hazlo una vez a mano:
+- `.deb`: already set up. It loads the module at boot and gives the user of the active session access, without `chmod`.
+- `.tar.gz` and AppImage: do it once by hand:
 
 ```
 echo ntsync | sudo tee /etc/modules-load.d/bodega-ntsync.conf
@@ -85,16 +85,16 @@ sudo udevadm control --reload-rules
 sudo udevadm trigger --sysname-match=ntsync
 ```
 
-Para comprobarlo, `ls -l /dev/ntsync` debe mostrar el dispositivo. Con un juego abierto, `sudo lsof /dev/ntsync` debe mostrar el wineserver. Si tu kernel no trae el módulo, Wine funciona igual, pero más lento.
+To check it, `ls -l /dev/ntsync` should show the device. With a game open, `sudo lsof /dev/ntsync` should show the wineserver. If your kernel does not ship the module, Wine works all the same, but slower.
 
-### Fuera de Linux
+### Not on Linux
 
-No existen en Linux: DXMT, D3DMetal, DLSS y AVX. La app los oculta.
+These do not exist on Linux: DXMT, D3DMetal, DLSS and AVX. The app hides them.
 
-### Construir
+### Building
 
-`tool/package_linux.sh` se corre desde la raíz del repo en Ubuntu 24.04. Deja `.deb`, `.tar.gz` y AppImage en `dist/`. Para releases usa el workflow `release-linux`, que se lanza a mano con una etiqueta `vX.Y.Z`. Las etiquetas las crea `tag-version` al hacer push a main. Un binario compilado en una Ubuntu más nueva no corre en 24.04.
+`tool/package_linux.sh` is run from the repo root on Ubuntu 24.04. It leaves the `.deb`, `.tar.gz` and AppImage in `dist/`. For releases, use the `release-linux` workflow, which is run by hand with a `vX.Y.Z` tag. The tags are created by `tag-version` on push to main. A binary built on a newer Ubuntu does not run on 24.04.
 
-### Licencias
+### Licenses
 
-Wine es LGPL. Los avisos y la referencia al código fuente vienen en `LICENSES/` del paquete (ver `LICENSES/NOTICE.md`).
+Wine is LGPL. The notices and the reference to the source code come in the package's `LICENSES/` (see `LICENSES/NOTICE.md`).

@@ -30,7 +30,7 @@ ver="$(awk '/^version:/ { split($2, v, "+"); print v[1]; exit }' apps/bodega/pub
 
 glibc="$(getconf GNU_LIBC_VERSION | awk '{ print $2 }')"
 if [ "$(printf '%s\n' 2.39 "$glibc" | sort -V | tail -n 1)" != "2.39" ]; then
-  echo "aviso: glibc local $glibc es mas nuevo que el de Ubuntu 24.04 (2.39). Construye en ubuntu-24.04 (el workflow) para releases."
+  echo "warning: the local glibc $glibc is newer than Ubuntu 24.04's (2.39). Build on ubuntu-24.04 (the workflow) for releases."
 fi
 
 packaging/linux/fetch_assets.sh
@@ -78,13 +78,13 @@ tar -czf "$out/Bodega-$ver-linux-x86_64.tar.gz" -C "$stage" .
 if command -v dpkg-deb >/dev/null; then
   bash packaging/linux/build_deb.sh "$stage" "$ver" "$out/Bodega-$ver-linux-amd64.deb"
 else
-  echo "aviso: no hay dpkg-deb; no se genera el .deb."
+  echo "warning: no dpkg-deb; the .deb is not built."
 fi
 
 if command -v makepkg >/dev/null && [ "$(id -u)" != 0 ]; then
   bash packaging/arch/build_arch.sh "$out/Bodega-$ver-linux-x86_64.tar.gz" "$out"
 else
-  echo "aviso: no hay makepkg (o corre como root); no se genera el paquete de pacman."
+  echo "warning: no makepkg (or running as root); the pacman package is not built."
 fi
 
 APPIMAGETOOL="$cache/appimagetool/$appimagetool_file" \

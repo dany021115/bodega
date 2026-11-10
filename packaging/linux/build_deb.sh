@@ -35,9 +35,9 @@ Installed-Size: $installed_size
 Maintainer: roilanrodriguez55
 Depends: libgtk-3-0t64 | libgtk-3-0, libvulkan1, libpulse0
 Recommends: mesa-vulkan-drivers, gamemode, mangohud
-Description: lanzador para jugar juegos de Windows con Wine
- Bodega ejecuta juegos y programas de Windows con Wine, con capas DXVK
- y vkd3d-proton incluidas. Avisos de licencia y fuentes en /opt/bodega/LICENSES.
+Description: launcher to play Windows games with Wine
+ Bodega runs Windows games and programs with Wine, with DXVK and
+ vkd3d-proton layers included. License notices and sources in /opt/bodega/LICENSES.
 EOF
 
 # ntsync: load the module at boot and give the session user access to /dev/ntsync.

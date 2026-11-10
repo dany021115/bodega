@@ -1,4 +1,4 @@
-# No usa archivos del repo: clona DXMT y compila; solo se lanza a mano.
+# Uses no files from this repo: it clones DXMT and builds it; it only runs by hand.
 name: build-dxmt
 
 # Builds Highball's DXMT branch (github.com/gauthierpiarrette/dxmt, upstream 3Shain/dxmt plus

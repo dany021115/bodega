@@ -1,24 +1,24 @@
-# Avisos de terceros
+# Third-party notices
 
-Bodega incluye estos componentes. Ninguno tiene su código modificado por Bodega.
+Bodega includes these components. Bodega has not modified the code of any of them.
 
-## Wine 11.21 (LGPL 2.1 o posterior)
+## Wine 11.21 (LGPL 2.1 or later)
 
-- Build: Kron4ek, versión 11.21 (staging, amd64, wow64). Origen: https://github.com/Kron4ek/Wine-Builds
-- Código fuente de Wine 11.21: https://gitlab.winehq.org/wine/wine (etiqueta `wine-11.21`)
-- Parches de Wine Staging: https://gitlab.winehq.org/wine/wine-staging
-- Texto de la licencia: `LGPL-2.1.txt`, en esta misma carpeta.
+- Build: Kron4ek, version 11.21 (staging, amd64, wow64). Origin: https://github.com/Kron4ek/Wine-Builds
+- Wine 11.21 source code: https://gitlab.winehq.org/wine/wine (tag `wine-11.21`)
+- Wine Staging patches: https://gitlab.winehq.org/wine/wine-staging
+- License text: `LGPL-2.1.txt`, in this same folder.
 
 ## DXVK 3.1.1 (zlib)
 
-- Código fuente: https://github.com/doitsujin/dxvk (etiqueta `v3.1.1`)
-- Texto de la licencia: `DXVK-LICENSE.txt`, en esta misma carpeta.
+- Source code: https://github.com/doitsujin/dxvk (tag `v3.1.1`)
+- License text: `DXVK-LICENSE.txt`, in this same folder.
 
 ## vkd3d-proton 3.1 (LGPL 2.1)
 
-- Código fuente: https://github.com/HansKristian-Work/vkd3d-proton (etiqueta `v3.1`)
-- Texto de la licencia: `vkd3d-proton-LICENSE.txt`, en esta misma carpeta.
+- Source code: https://github.com/HansKristian-Work/vkd3d-proton (tag `v3.1`)
+- License text: `vkd3d-proton-LICENSE.txt`, in this same folder.
 
-## Pedir el código fuente
+## Requesting the source code
 
-Quien reciba este paquete y quiera el código fuente de Wine, Wine Staging, DXVK o vkd3d-proton en la versión incluida puede obtenerlo en los enlaces de arriba, en las etiquetas indicadas.
+Anyone who receives this package and wants the source code of Wine, Wine Staging, DXVK or vkd3d-proton at the included version can get it from the links above, at the tags given.

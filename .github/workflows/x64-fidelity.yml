@@ -1,4 +1,4 @@
-# Se lanza al cambiar wine/tests/x64-fidelity, o a mano.
+# Runs when wine/tests/x64-fidelity changes, or by hand.
 # The x86-64 fidelity tests (tests/x64-fidelity) on real Windows: the reference the arm64 engine
 # (Wine ARM64EC + FEX) is compared with. Built once with the pinned llvm-mingw, then the same .exe files
 # run on x86-64 Windows Server 2022 and 2025 and, as a third data point, under Windows 11 ARM64's own x64

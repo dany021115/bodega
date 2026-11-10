@@ -19,14 +19,14 @@ check() {
   fi
 }
 
-check 'domain/ es Dart puro: sin flutter, dart:io, motor ni otras capas' \
+check 'domain/ is pure Dart: no flutter, dart:io, engine or other layers' \
   'package:flutter/|dart:io|package:engine/|package:bodega/(data|device|app)/' \
   lib/domain
-check 'solo data/ importa package:engine' 'package:engine/' \
+check 'only data/ imports package:engine' 'package:engine/' \
   lib/app lib/device lib/domain lib/main.dart lib/di.dart
-check 'device/ no importa data/ ni domain/' 'package:bodega/(data|domain)/' \
+check 'device/ does not import data/ or domain/' 'package:bodega/(data|domain)/' \
   lib/device
-check 'imports absolutos: package:bodega/...' '\.\.?/' lib
+check 'absolute imports: package:bodega/...' '\.\.?/' lib
 
-[ "$status" -eq 0 ] && echo 'Capas correctas'
+[ "$status" -eq 0 ] && echo 'Layers OK'
 exit "$status"

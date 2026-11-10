@@ -1,7 +1,7 @@
 [Desktop Entry]
 Type=Application
 Name=Bodega
-Comment=Lanzador para jugar juegos de Windows con Wine
+Comment=Launcher to play Windows games with Wine
 Exec=/opt/bodega/bodega
 Icon=bodega
 StartupWMClass=bodega

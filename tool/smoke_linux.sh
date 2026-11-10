@@ -6,8 +6,8 @@
 # Needs docker. <dist dir> holds the files from tool/package_linux.sh, named as it names them.
 set -euo pipefail
 
-kind="${1:?uso: smoke_linux.sh <deb|arch|appimage> <dist dir>}"
-dist="$(readlink -f "${2:?falta el directorio dist}")"
+kind="${1:?usage: smoke_linux.sh <deb|arch|appimage> <dist dir>}"
+dist="$(readlink -f "${2:?missing the dist directory}")"
 
 case "$kind" in
   deb)
@@ -32,7 +32,7 @@ cp /dist/Bodega-*-linux-x86_64.AppImage /tmp/bodega.AppImage && chmod +x /tmp/bo
 bin=/tmp/squashfs-root/bodega-cli'
     ;;
   *)
-    echo "tipo desconocido: $kind (deb, arch o appimage)" >&2
+    echo "unknown kind: $kind (deb, arch or appimage)" >&2
     exit 64
     ;;
 esac

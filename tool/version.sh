@@ -7,7 +7,7 @@ cd "$(dirname "$0")/.."
 PUBSPEC=apps/bodega/pubspec.yaml
 
 usage() {
-  echo "uso: tool/version.sh get | bump patch|minor|major | check" >&2
+  echo "usage: tool/version.sh get | bump patch|minor|major | check" >&2
   exit 64
 }
 
@@ -21,7 +21,7 @@ load() {
   local line
   line=$(grep -m1 '^version:' "$PUBSPEC" || true)
   if [[ ! $line =~ ^version:\ ([0-9]+\.[0-9]+\.[0-9]+)\+([0-9]+)$ ]]; then
-    die "$PUBSPEC: la línea 'version:' debe tener la forma X.Y.Z+N"
+    die "$PUBSPEC: the 'version:' line must have the form X.Y.Z+N"
   fi
   VER=${BASH_REMATCH[1]}
   BUILD=${BASH_REMATCH[2]}
@@ -52,7 +52,7 @@ cmd_bump() {
   load
   tag=$(last_tag)
   if [ -z "$tag" ]; then
-    echo "Aún no hay versión publicada (sin etiquetas): $VER sigue igual."
+    echo "No version released yet (no tags): $VER stays the same."
     exit 0
   fi
   base=${tag#v}
@@ -64,11 +64,11 @@ cmd_bump() {
   esac
   target="$maj.$min.$pat"
   if ! ver_lt "$VER" "$target"; then
-    echo "$VER ya cubre este nivel (desde $tag basta $target o más): no cambia nada."
+    echo "$VER already covers this level (from $tag, $target or higher is enough): nothing changes."
     exit 0
   fi
   write_version "$target" "$((BUILD + 1))"
-  echo "Versión: $VER+$BUILD -> $target+$((BUILD + 1))"
+  echo "Version: $VER+$BUILD -> $target+$((BUILD + 1))"
 }
 
 cmd_check() {
@@ -76,24 +76,24 @@ cmd_check() {
   load
   tag=$(last_tag)
   if [ -z "$tag" ]; then
-    echo "Aún no hay versión publicada (sin etiquetas): $VER. Check OK."
+    echo "No version released yet (no tags): $VER. Check OK."
     exit 0
   fi
   base=${tag#v}
   if ver_lt "$VER" "$base"; then
-    die "$VER es menor que la etiqueta $tag. Sube la versión con tool/version.sh bump <nivel>."
+    die "$VER is lower than the tag $tag. Raise the version with tool/version.sh bump <level>."
   fi
   if [ "$VER" = "$base" ]; then
     # Tracked changes (committed or not) plus untracked files, minus docs and specs.
     changes=$({ git diff --name-only "$tag"; git ls-files --others --exclude-standard; } \
       | grep -Ev '^(\.sdd/|\.claude/|AGENTS\.md$)|\.md$' || true)
     if [ -n "$changes" ]; then
-      echo "Hay cambios de producto desde $tag sin subir la versión ($VER):" >&2
+      echo "There are product changes since $tag and the version was not raised ($VER):" >&2
       echo "$changes" >&2
-      die "ejecuta tool/version.sh bump patch|minor|major según el trabajo y vuelve a correr check."
+      die "run tool/version.sh bump patch|minor|major to match the work, then run check again."
     fi
   fi
-  echo "OK: versión $VER (etiqueta $tag)."
+  echo "OK: version $VER (tag $tag)."
 }
 
 case "${1:-}" in

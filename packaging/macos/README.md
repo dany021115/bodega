@@ -1,6 +1,6 @@
 # macOS package
 
-`tool/package_macos.sh` builds `dist/Bodega-X.Y.Z-macos-arm64.dmg`, a disk image with `Bodega.app`, an `Applications` link and `LEEME.txt` (this folder's file, for the end user).
+`tool/package_macos.sh` builds `dist/Bodega-X.Y.Z-macos-arm64.dmg`, a disk image with `Bodega.app`, an `Applications` link and `README.txt` (this folder's file, for the end user).
 
 ## What the script does
 
@@ -40,7 +40,7 @@ On first launch, the app copies `Resources/bundle` into `~/Library/Application S
 
 ## Signing
 
-The app is signed ad hoc (`codesign --sign -`). It has no Developer ID and is not notarized, so macOS blocks the first launch. Users open it with right click, Open, or with `xattr -cr`, as `LEEME.txt` explains.
+The app is signed ad hoc (`codesign --sign -`). It has no Developer ID and is not notarized, so macOS blocks the first launch. Users open it with right click, Open, or with `xattr -cr`, as `README.txt` explains.
 
 ## CI
 
