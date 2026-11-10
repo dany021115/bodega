@@ -15,11 +15,15 @@ import 'package:bodega/device/theme/spacing.dart';
 import 'package:bodega/device/theme/typography.dart';
 import 'package:bodega/di.dart';
 import 'package:bodega/domain/entities/catalog_app.dart';
+import 'package:bodega/l10n/l10n.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-const _programs = XTypeGroup(label: 'Programas', extensions: ['exe', 'EXE']);
+/// The file picker's filter, in the active language: each handler builds it
+/// before its await.
+XTypeGroup _programs(AppL10n l10n) =>
+    XTypeGroup(label: l10n.commonProgramsFileType, extensions: ['exe', 'EXE']);
 
 Future<void> showAddAppDialog(BuildContext context, {required String bottle}) =>
     showDialog<void>(
@@ -60,15 +64,17 @@ class _AddAppDialogState extends State<AddAppDialog> {
 
   Future<void> _pickExe(BuildContext context) async {
     final bloc = context.read<AddAppBloc>();
-    final file = await openFile(acceptedTypeGroups: const [_programs]);
+    final programs = _programs(context.l10n);
+    final file = await openFile(acceptedTypeGroups: [programs]);
     if (file != null) bloc.add(AddAppEvent.exeChosen(file.path));
   }
 
   Future<void> _pickInstalled(BuildContext context, String? driveC) async {
     final bloc = context.read<AddAppBloc>();
+    final programs = _programs(context.l10n);
     final file = await openFile(
       initialDirectory: driveC,
-      acceptedTypeGroups: const [_programs],
+      acceptedTypeGroups: [programs],
     );
     if (file != null) bloc.add(AddAppEvent.installedChosen(file.path));
   }
@@ -83,12 +89,13 @@ class _AddAppDialogState extends State<AddAppDialog> {
   void _finish(BuildContext context, AddAppState state) {
     context.read<BottlesBloc>().add(const BottlesEvent.load());
     context.read<LibraryBloc>().add(const LibraryEvent.load());
+    final l10n = context.l10n;
     final title = state.title.trim();
     AppToast.success(
       context,
       state.addToLibrary
-          ? '$title ya está en tu Biblioteca'
-          : '$title se agregó a la botella',
+          ? l10n.addAppAddedToLibrary(title)
+          : l10n.addAppAddedToBottle(title),
     );
     // Stays in the bottle: no navigation.
     Navigator.of(context).pop();
@@ -170,21 +177,18 @@ class _AddAppDialogState extends State<AddAppDialog> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Agregar app a ${state.bottle}',
+              context.l10n.addAppTitle(state.bottle),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: styles.sectionTitle,
             ),
             const SizedBox(height: AppSpacing.xs),
-            Text(
-              'Agrega tu propio programa o elige una app de la lista.',
-              style: styles.caption,
-            ),
+            Text(context.l10n.addAppSubtitle, style: styles.caption),
           ],
         ),
       ),
       IconButton(
-        tooltip: 'Cerrar',
+        tooltip: context.l10n.commonClose,
         icon: const Icon(Icons.close_rounded),
         onPressed: busy ? null : () => Navigator.of(context).pop(),
       ),
@@ -208,13 +212,13 @@ class _AddAppDialogState extends State<AddAppDialog> {
             children: [
               _Segment(
                 icon: Icons.file_present_rounded,
-                label: 'Desde un .exe',
+                label: context.l10n.addAppTabFile,
                 selected: onFile,
                 onTap: locked ? null : () => setState(() => _tab = _Tab.file),
               ),
               _Segment(
                 icon: Icons.grid_view_rounded,
-                label: 'Otros',
+                label: context.l10n.addAppTabOthers,
                 selected: !onFile,
                 onTap: locked
                     ? null
@@ -234,7 +238,7 @@ class _AddAppDialogState extends State<AddAppDialog> {
         final apps = state.apps;
         if (apps.isEmpty) {
           return SelectableText(
-            state.error?.message ?? 'El catálogo está vacío.',
+            state.error?.message ?? context.l10n.addAppCatalogEmpty,
             style: AppTextStyle(context).body,
           );
         }
@@ -273,6 +277,7 @@ class _AddAppDialogState extends State<AddAppDialog> {
   }
 
   Widget _fileBody(BuildContext context, AddAppState state) {
+    final l10n = context.l10n;
     final bloc = context.read<AddAppBloc>();
     final styles = AppTextStyle(context);
 
@@ -285,21 +290,13 @@ class _AddAppDialogState extends State<AddAppDialog> {
             Expanded(
               child: Semantics(
                 liveRegion: true,
-                child: Text(
-                  'El instalador se abre en su propia ventana. Termínalo allí '
-                  'y se seguirá aquí.',
-                  style: styles.body,
-                ),
+                child: Text(l10n.addAppInstallerRunning, style: styles.body),
               ),
             ),
           ],
         );
       case AddAppStep.pickInstalled:
-        return Text(
-          'Instalador terminado. Elige el programa instalado: suele estar en '
-          'Program Files.',
-          style: styles.body,
-        );
+        return Text(l10n.addAppInstallerFinished, style: styles.body);
       case AddAppStep.form || AddAppStep.done:
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -309,10 +306,8 @@ class _AddAppDialogState extends State<AddAppDialog> {
                 Expanded(
                   child: InstallerChoice(
                     icon: Icons.download_rounded,
-                    title: 'Es un instalador',
-                    description:
-                        'Ejecuta el instalador dentro de la botella y luego '
-                        'elige el programa instalado.',
+                    title: l10n.addAppIsInstaller,
+                    description: l10n.addAppIsInstallerHint,
                     selected: state.isInstaller,
                     onTap: () =>
                         bloc.add(const AddAppEvent.installerToggled(true)),
@@ -322,10 +317,8 @@ class _AddAppDialogState extends State<AddAppDialog> {
                 Expanded(
                   child: InstallerChoice(
                     icon: Icons.play_circle_outline_rounded,
-                    title: 'Ya es un programa',
-                    description:
-                        'Agrega un .exe que ya existe en tu equipo o en la '
-                        'unidad C: de la botella.',
+                    title: l10n.addAppIsProgram,
+                    description: l10n.addAppIsProgramHint,
                     selected: !state.isInstaller,
                     onTap: () =>
                         bloc.add(const AddAppEvent.installerToggled(false)),
@@ -334,13 +327,13 @@ class _AddAppDialogState extends State<AddAppDialog> {
               ],
             ),
             const SizedBox(height: AppSpacing.lg),
-            Text('Programa', style: styles.caption),
+            Text(l10n.addAppProgram, style: styles.caption),
             const SizedBox(height: AppSpacing.xs),
             Row(
               children: [
                 Expanded(
                   child: Text(
-                    state.exe?.split('/').last ?? 'Ningún programa elegido',
+                    state.exe?.split('/').last ?? l10n.addAppNoProgram,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: styles.body,
@@ -350,14 +343,14 @@ class _AddAppDialogState extends State<AddAppDialog> {
                 OutlinedButton.icon(
                   onPressed: () => _pickExe(context),
                   icon: const Icon(Icons.folder_open_rounded, size: 18),
-                  label: const Text('Elegir .exe'),
+                  label: Text(l10n.addAppChooseExe),
                 ),
               ],
             ),
             const SizedBox(height: AppSpacing.lg),
             TextField(
               controller: _title,
-              decoration: const InputDecoration(labelText: 'Título'),
+              decoration: InputDecoration(labelText: l10n.addAppTitleField),
               onChanged: (title) => bloc.add(AddAppEvent.titleChanged(title)),
             ),
           ],
@@ -366,24 +359,25 @@ class _AddAppDialogState extends State<AddAppDialog> {
   }
 
   Widget _footer(BuildContext context, AddAppState state, bool onFile) {
+    final l10n = context.l10n;
     final bloc = context.read<AddAppBloc>();
     final styles = AppTextStyle(context);
     final cancel = TextButton(
       onPressed: () => Navigator.of(context).pop(),
-      child: const Text('Cancelar'),
+      child: Text(l10n.commonCancel),
     );
 
     final actions = switch (state.step) {
       AddAppStep.installing => [
         TextButton(
           onPressed: () => bloc.add(const AddAppEvent.installerDone()),
-          child: const Text('El instalador ya terminó'),
+          child: Text(l10n.addAppInstallerDone),
         ),
       ],
       AddAppStep.pickInstalled => [
         cancel,
         GradientButton(
-          label: 'Elegir el programa…',
+          label: l10n.addAppChooseProgram,
           onPressed: () => _pickInstalled(context, state.driveC),
         ),
       ],
@@ -391,7 +385,7 @@ class _AddAppDialogState extends State<AddAppDialog> {
         cancel,
         if (onFile)
           GradientButton(
-            label: 'Agregar',
+            label: l10n.addAppAdd,
             onPressed: state.canSubmit
                 ? () => bloc.add(const AddAppEvent.submit())
                 : null,
@@ -410,11 +404,8 @@ class _AddAppDialogState extends State<AddAppDialog> {
           width: 320,
           child: SwitchListTile(
             contentPadding: EdgeInsets.zero,
-            title: Text('Agregar a la biblioteca', style: styles.body),
-            subtitle: Text(
-              'Aparece en la pantalla principal',
-              style: styles.caption,
-            ),
+            title: Text(l10n.libraryAdd, style: styles.body),
+            subtitle: Text(l10n.addAppLibraryHint, style: styles.caption),
             value: state.addToLibrary,
             onChanged: (value) =>
                 bloc.add(AddAppEvent.addToLibraryToggled(value)),

@@ -7,6 +7,7 @@ import 'package:bodega/device/theme/color.dart';
 import 'package:bodega/device/theme/spacing.dart';
 import 'package:bodega/device/theme/typography.dart';
 import 'package:bodega/di.dart';
+import 'package:bodega/l10n/l10n.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -65,9 +66,12 @@ class _RunOptionsDialogState extends State<RunOptionsDialog> {
   }
 
   Future<void> _pick() async {
-    const programs = XTypeGroup(label: 'Programas', extensions: ['exe', 'EXE']);
-    final file = await openFile(acceptedTypeGroups: const [programs]);
-    if (file == null) return;
+    final programs = XTypeGroup(
+      label: context.l10n.commonProgramsFileType,
+      extensions: const ['exe', 'EXE'],
+    );
+    final file = await openFile(acceptedTypeGroups: [programs]);
+    if (file == null || !mounted) return;
     _program.text = file.path;
     _change((state) => state.copyWith(program: file.path));
   }
@@ -106,9 +110,10 @@ class _RunOptionsDialogState extends State<RunOptionsDialog> {
         _title.text = state.title;
       },
       builder: (context, state) {
+        final l10n = context.l10n;
         final caps = context.read<SetupBloc>().state.capabilities;
         return AlertDialog(
-          title: const Text('Ejecutar con opciones'),
+          title: Text(l10n.runOptionsTitle),
           content: SizedBox(
             width: 480,
             child: SingleChildScrollView(
@@ -121,8 +126,8 @@ class _RunOptionsDialogState extends State<RunOptionsDialog> {
                       Expanded(
                         child: TextField(
                           controller: _program,
-                          decoration: const InputDecoration(
-                            labelText: 'Programa',
+                          decoration: InputDecoration(
+                            labelText: l10n.addAppProgram,
                           ),
                           onChanged: (value) =>
                               _change((s) => s.copyWith(program: value)),
@@ -131,14 +136,14 @@ class _RunOptionsDialogState extends State<RunOptionsDialog> {
                       const SizedBox(width: AppSpacing.sm),
                       OutlinedButton(
                         onPressed: state.isRunning ? null : _pick,
-                        child: const Text('Elegir…'),
+                        child: Text(l10n.commonChooseFile),
                       ),
                     ],
                   ),
                   const SizedBox(height: AppSpacing.md),
                   TextField(
                     controller: _args,
-                    decoration: const InputDecoration(labelText: 'Argumentos'),
+                    decoration: InputDecoration(labelText: l10n.runOptionsArgs),
                     onChanged: (value) =>
                         _change((s) => s.copyWith(args: value)),
                   ),
@@ -148,10 +153,9 @@ class _RunOptionsDialogState extends State<RunOptionsDialog> {
                     minLines: 2,
                     maxLines: 5,
                     style: styles.mono,
-                    decoration: const InputDecoration(
-                      labelText: 'Variables de entorno',
-                      hintText:
-                          'NOMBRE=valor, una por línea. WINEDEBUG va aquí.',
+                    decoration: InputDecoration(
+                      labelText: l10n.runOptionsEnv,
+                      hintText: l10n.runOptionsEnvHint,
                     ),
                     onChanged: (value) =>
                         _change((s) => s.copyWith(env: value)),
@@ -160,11 +164,11 @@ class _RunOptionsDialogState extends State<RunOptionsDialog> {
                   DropdownButtonFormField<String?>(
                     initialValue: state.backend,
                     isExpanded: true,
-                    decoration: const InputDecoration(labelText: 'Gráficos'),
+                    decoration: InputDecoration(labelText: l10n.bottleGraphics),
                     items: [
-                      const DropdownMenuItem(
+                      DropdownMenuItem(
                         value: null,
-                        child: Text('Como la botella'),
+                        child: Text(l10n.runOptionsGraphicsBottle),
                       ),
                       for (final backend in widget.backends)
                         DropdownMenuItem(value: backend, child: Text(backend)),
@@ -185,20 +189,17 @@ class _RunOptionsDialogState extends State<RunOptionsDialog> {
                   if (caps.avx)
                     SwitchListTile.adaptive(
                       contentPadding: EdgeInsets.zero,
-                      title: Text('Anunciar AVX', style: styles.body),
-                      subtitle: Text(
-                        'Apágalo si un juego se cierra al empezar.',
-                        style: styles.caption,
-                      ),
+                      title: Text(l10n.bottleAvx, style: styles.body),
+                      subtitle: Text(l10n.bottleAvxNote, style: styles.caption),
                       value: state.avx,
                       onChanged: (value) =>
                           _change((s) => s.copyWith(avx: value)),
                     ),
                   SwitchListTile.adaptive(
                     contentPadding: EdgeInsets.zero,
-                    title: Text('Guardar como lanzador', style: styles.body),
+                    title: Text(l10n.runOptionsSave, style: styles.body),
                     subtitle: Text(
-                      'Queda en la botella, con estos argumentos y variables.',
+                      l10n.runOptionsSaveHint,
                       style: styles.caption,
                     ),
                     value: state.save,
@@ -208,7 +209,9 @@ class _RunOptionsDialogState extends State<RunOptionsDialog> {
                   if (state.save)
                     TextField(
                       controller: _title,
-                      decoration: const InputDecoration(labelText: 'Título'),
+                      decoration: InputDecoration(
+                        labelText: l10n.addAppTitleField,
+                      ),
                       onChanged: (value) =>
                           _change((s) => s.copyWith(title: value)),
                     ),
@@ -228,7 +231,7 @@ class _RunOptionsDialogState extends State<RunOptionsDialog> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancelar'),
+              child: Text(l10n.commonCancel),
             ),
             FilledButton(
               onPressed: state.isRunning || state.program.trim().isEmpty
@@ -238,7 +241,7 @@ class _RunOptionsDialogState extends State<RunOptionsDialog> {
                     ),
               child: state.isRunning
                   ? const CustomLoading(size: 18)
-                  : const Text('Ejecutar'),
+                  : Text(l10n.runOptionsRun),
             ),
           ],
         );

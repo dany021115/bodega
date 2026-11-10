@@ -3,23 +3,25 @@ import 'package:bodega/device/theme/theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../support/pump.dart';
+
 void main() {
   Future<void> pump(WidgetTester tester, VoidCallback? onPressed) async {
     tester.view.physicalSize = const Size(720, 480);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     await tester.pumpWidget(
-      MaterialApp(
-        theme: AppTheme.getDarkTheme(),
-        home: Scaffold(
+      wrapApp(
+        Scaffold(
           body: Center(
             child: GradientButton(
-              label: 'Jugar un título largo de prueba que no debe desbordar',
+              label: 'Play a long test title that must not overflow the button',
               icon: Icons.play_arrow_rounded,
               onPressed: onPressed,
             ),
           ),
         ),
+        theme: AppTheme.getDarkTheme(),
       ),
     );
   }

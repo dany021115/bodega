@@ -4,6 +4,7 @@ import 'package:bodega/app/presentation/catalog/widgets/catalog_card.dart';
 import 'package:bodega/app/shared/widgets/custom_loading.dart';
 import 'package:bodega/device/theme/spacing.dart';
 import 'package:bodega/device/theme/typography.dart';
+import 'package:bodega/l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:responsive_framework/responsive_framework.dart';
@@ -24,6 +25,7 @@ class _CatalogPageState extends State<CatalogPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final styles = AppTextStyle(context);
     final columns = ResponsiveBreakpoints.of(context).largerOrEqualTo(DESKTOP)
         ? 2
@@ -47,13 +49,16 @@ class _CatalogPageState extends State<CatalogPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Instalar', style: styles.screenTitle),
+                      Text(l10n.catalogTitle, style: styles.screenTitle),
                       const SizedBox(height: AppSpacing.lg),
                       TextFormField(
                         initialValue: state.query,
-                        decoration: const InputDecoration(
-                          hintText: 'Buscar una aplicación o un juego',
-                          prefixIcon: Icon(Icons.search_rounded, size: 20),
+                        decoration: InputDecoration(
+                          hintText: l10n.catalogSearchHint,
+                          prefixIcon: const Icon(
+                            Icons.search_rounded,
+                            size: 20,
+                          ),
                         ),
                         onChanged: (query) => context.read<CatalogBloc>().add(
                           CatalogEvent.search(query),
@@ -122,7 +127,7 @@ class _CatalogPageState extends State<CatalogPage> {
                     ),
                     sliver: SliverToBoxAdapter(
                       child: Text(
-                        'Ninguna aplicación del catálogo coincide.',
+                        l10n.catalogNoMatch,
                         style: styles.bodySecondary,
                       ),
                     ),

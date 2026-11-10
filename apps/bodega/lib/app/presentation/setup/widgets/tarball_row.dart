@@ -1,5 +1,6 @@
 import 'package:bodega/device/theme/spacing.dart';
 import 'package:bodega/device/theme/typography.dart';
+import 'package:bodega/l10n/l10n.dart';
 import 'package:flutter/material.dart';
 
 class TarballRow extends StatelessWidget {
@@ -17,6 +18,7 @@ class TarballRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final styles = AppTextStyle(context);
+    final l10n = context.l10n;
 
     return Row(
       children: [
@@ -26,7 +28,7 @@ class TarballRow extends StatelessWidget {
             children: [
               Text(label, style: styles.cardTitle),
               Text(
-                path?.split('/').last ?? 'Sin elegir',
+                path?.split('/').last ?? l10n.setupNoFile,
                 overflow: TextOverflow.ellipsis,
                 style: styles.caption,
               ),
@@ -34,7 +36,7 @@ class TarballRow extends StatelessWidget {
           ),
         ),
         const SizedBox(width: AppSpacing.md),
-        OutlinedButton(onPressed: onPick, child: const Text('Elegir archivo…')),
+        OutlinedButton(onPressed: onPick, child: Text(l10n.commonChooseFile)),
       ],
     );
   }

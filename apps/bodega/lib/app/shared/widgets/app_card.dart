@@ -6,6 +6,7 @@ import 'package:bodega/device/theme/radius.dart';
 import 'package:bodega/device/theme/spacing.dart';
 import 'package:bodega/device/theme/typography.dart';
 import 'package:bodega/domain/entities/library_app.dart';
+import 'package:bodega/l10n/l10n.dart';
 import 'package:flutter/material.dart';
 
 /// The covers of the design. An app keeps the same pair, as its id picks it.
@@ -64,6 +65,7 @@ class AppCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     final styles = AppTextStyle(context);
+    final l10n = context.l10n;
     final (from, to) = _covers[app.id.hashCode % _covers.length];
     final menu = onMenu;
     // Set by the button's Builder, so a right click opens the menu in the same
@@ -108,7 +110,7 @@ class AppCard extends StatelessWidget {
               child: Semantics(
                 button: true,
                 label: app.title,
-                hint: 'Doble toque para abrir',
+                hint: l10n.appOpenHint,
                 onTap: running ? null : onPlay,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -147,11 +149,11 @@ class AppCard extends StatelessWidget {
                               ),
                             ),
                           if (running)
-                            const Positioned(
+                            Positioned(
                               top: AppSpacing.sm,
                               left: AppSpacing.sm,
                               child: StatusChip(
-                                label: 'En ejecución',
+                                label: l10n.appRunning,
                                 color: AppColor.statusTested,
                               ),
                             ),
@@ -188,7 +190,7 @@ class AppCard extends StatelessWidget {
                   ),
                 ),
                 Tooltip(
-                  message: running ? 'Parar' : 'Jugar',
+                  message: running ? l10n.commonStop : l10n.commonPlay,
                   child: Ink(
                     width: 32,
                     height: 32,
@@ -214,7 +216,7 @@ class AppCard extends StatelessWidget {
                     builder: (button) {
                       anchor = button;
                       return IconButton(
-                        tooltip: 'Opciones de ${app.title}',
+                        tooltip: l10n.appOptions(app.title),
                         // As small as the play button, so the chip has room.
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints.tightFor(

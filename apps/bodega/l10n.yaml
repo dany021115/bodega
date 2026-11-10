@@ -1,0 +1,11 @@
+# Flutter's own gen-l10n, not build_runner: `flutter pub get`, `run` and
+# `build` regenerate it, or `flutter gen-l10n` after editing an ARB.
+arb-dir: lib/l10n
+# English is the template: the code is English and Spanish is the translation.
+template-arb-file: app_en.arb
+output-localization-file: app_localizations.dart
+output-class: AppL10n
+# A message without its @key (and description) fails the build.
+required-resource-attributes: true
+# Beside the ARBs: gen-l10n writes it without creating folders.
+untranslated-messages-file: lib/l10n/untranslated.json

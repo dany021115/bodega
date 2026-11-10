@@ -5,14 +5,15 @@ import 'package:bodega/app/presentation/library/library_page.dart';
 import 'package:bodega/app/shared/widgets/app_card.dart';
 import 'package:bodega/app/shared/widgets/app_row.dart';
 import 'package:bodega/app/shared/widgets/empty_state.dart';
-import 'package:bodega/device/helpers/breakpoints.dart';
 import 'package:bodega/device/theme/theme.dart';
 import 'package:bodega/domain/entities/library_app.dart';
+import 'package:bodega/l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:responsive_framework/responsive_framework.dart';
+
+import '../support/pump.dart';
 
 class _MockLibrary extends MockBloc<LibraryEvent, LibraryState>
     implements LibraryBloc {}
@@ -24,12 +25,12 @@ class _MockViewMode extends MockBloc<ViewModeEvent, ViewModeState>
 final _apps = [
   for (var i = 0; i < 12; i++)
     LibraryApp(
-      bottle: 'botella-${i % 3}',
+      bottle: 'bottle-${i % 3}',
       key: 'app$i.exe',
       id: 'app$i',
       title:
-          'Juego con un título muy largo número $i para comprobar que nada '
-          'se desborda en la tarjeta ni en la fila',
+          'A game with a very long title, number $i, to check that nothing '
+          'overflows the card or the row',
     ),
 ];
 
@@ -64,18 +65,15 @@ void main() {
           BlocProvider<LibraryBloc>.value(value: library),
           BlocProvider<ViewModeBloc>.value(value: viewMode),
         ],
-        child: MaterialApp(
-          theme: AppTheme.getDarkTheme(),
-          builder: (context, child) => ResponsiveBreakpoints.builder(
-            child: child!,
-            breakpoints: appBreakpoints,
-          ),
-          home: Row(
+        child: wrapApp(
+          Row(
             children: [
               SizedBox(width: width > 800 ? 220 : 68),
               const Expanded(child: LibraryPage()),
             ],
           ),
+          theme: AppTheme.getDarkTheme(),
+          breakpoints: true,
         ),
       ),
     );
@@ -110,7 +108,7 @@ void main() {
 
     await pump(tester, 1100);
 
-    expect(find.text('12 apps en 3 botellas'), findsOneWidget);
+    expect(find.text('12 apps in 3 bottles'), findsOneWidget);
   });
 
   testWidgets('an empty library offers a new bottle', (tester) async {
@@ -119,8 +117,8 @@ void main() {
 
     await pump(tester, 720);
 
-    expect(find.text('Tu biblioteca está vacía'), findsOneWidget);
-    expect(find.text('Nueva botella'), findsOneWidget);
+    expect(find.text('Your library is empty'), findsOneWidget);
+    expect(find.text('New bottle'), findsOneWidget);
     expect(find.byType(AppCard), findsNothing);
   });
 
@@ -129,11 +127,28 @@ void main() {
     givenView(isGrid: true);
 
     await pump(tester, 1100);
-    await tester.enterText(find.byType(TextField), 'número 7 ');
+    await tester.enterText(find.byType(TextField), 'number 7 ');
     await tester.pump();
 
     expect(find.byType(AppCard), findsOneWidget);
-    expect(find.text('1 apps en 1 botellas'), findsOneWidget);
+    expect(find.text('1 app in 1 bottle'), findsOneWidget);
+  });
+
+  testWidgets('the count agrees with each number (L10)', (tester) async {
+    givenLibrary(LibraryState(isLoading: false, apps: _apps));
+    givenView(isGrid: true);
+
+    await pump(tester, 1100);
+    // Numbers 1, 10 and 11: two in bottle-1, one in bottle-2.
+    await tester.enterText(find.byType(TextField), 'number 1');
+    await tester.pump();
+
+    expect(find.byType(AppCard), findsNWidgets(3));
+    expect(find.text('3 apps in 2 bottles'), findsOneWidget);
+    // The header counts the bottles of the apps it shows, so it never shows
+    // more bottles than apps: the message says that case too.
+    final en = lookupAppL10n(const Locale('en'));
+    expect(en.libraryCount(2, 3), '2 apps in 3 bottles');
   });
 
   testWidgets('a search without results says so', (tester) async {
@@ -145,7 +160,7 @@ void main() {
     await tester.pump();
 
     expect(find.byType(EmptyState), findsOneWidget);
-    expect(find.text('Sin resultados'), findsOneWidget);
+    expect(find.text('No results'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }

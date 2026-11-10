@@ -1,7 +1,9 @@
+import 'package:bodega/app/shared/text/catalog_text.dart';
 import 'package:bodega/app/shared/widgets/status_chip.dart';
 import 'package:bodega/device/theme/color.dart';
 import 'package:bodega/device/theme/spacing.dart';
 import 'package:bodega/domain/entities/catalog_app.dart';
+import 'package:bodega/l10n/l10n.dart';
 import 'package:flutter/material.dart';
 
 class CatalogChips extends StatelessWidget {
@@ -11,23 +13,24 @@ class CatalogChips extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final (label, color) = switch (app.status) {
-      CatalogStatus.tested => ('Probado', AppColor.statusTested),
-      CatalogStatus.reported => ('Reportado', AppColor.statusReported),
-      CatalogStatus.untested => ('Sin probar', AppColor.statusUntested),
-      CatalogStatus.blocked => ('Bloqueado', AppColor.statusBlocked),
+    final l10n = context.l10n;
+    final color = switch (app.status) {
+      CatalogStatus.tested => AppColor.statusTested,
+      CatalogStatus.reported => AppColor.statusReported,
+      CatalogStatus.untested => AppColor.statusUntested,
+      CatalogStatus.blocked => AppColor.statusBlocked,
     };
 
     return Wrap(
       spacing: AppSpacing.xs,
       runSpacing: AppSpacing.xs,
       children: [
-        StatusChip(label: label, color: color),
+        StatusChip(label: catalogStatusText(l10n, app.status), color: color),
         if (app.flaky != null)
-          const StatusChip(label: 'Inestable', color: AppColor.statusFlaky),
+          StatusChip(label: l10n.catalogFlaky, color: AppColor.statusFlaky),
         if (app.isInstalled)
           StatusChip(
-            label: 'Instalada',
+            label: l10n.catalogAppInstalled,
             color: Theme.of(context).colorScheme.primary,
           ),
       ],

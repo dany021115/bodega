@@ -10,12 +10,14 @@ import 'package:bodega/app/shared/graphics_of.dart';
 import 'package:bodega/app/shared/widgets/collapsible_section.dart';
 import 'package:bodega/app/shared/widgets/confirm_dialog.dart';
 import 'package:bodega/app/shared/widgets/status_chip.dart';
+import 'package:bodega/app/shared/widgets/stop_bottle.dart';
 import 'package:bodega/device/theme/color.dart';
 import 'package:bodega/device/theme/gradient.dart';
 import 'package:bodega/device/theme/radius.dart';
 import 'package:bodega/device/theme/spacing.dart';
 import 'package:bodega/device/theme/typography.dart';
 import 'package:bodega/domain/entities/bottle_detail.dart';
+import 'package:bodega/l10n/l10n.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -45,22 +47,24 @@ class BottleColumn extends StatelessWidget {
   };
 
   /// Wine's own tools: each one opens its window.
-  static const panels = [
-    ('Configuración de Wine', 'winecfg', <String>[]),
-    ('Editor del registro', 'regedit', <String>[]),
-    ('Administrador de tareas', 'taskmgr', <String>[]),
-    ('Panel de control', 'control', <String>[]),
-    ('Mandos', 'control', ['joy.cpl']),
-    ('Desinstalar programas', 'uninstaller', <String>[]),
+  static List<(String, String, List<String>)> panels(AppL10n l10n) => [
+    (l10n.bottleToolWineConfig, 'winecfg', const <String>[]),
+    (l10n.bottleToolRegistry, 'regedit', const <String>[]),
+    (l10n.bottleToolTaskManager, 'taskmgr', const <String>[]),
+    (l10n.bottleToolControlPanel, 'control', const <String>[]),
+    (l10n.bottleToolGameControllers, 'control', const ['joy.cpl']),
+    (l10n.bottleToolUninstall, 'uninstaller', const <String>[]),
   ];
+
+  /// [backend] as the user reads it: its name, or the Automatic option.
+  static String _backendName(AppL10n l10n, String backend) =>
+      backend == 'auto' ? l10n.bottleGraphicsAuto : backend;
 
   Future<bool> _closes(BuildContext context, String title) => confirm(
     context,
     title: title,
-    message:
-        'Se cerrará todo lo que esté abierto en la botella ${detail.name}. '
-        'Lo que no hayas guardado se perderá.',
-    action: 'Cambiar',
+    message: context.l10n.bottleStopConfirm(detail.name),
+    action: context.l10n.commonChange,
   );
 
   Future<void> _changeUser(BuildContext context) async {
@@ -76,19 +80,6 @@ class BottleColumn extends StatelessWidget {
     }
   }
 
-  Future<void> _stop(BuildContext context) async {
-    final bloc = context.read<LibraryBloc>();
-    final confirmed = await confirm(
-      context,
-      title: 'Parar la botella ${detail.name}',
-      message:
-          'Se cerrará todo lo que esté abierto en ella. Lo que no hayas '
-          'guardado se perderá.',
-      action: 'Parar',
-    );
-    if (confirmed) bloc.add(LibraryEvent.stop(detail.name));
-  }
-
   Future<void> _rename(BuildContext context) async {
     final bloc = context.read<BottleDetailBloc>();
     final newName = await showRenameBottleDialog(context, detail.name);
@@ -97,13 +88,12 @@ class BottleColumn extends StatelessWidget {
 
   Future<void> _delete(BuildContext context) async {
     final bloc = context.read<BottleDetailBloc>();
+    final l10n = context.l10n;
     final confirmed = await confirm(
       context,
-      title: 'Borrar la botella ${detail.name}',
-      message:
-          'Se cerrará lo que tenga abierto y se borrará su carpeta, con todo '
-          'lo que hayas instalado dentro. No se puede deshacer.',
-      action: 'Borrar',
+      title: l10n.bottleDeleteTitle(detail.name),
+      message: l10n.bottleDeleteConfirm,
+      action: l10n.commonDelete,
     );
     if (confirmed) bloc.add(const BottleDetailEvent.delete());
   }
@@ -188,8 +178,8 @@ class BottleColumn extends StatelessWidget {
                       ),
                       IconButton(
                         tooltip: isOpen
-                            ? 'Párala para renombrarla'
-                            : 'Renombrar',
+                            ? context.l10n.bottleRenameStopFirst
+                            : context.l10n.commonRename,
                         visualDensity: VisualDensity.compact,
                         icon: const Icon(Icons.edit_rounded, size: 18),
                         onPressed: isBusy || isOpen
@@ -221,6 +211,7 @@ class BottleColumn extends StatelessWidget {
   }
 
   Widget _facts(BuildContext context) {
+    final l10n = context.l10n;
     final styles = AppTextStyle(context);
     final colors = Theme.of(context).colorScheme;
 
@@ -248,14 +239,11 @@ class BottleColumn extends StatelessWidget {
 
     return Row(
       children: [
-        fact('Apps', '${detail.apps.length}'),
+        fact(l10n.bottleFactApps(detail.apps.length), '${detail.apps.length}'),
         const SizedBox(width: AppSpacing.sm),
         fact('Windows', windowsNames[detail.windows] ?? detail.windows),
         const SizedBox(width: AppSpacing.sm),
-        fact(
-          'Gráficos',
-          detail.backend == 'auto' ? 'Automático' : detail.backend,
-        ),
+        fact(l10n.bottleGraphics, _backendName(l10n, detail.backend)),
       ],
     );
   }
@@ -270,12 +258,18 @@ class BottleColumn extends StatelessWidget {
             when graphics.misfits.contains(backend))
           '${app.title} (${graphics.label})',
     ];
-    return apps.isEmpty
-        ? null
-        : '$backend no le sirve a: ${apps.join(', ')}. Usa Automático.';
+    if (apps.isEmpty) return null;
+    final l10n = context.l10n;
+    // The option it points to comes in by its own text, as the dropdown says.
+    return l10n.bottleMisfitWarning(
+      backend,
+      apps.join(', '),
+      l10n.bottleGraphicsAuto,
+    );
   }
 
   Widget _quickActions(BuildContext context) {
+    final l10n = context.l10n;
     final library = context.read<LibraryBloc>();
     final colors = Theme.of(context).colorScheme;
     final name = detail.name;
@@ -287,13 +281,13 @@ class BottleColumn extends StatelessWidget {
         if (isOpen)
           _quick(
             Icons.stop_rounded,
-            'Parar',
-            () => _stop(context),
+            l10n.commonStop,
+            () => confirmStopBottle(context, name),
             color: colors.error,
           ),
         _quick(
           Icons.play_arrow_rounded,
-          'Ejecutar con opciones…',
+          l10n.bottleRunWithOptions,
           () => showRunOptions(
             context,
             bottle: name,
@@ -302,23 +296,26 @@ class BottleColumn extends StatelessWidget {
           enabled: detail.ready,
         ),
         // Runs a program once: it is not kept in the bottle's list.
-        _quick(Icons.file_open_rounded, 'Ejecutar .exe…', () async {
+        _quick(Icons.file_open_rounded, l10n.bottleRunExe, () async {
           final file = await openFile(
-            acceptedTypeGroups: const [
-              XTypeGroup(label: 'Programas', extensions: ['exe', 'EXE']),
+            acceptedTypeGroups: [
+              XTypeGroup(
+                label: l10n.commonProgramsFileType,
+                extensions: const ['exe', 'EXE'],
+              ),
             ],
           );
           if (file != null) library.add(LibraryEvent.run(name, file.path));
         }, enabled: detail.ready),
         _quick(
           Icons.folder_open_rounded,
-          'Unidad C:',
+          l10n.bottleDriveC,
           () => launchUrl(Uri.directory(detail.driveC)),
           enabled: detail.ready,
         ),
         _quick(
           Icons.terminal_rounded,
-          'Terminal',
+          l10n.bottleTerminal,
           () => library.add(LibraryEvent.run(name, 'wineconsole', ['cmd'])),
           enabled: detail.ready,
         ),
@@ -336,12 +333,13 @@ class BottleColumn extends StatelessWidget {
       ),
       onPressed: isBusy ? null : () => _delete(context),
       icon: const Icon(Icons.delete_outline_rounded, size: 18),
-      label: const Text('Borrar botella'),
+      label: Text(context.l10n.bottleDelete),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final styles = AppTextStyle(context);
     final bloc = context.read<BottleDetailBloc>();
     final library = context.read<LibraryBloc>();
@@ -350,35 +348,35 @@ class BottleColumn extends StatelessWidget {
     final name = detail.name;
     // The current one too: it may have been uninstalled by hand.
     final backends = {'auto', ...detail.installedBackends, detail.backend};
-    final (label, color) = !detail.ready
-        ? ('Incompleta', AppColor.statusFlaky)
+    final (status, color) = !detail.ready
+        ? ('incomplete', AppColor.statusFlaky)
         : isOpen
-        ? ('Abierta', AppColor.statusTested)
-        : ('Cerrada', AppColor.statusUntested);
+        ? ('open', AppColor.statusTested)
+        : ('closed', AppColor.statusUntested);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _identity(context, label, color),
+        _identity(context, l10n.bottleStatus(status), color),
         const SizedBox(height: AppSpacing.lg),
         _facts(context),
         const SizedBox(height: AppSpacing.lg),
         _quickActions(context),
         CollapsibleSection(
           id: 'settings',
-          title: 'Configuración',
+          title: l10n.bottleSectionSettings,
           children: [
             const SizedBox(height: AppSpacing.xs),
             DropdownButtonFormField<String>(
               key: ValueKey('backend ${detail.backend}'),
               initialValue: detail.backend,
               isExpanded: true,
-              decoration: const InputDecoration(labelText: 'Gráficos'),
+              decoration: InputDecoration(labelText: l10n.bottleGraphics),
               items: [
                 for (final backend in backends)
                   DropdownMenuItem(
                     value: backend,
-                    child: Text(backend == 'auto' ? 'Automático' : backend),
+                    child: Text(_backendName(l10n, backend)),
                   ),
               ],
               onChanged: isBusy
@@ -402,9 +400,7 @@ class BottleColumn extends StatelessWidget {
               key: ValueKey('windows ${detail.windows}'),
               initialValue: detail.windows,
               isExpanded: true,
-              decoration: const InputDecoration(
-                labelText: 'Versión de Windows',
-              ),
+              decoration: InputDecoration(labelText: l10n.bottleWindowsVersion),
               items: [
                 for (final MapEntry(:key, :value) in windowsNames.entries)
                   DropdownMenuItem(value: key, child: Text(value)),
@@ -420,30 +416,30 @@ class BottleColumn extends StatelessWidget {
             ListTile(
               contentPadding: EdgeInsets.zero,
               title: Text(
-                'Usuario de Windows',
+                l10n.bottleWindowsUser,
                 style: AppTextStyle(context).body,
               ),
               subtitle: Text(
                 detail.user.isEmpty
-                    ? '${detail.macUser} (el de tu equipo)'
+                    ? l10n.bottleWindowsUserDefault(detail.macUser)
                     : detail.user,
                 style: AppTextStyle(context).caption,
               ),
               trailing: TextButton(
                 onPressed: isBusy ? null : () => _changeUser(context),
-                child: const Text('Cambiar…'),
+                child: Text(l10n.bottleChangeUser),
               ),
             ),
             if (caps.syncModes.length > 1)
               _switch(
                 context,
                 'msync',
-                'Cambiarlo cierra lo que esté abierto.',
+                l10n.bottleChangeCloses,
                 detail.sync == 'msync',
                 (value) async {
                   if (await _closes(
                     context,
-                    value ? 'Activar msync' : 'Desactivar msync',
+                    value ? l10n.bottleMsyncOn : l10n.bottleMsyncOff,
                   )) {
                     bloc.add(
                       BottleDetailEvent.setSync(value ? 'msync' : 'none'),
@@ -454,13 +450,14 @@ class BottleColumn extends StatelessWidget {
             if (caps.highRes)
               _switch(
                 context,
-                'Pantalla de alta densidad',
-                'Más nítido en pantallas de alta densidad. Cierra lo que esté abierto.',
+                l10n.bottleHighRes,
+                // Two sentences, each its own message: the second is shared.
+                '${l10n.bottleHighResNote} ${l10n.bottleChangeCloses}',
                 detail.highRes,
                 (value) async {
                   final title = value
-                      ? 'Activar pantalla de alta densidad'
-                      : 'Desactivar pantalla de alta densidad';
+                      ? l10n.bottleHighResOn
+                      : l10n.bottleHighResOff;
                   if (await _closes(context, title)) {
                     bloc.add(BottleDetailEvent.setHighRes(value));
                   }
@@ -470,15 +467,15 @@ class BottleColumn extends StatelessWidget {
               _switch(
                 context,
                 'DLSS',
-                'Con D3DMetal o DXMT y un juego compatible. Sin probar.',
+                l10n.bottleDlssNote,
                 detail.dlss,
                 (value) => bloc.add(BottleDetailEvent.setDlss(value)),
               ),
             if (caps.avx)
               _switch(
                 context,
-                'Anunciar AVX',
-                'Apágalo si un juego se cierra al empezar.',
+                l10n.bottleAvx,
+                l10n.bottleAvxNote,
                 detail.avx,
                 (value) => bloc.add(BottleDetailEvent.setAvx(value)),
               ),
@@ -488,10 +485,16 @@ class BottleColumn extends StatelessWidget {
                 key: ValueKey('gpu ${detail.gpu}'),
                 initialValue: detail.gpu,
                 isExpanded: true,
-                decoration: const InputDecoration(labelText: 'GPU'),
-                items: const [
-                  DropdownMenuItem(value: 'auto', child: Text('Automática')),
-                  DropdownMenuItem(value: 'discrete', child: Text('Discreta')),
+                decoration: InputDecoration(labelText: l10n.bottleGpu),
+                items: [
+                  DropdownMenuItem(
+                    value: 'auto',
+                    child: Text(l10n.bottleGpuAuto),
+                  ),
+                  DropdownMenuItem(
+                    value: 'discrete',
+                    child: Text(l10n.bottleGpuDiscrete),
+                  ),
                 ],
                 onChanged: isBusy
                     ? null
@@ -506,7 +509,7 @@ class BottleColumn extends StatelessWidget {
               _switch(
                 context,
                 'GameMode',
-                'Usa gamemoderun si está instalado.',
+                l10n.bottleGameModeNote,
                 detail.gamemode,
                 (value) => bloc.add(BottleDetailEvent.setGamemode(value)),
               ),
@@ -514,9 +517,9 @@ class BottleColumn extends StatelessWidget {
         ),
         CollapsibleSection(
           id: 'panels',
-          title: 'Herramientas de Wine',
+          title: l10n.bottleSectionTools,
           children: [
-            for (final (label, program, args) in panels)
+            for (final (label, program, args) in panels(l10n))
               _action(
                 Icons.tune_rounded,
                 label,
@@ -528,10 +531,10 @@ class BottleColumn extends StatelessWidget {
         const GamepadsSection(),
         CollapsibleSection(
           id: 'details',
-          title: 'Detalles',
+          title: l10n.bottleSectionDetails,
           children: [
             if (detail.exceptions.isNotEmpty) ...[
-              Text('Excepciones por programa', style: styles.caption),
+              Text(l10n.bottleExceptions, style: styles.caption),
               const SizedBox(height: AppSpacing.xs),
               for (final exception in detail.exceptions)
                 Row(
@@ -543,7 +546,7 @@ class BottleColumn extends StatelessWidget {
                       ),
                     ),
                     IconButton(
-                      tooltip: 'Quitar la excepción de ${exception.exe}',
+                      tooltip: l10n.bottleExceptionRemove(exception.exe),
                       icon: const Icon(Icons.close_rounded, size: 18),
                       onPressed: isBusy
                           ? null
@@ -555,10 +558,10 @@ class BottleColumn extends StatelessWidget {
                 ),
               const SizedBox(height: AppSpacing.sm),
             ],
-            Text('Logs', style: styles.caption),
+            Text(l10n.bottleLogs, style: styles.caption),
             const SizedBox(height: AppSpacing.xs),
             if (detail.logs.isEmpty)
-              Text('Todavía no hay logs.', style: styles.bodySecondary),
+              Text(l10n.bottleLogsEmpty, style: styles.bodySecondary),
             for (final log in detail.logs)
               InkWell(
                 borderRadius: AppRadius.xsBorder,
@@ -576,12 +579,10 @@ class BottleColumn extends StatelessWidget {
                           color: colors.onSurface,
                         ),
                       ),
-                      Text(
-                        log.exitCode == null
-                            ? 'en curso'
-                            : 'salió con ${log.exitCode}',
-                        style: styles.caption,
-                      ),
+                      Text(switch (log.exitCode) {
+                        final code? => l10n.bottleLogExited(code),
+                        null => l10n.bottleLogRunning,
+                      }, style: styles.caption),
                     ],
                   ),
                 ),

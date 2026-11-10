@@ -3,6 +3,7 @@ import 'package:bodega/device/theme/radius.dart';
 import 'package:bodega/device/theme/spacing.dart';
 import 'package:bodega/device/theme/typography.dart';
 import 'package:bodega/domain/entities/host_issue.dart';
+import 'package:bodega/l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -15,6 +16,7 @@ class RequirementCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final styles = AppTextStyle(context);
+    final l10n = context.l10n;
     final command = issue.command;
 
     return Card(
@@ -42,11 +44,11 @@ class RequirementCard extends StatelessWidget {
                 onPressed: () async {
                   await Clipboard.setData(ClipboardData(text: command));
                   if (context.mounted) {
-                    AppToast.success(context, 'Comando copiado');
+                    AppToast.success(context, l10n.setupCommandCopied);
                   }
                 },
                 icon: const Icon(Icons.copy_rounded, size: 18),
-                label: const Text('Copiar comando'),
+                label: Text(l10n.setupCopyCommand),
               ),
             ],
           ],

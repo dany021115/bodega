@@ -4,6 +4,7 @@ import 'package:bodega/app/presentation/setup/widgets/runtime_card.dart';
 import 'package:bodega/app/shared/widgets/custom_loading.dart';
 import 'package:bodega/device/theme/spacing.dart';
 import 'package:bodega/device/theme/typography.dart';
+import 'package:bodega/l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -13,6 +14,7 @@ class SetupPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final styles = AppTextStyle(context);
+    final l10n = context.l10n;
 
     return Scaffold(
       body: BlocBuilder<SetupBloc, SetupState>(
@@ -25,7 +27,7 @@ class SetupPage extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Text('Preparar Bodega', style: styles.screenTitle),
+                    Text(l10n.setupTitle, style: styles.screenTitle),
                     const SizedBox(height: AppSpacing.xl),
                     if (state.isChecking)
                       const CustomLoading()
@@ -54,7 +56,7 @@ class SetupPage extends StatelessWidget {
                                 const SetupEvent.check(),
                               ),
                         icon: const Icon(Icons.refresh_rounded, size: 18),
-                        label: const Text('Volver a comprobar'),
+                        label: Text(l10n.commonCheckAgain),
                       ),
                     ],
                   ],

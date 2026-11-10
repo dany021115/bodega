@@ -3,6 +3,7 @@ import 'package:bodega/app/shared/widgets/custom_loading.dart';
 import 'package:bodega/device/theme/radius.dart';
 import 'package:bodega/device/theme/spacing.dart';
 import 'package:bodega/device/theme/typography.dart';
+import 'package:bodega/l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -57,7 +58,7 @@ class LogDialog extends StatelessWidget {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cerrar'),
+          child: Text(context.l10n.commonClose),
         ),
       ],
     );

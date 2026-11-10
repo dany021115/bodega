@@ -13,6 +13,7 @@ import 'package:bodega/app/router.dart';
 import 'package:bodega/device/helpers/breakpoints.dart';
 import 'package:bodega/device/theme/theme.dart';
 import 'package:bodega/di.dart';
+import 'package:bodega/l10n/l10n.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -65,6 +66,10 @@ class _BodegaAppState extends State<BodegaApp> {
           child: MaterialApp.router(
             title: 'Bodega',
             debugShowCheckedModeBanner: false,
+            // No locale: the system's ordered list picks it, and a list with
+            // neither language gets English, the first supported one.
+            localizationsDelegates: AppL10n.localizationsDelegates,
+            supportedLocales: AppL10n.supportedLocales,
             builder: (context, child) => ResponsiveBreakpoints.builder(
               child: child!,
               breakpoints: appBreakpoints,

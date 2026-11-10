@@ -19,6 +19,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
+import '../support/pump.dart';
+
 class _MockBottleDetail extends MockBloc<BottleDetailEvent, BottleDetailState>
     implements BottleDetailBloc {}
 
@@ -43,13 +45,14 @@ class _MockGraphics extends MockBloc<GraphicsEvent, GraphicsState>
 class _MockViewMode extends MockBloc<ViewModeEvent, ViewModeState>
     implements ViewModeBloc {}
 
-const _longName = 'Una-botella-con-un-nombre-muy-largo-para-probar-los-limites';
+const _longName =
+    'A-bottle-with-a-very-long-name-to-test-the-limits-of-the-panel';
 
 LibraryApp _app(int index, {bool inLibrary = true}) => LibraryApp(
   bottle: _longName,
   key: 'app$index.exe',
   id: 'custom-$index',
-  title: 'Una aplicación con un título bastante largo número $index',
+  title: 'An application with a title that is rather long, number $index',
   inLibrary: inLibrary,
 );
 
@@ -116,8 +119,8 @@ void main() {
     when(() => viewMode.state).thenReturn(ViewModeState(isGrid: grid));
 
     await tester.pumpWidget(
-      MaterialApp(
-        home: MultiBlocProvider(
+      wrapApp(
+        MultiBlocProvider(
           providers: [
             BlocProvider<BottleDetailBloc>.value(value: bottle),
             BlocProvider<LibraryBloc>.value(value: library),
@@ -156,7 +159,7 @@ void main() {
       showBottle(_detail(apps: 0));
       await pump(tester, width);
       expect(tester.takeException(), isNull);
-      expect(find.text('Esta botella está vacía'), findsOneWidget);
+      expect(find.text('This bottle is empty'), findsOneWidget);
       expect(find.byType(BottleEmptyApps), findsOneWidget);
     });
   }
@@ -198,7 +201,7 @@ void main() {
         expect(find.text('DX9 · 32 bits'), findsOneWidget);
         expect(
           find.text(
-            'd3dmetal no le sirve a: Blur (DX9 · 32 bits). Usa Automático.',
+            "d3dmetal won't work for Blur (DX9 · 32 bits). Use Automatic.",
           ),
           backend == 'auto' ? findsNothing : findsOneWidget,
         );
@@ -212,11 +215,11 @@ void main() {
     await pump(tester, 720);
     // Below the apps the list builds its children lazily: scroll there first.
     await tester.scrollUntilVisible(
-      find.text('Configuración'),
+      find.text('Settings'),
       200,
       scrollable: find.byType(Scrollable).first,
     );
-    final title = tester.getTopLeft(find.text('Configuración')).dx;
+    final title = tester.getTopLeft(find.text('Settings')).dx;
     expect(title, lessThan(720 / 2));
   });
 
@@ -224,7 +227,7 @@ void main() {
     tester,
   ) async {
     await pump(tester, 1200);
-    final left = tester.getTopLeft(find.text('Configuración')).dx;
+    final left = tester.getTopLeft(find.text('Settings')).dx;
     expect(left, greaterThan(1200 - BottleDetailView.panelWidth));
   });
 
@@ -233,7 +236,7 @@ void main() {
   ) async {
     await pump(tester, 1200);
     // The first app is in the library: its chip offers to take it out.
-    await tester.tap(find.text('En biblioteca').first);
+    await tester.tap(find.text('In library').first);
     await tester.pump();
 
     verify(
@@ -244,15 +247,9 @@ void main() {
 
   testWidgets('the menu of an app hides it from the bottle', (tester) async {
     await pump(tester, 1200);
-    await tester.tap(
-      find
-          .byTooltip(
-            'Opciones de Una aplicación con un título bastante largo número 1',
-          )
-          .first,
-    );
+    await tester.tap(find.byTooltip('${_app(1).title} options').first);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Quitar de la botella'));
+    await tester.tap(find.text('Remove from bottle'));
     await tester.pumpAndSettle();
 
     verify(() => bottle.add(const BottleDetailEvent.hideApp('app1.exe')))

@@ -1,46 +1,56 @@
 import 'package:bodega/app/shared/widgets/app_card.dart';
 import 'package:bodega/device/theme/theme.dart';
 import 'package:bodega/domain/entities/library_app.dart';
+import 'package:bodega/l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../support/pump.dart';
+
 const _long = LibraryApp(
-  bottle: 'Una botella con un nombre muy largo que no cabe en la tarjeta',
+  bottle: 'A bottle with a name so very long that it does not fit the card',
   key: 'k',
-  id: 'app-largo',
+  id: 'long-app',
   title:
-      'Un título de aplicación extremadamente largo para comprobar el recorte',
+      'An extremely long application title, long enough to check the clipping',
 );
 
 void main() {
-  Future<void> pump(WidgetTester tester, AppCard card) async {
+  Future<void> pump(
+    WidgetTester tester,
+    AppCard card, {
+    Locale locale = const Locale('en'),
+  }) async {
     tester.view.physicalSize = const Size(720, 480);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     await tester.pumpWidget(
-      MaterialApp(
-        theme: AppTheme.getDarkTheme(),
-        home: Scaffold(
+      wrapApp(
+        Scaffold(
           body: Center(child: SizedBox(width: 200, child: card)),
         ),
+        locale: locale,
+        theme: AppTheme.getDarkTheme(),
       ),
     );
   }
 
   testWidgets('long texts fit a grid cell at 720 px', (tester) async {
-    await pump(
-      tester,
-      AppCard(
-        app: _long,
-        bottleLabel: _long.bottle,
-        running: true,
-        onPlay: () {},
-        onStop: () {},
-        onMenu: (_) {},
-      ),
+    final card = AppCard(
+      app: _long,
+      bottleLabel: _long.bottle,
+      running: true,
+      onPlay: () {},
+      onStop: () {},
+      onMenu: (_) {},
     );
+    await pump(tester, card);
     expect(tester.takeException(), isNull);
-    expect(find.text('En ejecución'), findsOneWidget);
+    expect(find.text('Running'), findsOneWidget);
+
+    // Spanish runs longer (L18).
+    await pump(tester, card, locale: const Locale('es'));
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('the button plays, or stops when running', (tester) async {
@@ -55,7 +65,7 @@ void main() {
         onStop: () => stopped++,
       ),
     );
-    await tester.tap(find.byTooltip('Jugar'));
+    await tester.tap(find.byTooltip('Play'));
     expect(played, 1);
 
     await pump(
@@ -67,8 +77,23 @@ void main() {
         onStop: () => stopped++,
       ),
     );
-    await tester.tap(find.byTooltip('Parar'));
+    await tester.tap(find.byTooltip('Stop'));
     expect(stopped, 1);
     expect(played, 1);
+  });
+
+  testWidgets('its hint says to double-click to open (L14)', (tester) async {
+    final card = AppCard(
+      app: _long,
+      running: false,
+      onPlay: () {},
+      onStop: () {},
+    );
+    await pump(tester, card);
+    expect(find.semantics.byHint('Double-click to open'), findsOne);
+
+    final es = lookupAppL10n(const Locale('es'));
+    await pump(tester, card, locale: const Locale('es'));
+    expect(find.semantics.byHint(es.appOpenHint), findsOne);
   });
 }

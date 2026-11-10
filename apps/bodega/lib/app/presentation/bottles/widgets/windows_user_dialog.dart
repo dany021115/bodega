@@ -1,5 +1,6 @@
 import 'package:bodega/device/theme/spacing.dart';
 import 'package:bodega/device/theme/typography.dart';
+import 'package:bodega/l10n/l10n.dart';
 import 'package:flutter/material.dart';
 
 /// U5: the name chosen, '' for the host's, or null if it was cancelled.
@@ -45,13 +46,14 @@ class _WindowsUserDialogState extends State<WindowsUserDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final styles = AppTextStyle(context);
     final name = _name.text.trim();
     final why = name.isEmpty ? null : widget.problem(name);
     final canSave = name.isNotEmpty && why == null && name != _shown;
 
     return AlertDialog(
-      title: const Text('Usuario de Windows'),
+      title: Text(l10n.bottleWindowsUser),
       content: SizedBox(
         width: 380,
         child: Column(
@@ -59,15 +61,17 @@ class _WindowsUserDialogState extends State<WindowsUserDialog> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              'El nombre que ven los juegos de esta botella. Al cambiarlo se '
-              'cierra lo que esté abierto; tus partidas guardadas se quedan.',
+              l10n.windowsUserHelp(l10n.bottleChangeCloses),
               style: styles.bodySecondary,
             ),
             const SizedBox(height: AppSpacing.md),
             TextField(
               controller: _name,
               autofocus: true,
-              decoration: InputDecoration(labelText: 'Nombre', errorText: why),
+              decoration: InputDecoration(
+                labelText: l10n.commonName,
+                errorText: why,
+              ),
               onChanged: (_) => setState(() {}),
               onSubmitted: canSave
                   ? (_) => Navigator.of(context).pop(name)
@@ -80,15 +84,15 @@ class _WindowsUserDialogState extends State<WindowsUserDialog> {
         if (widget.current.isNotEmpty)
           TextButton(
             onPressed: () => Navigator.of(context).pop(''),
-            child: Text('Usar ${widget.macUser}'),
+            child: Text(l10n.windowsUserUseHost(widget.macUser)),
           ),
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancelar'),
+          child: Text(l10n.commonCancel),
         ),
         FilledButton(
           onPressed: canSave ? () => Navigator.of(context).pop(name) : null,
-          child: const Text('Guardar'),
+          child: Text(l10n.commonSave),
         ),
       ],
     );

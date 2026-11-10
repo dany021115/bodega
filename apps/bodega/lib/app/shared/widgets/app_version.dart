@@ -1,4 +1,5 @@
 import 'package:bodega/device/theme/typography.dart';
+import 'package:bodega/l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
@@ -21,7 +22,8 @@ class AppVersion extends StatelessWidget {
         if (version == null) return const SizedBox.shrink();
 
         return Text(
-          compact ? 'v$version' : 'Versión $version',
+          // `v1.2.3` is the release's tag, the same in every language.
+          compact ? 'v$version' : context.l10n.appVersionLabel(version),
           textAlign: TextAlign.center,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
