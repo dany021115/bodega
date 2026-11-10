@@ -352,9 +352,13 @@ Iterable<InstalledApp> _steamGames(
   }
 }
 
-/// Every bottle by name, with its applications (E2).
+/// Every bottle by name, with its applications (E2). A folder whose name
+/// starts with a dot is not a bottle: `.tmp-import` is one on its way (M14).
 List<BottleInfo> listBottles(String home) {
-  final bottles = Directory('$home/bottles').listSync().whereType<Directory>();
+  final bottles = Directory('$home/bottles')
+      .listSync()
+      .whereType<Directory>()
+      .where((dir) => !dir.path.split('/').last.startsWith('.'));
   return [for (final dir in bottles) _bottleInfo(dir.path)]
     ..sort((a, b) => a.name.compareTo(b.name));
 }

@@ -596,8 +596,9 @@ String _newLog(
       .replaceAll(':', '-');
   // ponytail: no size cap or rotation; patch 0014 fixed the known runaway log
   // and fixme-all leaves only the err: lines.
+  // An imported bottle comes without `logs` (M14).
   final log = File('$bottle/logs/$stamp-$label.log')
-    ..createSync(exclusive: true)
+    ..createSync(recursive: true, exclusive: true)
     ..writeAsStringSync(
       '# runtime ${rt.split('/').last}\n'
       '${backend == null ? '' : '# backend $backend\n'}'
@@ -637,12 +638,16 @@ bool hasRuntime(String home) =>
 /// following them, which matters because `dosdevices/z:` points to / (E4).
 Future<void> removeBottle(String home, String name) async {
   final dir = _existing(home, name);
-  if (hasRuntime(home)) {
-    final rt = currentRuntime(home);
-    await _wineserver(rt, '$dir/prefix', '-k');
-    await _wineserver(rt, '$dir/prefix', '-w');
-  }
+  await _shutDown(home, dir);
   Directory(dir).deleteSync(recursive: true);
+}
+
+/// `wineserver -k` and waits for it, where there is a runtime to run it.
+Future<void> _shutDown(String home, String dir) async {
+  if (!hasRuntime(home)) return;
+  final rt = currentRuntime(home);
+  await _wineserver(rt, '$dir/prefix', '-k');
+  await _wineserver(rt, '$dir/prefix', '-w');
 }
 
 /// Renames `bottles/<from>` to `bottles/<to>`. The bottle must be stopped: its
@@ -657,6 +662,116 @@ Future<void> renameBottle(String home, String from, String to) async {
   }
   Directory(dir).renameSync(target);
   await hostPlatform.prepareBottle(home, to);
+}
+
+/// M13: stops [from] and copies it to [to], an independent bottle. The copy
+/// keeps links as links, so `dosdevices/z:` still points where it did (E4). A
+/// name that exists or is invalid fails before anything is touched; a failed
+/// copy leaves nothing behind.
+Future<void> duplicateBottle(String home, String from, String to) async {
+  final target = bottleDir(home, to);
+  final dir = _existing(home, from);
+  if (_exists(target)) throw 'bottle $to already exists';
+  await _shutDown(home, dir);
+  try {
+    await hostPlatform.copyTree(dir, target);
+  } catch (_) {
+    if (_exists(target)) Directory(target).deleteSync(recursive: true);
+    rethrow;
+  }
+  await hostPlatform.prepareBottle(home, to);
+}
+
+/// M14: stops [bottle] and writes it to [file] as a `.tar.gz` with one root
+/// folder, the bottle's name, without `logs` or `icons` (they come back on
+/// their own). `tar` stores links as links. A failure leaves no file.
+Future<void> exportBottle(String home, String bottle, String file) async {
+  final dir = _existing(home, bottle);
+  await _shutDown(home, dir);
+  try {
+    await _run('tar', [
+      '-czf',
+      file,
+      '-C',
+      '$home/bottles',
+      '--exclude=$bottle/logs',
+      '--exclude=$bottle/icons',
+      bottle,
+    ]);
+  } catch (_) {
+    if (File(file).existsSync()) File(file).deleteSync();
+    rethrow;
+  }
+}
+
+/// M14: brings in a bottle that [exportBottle] wrote and returns its name: the
+/// archive's root folder, with `-2`, `-3`… if that name is taken. The archive
+/// must hold a single root folder with `prefix/` in it, and no absolute path
+/// or `..`; it is checked before anything is extracted. It is extracted into
+/// `bottles/.tmp-import`, which [listBottles] skips, and only then renamed. A
+/// failure leaves nothing behind.
+Future<String> importBottle(String home, String file) async {
+  final entries = [
+    for (final line in (await _run('tar', ['-tzf', file])).split('\n'))
+      if (line.replaceFirst(RegExp(r'^(\./)+'), '') case final entry
+          when entry.isNotEmpty && entry != '.')
+        entry,
+  ];
+  for (final entry in entries) {
+    if (entry.startsWith('/') || entry.split('/').contains('..')) {
+      throw '$file is not a Bodega bottle: it has the path $entry';
+    }
+  }
+  final roots = {for (final entry in entries) entry.split('/').first};
+  if (roots.length != 1) {
+    throw '$file is not a Bodega bottle: it needs one folder at its root, '
+        'and has ${roots.length}';
+  }
+  final root = roots.single;
+  bottleDir(home, root);
+  if (!entries.any(
+    (e) => e == '$root/prefix' || e.startsWith('$root/prefix/'),
+  )) {
+    throw '$file is not a Bodega bottle: $root has no prefix folder';
+  }
+  var name = root;
+  for (var n = 2; _exists(bottleDir(home, name)); n++) {
+    name = '$root-$n';
+  }
+  final tmp = Directory('$home/bottles/.tmp-import');
+  if (_exists(tmp.path)) tmp.deleteSync(recursive: true);
+  tmp.createSync(recursive: true);
+  try {
+    await _run('tar', ['-xzf', file, '-C', tmp.path]);
+    Directory('${tmp.path}/$root').renameSync(bottleDir(home, name));
+  } finally {
+    tmp.deleteSync(recursive: true);
+  }
+  await hostPlatform.prepareBottle(home, name);
+  return name;
+}
+
+bool _exists(String path) =>
+    FileSystemEntity.typeSync(path, followLinks: false) !=
+    FileSystemEntityType.notFound;
+
+/// M15: the bytes the installers in `downloads/` take, links not followed.
+int downloadsSize(String home) {
+  final dir = Directory('$home/downloads');
+  if (!dir.existsSync()) return 0;
+  return dir
+      .listSync(recursive: true, followLinks: false)
+      .whereType<File>()
+      .fold(0, (total, file) => total + file.lengthSync());
+}
+
+/// M15: deletes what is in `downloads/`. A link goes, never what it points to.
+void clearDownloads(String home) {
+  final dir = Directory('$home/downloads');
+  if (!dir.existsSync()) return;
+  for (final entry in dir.listSync(followLinks: false)) {
+    entry.deleteSync(recursive: true);
+  }
 }
 
 /// `wineserver -w` returns at once when the bottle has no server, so one still

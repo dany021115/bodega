@@ -242,6 +242,12 @@ class MacPlatform extends HostPlatform {
   Future<void> prepareBottle(String home, String name) =>
       _ensureGamepads(home, name);
 
+  /// `-c` clones on APFS (a 537 MB bottle in 336 ms) and falls back to a plain
+  /// copy where it can't; `-R` copies links as links (design §8).
+  @override
+  Future<void> copyTree(String from, String to) =>
+      _run('/bin/cp', ['-cR', from, to]);
+
   @override
   List<List<String>> highResRegistry(bool value) => [
     [

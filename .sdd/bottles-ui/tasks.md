@@ -25,8 +25,8 @@
 - [ ] **T10 (USER)** Commit milestone 2, and **test U5 to U8.**
 
 ## Milestone 3: management
-- [ ] **T11** Duplicate and rename (M13), export and import (M14), cache (M15).
-  **Check:** their tests; and with a real temporary bottle, headless, a program runs in the copy, in the renamed bottle and in the imported one, and `z:` is still a link.
+- [x] **T11** Duplicate and rename (M13), export and import (M14), cache (M15).
+  **Check (done on CachyOS):** `duplicateBottle`, `exportBottle`/`importBottle` and `downloads` tests in `apps_test.dart`; full `dart test`: 156 pass. CLI: `bodega duplicate`, `export`, `import`, `downloads [clear]`. Real, headless, in a temporary `BODEGA_HOME` with the bundled Wine 11.21: `cmd /c echo` runs in the original, the copy, the renamed copy and two imports (`t11c-2`, `t11c-3`), and in every one `z:` is still `/` and `c:` is still `../drive_c`; the 371 MB archive has no `logs` or `icons`; `downloads` counts 3.0 MB and not a link to `/opt/bodega`, which `clear` leaves alone. The check found a bug, fixed with its test: an imported bottle had no `logs` folder, and its first run failed. Rename was already in M1. **Not tested:** `cp -cR` on a Mac.
 - [ ] **T12** New bottle and import (V13), duplicate, rename and export (V14), Preferences (V15).
   **Check:** tests for `NewBottleBloc`, `BottleDetailBloc` and `PreferencesBloc`; `pages_test.dart`.
 - [ ] **T13** `.claude/CLAUDE.md` and `rules/`: what is taken from CrossOver, the new classes and `AppTile`.

@@ -76,6 +76,11 @@ abstract class HostPlatform {
   String mapBackend(String name);
   List<(int, String)> probeCases(String home, String backend);
   Future<void> prepareBottle(String home, String name);
+
+  /// M13: copies the folder [from] to [to] (which must not exist), links as
+  /// links, cloning the files where the disk can.
+  Future<void> copyTree(String from, String to);
+
   List<List<String>> highResRegistry(bool value);
   Map<String, String> gpuEnv(String gpu);
   List<String> launchWrapper({required bool gamemode});
