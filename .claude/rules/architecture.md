@@ -41,6 +41,13 @@ paths:
 - Navigate by id: `RouterManager.go(AppRoute.library, context: context)`
 - The redirect to `/setup` is `setupRedirect`, a pure function with its test
 
+## Text
+- Every UI string is in `lib/l10n/app_en.arb` (the template) and `app_es.arb`; widgets read `context.l10n.key` (`package:bodega/l10n/l10n.dart`)
+- Only `app/` and `device/` build sentences. `domain/`, `data/` and blocs hold values: enums, ids, numbers, a typed `AppError`
+- Errors are shown with `error.text(context.l10n)` (`app/shared/error_text.dart`); an `EngineError` shows the engine's English as is
+- Engine `HostIssue`s and `Hint`s carry an `id` and `args`; `app/shared/engine_text.dart` translates the known ids and falls back to the engine's text
+- Keys are lowerCamelCase, prefixed by area (`common`, `bottles`, `library`…); the Spanish file keeps the Spanish UI word for word
+
 ## DI
 - Everything is registered with Injectable annotations, not by hand
 - After adding one, run build_runner
