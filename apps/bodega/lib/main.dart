@@ -13,6 +13,7 @@ import 'package:bodega/app/router.dart';
 import 'package:bodega/device/helpers/breakpoints.dart';
 import 'package:bodega/device/theme/theme.dart';
 import 'package:bodega/di.dart';
+import 'package:bodega/l10n/l10n.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -63,7 +64,9 @@ class _BodegaAppState extends State<BodegaApp> {
       child: BlocBuilder<ThemeBloc, ThemeState>(
         builder: (context, theme) => ToastificationWrapper(
           child: MaterialApp.router(
-            title: 'Bodega',
+            onGenerateTitle: (context) => context.l10n.appTitle,
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
             debugShowCheckedModeBanner: false,
             builder: (context, child) => ResponsiveBreakpoints.builder(
               child: child!,

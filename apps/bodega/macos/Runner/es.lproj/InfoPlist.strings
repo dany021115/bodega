@@ -1,0 +1,5 @@
+/* Spanish permission prompts; Info.plist has the English ones. */
+"NSDownloadsFolderUsageDescription" = "Bodega busca en Descargas el Game Porting Toolkit que bajaste de Apple, para instalar D3DMetal.";
+"NSLocalNetworkUsageDescription" = "Los juegos usan la red local para las partidas en LAN con otros equipos de tu casa.";
+"NSMicrophoneUsageDescription" = "Los juegos de Windows usan el micrófono para el chat de voz.";
+"NSCameraUsageDescription" = "Un programa de Windows quiere usar la cámara.";
