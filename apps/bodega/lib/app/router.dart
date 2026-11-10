@@ -6,6 +6,7 @@ import 'package:bodega/app/presentation/bottles/bottle_detail_page.dart';
 import 'package:bodega/app/presentation/catalog/catalog_detail_page.dart';
 import 'package:bodega/app/presentation/catalog/catalog_page.dart';
 import 'package:bodega/app/presentation/library/library_page.dart';
+import 'package:bodega/app/presentation/preferences/preferences_page.dart';
 import 'package:bodega/app/presentation/setup/setup_page.dart';
 import 'package:bodega/app/shared/widgets/custom_loading.dart';
 import 'package:bodega/app/shared/widgets/main_shell.dart';
@@ -32,6 +33,7 @@ enum AppRoute {
   bottles,
   bottleDetail,
   backends,
+  preferences,
 }
 
 /// Without the host requirements or the runtime there is only `/setup`; with
@@ -108,6 +110,7 @@ GoRouter createRouter(SetupBloc setup) {
             ),
           ),
           _section(AppRoute.backends, const BackendsPage()),
+          _section(AppRoute.preferences, const PreferencesPage()),
         ],
       ),
     ],

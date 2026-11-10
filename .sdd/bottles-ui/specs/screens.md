@@ -94,16 +94,16 @@ With an existing bottle, it warns if the entry asks for a different sync. Coming
 ## Milestone 3
 
 ### V13 · New bottle and import
-At the foot of the bottle list: `+` with `Nueva botella…` ("New bottle…") (name and Windows version, with the name validated while typing) and `Importar…` ("Import…").
+`Nueva botella` ("New bottle") at the top of the sidebar's bottle list (since `ui-refresh`) opens the dialog: name, Windows version and graphics, with the name validated while typing. The same dialog has `Importar botella…` ("Import bottle…"), which picks a `.tar.gz`, imports it and goes to it: a bottle comes in through one door.
 
-**Scenarios (test `NewBottleBloc`):** creates it and navigates to it; an invalid or repeated name, nothing is created.
+**Scenarios (test `NewBottleBloc`):** creates it and navigates to it; an invalid or repeated name, nothing is created; an import gives the name it got, and an import that fails creates nothing.
 
 ### V14 · Duplicate, rename and export
-In Actions. All three warn that they close the bottle, and show that they are working without blocking the interface. Export asks where to save. On rename, the app goes to the new route.
+Duplicate and export are quick actions of the bottle, next to `Unidad C:`; rename is the pencil next to its name, and needs the bottle stopped (the engine refuses an open one). Duplicate and export warn first when the bottle is open, since they close it, and show that they are working without blocking the interface. Duplicate asks for the new name (`<name>-2` by default, checked against the bottles there are) and goes to the copy. Export asks where to save. On rename, the app goes to the new route.
 
-**Scenarios (test `BottleDetailBloc`):** each one calls the repository and navigates; an error is shown and the bottle stays as it was.
+**Scenarios (test `BottleDetailBloc`):** each one calls the repository and navigates (export shows where it saved); an error is shown and the bottle stays as it was.
 
 ### V15 · Preferences
-An entry at the bottom of the sidebar. Data folder with `Abrir en Finder` ("Open in Finder"); installer cache with its size and `Vaciar` ("Empty"), which asks for confirmation; and the theme, which moves out of the sidebar.
+An entry at the bottom of the sidebar. Data folder with `Abrir en Finder` ("Open in Finder"; `Abrir carpeta`, "Open folder", on Linux); installer cache with its size and `Vaciar` ("Empty"), which asks for confirmation; and the language: `Sistema` ("System"), English or Español (the switch the `i18n` change left for this screen). No theme switch: the user decided on 2026-11-09 to keep dark only for now (`ui-refresh`).
 
-**Scenarios (test `PreferencesBloc`):** size; emptying leaves it at zero.
+**Scenarios (test `PreferencesBloc`, `LanguageBloc`):** size; emptying leaves it at zero; a chosen language is saved, and `Sistema` follows the system again.

@@ -28,6 +28,9 @@ sealed class BottleDetailEvent with _$BottleDetailEvent {
   const factory BottleDetailEvent.delete() = BottleDetailDeleteEvent;
   const factory BottleDetailEvent.rename(String newName) =
       BottleDetailRenameEvent;
+  const factory BottleDetailEvent.duplicate(String newName) =
+      BottleDetailDuplicateEvent;
+  const factory BottleDetailEvent.export(String file) = BottleDetailExportEvent;
   const factory BottleDetailEvent.setInLibrary(String key, bool value) =
       BottleDetailSetInLibraryEvent;
   const factory BottleDetailEvent.setHud(String key, bool value) =

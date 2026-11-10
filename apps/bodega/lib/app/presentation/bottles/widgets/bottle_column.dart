@@ -1,9 +1,10 @@
 import 'package:bodega/app/bloc/bottle_detail/bottle_detail_bloc.dart';
+import 'package:bodega/app/bloc/bottles/bottles_bloc.dart';
 import 'package:bodega/app/bloc/library/library_bloc.dart';
 import 'package:bodega/app/bloc/setup/setup_bloc.dart';
 import 'package:bodega/app/presentation/bottles/widgets/gamepads_section.dart';
 import 'package:bodega/app/presentation/bottles/widgets/log_dialog.dart';
-import 'package:bodega/app/presentation/bottles/widgets/rename_bottle_dialog.dart';
+import 'package:bodega/app/presentation/bottles/widgets/bottle_name_dialog.dart';
 import 'package:bodega/app/presentation/bottles/widgets/run_options_dialog.dart';
 import 'package:bodega/app/presentation/bottles/widgets/windows_user_dialog.dart';
 import 'package:bodega/app/shared/engine_text.dart';
@@ -11,6 +12,7 @@ import 'package:bodega/app/shared/graphics_of.dart';
 import 'package:bodega/app/shared/graphics_text.dart';
 import 'package:bodega/app/shared/widgets/collapsible_section.dart';
 import 'package:bodega/app/shared/widgets/confirm_dialog.dart';
+import 'package:bodega/app/shared/widgets/custom_loading.dart';
 import 'package:bodega/app/shared/widgets/status_chip.dart';
 import 'package:bodega/device/theme/color.dart';
 import 'package:bodega/device/theme/gradient.dart';
@@ -33,12 +35,16 @@ class BottleColumn extends StatelessWidget {
   final bool isOpen;
   final List<Hint> hints;
 
+  /// The long job running on the bottle, shown under the quick actions.
+  final BottleWork? working;
+
   const BottleColumn({
     super.key,
     required this.detail,
     required this.isBusy,
     required this.isOpen,
     required this.hints,
+    this.working,
   });
 
   static const windowsNames = {
@@ -58,12 +64,13 @@ class BottleColumn extends StatelessWidget {
     (l10n.bottlesToolUninstaller, 'uninstaller', <String>[]),
   ];
 
-  Future<bool> _closes(BuildContext context, String title) => confirm(
-    context,
-    title: title,
-    message: context.l10n.bottlesClosesMessage(detail.name),
-    action: context.l10n.bottlesChange,
-  );
+  Future<bool> _closes(BuildContext context, String title, {String? action}) =>
+      confirm(
+        context,
+        title: title,
+        message: context.l10n.bottlesClosesMessage(detail.name),
+        action: action ?? context.l10n.bottlesChange,
+      );
 
   Future<void> _changeUser(BuildContext context) async {
     final bloc = context.read<BottleDetailBloc>();
@@ -91,8 +98,85 @@ class BottleColumn extends StatelessWidget {
 
   Future<void> _rename(BuildContext context) async {
     final bloc = context.read<BottleDetailBloc>();
-    final newName = await showRenameBottleDialog(context, detail.name);
-    if (newName != null) bloc.add(BottleDetailEvent.rename(newName));
+    final newName = await showBottleNameDialog(
+      context,
+      title: context.l10n.bottlesRenameTitle,
+      action: context.l10n.bottlesRename,
+      initial: detail.name,
+      taken: _otherNames(context),
+    );
+    if (newName != null && newName != detail.name) {
+      bloc.add(BottleDetailEvent.rename(newName));
+    }
+  }
+
+  /// The names of the other bottles, which a new name cannot repeat.
+  List<String> _otherNames(BuildContext context) => [
+    for (final bottle in context.read<BottlesBloc>().state.bottles)
+      if (bottle.name != detail.name) bottle.name,
+  ];
+
+  /// `<name>-2`, or the next `-n` that is free.
+  String _copyName(List<String> taken) {
+    final lower = {for (final name in taken) name.toLowerCase()};
+    var n = 2;
+    while (lower.contains('${detail.name}-$n'.toLowerCase())) {
+      n++;
+    }
+    return '${detail.name}-$n';
+  }
+
+  /// V14: duplicating or exporting stops the bottle, so an open one asks first.
+  Future<bool> _closesFirst(
+    BuildContext context,
+    String title,
+    String action,
+  ) async => !isOpen || await _closes(context, title, action: action);
+
+  Future<void> _duplicate(BuildContext context) async {
+    final bloc = context.read<BottleDetailBloc>();
+    final l10n = context.l10n;
+    if (!await _closesFirst(
+      context,
+      l10n.bottlesDuplicateTitle(detail.name),
+      l10n.bottlesDuplicateAction,
+    )) {
+      return;
+    }
+    if (!context.mounted) return;
+    final taken = [
+      for (final bottle in context.read<BottlesBloc>().state.bottles)
+        bottle.name,
+    ];
+    final newName = await showBottleNameDialog(
+      context,
+      title: l10n.bottlesDuplicateTitle(detail.name),
+      action: l10n.bottlesDuplicateAction,
+      initial: _copyName(taken),
+      taken: taken,
+    );
+    if (newName != null) bloc.add(BottleDetailEvent.duplicate(newName));
+  }
+
+  Future<void> _export(BuildContext context) async {
+    final bloc = context.read<BottleDetailBloc>();
+    if (!await _closesFirst(
+      context,
+      context.l10n.bottlesExportTitle(detail.name),
+      context.l10n.bottlesExportAction,
+    )) {
+      return;
+    }
+    final location = await getSaveLocation(
+      suggestedName: '${detail.name}.tar.gz',
+    );
+    if (location == null) return;
+    final path = location.path;
+    bloc.add(
+      BottleDetailEvent.export(
+        path.endsWith('.tar.gz') ? path : '$path.tar.gz',
+      ),
+    );
   }
 
   Future<void> _delete(BuildContext context) async {
@@ -329,7 +413,41 @@ class BottleColumn extends StatelessWidget {
           () => library.add(LibraryEvent.run(name, 'wineconsole', ['cmd'])),
           enabled: detail.ready,
         ),
+        _quick(
+          Icons.copy_rounded,
+          l10n.bottlesDuplicate,
+          () => _duplicate(context),
+          enabled: detail.ready,
+        ),
+        _quick(
+          Icons.archive_outlined,
+          l10n.bottlesExport,
+          () => _export(context),
+          enabled: detail.ready,
+        ),
       ],
+    );
+  }
+
+  Widget _working(BuildContext context, BottleWork work) {
+    final l10n = context.l10n;
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSpacing.md),
+      child: Row(
+        children: [
+          const CustomLoading(size: 20),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Semantics(
+              liveRegion: true,
+              child: Text(switch (work) {
+                BottleWork.duplicating => l10n.bottlesDuplicating,
+                BottleWork.exporting => l10n.bottlesExporting,
+              }, style: AppTextStyle(context).body),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -372,6 +490,7 @@ class BottleColumn extends StatelessWidget {
         _facts(context),
         const SizedBox(height: AppSpacing.lg),
         _quickActions(context),
+        if (working case final work?) _working(context, work),
         CollapsibleSection(
           id: 'settings',
           title: l10n.bottlesSettings,

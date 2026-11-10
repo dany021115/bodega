@@ -137,6 +137,24 @@ class BottleRepositoryImpl implements BottleRepository {
       });
 
   @override
+  Future<Either<AppError, Unit>> duplicate(String name, String newName) =>
+      repositoryCall(() async {
+        await engine.duplicateBottle(_home.path, name, newName);
+        return unit;
+      });
+
+  @override
+  Future<Either<AppError, Unit>> export(String name, String file) =>
+      repositoryCall(() async {
+        await engine.exportBottle(_home.path, name, file);
+        return unit;
+      });
+
+  @override
+  Future<Either<AppError, String>> importBottle(String file) =>
+      repositoryCall(() => engine.importBottle(_home.path, file));
+
+  @override
   Future<Either<AppError, Unit>> setInLibrary(
     String name,
     String key,

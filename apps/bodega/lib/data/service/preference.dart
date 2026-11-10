@@ -7,6 +7,7 @@ enum PreferenceKey {
   libraryViewGrid,
   updateCheckedAt,
   updateSkipped,
+  language,
 }
 
 @lazySingleton
@@ -48,4 +49,11 @@ class Preferences {
 
   Future<void> saveUpdateSkipped(String version) =>
       _prefs.setString(PreferenceKey.updateSkipped.name, version);
+
+  String? getLanguage() => _prefs.getString(PreferenceKey.language.name);
+
+  /// Null removes the choice, so the app follows the system.
+  Future<void> saveLanguage(String? code) => code == null
+      ? _prefs.remove(PreferenceKey.language.name)
+      : _prefs.setString(PreferenceKey.language.name, code);
 }

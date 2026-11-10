@@ -311,4 +311,106 @@ void main() {
       verify(() => repository.detail('steam')).called(2);
     },
   );
+
+  blocTest<BottleDetailBloc, BottleDetailState>(
+    'duplicating makes the copy and points to it',
+    build: () {
+      when(() => repository.duplicate('steam', 'steam-2'))
+          .thenAnswer((_) async => right(unit));
+      return build();
+    },
+    act: (bloc) async {
+      bloc.add(load);
+      await bloc.stream.first;
+      bloc.add(const BottleDetailEvent.duplicate('steam-2'));
+    },
+    wait: const Duration(milliseconds: 10),
+    verify: (bloc) {
+      verify(() => repository.duplicate('steam', 'steam-2')).called(1);
+      verify(() => repository.detail('steam')).called(2);
+      expect(bloc.state.duplicatedTo, 'steam-2');
+      expect(bloc.state.working, isNull);
+      expect(bloc.state.isBusy, isFalse);
+    },
+  );
+
+  blocTest<BottleDetailBloc, BottleDetailState>(
+    'exporting writes the file and names it',
+    build: () {
+      when(() => repository.export('steam', '/tmp/steam.tar.gz'))
+          .thenAnswer((_) async => right(unit));
+      return build();
+    },
+    act: (bloc) async {
+      bloc.add(load);
+      await bloc.stream.first;
+      bloc.add(const BottleDetailEvent.export('/tmp/steam.tar.gz'));
+    },
+    wait: const Duration(milliseconds: 10),
+    verify: (bloc) {
+      verify(() => repository.export('steam', '/tmp/steam.tar.gz')).called(1);
+      expect(bloc.state.exportedTo, '/tmp/steam.tar.gz');
+      expect(bloc.state.working, isNull);
+      expect(bloc.state.isBusy, isFalse);
+    },
+  );
+
+  blocTest<BottleDetailBloc, BottleDetailState>(
+    'shows the job while it runs',
+    build: () {
+      when(() => repository.export('steam', '/tmp/steam.tar.gz'))
+          .thenAnswer((_) async => right(unit));
+      return build();
+    },
+    act: (bloc) async {
+      bloc.add(load);
+      await bloc.stream.first;
+      bloc.add(const BottleDetailEvent.export('/tmp/steam.tar.gz'));
+    },
+    skip: 1,
+    wait: const Duration(milliseconds: 10),
+    expect: () => [
+      const BottleDetailState(
+        isLoading: false,
+        detail: _detail,
+        isBusy: true,
+        working: BottleWork.exporting,
+      ),
+      const BottleDetailState(
+        isLoading: false,
+        detail: _detail,
+        exportedTo: '/tmp/steam.tar.gz',
+      ),
+    ],
+  );
+
+  for (final (label, event) in [
+    ('duplicate', const BottleDetailEvent.duplicate('steam-2')),
+    ('export', const BottleDetailEvent.export('/tmp/steam.tar.gz')),
+  ]) {
+    blocTest<BottleDetailBloc, BottleDetailState>(
+      'a failed $label leaves the bottle as it was and says why',
+      build: () {
+        when(() => repository.duplicate(any(), any()))
+            .thenAnswer((_) async => left(const AppError.engine('no room')));
+        when(() => repository.export(any(), any()))
+            .thenAnswer((_) async => left(const AppError.engine('no room')));
+        return build();
+      },
+      act: (bloc) async {
+        bloc.add(load);
+        await bloc.stream.first;
+        bloc.add(event);
+      },
+      wait: const Duration(milliseconds: 10),
+      verify: (bloc) {
+        expect(bloc.state.error, const AppError.engine('no room'));
+        expect(bloc.state.duplicatedTo, isNull);
+        expect(bloc.state.exportedTo, isNull);
+        expect(bloc.state.working, isNull);
+        expect(bloc.state.isBusy, isFalse);
+        expect(bloc.state.detail, _detail);
+      },
+    );
+  }
 }

@@ -10,4 +10,7 @@ sealed class NewBottleEvent with _$NewBottleEvent {
   const factory NewBottleEvent.backendChanged(String backend) =
       NewBottleBackendChangedEvent;
   const factory NewBottleEvent.submit() = NewBottleSubmitEvent;
+
+  /// V13: a bottle from an exported `.tar.gz`.
+  const factory NewBottleEvent.import(String file) = NewBottleImportEvent;
 }

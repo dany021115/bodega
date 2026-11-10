@@ -15,6 +15,7 @@ import 'package:bodega/device/theme/typography.dart';
 import 'package:bodega/di.dart';
 import 'package:bodega/domain/entities/backend_info.dart';
 import 'package:bodega/l10n/l10n.dart';
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -60,7 +61,7 @@ class NewBottleDialog extends StatelessWidget {
         final bloc = context.read<NewBottleBloc>();
         final styles = AppTextStyle(context);
         final colors = Theme.of(context).colorScheme;
-        final busy = state.isCreating;
+        final busy = state.isCreating || state.isImporting;
         final l10n = context.l10n;
 
         return PopScope(
@@ -69,7 +70,8 @@ class NewBottleDialog extends StatelessWidget {
           child: Dialog(
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 560),
-              child: Padding(
+              // Scrolls in the smallest window rather than overflowing.
+              child: SingleChildScrollView(
                 padding: const EdgeInsets.all(AppSpacing.xxl),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -126,7 +128,9 @@ class NewBottleDialog extends StatelessWidget {
                             child: Semantics(
                               liveRegion: true,
                               child: Text(
-                                l10n.bottlesCreating,
+                                state.isImporting
+                                    ? l10n.bottlesImporting
+                                    : l10n.bottlesCreating,
                                 style: styles.body,
                               ),
                             ),
@@ -231,19 +235,36 @@ class NewBottleDialog extends StatelessWidget {
                         ),
                       ],
                       const SizedBox(height: AppSpacing.lg),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
+                      // Import goes below Cancel and Create where they don't
+                      // fit side by side.
+                      Wrap(
+                        alignment: WrapAlignment.spaceBetween,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        spacing: AppSpacing.sm,
+                        runSpacing: AppSpacing.sm,
                         children: [
-                          TextButton(
-                            onPressed: () => Navigator.of(context).pop(),
-                            child: Text(l10n.commonCancel),
+                          TextButton.icon(
+                            icon: const Icon(Icons.unarchive_outlined),
+                            label: Text(l10n.bottlesImport),
+                            onPressed: () => _import(context),
                           ),
-                          const SizedBox(width: AppSpacing.sm),
-                          GradientButton(
-                            label: l10n.bottlesCreate,
-                            onPressed: state.canSubmit
-                                ? () => bloc.add(const NewBottleEvent.submit())
-                                : null,
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              TextButton(
+                                onPressed: () => Navigator.of(context).pop(),
+                                child: Text(l10n.commonCancel),
+                              ),
+                              const SizedBox(width: AppSpacing.sm),
+                              GradientButton(
+                                label: l10n.bottlesCreate,
+                                onPressed: state.canSubmit
+                                    ? () => bloc.add(
+                                        const NewBottleEvent.submit(),
+                                      )
+                                    : null,
+                              ),
+                            ],
                           ),
                         ],
                       ),
@@ -256,6 +277,20 @@ class NewBottleDialog extends StatelessWidget {
         );
       },
     );
+  }
+
+  /// V13: a bottle from a `.tar.gz` that Bodega exported.
+  Future<void> _import(BuildContext context) async {
+    final bloc = context.read<NewBottleBloc>();
+    final file = await openFile(
+      acceptedTypeGroups: [
+        XTypeGroup(
+          label: context.l10n.bottlesImportType,
+          extensions: const ['gz', 'tgz'],
+        ),
+      ],
+    );
+    if (file != null) bloc.add(NewBottleEvent.import(file.path));
   }
 
   List<DropdownMenuItem<String>> _backendItems(

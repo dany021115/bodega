@@ -94,6 +94,22 @@ class BottleDetailBloc extends Bloc<BottleDetailEvent, BottleDetailState> {
         },
       );
     });
+    on<BottleDetailDuplicateEvent>(
+      (event, emit) => _work(
+        emit,
+        BottleWork.duplicating,
+        (name) => _repository.duplicate(name, event.newName),
+        (state) => state.copyWith(duplicatedTo: event.newName),
+      ),
+    );
+    on<BottleDetailExportEvent>(
+      (event, emit) => _work(
+        emit,
+        BottleWork.exporting,
+        (name) => _repository.export(name, event.file),
+        (state) => state.copyWith(exportedTo: event.file),
+      ),
+    );
     on<BottleDetailSetInLibraryEvent>(
       (event, emit) => _change(
         emit,
@@ -127,6 +143,35 @@ class BottleDetailBloc extends Bloc<BottleDetailEvent, BottleDetailState> {
 
   /// U3, for the dialog to check the name while it is typed.
   UserProblem? userProblem(String user) => _repository.userProblem(user);
+
+  /// Duplicate and export: the engine stops the bottle, so it is reloaded.
+  Future<void> _work(
+    Emitter<BottleDetailState> emit,
+    BottleWork work,
+    Future<Either<AppError, Unit>> Function(String name) run,
+    BottleDetailState Function(BottleDetailState state) done,
+  ) async {
+    final name = state.detail?.name;
+    if (name == null) return;
+    emit(
+      state.copyWith(
+        isBusy: true,
+        working: work,
+        error: null,
+        duplicatedTo: null,
+        exportedTo: null,
+      ),
+    );
+    final result = await run(name);
+    await result.match(
+      (error) async =>
+          emit(state.copyWith(isBusy: false, working: null, error: error)),
+      (_) async {
+        await _load(name, emit);
+        emit(done(state.copyWith(isBusy: false, working: null)));
+      },
+    );
+  }
 
   Future<void> _change(
     Emitter<BottleDetailState> emit,

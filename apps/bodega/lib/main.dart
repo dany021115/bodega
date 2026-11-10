@@ -3,6 +3,7 @@ import 'package:bodega/app/bloc/bottles/bottles_bloc.dart';
 import 'package:bodega/app/bloc/catalog/catalog_bloc.dart';
 import 'package:bodega/app/bloc/graphics/graphics_bloc.dart';
 import 'package:bodega/app/bloc/install/install_bloc.dart';
+import 'package:bodega/app/bloc/language/language_bloc.dart';
 import 'package:bodega/app/bloc/library/library_bloc.dart';
 import 'package:bodega/app/bloc/sections/sections_bloc.dart';
 import 'package:bodega/app/bloc/setup/setup_bloc.dart';
@@ -59,11 +60,18 @@ class _BodegaAppState extends State<BodegaApp> {
         BlocProvider.value(value: getIt<ViewModeBloc>()),
         BlocProvider(create: (_) => getIt<SectionsBloc>()),
         BlocProvider(create: (_) => getIt<ThemeBloc>()),
+        BlocProvider(create: (_) => getIt<LanguageBloc>()),
       ],
       // ponytail: no switch yet; ThemeEvent.toggle is there for when one comes.
       child: BlocBuilder<ThemeBloc, ThemeState>(
         builder: (context, theme) => ToastificationWrapper(
           child: MaterialApp.router(
+            locale: switch (context.select(
+              (LanguageBloc bloc) => bloc.state.code,
+            )) {
+              final code? => Locale(code),
+              null => null,
+            },
             onGenerateTitle: (context) => context.l10n.appTitle,
             localizationsDelegates: AppLocalizations.localizationsDelegates,
             supportedLocales: AppLocalizations.supportedLocales,
