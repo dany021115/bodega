@@ -58,6 +58,7 @@ paths:
 - `HostPlatform` lives in `packages/engine/lib/platform.dart`. `MacPlatform` and `LinuxPlatform` are `part of 'engine.dart'`
 - The engine uses the global `hostPlatform`. Tests replace it
 - Anything that depends on the system (paths, env, tools, backends, sync, checks) goes in the platform, not in engine constants
+- `HostPlatform.emulators` gives the host's `EmulatorHost`. Switch's engine code and its emulator table live in `packages/engine/lib/switch.dart`. The table's `page`, the emulator's official download page, is the one link of Switch's code: the app gets it through `SwitchStatus` and opens it with `launchUrl`
 - The app reads `HostCapabilities` and `HostIssue` through `RuntimeStatus`, and never imports the engine outside `data/`
 - On Linux, Wine and the dxvk layer ship in the package, at `/opt/bodega/runtime` and `/opt/bodega/backends`. `LinuxPlatform.prepareHome` registers them in `~/.local/share/bodega` by link, or by copy when running from an AppImage
 - D3D layers are copied into each prefix. A launch enables them per process with `WINEDLLOVERRIDES`
