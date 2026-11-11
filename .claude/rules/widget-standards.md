@@ -17,7 +17,7 @@ paths:
 - `StatusChip` for states
 - `AppIcon` for an app's logo or initial
 - `confirm()` before anything that closes or deletes: name the bottle, and say what is lost
-- `AppToast` for messages that pass; `SelectableText` for errors worth copying
+- `AppToast` for messages that pass; `SelectableText` for errors worth copying, plus `CopyDetailsButton` when the error has a `detail`
 - `AppCard`, `AppRow`, `ViewToggle`, `GradientButton` are the shared pieces of the new UI, and `AppGradient` holds the gradients
 
 ## Design Tokens

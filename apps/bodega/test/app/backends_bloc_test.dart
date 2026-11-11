@@ -46,7 +46,7 @@ void main() {
       steps.forEach(call.namedArguments[#onStep] as void Function(GptkStep));
       return result;
     });
-    when(() => repository.check('prueba', 'd3dmetal'))
+    when(() => repository.check('sample', 'd3dmetal'))
         .thenAnswer((_) async => right(const []));
   }
 
@@ -56,7 +56,7 @@ void main() {
     when(() => repository.list())
         .thenAnswer((_) async => right(const [missing]));
     when(() => repository.readyBottles())
-        .thenAnswer((_) async => right(const ['prueba']));
+        .thenAnswer((_) async => right(const ['sample']));
   });
 
   blocTest<BackendsBloc, BackendsState>(
@@ -66,7 +66,7 @@ void main() {
     verify: (bloc) {
       expect(bloc.state.isLoading, isFalse);
       expect(bloc.state.backends, const [missing]);
-      expect(bloc.state.bottles, ['prueba']);
+      expect(bloc.state.bottles, ['sample']);
     },
   );
 
@@ -97,7 +97,7 @@ void main() {
       const BackendsState(
         isLoading: false,
         backends: [installed],
-        bottles: ['prueba'],
+        bottles: ['sample'],
         received: 50,
         total: 100,
       ),
@@ -149,7 +149,7 @@ void main() {
       expect(bloc.state.gptkStep, isNull);
       expect(bloc.state.gptkInstalled, (version: '3.0'));
       expect(bloc.state.error, isNull);
-      verify(() => repository.check('prueba', 'd3dmetal')).called(1);
+      verify(() => repository.check('sample', 'd3dmetal')).called(1);
     },
   );
 
@@ -164,7 +164,7 @@ void main() {
     verify: (bloc) {
       expect(bloc.state.gptkInstalled, (version: null));
       expect(bloc.state.error, isNull);
-      verify(() => repository.check('prueba', 'd3dmetal')).called(1);
+      verify(() => repository.check('sample', 'd3dmetal')).called(1);
     },
   );
 
@@ -210,11 +210,11 @@ void main() {
   blocTest<BackendsBloc, BackendsState>(
     'keeps the results of a check, case by case',
     build: () {
-      when(() => repository.check('prueba', 'dxvk'))
+      when(() => repository.check('sample', 'dxvk'))
           .thenAnswer((_) async => right(const [result]));
       return BackendsBloc(repository);
     },
-    act: (bloc) => bloc.add(const BackendsEvent.check('prueba', 'dxvk')),
+    act: (bloc) => bloc.add(const BackendsEvent.check('sample', 'dxvk')),
     expect: () => const [
       BackendsState(checking: 'dxvk'),
       BackendsState(

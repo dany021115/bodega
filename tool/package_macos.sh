@@ -122,7 +122,7 @@ dart compile exe packages/engine/bin/bodega.dart -o "$tmp/bodega-cli"
 # Seeds a throwaway data directory with the CLI itself; BODEGA_BUNDLE points nowhere so nothing is registered.
 seed="$tmp/seed"
 export BODEGA_HOME="$seed"
-export BODEGA_BUNDLE="$tmp/sin-paquete"
+export BODEGA_BUNDLE="$tmp/no-bundle"
 "$tmp/bodega-cli" install "$engine" "$hostlibs"
 "$tmp/bodega-cli" sdl install
 "$tmp/bodega-cli" backend install dxmt

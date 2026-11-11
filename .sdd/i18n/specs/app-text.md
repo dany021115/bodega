@@ -109,4 +109,5 @@ No screen, dialog or panel shall overflow in either language at the widths that 
 ## L19 · No Spanish in the app's Dart code
 No Dart file in `lib/` (outside the generated `lib/l10n/`) or `test/` shall hold Spanish in code, comments or fixtures, except the name `Español` in the Settings dialog, and tests shall reach Spanish only through `lookupAppL10n(const Locale('es'))` (the engine: `engine-codes.md`).
 - **When** `grep -rniE '[áéíóúñ¿¡]|\b(botellas?|instalar|cancelar|abrir|cerrar|parar|elegir|nueva|agregar|carpeta|una|los|las|para|esta|con)\b' lib test --include='*.dart' --exclude-dir=l10n` runs, **then** it prints only the `Español` line of `settings_dialog.dart`.
+- The grep's word list and T29's ARB scan both miss Spanish words that no ARB message holds: in M3, a dictionary sweep of the test fixtures found ten such words, which T29 turned English.
 - **Check:** the grep above.

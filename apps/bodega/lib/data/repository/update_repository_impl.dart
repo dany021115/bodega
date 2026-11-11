@@ -198,14 +198,21 @@ class UpdateRepositoryImpl implements UpdateRepository {
     }
     final staged = '$parent/.Bodega-update.app';
     final mount = Directory.systemTemp.createTempSync('bodega-update').path;
-    await _run('/usr/bin/hdiutil', [
-      'attach',
-      '-nobrowse',
-      '-readonly',
-      '-mountpoint',
-      mount,
-      file,
-    ]);
+    try {
+      await _run('/usr/bin/hdiutil', [
+        'attach',
+        '-nobrowse',
+        '-readonly',
+        '-mountpoint',
+        mount,
+        file,
+      ]);
+    } catch (_) {
+      // Nothing got mounted, so the folder is still empty: it goes, and the
+      // attach's error is what the caller gets.
+      Directory(mount).deleteSync();
+      rethrow;
+    }
     try {
       final app = Directory(mount)
           .listSync()

@@ -33,8 +33,9 @@ String graphicsLabelText(AppL10n l10n, ExeGraphics graphics) =>
     : l10n.graphicsLabel(graphics.directx, graphics.bits);
 
 /// G4: why [backend] does not suit [program], an exe that draws with
-/// [graphics], or null if it does. It points to the Automatic option by that
-/// option's own text.
+/// [graphics], or null if it does. The run-with-options dialog shows it; its
+/// graphics dropdown has no Automatic option, so it points to none, unlike
+/// the bottle's own warning (`bottleMisfitWarning`).
 String? graphicsMisfitText(
   AppL10n l10n,
   ExeGraphics graphics, {
@@ -46,6 +47,5 @@ String? graphicsMisfitText(
         graphics.bits,
         graphics.directx.replaceFirst('DX', ''),
         backend,
-        l10n.bottleGraphicsAuto,
       )
     : null;

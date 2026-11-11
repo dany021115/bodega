@@ -1,6 +1,9 @@
 import 'package:bloc_test/bloc_test.dart';
 import 'package:bodega/app/bloc/bottles/bottles_bloc.dart';
 import 'package:bodega/app/bloc/library/library_bloc.dart';
+import 'package:bodega/app/bloc/locale/locale_bloc.dart';
+import 'package:bodega/app/presentation/settings/settings_dialog.dart';
+import 'package:bodega/app/shared/widgets/app_version.dart';
 import 'package:bodega/app/shared/widgets/main_shell.dart';
 import 'package:bodega/app/shared/widgets/side_bar.dart';
 import 'package:bodega/domain/entities/bottle.dart';
@@ -19,14 +22,24 @@ class _MockBottles extends MockBloc<BottlesEvent, BottlesState>
 class _MockLibrary extends MockBloc<LibraryEvent, LibraryState>
     implements LibraryBloc {}
 
+class _MockLocale extends MockBloc<LocaleEvent, LocaleState>
+    implements LocaleBloc {}
+
 void main() {
   final en = lookupAppL10n(const Locale('en'));
   late _MockBottles bottles;
   late _MockLibrary library;
+  late _MockLocale language;
 
   setUp(() {
     bottles = _MockBottles();
     library = _MockLibrary();
+    language = _MockLocale();
+    whenListen(
+      language,
+      const Stream<LocaleState>.empty(),
+      initialState: const LocaleState(),
+    );
     whenListen(
       bottles,
       const Stream<BottlesState>.empty(),
@@ -52,6 +65,7 @@ void main() {
       providers: [
         BlocProvider<BottlesBloc>.value(value: bottles),
         BlocProvider<LibraryBloc>.value(value: library),
+        BlocProvider<LocaleBloc>.value(value: language),
       ],
       child: child,
     );
@@ -107,6 +121,45 @@ void main() {
     expect(find.text('G'), findsNothing);
   });
 
+  // L4: the language is set in a dialog, opened from a gear item at the foot
+  // of the sidebar.
+  group('Settings', () {
+    testWidgets('at 1000 px it sits between Backends and the version', (
+      tester,
+    ) async {
+      await pumpShell(tester, 1000);
+      double top(Finder finder) => tester.getTopLeft(finder).dy;
+      final settings = find.text('Settings');
+      expect(settings, findsOneWidget);
+      expect(top(settings), greaterThan(top(find.text('Backends'))));
+      expect(top(settings), lessThan(top(find.byType(AppVersion))));
+    });
+
+    testWidgets('at 600 px only its gear shows, a button with a tooltip', (
+      tester,
+    ) async {
+      await pumpShell(tester, 600);
+      final gear = find.byIcon(Icons.settings_rounded);
+      expect(gear, findsOneWidget);
+      expect(find.text(en.navSettings), findsNothing);
+      expect(find.byTooltip('Settings'), findsOneWidget);
+      expect(
+        tester.getSemantics(gear),
+        isSemantics(label: 'Settings', isButton: true),
+      );
+    });
+
+    for (final width in [1000.0, 600.0]) {
+      testWidgets('a click opens the dialog at $width px', (tester) async {
+        await pumpShell(tester, width);
+        expect(find.byType(SettingsDialog), findsNothing);
+        await tester.tap(find.byIcon(Icons.settings_rounded));
+        await tester.pumpAndSettle();
+        expect(find.byType(SettingsDialog), findsOneWidget);
+      });
+    }
+  });
+
   testWidgets('in Spanish, its words are Spanish (L1)', (tester) async {
     final es = lookupAppL10n(const Locale('es'));
     await pumpShell(tester, 1000, locale: const Locale('es'));
@@ -114,6 +167,7 @@ void main() {
       (l10n) => l10n.navLibrary,
       (l10n) => l10n.navBottles,
       (l10n) => l10n.navNewBottle,
+      (l10n) => l10n.navSettings,
     ]) {
       expect(find.text(text(es)), findsOneWidget);
       expect(find.text(text(en)), findsNothing);
@@ -183,6 +237,7 @@ void main() {
       await pumpBar(tester, '/library');
       expect(tester.takeException(), isNull);
       expect(find.text('Backends'), findsOneWidget);
+      expect(find.text('Settings'), findsOneWidget);
     });
 
     testWidgets('asks for the bottles when it appears', (tester) async {

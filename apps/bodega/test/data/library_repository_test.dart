@@ -20,7 +20,7 @@ void main() {
         '"exe": "P/$name.exe", "args": []}]}',
       );
     }
-    Directory('${home.path}/bottles/vacia').createSync();
+    Directory('${home.path}/bottles/empty').createSync();
 
     final apps = (await LibraryRepositoryImpl(
       TestHome(home.path),

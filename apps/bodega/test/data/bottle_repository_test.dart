@@ -31,7 +31,7 @@ void main() {
         },
       }),
     );
-    File('${bottle.path}/logs/a.log').writeAsStringSync('hola\n');
+    File('${bottle.path}/logs/a.log').writeAsStringSync('hello\n');
     File('${bottle.path}/logs/a.exit').writeAsStringSync('42\n');
     repository = BottleRepositoryImpl(TestHome(home.path));
   });
@@ -151,12 +151,12 @@ void main() {
   test('renaming moves the bottle to its new name', () async {
     (await repository.renameBottle(
       'steam',
-      'juegos',
+      'games',
     )).getOrElse((error) => fail('$error'));
 
-    final detail = (await repository.detail('juegos'))
+    final detail = (await repository.detail('games'))
         .getOrElse((error) => fail('$error'));
-    expect(detail.name, 'juegos');
+    expect(detail.name, 'games');
     expect(Directory('${home.path}/bottles/steam').existsSync(), isFalse);
   });
 }

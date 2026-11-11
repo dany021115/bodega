@@ -19,7 +19,7 @@ void main() {
   late DateTime clock;
   var tag = 'v1.4.0';
   var requests = 0;
-  var dmg = utf8.encode('dmg nuevo');
+  var dmg = utf8.encode('new dmg');
   var sums = '';
 
   String sha(List<int> bytes) => Process.runSync('/usr/bin/shasum', [
@@ -32,7 +32,7 @@ void main() {
     tmp = Directory.systemTemp.createTempSync('bodega-update');
     tag = 'v1.4.0';
     requests = 0;
-    dmg = utf8.encode('dmg nuevo');
+    dmg = utf8.encode('new dmg');
     server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     base = 'http://127.0.0.1:${server.port}';
     sums = '${sha(dmg)}  Bodega-1.4.0-macos-arm64.dmg\n';
@@ -45,7 +45,7 @@ void main() {
           response.write(
             jsonEncode({
               'tag_name': tag,
-              'body': 'Novedades',
+              'body': 'Release notes',
               'html_url': '$base/page',
               'assets': [
                 {
@@ -89,7 +89,7 @@ void main() {
           ..os = 'macos'
           ..environment = const {}
           ..now = (() => clock)
-          ..downloads = '${tmp.path}/descargas';
+          ..downloads = '${tmp.path}/downloads';
   });
 
   tearDown(() async {
@@ -104,7 +104,7 @@ void main() {
     final update = await check();
     expect(update?.version, '1.4.0');
     expect(update?.current, '1.3.0');
-    expect(update?.notes, 'Novedades');
+    expect(update?.notes, 'Release notes');
     expect(update?.installer, '$base/download/Bodega-1.4.0-macos-arm64.dmg');
     expect(update?.installable, isTrue);
   });
@@ -123,13 +123,13 @@ void main() {
     expect(await check(), isNull);
     expect(requests, 1);
     clock = clock.add(const Duration(hours: 2));
-    repository.latestUrl = '$base/nada';
+    repository.latestUrl = '$base/missing';
     expect(await check(), isNull);
     await server.close(force: true);
     expect(await check(), isNull);
   });
 
-  test('"Ahora no" silences that version, not the next (A1)', () async {
+  test('"Not now" silences that version, not the next (A1)', () async {
     await repository.skip('1.4.0');
     expect(await check(), isNull);
     tag = 'v1.4.1';
@@ -151,7 +151,7 @@ void main() {
       update,
       (_, _) {},
     )).getOrElse((error) => fail('$error'));
-    expect(File(file!).readAsStringSync(), 'dmg nuevo');
+    expect(File(file!).readAsStringSync(), 'new dmg');
 
     sums = '${'0' * 64}  Bodega-1.4.0-macos-arm64.dmg\n';
     File(file).deleteSync();
@@ -231,6 +231,22 @@ void main() {
     expect(apps.listSync(), isEmpty);
   }, skip: File('/usr/bin/hdiutil').existsSync() ? false : 'needs hdiutil');
 
+  test('a failed attach leaves no mount folder behind (A5)', () async {
+    final apps = Directory('${tmp.path}/Apps')..createSync();
+    repository.appPath = '${apps.path}/Bodega.app';
+    final file = _write('${tmp.path}/Bodega.dmg', utf8.encode('not a dmg'));
+    // The system's temp folder, where the mount folder is made: one of this
+    // test's own, which nothing else running writes to.
+    final temp = Directory('${tmp.path}/temp')..createSync();
+
+    final install = await IOOverrides.runZoned(
+      () => repository.install(file),
+      getSystemTempDirectory: () => temp,
+    );
+    expect(install.getLeft().toNullable(), isA<ProcessFailedError>());
+    expect(temp.listSync(), isEmpty);
+  }, skip: File('/usr/bin/hdiutil').existsSync() ? false : 'needs hdiutil');
+
   test('a dmg without the app is incomplete (A4)', () async {
     final apps = Directory('${tmp.path}/Apps')..createSync();
     repository.appPath = '${apps.path}/Bodega.app';
@@ -258,18 +274,18 @@ void main() {
       'data (A4, A5)', () async {
     final apps = Directory('${tmp.path}/Apps')..createSync();
     final app = '${apps.path}/Bodega.app';
-    _write('$app/Contents/Info.plist', utf8.encode('vieja'));
+    _write('$app/Contents/Info.plist', utf8.encode('old'));
     _write(
-      '${tmp.path}/nueva/Bodega.app/Contents/Info.plist',
-      utf8.encode('nueva'),
+      '${tmp.path}/new/Bodega.app/Contents/Info.plist',
+      utf8.encode('new'),
     );
-    final data = _write('${tmp.path}/datos/botella.json', utf8.encode('{}'));
+    final data = _write('${tmp.path}/data/bottle.json', utf8.encode('{}'));
     final image = '${tmp.path}/Bodega.dmg';
     await Process.run('/usr/bin/hdiutil', [
       'create',
       '-quiet',
       '-srcfolder',
-      '${tmp.path}/nueva',
+      '${tmp.path}/new',
       '-ov',
       image,
     ]);
@@ -304,7 +320,7 @@ void main() {
       environment: {'PATH': '${bin.path}:/usr/bin:/bin'},
     );
     expect(swap.exitCode, 0, reason: '${swap.stderr}');
-    expect(File('$app/Contents/Info.plist').readAsStringSync(), 'nueva');
+    expect(File('$app/Contents/Info.plist').readAsStringSync(), 'new');
     expect(Directory('$app.old').existsSync(), isFalse);
     expect(Directory('${apps.path}/.Bodega-update.app').existsSync(), isFalse);
     expect(File('${tmp.path}/opened').readAsStringSync().trim(), app);
@@ -312,11 +328,8 @@ void main() {
   }, skip: File('/usr/bin/hdiutil').existsSync() ? false : 'needs hdiutil');
 
   test('an AppImage takes the place of the running one (A4)', () async {
-    final appImage = _write(
-      '${tmp.path}/Bodega.AppImage',
-      utf8.encode('vieja'),
-    );
-    final download = _write('${tmp.path}/nueva.AppImage', utf8.encode('nueva'));
+    final appImage = _write('${tmp.path}/Bodega.AppImage', utf8.encode('old'));
+    final download = _write('${tmp.path}/new.AppImage', utf8.encode('new'));
     repository
       ..os = 'linux'
       ..environment = {'APPIMAGE': appImage};
@@ -324,7 +337,7 @@ void main() {
     final (command, args) = await repository.prepare(download);
     expect(command, appImage);
     expect(args, isEmpty);
-    expect(File(appImage).readAsStringSync(), 'nueva');
+    expect(File(appImage).readAsStringSync(), 'new');
     expect(File(appImage).statSync().mode & 0x40, isNonZero);
     expect(File(download).existsSync(), isFalse);
   });

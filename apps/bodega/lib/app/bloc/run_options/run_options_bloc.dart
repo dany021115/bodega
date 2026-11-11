@@ -9,7 +9,7 @@ part 'run_options_event.dart';
 part 'run_options_state.dart';
 part 'run_options_bloc.freezed.dart';
 
-/// `Ejecutar con opciones` (V11). It launches, and the dialog hands the log to
+/// `Run with options` (V11). It launches, and the dialog hands the log to
 /// the library, which follows what is open.
 @injectable
 class RunOptionsBloc extends Bloc<RunOptionsEvent, RunOptionsState> {

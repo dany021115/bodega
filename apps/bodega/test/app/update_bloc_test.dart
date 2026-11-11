@@ -38,7 +38,7 @@ void main() {
   );
 
   blocTest<UpdateBloc, UpdateState>(
-    '"Ahora no" remembers the version and hides it',
+    '"Not now" remembers the version and hides it',
     build: () => UpdateBloc(repository),
     seed: () => const UpdateState(update: update),
     act: (bloc) => bloc.add(const UpdateEvent.skip()),

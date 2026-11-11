@@ -14,7 +14,7 @@ void main() {
       ..createSync(recursive: true);
     File('${bottle.path}/apps.json').writeAsStringSync(
       '{"apps": ['
-      '{"id": "custom", "title": "Otra", "exe": "o.exe", "args": []},'
+      '{"id": "custom", "title": "Other", "exe": "o.exe", "args": []},'
       '{"id": "steam", "title": "Steam", "exe": "S/Steam.exe", "args": []}'
       ']}',
     );
@@ -32,7 +32,7 @@ void main() {
   test('the 7 of the catalog, with the installed one marked', () async {
     final home = Directory.systemTemp.createTempSync('bodega-catalog');
     addTearDown(() => home.deleteSync(recursive: true));
-    final bottle = Directory('${home.path}/bottles/mi-steam')
+    final bottle = Directory('${home.path}/bottles/my-steam')
       ..createSync(recursive: true);
     File('${bottle.path}/app.json').writeAsStringSync(
       '{"id":"steam","title":"Steam","exe":"s.exe","args":[]}',
@@ -43,7 +43,7 @@ void main() {
     final apps = result.getOrElse((error) => fail('$error'));
     expect(apps, hasLength(7));
     expect(apps.first.id, 'steam');
-    expect(apps.first.bottle, 'mi-steam');
+    expect(apps.first.bottle, 'my-steam');
     expect(apps.first.host, 'cdn.akamai.steamstatic.com');
     expect(apps.first.backendInstalled, isFalse);
     expect(apps.where((app) => app.isInstalled), hasLength(1));

@@ -1,4 +1,4 @@
-# Runs the engine and app tests on Linux for every pull request; also by hand.
+# Runs the engine and app tests, and validates the desktop entry, on Linux for every pull request; also by hand.
 name: test
 
 on:
@@ -6,6 +6,7 @@ on:
     paths:
       - "packages/**"
       - "apps/**"
+      - "packaging/linux/**"
       - "pubspec.yaml"
       - "pubspec.lock"
       - ".github/workflows/test.yml"
@@ -25,6 +26,13 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+      # The .deb, the AppImage and the Arch package ship this entry. It needs no Flutter, so it goes first.
+      - name: desktop entry
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y desktop-file-utils
+          desktop-file-validate packaging/linux/bodega.desktop
       # The project needs Dart ^3.13, which ships with Flutter 3.47.
       - uses: subosito/flutter-action@v2
         with:

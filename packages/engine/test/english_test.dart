@@ -146,11 +146,23 @@ void main() {
       '${const BottleOpen('steam')}',
       'the bottle steam is open: bodega stop steam',
     );
-    expect(
-      const ChecksumMissing('/d/engine-11.0.tar.gz.sha256').message,
-      '/d/engine-11.0.tar.gz.sha256 is missing: '
-      'gh release download engine-11.0 -R dany021115/bodega',
-    );
+  });
+
+  // build.yml and build-hostlibs.yml tag each release with its tarball's
+  // name. These two are named like real releases of dany021115/bodega, with
+  // their free-text note (the workflows' ref_note input) in English.
+  test('a missing checksum names the release of its tarball, engine or '
+      'hostlibs (E4)', () {
+    for (final tag in [
+      'engine-wine-11.0-20261030T202616Z-first-build',
+      'hostlibs-x86_64-20261102T194229Z-first-hostlibs',
+    ]) {
+      expect(
+        ChecksumMissing('/d/$tag.tar.gz.sha256').message,
+        '/d/$tag.tar.gz.sha256 is missing: '
+        'gh release download $tag -R dany021115/bodega',
+      );
+    }
   });
 
   test('the list holds each of the 31 failures', () {

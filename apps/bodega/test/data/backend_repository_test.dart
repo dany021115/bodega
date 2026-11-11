@@ -68,7 +68,7 @@ void main() {
       ..setUint8(64, 0x50)
       ..setUint8(65, 0x45)
       ..setUint16(68, 0x14C, Endian.little);
-    File('${home.path}/bottles/juegos/prefix/drive_c/Blur/Blur.exe')
+    File('${home.path}/bottles/games/prefix/drive_c/Blur/Blur.exe')
       ..createSync(recursive: true)
       ..writeAsBytesSync([
         ...header.buffer.asUint8List(),
@@ -79,7 +79,7 @@ void main() {
         (await BackendRepositoryImpl(
           TestHome(home.path),
           _MockDownloader(),
-        ).graphics('juegos', [r'C:\blur\BLUR.exe', r'C:\no.exe'])).getOrElse(
+        ).graphics('games', [r'C:\blur\BLUR.exe', r'C:\no.exe'])).getOrElse(
           (error) => fail('$error'),
         );
 

@@ -7,7 +7,7 @@ abstract class RunOptionsState with _$RunOptionsState {
     @Default('') String program,
     @Default('') String args,
 
-    /// `NOMBRE=valor`, one per line.
+    /// `NAME=value`, one per line.
     @Default('') String env,
 
     /// Null keeps what the bottle would choose.

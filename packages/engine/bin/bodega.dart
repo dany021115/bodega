@@ -246,9 +246,14 @@ Future<void> main(List<String> args) async {
   try {
     final issues = await checkHost();
     if (issues.isNotEmpty) {
-      throw issues
-          .map((i) => [describeHostIssue(i), ?i.command].join(': '))
-          .join('\n');
+      // Each issue is a failure of its own: every line carries the prefix
+      // (E6).
+      for (final issue in issues) {
+        final text = [describeHostIssue(issue), ?issue.command].join(': ');
+        stderr.writeln('bodega: $text');
+      }
+      exitCode = 1;
+      return;
     }
     exitCode = await verb(bodegaHome(Platform.environment));
   } catch (e) {

@@ -160,6 +160,9 @@ final class ChecksumMissing extends EngineFailure {
   /// The missing checksum file, `<tarball>.sha256`.
   final String file;
 
+  /// Names the release of the tarball's own name: build.yml and
+  /// build-hostlibs.yml tag each engine and hostlibs release with its
+  /// tarball's name, and attach the `.sha256` beside it.
   @override
   String get message =>
       '$file is missing: gh release download '

@@ -1234,9 +1234,9 @@
       }
     }
   },
-  "errBottleExists": "There is already a bottle called {bottle}. Use another name, or delete that bottle from its page to start over.",
+  "errBottleExists": "A bottle named {bottle} already exists.",
   "@errBottleExists": {
-    "description": "Error, in the error panel of the screen that failed or in a toast: creating or renaming a bottle, or installing a catalog app into a new one, needs a name a bottle already has. bottle is that name. It points to the bottle page's Delete, never to a command.",
+    "description": "Error, in the error panel of the screen that failed or in a toast: creating or renaming a bottle, or installing a catalog app into a new one, needs a name a bottle already has. bottle is that name. It gives no advice, since none fits every place it shows: the catalog install names no bottle, and its dropdown already offers that one.",
     "placeholders": {
       "bottle": {
         "type": "String",
@@ -1870,9 +1870,9 @@
       }
     }
   },
-  "graphicsMisfitWarning": "{program} is {bits}-bit, with DirectX {version}: {backend} won't work for it. Use {automatic}.",
+  "graphicsMisfitWarning": "{program} is {bits}-bit, with DirectX {version}: {backend} won't work for it.",
   "@graphicsMisfitWarning": {
-    "description": "Warning under the graphics dropdown of the run-with-options dialog when the backend chosen does not suit the program to run. {automatic} is the text of the Automatic option of a bottle's graphics (bottleGraphicsAuto).",
+    "description": "Warning under the graphics dropdown of the run-with-options dialog when the backend chosen does not suit the program to run. It points to no other option: that dropdown has no Automatic one (the bottle's own warning, bottleMisfitWarning, does point to it).",
     "placeholders": {
       "program": {
         "type": "String",
@@ -1892,10 +1892,6 @@
       "backend": {
         "type": "String",
         "example": "d3dmetal"
-      },
-      "automatic": {
-        "type": "String",
-        "example": "Automatic"
       }
     }
   },
@@ -1959,9 +1955,9 @@
   "@catalogSteamIssue5Symptom": {
     "description": "Steam in the catalog: what goes wrong in known issue 5, in the Known issues section of its page. The same text as its knownIssues[4].symptom in the engine's catalog_data.dart."
   },
-  "catalogSteamIssue5Fix": "bodega stop steam and open it again; it carries on.",
+  "catalogSteamIssue5Fix": "Stop the bottle and open Steam again; it carries on.",
   "@catalogSteamIssue5Fix": {
-    "description": "Steam in the catalog: what to do about known issue 5 (catalogSteamIssue5Symptom), under it in the Known issues section of its page. The same text as its knownIssues[4].fix in the engine's catalog_data.dart. Keep the bodega command as it is: it is typed in a terminal."
+    "description": "Steam in the catalog: what to do about known issue 5 (catalogSteamIssue5Symptom), under it in the Known issues section of its page. The same text as its knownIssues[4].fix in the engine's catalog_data.dart."
   },
   "catalogSteamIssue6Symptom": "Steam Client Service doesn't start (GLE 126)",
   "@catalogSteamIssue6Symptom": {
@@ -1987,17 +1983,17 @@
   "@catalogRockstarNote1": {
     "description": "Rockstar Games Launcher in the catalog: note 1 of the Notes section of its page, also shown in the install panel once it is installed. The same text as its notes[0] in the engine's catalog_data.dart."
   },
-  "catalogRockstarNote2": "If it freezes on the logo, try bodega open --backend d3dmetal rockstar. Highball also suggests vcrun2019, which Bodega doesn't install yet.",
+  "catalogRockstarNote2": "If it freezes on the logo, try opening it with the D3DMetal backend. Highball also suggests vcrun2019, which Bodega doesn't install yet.",
   "@catalogRockstarNote2": {
-    "description": "Rockstar Games Launcher in the catalog: note 2 of the Notes section of its page, also shown in the install panel once it is installed. The same text as its notes[1] in the engine's catalog_data.dart. Keep the bodega command as it is: it is typed in a terminal."
+    "description": "Rockstar Games Launcher in the catalog: note 2 of the Notes section of its page, also shown in the install panel once it is installed. The same text as its notes[1] in the engine's catalog_data.dart."
   },
   "catalogRockstarIssue1Symptom": "The sign-in window is empty",
   "@catalogRockstarIssue1Symptom": {
     "description": "Rockstar Games Launcher in the catalog: what goes wrong in known issue 1, in the Known issues section of its page. The same text as its knownIssues[0].symptom in the engine's catalog_data.dart."
   },
-  "catalogRockstarIssue1Fix": "bodega stop rockstar and open it again.",
+  "catalogRockstarIssue1Fix": "Stop the bottle and open the launcher again.",
   "@catalogRockstarIssue1Fix": {
-    "description": "Rockstar Games Launcher in the catalog: what to do about known issue 1 (catalogRockstarIssue1Symptom), under it in the Known issues section of its page. The same text as its knownIssues[0].fix in the engine's catalog_data.dart. Keep the bodega command as it is: it is typed in a terminal."
+    "description": "Rockstar Games Launcher in the catalog: what to do about known issue 1 (catalogRockstarIssue1Symptom), under it in the Known issues section of its page. The same text as its knownIssues[0].fix in the engine's catalog_data.dart."
   },
   "catalogRockstarIssue2Symptom": "The installer stays on Preparing to Install... forever",
   "@catalogRockstarIssue2Symptom": {
@@ -2027,17 +2023,17 @@
   "@catalogEaAppNote1": {
     "description": "EA app in the catalog: note 1 of the Notes section of its page, also shown in the install panel once it is installed. The same text as its notes[0] in the engine's catalog_data.dart."
   },
-  "catalogEaAppNote2": "The Sikarugir community uses it with D3DMetal: the alternative is bodega open --backend d3dmetal ea-app.",
+  "catalogEaAppNote2": "The Sikarugir community uses it with D3DMetal: the alternative is to open it with the D3DMetal backend.",
   "@catalogEaAppNote2": {
-    "description": "EA app in the catalog: note 2 of the Notes section of its page, also shown in the install panel once it is installed. The same text as its notes[1] in the engine's catalog_data.dart. Keep the bodega command as it is: it is typed in a terminal."
+    "description": "EA app in the catalog: note 2 of the Notes section of its page, also shown in the install panel once it is installed. The same text as its notes[1] in the engine's catalog_data.dart."
   },
   "catalogEaAppIssue1Symptom": "The installer starts and sits there with no window and no CPU use",
   "@catalogEaAppIssue1Symptom": {
     "description": "EA app in the catalog: what goes wrong in known issue 1, in the Known issues section of its page. The same text as its knownIssues[0].symptom in the engine's catalog_data.dart."
   },
-  "catalogEaAppIssue1Fix": "If nothing shows up within a minute, bodega stop ea-app and try again.",
+  "catalogEaAppIssue1Fix": "If nothing shows up within a minute, stop the bottle and try again.",
   "@catalogEaAppIssue1Fix": {
-    "description": "EA app in the catalog: what to do about known issue 1 (catalogEaAppIssue1Symptom), under it in the Known issues section of its page. The same text as its knownIssues[0].fix in the engine's catalog_data.dart. Keep the bodega command as it is: it is typed in a terminal."
+    "description": "EA app in the catalog: what to do about known issue 1 (catalogEaAppIssue1Symptom), under it in the Known issues section of its page. The same text as its knownIssues[0].fix in the engine's catalog_data.dart."
   },
   "catalogEaAppIssue2Symptom": "A dark, empty window, or the app isn't there after a successful install",
   "@catalogEaAppIssue2Symptom": {
@@ -2063,9 +2059,9 @@
   "@catalogUbisoftConnectIssue1Symptom": {
     "description": "Ubisoft Connect in the catalog: what goes wrong in known issue 1, in the Known issues section of its page. The same text as its knownIssues[0].symptom in the engine's catalog_data.dart."
   },
-  "catalogUbisoftConnectIssue1Fix": "Highball saw this on its Wine 10 engine. Try another backend with bodega open --backend.",
+  "catalogUbisoftConnectIssue1Fix": "Highball saw this on its Wine 10 engine. Try opening it with another backend.",
   "@catalogUbisoftConnectIssue1Fix": {
-    "description": "Ubisoft Connect in the catalog: what to do about known issue 1 (catalogUbisoftConnectIssue1Symptom), under it in the Known issues section of its page. The same text as its knownIssues[0].fix in the engine's catalog_data.dart. Keep the bodega command as it is: it is typed in a terminal."
+    "description": "Ubisoft Connect in the catalog: what to do about known issue 1 (catalogUbisoftConnectIssue1Symptom), under it in the Known issues section of its page. The same text as its knownIssues[0].fix in the engine's catalog_data.dart."
   },
   "catalogBattleNetStatusNote": "Highball only verified it on its Wine 10 engine; on Wine 11 r10 the window stayed black. Bodega uses Wine 11, so it may not work.",
   "@catalogBattleNetStatusNote": {
@@ -2115,9 +2111,9 @@
   "@catalogEpicGamesIssue1Fix": {
     "description": "Epic Games Launcher in the catalog: what to do about known issue 1 (catalogEpicGamesIssue1Symptom), under it in the Known issues section of its page. The same text as its knownIssues[0].fix in the engine's catalog_data.dart."
   },
-  "catalogGogGalaxyStatusNote": "It installs, but on Wine 11 it shows the sign-in and closes two seconds later. GOG games have no DRM: use their offline installers with bodega create and bodega run.",
+  "catalogGogGalaxyStatusNote": "It installs, but on Wine 11 it shows the sign-in and closes two seconds later. GOG games have no DRM: run their offline installers in a bottle.",
   "@catalogGogGalaxyStatusNote": {
-    "description": "GOG Galaxy in the catalog: the note on its status, under the status chip on its page and on its card in the add-app dialog. The same text as its statusNote in the engine's catalog_data.dart. Keep the bodega command as it is: it is typed in a terminal."
+    "description": "GOG Galaxy in the catalog: the note on its status, under the status chip on its page and on its card in the add-app dialog. The same text as its statusNote in the engine's catalog_data.dart."
   },
   "catalogGogGalaxyIssue1Symptom": "It shows the sign-in and closes about two seconds later",
   "@catalogGogGalaxyIssue1Symptom": {
@@ -2126,5 +2122,17 @@
   "catalogGogGalaxyIssue1Fix": "No fix; use the offline installers from gog.com.",
   "@catalogGogGalaxyIssue1Fix": {
     "description": "GOG Galaxy in the catalog: what to do about known issue 1 (catalogGogGalaxyIssue1Symptom), under it in the Known issues section of its page. The same text as its knownIssues[0].fix in the engine's catalog_data.dart."
+  },
+  "navSettings": "Settings",
+  "@navSettings": {
+    "description": "The app's settings, today only its language: the sidebar item with a gear at the foot of the sidebar that opens the Settings dialog (also its tooltip when the sidebar shows only icons), and the title of that dialog. Not a bottle's settings (bottleSectionSettings)."
+  },
+  "settingsLanguage": "Language",
+  "@settingsLanguage": {
+    "description": "Heading of the Settings dialog's only section: the language the app shows its text in. Under it, three choices: settingsLanguageSystem, then English and Spanish, each named in its own language."
+  },
+  "settingsLanguageSystem": "System",
+  "@settingsLanguageSystem": {
+    "description": "Choice in the Language section of the Settings dialog: the app follows the system's language (Spanish when the system prefers it to English; otherwise English). The other two choices are the languages' own names."
   }
 }

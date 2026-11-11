@@ -39,8 +39,8 @@ void main() {
   });
 
   RunOptionsState form({
-    String program = r'C:\Juego\a.exe',
-    String args = '-uno "dos tres"',
+    String program = r'C:\Game\a.exe',
+    String args = '-one "two three"',
     String env = 'DXVK_HUD=fps\n\nWINEDEBUG=+d3d',
     bool save = false,
   }) => RunOptionsState(
@@ -51,7 +51,7 @@ void main() {
     backend: 'dxvk',
     avx: false,
     save: save,
-    title: 'Mi juego',
+    title: 'My game',
   );
 
   blocTest<RunOptionsBloc, RunOptionsState>(
@@ -65,8 +65,8 @@ void main() {
       verify(
         () => repository.launch(
           'steam',
-          r'C:\Juego\a.exe',
-          args: ['-uno', 'dos tres'],
+          r'C:\Game\a.exe',
+          args: ['-one', 'two three'],
           env: {'DXVK_HUD': 'fps', 'WINEDEBUG': '+d3d'},
           backend: 'dxvk',
           avx: false,
@@ -94,9 +94,9 @@ void main() {
       verify(
         () => repository.saveLauncher(
           'steam',
-          'Mi juego',
-          r'C:\Juego\a.exe',
-          args: ['-uno', 'dos tres'],
+          'My game',
+          r'C:\Game\a.exe',
+          args: ['-one', 'two three'],
           env: {'DXVK_HUD': 'fps', 'WINEDEBUG': '+d3d'},
         ),
       ).called(1);

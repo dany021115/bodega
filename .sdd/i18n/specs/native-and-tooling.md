@@ -23,9 +23,9 @@ The Xcode project shall declare Spanish: `es` in `knownRegions` (`macos/Runner.x
 - Check: `plutil -lint` on `project.pbxproj`; the two `plutil -extract`; `flutter build macos --release`, then `ls` of the bundle's `.lproj` folders.
 
 ## N3 · Menu bar
-`macos/Runner/es.lproj/MainMenu.strings` shall translate every string of `macos/Runner/Base.lproj/MainMenu.xib`, which stays the English source, with the words of macOS's own Spanish menus, and every `.lproj/*.strings` file shall be UTF-8.
-- **Given** `xcrun ibtool --export-strings-file` of `Base.lproj/MainMenu.xib` (65 strings: 52 items, 12 menus, the window title), **when** its keys are compared with those of `es.lproj/MainMenu.strings` (both through `plutil -convert json`), **then** they are the same and only "Bodega" and "Zoom" keep their English value; the words are TextEdit's Spanish ones (`/System/Applications/TextEdit.app/Contents/Resources/Edit.loctable`, `es`), such as "Edición", "Visualización", "Ventana", "Salir de Bodega".
-- **Given** the strings files, **when** `file macos/Runner/*.lproj/*.strings` runs, **then** each is UTF-8 text: `ibtool` exports UTF-16, which git stores and diffs as binary.
+`macos/Runner/es.lproj/MainMenu.strings` shall translate every string of `macos/Runner/Base.lproj/MainMenu.xib`, which stays the English source, with the words of macOS's own Spanish menus, and every `.lproj/*.strings` file under `macos/Runner/` shall be UTF-8.
+- **Given** `xcrun ibtool --export-strings-file` of `Base.lproj/MainMenu.xib` (65 strings: 52 items, 12 menus, the window title), **when** its keys are compared with those of `es.lproj/MainMenu.strings` (both through `plutil -convert json`), **then** they are the same and only "Bodega" and "Zoom" keep their English value; the words are TextEdit's Spanish ones (`/System/Applications/TextEdit.app/Contents/Resources/Edit.loctable`, `es`), such as "Edición", "Visualización", "Ventana", "Salir de Bodega". Two titles have no match there, and neither shows on screen: the main menu's own, "Main Menu", and the Spelling submenu's, "Spelling" (TextEdit's is "Spelling and Grammar").
+- **Given** the strings files, **when** `file macos/Runner/*.lproj/*.strings` runs, **then** it prints "UTF-8 text" for each, or "ASCII text" for one that is all ASCII, as `en.lproj/InfoPlist.strings` is, which is UTF-8 too. What matters is no UTF-16 and no BOM: `ibtool` exports UTF-16, which git stores and diffs as binary.
 - Check: the `ibtool` and `plutil` key comparison; `file`.
 
 ## N4 · Spanish on a real Mac (USER)
@@ -37,7 +37,7 @@ On a Mac, the menu bar, the permission prompts and AppKit's own panels shall fol
 ## N5 · Linux desktop entry
 `packaging/linux/bodega.desktop`, which the `.deb`, the AppImage and the Arch package ship rewriting only `Exec=` (`packaging/linux/build_deb.sh:23`, `build_appimage.sh:20`, `packaging/arch/PKGBUILD:33`), shall keep its English `Comment` and add `Comment[es]`, `GenericName`, `GenericName[es]`, `Keywords` and `Keywords[es]`, validated in CI.
 - **Given** the file, **when** `desktop-file-validate packaging/linux/bodega.desktop` runs, **then** it exits 0, and the file reads `Comment[es]=Lanzador para jugar juegos de Windows con Wine` (its text before `ed53a40`), `GenericName=Game launcher`, `GenericName[es]=Lanzador de juegos`, `Keywords=wine;windows;games;launcher;` and `Keywords[es]=wine;windows;juegos;lanzador;`.
-- **Given** a pull request that touches `packaging/linux/**`, which joins `test.yml`'s `paths:` (`:6-11`), **when** `test` runs, **then** a step installs `desktop-file-utils` and validates the file, and an invalid entry (a list without its final `;`) fails the run.
+- **Given** a pull request that touches `packaging/linux/**`, which joins `test.yml`'s `paths:` (`:6-11`), **when** `test` runs, **then** a step installs `desktop-file-utils` and validates the file, and an invalid entry fails the run, such as one whose `Keywords=` line is deleted, so its `Keywords[es]` has no base key. A list without its final `;` is not invalid: desktop-file-utils made that `;` optional in 0.23, and Ubuntu 24.04 ships 0.27.
 - Check: `desktop-file-validate` on Linux; the pull request's `test` run.
 
 ## N6 · Spanish on a real Linux desktop (USER)
@@ -90,9 +90,9 @@ The app shall generate `AppL10n` with Flutter gen-l10n from `lib/l10n/app_en.arb
 - Check: that commit's diff holds both lines; the `smoke` run at release, which the user starts.
 
 ## N14 · Rules and docs
-`.claude/CLAUDE.md` and `.claude/rules/` shall carry the rules of `design.md` §10, and outside `.sdd/` the only Spanish left in git shall be the translation files.
-- **Given** the rules, **when** ``grep -n 'user reads in Spanish\|throws `String`' .claude/rules/*.md`` runs, **then** it finds nothing (today `code-style.md:21`, `architecture.md:24`); `.claude/CLAUDE.md` names the Spanish files (`:7`), lists `flutter gen-l10n` (`:42-54`) and `app_localizations*.dart` (`:56`); `architecture.md` has a "Text" section.
-- **Given** the committed change, **when** `git grep -lIP '[áéíóúñÁÉÍÓÚÑ¿¡]' -- . ':!.sdd'` runs at the repo root, **then** it lists only `apps/bodega/lib/l10n/app_es.arb` and `apps/bodega/macos/Runner/es.lproj/*.strings`, plus `bodega.desktop` if an `[es]` value has an accent (today: 65 files).
+`.claude/CLAUDE.md` and `.claude/rules/` shall carry the rules of `design.md` §10, and outside `.sdd/` the only Spanish left in git shall be the translation files and the Settings dialog's name for Spanish (L19).
+- **Given** the rules, **when** ``grep -n 'user reads in Spanish\|throws `String`' .claude/rules/*.md`` runs, **then** it finds nothing (today `code-style.md:21`, `architecture.md:24`); `.claude/CLAUDE.md` names the Spanish files and allows that one name (`:7`), lists `flutter gen-l10n` (`:42-54`) and `app_localizations*.dart` (`:56`); `architecture.md` has a "Text" section.
+- **Given** the committed change, **when** `git grep -lIP '[áéíóúñÁÉÍÓÚÑ¿¡]' -- . ':!.sdd'` runs at the repo root, **then** it lists only `apps/bodega/lib/l10n/app_es.arb`, `apps/bodega/macos/Runner/es.lproj/*.strings` and `apps/bodega/lib/app/presentation/settings/settings_dialog.dart`, whose `Español` L19 and design §2 require, plus `bodega.desktop` if an `[es]` value has an accent (today: 65 files).
 - Check: those two greps; reading the diff of `.claude/`.
 
 ## N15 · Dead widgets removed
@@ -102,7 +102,7 @@ The app shall generate `AppL10n` with Flutter gen-l10n from `lib/l10n/app_en.arb
 
 ## N16 · Version
 The change shall raise the version once, to 1.5.0, before its first commit (proposal.md §Version).
-- **Given** `tool/version.sh bump minor` applied, **when** `tool/version.sh check` runs before each commit, **then** it prints `OK: version 1.5.0 (tag v1.4.2)`, and `tool/version.sh get` prints `1.5.0`.
+- **Given** `tool/version.sh bump minor` applied, **when** `tool/version.sh check` runs before each commit, **then** it prints `OK: version 1.5.0 (tag v1.4.2).`, and `tool/version.sh get` prints `1.5.0`.
 - **Given** the branch, **when** `git log -p -- apps/bodega/pubspec.yaml` runs, **then** it shows at most one change to the `version:` line.
 - **Given** the branch on `main`, **when** `tag-version` runs (`tag-version.yml:26-37`), **then** `v1.5.0` points at a commit that holds the whole change, and no other tag moved.
 - Check: `tool/version.sh get` and `check`; `git ls-remote --tags origin` after the push.

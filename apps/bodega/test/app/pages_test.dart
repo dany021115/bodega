@@ -10,6 +10,7 @@ import 'package:bodega/app/bloc/catalog/catalog_bloc.dart';
 import 'package:bodega/app/bloc/gamepads/gamepads_bloc.dart';
 import 'package:bodega/app/bloc/install/install_bloc.dart';
 import 'package:bodega/app/bloc/library/library_bloc.dart';
+import 'package:bodega/app/bloc/locale/locale_bloc.dart';
 import 'package:bodega/app/bloc/new_bottle/new_bottle_bloc.dart';
 import 'package:bodega/app/bloc/run_options/run_options_bloc.dart';
 import 'package:bodega/app/bloc/sections/sections_bloc.dart';
@@ -27,6 +28,7 @@ import 'package:bodega/app/presentation/catalog/catalog_detail_page.dart';
 import 'package:bodega/app/presentation/catalog/catalog_page.dart';
 import 'package:bodega/app/presentation/library/library_page.dart';
 import 'package:bodega/app/presentation/library/widgets/bottle_tag.dart';
+import 'package:bodega/app/presentation/settings/settings_dialog.dart';
 import 'package:bodega/app/presentation/setup/setup_page.dart';
 import 'package:bodega/app/router.dart';
 import 'package:bodega/app/shared/text/catalog_text.dart';
@@ -104,6 +106,9 @@ class _MockGamepads extends MockBloc<GamepadsEvent, GamepadsState>
 
 class _MockSetup extends MockBloc<SetupEvent, SetupState>
     implements SetupBloc {}
+
+class _MockLocale extends MockBloc<LocaleEvent, LocaleState>
+    implements LocaleBloc {}
 
 // The longest texts and every chip at once: what would overflow first.
 final _long = 'A long note that takes up several lines on the screen. ' * 6;
@@ -653,6 +658,30 @@ void main() {
         );
         expect(
           find.text(lookupAppL10n(locale).stepGptkAcceptLicense),
+          findsOneWidget,
+        );
+      });
+
+      testWidgets('the Settings dialog fits at $width px $lang', (
+        tester,
+      ) async {
+        final language = _MockLocale();
+        whenListen(
+          language,
+          const Stream<LocaleState>.empty(),
+          initialState: const LocaleState(),
+        );
+        await pumpAt(
+          tester,
+          BlocProvider<LocaleBloc>.value(
+            value: language,
+            child: const SettingsDialog(),
+          ),
+        );
+        // Its three choices, and Close on screen.
+        expect(find.byType(RadioListTile<String?>), findsNWidgets(3));
+        expect(
+          find.text(lookupAppL10n(locale).commonClose).hitTestable(),
           findsOneWidget,
         );
       });

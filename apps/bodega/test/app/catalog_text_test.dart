@@ -1,7 +1,8 @@
 // The catalog's prose, worded by app id from the ARBs (design §7). In English
 // it is the engine's own text, field by field, so a catalog update fails here
 // until the ARBs follow; in Spanish it keeps that shape, with every string
-// translated (N10, L16). Spanish comes only through lookupAppL10n.
+// translated (N10, L16). In neither does it give a bodega command. Spanish
+// comes only through lookupAppL10n.
 //
 // Each check is a function from the engine's text and catalogProse to the
 // problems it finds, named by id and field. The last group feeds it one fault
@@ -59,6 +60,16 @@ List<String> _englishProblems(
   ];
 }
 
+/// A `bodega` command, which the prose never gives: it says what to do in
+/// words that fit the app and the CLI alike (design §7).
+final _command = RegExp(r'\bbodega [a-z]');
+
+/// The fields of [prose], the text of the app [id], that give a command.
+List<String> _commandProblems(String id, CatalogProse prose) => [
+  for (final MapEntry(key: field, value: text) in _fields(prose).entries)
+    if (_command.hasMatch(text)) '$id: $field gives a command: "$text"',
+];
+
 /// Where [spanish] has a field [english] lacks, or the other way round, or
 /// keeps a string as it is in English or empty.
 List<String> _spanishProblems(
@@ -111,6 +122,17 @@ void main() {
     ], isEmpty);
   });
 
+  test('each app says what to do, never a bodega command, in the engine and '
+      'in Spanish (design §7)', () {
+    expect([
+      for (final entry in entries) ...[
+        ..._commandProblems(entry.id, _proseOf(entry)),
+        if (catalogProse(entry.id, es) case final spanish?)
+          ..._commandProblems('${entry.id} (es)', spanish),
+      ],
+    ], isEmpty);
+  });
+
   test('an id the catalog does not have has no prose', () {
     expect(catalogProse('nope', en), isNull);
     expect(catalogProse('nope', es), isNull);
@@ -151,6 +173,19 @@ void main() {
         'steam: knownIssues[7].symptom is missing from app_en.arb',
         'steam: knownIssues[7].fix is missing from app_en.arb',
         'steam: notes[3] is in app_en.arb, not in catalog_data.dart',
+      ]);
+    });
+
+    test('a fix that gives a command instead of saying what to do', () {
+      final CatalogProse changed = (
+        statusNote: steam.statusNote,
+        flaky: steam.flaky,
+        notes: steam.notes,
+        issues: [...steam.issues]
+          ..[4] = (steam.issues[4].$1, 'bodega stop it.'),
+      );
+      expect(_commandProblems('steam', changed), [
+        'steam: knownIssues[4].fix gives a command: "bodega stop it."',
       ]);
     });
 

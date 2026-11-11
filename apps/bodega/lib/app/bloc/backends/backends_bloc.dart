@@ -108,7 +108,7 @@ class BackendsBloc extends Bloc<BackendsEvent, BackendsState> {
     emit(state.copyWith(gptkWaiting: null));
   }
 
-  /// I3, then the check (Comprobar) in the first bottle that can run it.
+  /// I3, then the check (the card's Check) in the first bottle that can run it.
   Future<void> _installDmg(String dmg, Emitter<BackendsState> emit) async {
     _cancelled = false;
     emit(

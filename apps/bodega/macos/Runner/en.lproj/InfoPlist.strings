@@ -1,0 +1,8 @@
+/* Permission prompts in English. Info.plist holds the same text, and
+   es.lproj the Spanish. CFBundleName stays out: the app is "Bodega" in
+   every language. */
+
+"NSDownloadsFolderUsageDescription" = "Bodega looks in Downloads for the Game Porting Toolkit you downloaded from Apple, to install D3DMetal.";
+"NSLocalNetworkUsageDescription" = "Games use the local network for LAN matches with other computers in your home.";
+"NSMicrophoneUsageDescription" = "Windows games use the microphone for voice chat.";
+"NSCameraUsageDescription" = "A Windows program wants to use the camera.";

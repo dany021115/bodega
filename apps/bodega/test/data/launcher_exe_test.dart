@@ -9,9 +9,6 @@ void main() {
       'Program Files/A/a.exe',
     );
     expect(launcherExe(bottle, '$bottle/prefix/drive_c/A/a.exe'), 'A/a.exe');
-    expect(
-      launcherExe(bottle, '/Users/q/Juegos/a.exe'),
-      '/Users/q/Juegos/a.exe',
-    );
+    expect(launcherExe(bottle, '/Users/q/Games/a.exe'), '/Users/q/Games/a.exe');
   });
 }

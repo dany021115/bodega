@@ -49,7 +49,7 @@ const catalogJson = r'''
       },
       {
         "symptom": "The download stops at around 215/235 MB",
-        "fix": "bodega stop steam and open it again; it carries on."
+        "fix": "Stop the bottle and open Steam again; it carries on."
       },
       {
         "symptom": "Steam Client Service doesn't start (GLE 126)",
@@ -100,12 +100,12 @@ const catalogJson = r'''
     ],
     "notes": [
       "The installer comes with what it needs from Social Club.",
-      "If it freezes on the logo, try bodega open --backend d3dmetal rockstar. Highball also suggests vcrun2019, which Bodega doesn't install yet."
+      "If it freezes on the logo, try opening it with the D3DMetal backend. Highball also suggests vcrun2019, which Bodega doesn't install yet."
     ],
     "knownIssues": [
       {
         "symptom": "The sign-in window is empty",
-        "fix": "bodega stop rockstar and open it again."
+        "fix": "Stop the bottle and open the launcher again."
       },
       {
         "symptom": "The installer stays on Preparing to Install... forever",
@@ -144,12 +144,12 @@ const catalogJson = r'''
     "registry": [],
     "notes": [
       "Errors from its background service may show up; they can be closed.",
-      "The Sikarugir community uses it with D3DMetal: the alternative is bodega open --backend d3dmetal ea-app."
+      "The Sikarugir community uses it with D3DMetal: the alternative is to open it with the D3DMetal backend."
     ],
     "knownIssues": [
       {
         "symptom": "The installer starts and sits there with no window and no CPU use",
-        "fix": "If nothing shows up within a minute, bodega stop ea-app and try again."
+        "fix": "If nothing shows up within a minute, stop the bottle and try again."
       },
       {
         "symptom": "A dark, empty window, or the app isn't there after a successful install",
@@ -188,7 +188,7 @@ const catalogJson = r'''
     "knownIssues": [
       {
         "symptom": "The launcher runs, but its window comes up white or black",
-        "fix": "Highball saw this on its Wine 10 engine. Try another backend with bodega open --backend."
+        "fix": "Highball saw this on its Wine 10 engine. Try opening it with another backend."
       }
     ],
     "source": {
@@ -275,7 +275,7 @@ const catalogJson = r'''
     "id": "gog-galaxy",
     "title": "GOG Galaxy",
     "status": "blocked",
-    "statusNote": "It installs, but on Wine 11 it shows the sign-in and closes two seconds later. GOG games have no DRM: use their offline installers with bodega create and bodega run.",
+    "statusNote": "It installs, but on Wine 11 it shows the sign-in and closes two seconds later. GOG games have no DRM: run their offline installers in a bottle.",
     "installer": {
       "url": "https://content-system.gog.com/open_link/download?path=/open/galaxy/client/setup_galaxy_2.1.6.29.exe",
       "sha256": "c2888e0a1425823e47ed04c26e2d3c81cb14564a8e92d9c9628c3ed77a9d87bc",

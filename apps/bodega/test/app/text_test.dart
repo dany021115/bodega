@@ -1822,6 +1822,13 @@ void main() {
       expect(open.localized(es), es.errBottleOpen('steam'));
     });
 
+    test('a bottle name that is taken gives no advice: none fits every place '
+        'it shows, the catalog install included (design §5)', () {
+      const exists = AppError.bottleExists('steam');
+      expect(exists.localized(en), 'A bottle named steam already exists.');
+      expect(exists.localized(es), es.errBottleExists('steam'));
+    });
+
     test('a label or a sentence inside an error comes from its own key, in the '
         'same language (L12)', () {
       for (final l10n in [en, es]) {
@@ -2827,8 +2834,7 @@ void main() {
         },
       );
 
-      test('a backend that does not suit the exe is named, with the Automatic '
-          'option of each language (G4, L12)', () {
+      test('a backend that does not suit the exe is named (G4)', () {
         expect(
           graphicsMisfitText(
             en,
@@ -2836,27 +2842,35 @@ void main() {
             program: 'Blur',
             backend: 'd3dmetal',
           ),
-          "Blur is 32-bit, with DirectX 9: d3dmetal won't work for it. "
-          'Use Automatic.',
-        );
-        final spanish = graphicsMisfitText(
-          es,
-          _blurGraphics,
-          program: 'Blur',
-          backend: 'd3dmetal',
+          "Blur is 32-bit, with DirectX 9: d3dmetal won't work for it.",
         );
         expect(
-          spanish,
-          es.graphicsMisfitWarning(
-            'Blur',
-            32,
-            '9',
-            'd3dmetal',
-            es.bottleGraphicsAuto,
+          graphicsMisfitText(
+            es,
+            _blurGraphics,
+            program: 'Blur',
+            backend: 'd3dmetal',
           ),
+          es.graphicsMisfitWarning('Blur', 32, '9', 'd3dmetal'),
         );
-        expect(spanish, contains(es.bottleGraphicsAuto));
-        expect(spanish, isNot(contains(en.bottleGraphicsAuto)));
+      });
+
+      test('it names no Automatic option, in either language: the '
+          'run-with-options dialog has none (L12)', () {
+        for (final l10n in [en, es]) {
+          final warning = graphicsMisfitText(
+            l10n,
+            _blurGraphics,
+            program: 'Blur',
+            backend: 'd3dmetal',
+          )!;
+          for (final automatic in [
+            en.bottleGraphicsAuto,
+            es.bottleGraphicsAuto,
+          ]) {
+            expect(warning, isNot(contains(automatic)), reason: warning);
+          }
+        }
       });
 
       test('a backend that suits the exe gives no warning', () {
@@ -2930,21 +2944,23 @@ void main() {
 
         for (final locale in _locales) {
           testWidgets('warns of a backend that does not suit the program, in '
-              'the active language (${locale.languageCode})', (tester) async {
+              'the active language, and names no Automatic option '
+              '(${locale.languageCode})', (tester) async {
             final l10n = lookupAppL10n(locale);
             await pumpDialog(tester, 'd3dmetal', locale);
             expect(
               find.text(
-                l10n.graphicsMisfitWarning(
-                  'Blur',
-                  32,
-                  '9',
-                  'd3dmetal',
-                  l10n.bottleGraphicsAuto,
-                ),
+                l10n.graphicsMisfitWarning('Blur', 32, '9', 'd3dmetal'),
               ),
               findsOneWidget,
             );
+            // Its graphics dropdown has none, so no text there says it.
+            for (final automatic in [
+              en.bottleGraphicsAuto,
+              es.bottleGraphicsAuto,
+            ]) {
+              expect(find.textContaining(automatic), findsNothing);
+            }
           });
         }
 

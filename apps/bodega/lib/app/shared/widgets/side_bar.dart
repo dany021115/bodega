@@ -1,6 +1,7 @@
 import 'package:bodega/app/bloc/bottles/bottles_bloc.dart';
 import 'package:bodega/app/bloc/library/library_bloc.dart';
 import 'package:bodega/app/presentation/bottles/new_bottle_dialog.dart';
+import 'package:bodega/app/presentation/settings/settings_dialog.dart';
 import 'package:bodega/app/router.dart';
 import 'package:bodega/app/shared/widgets/app_version.dart';
 import 'package:bodega/app/shared/widgets/bottle_row.dart';
@@ -187,6 +188,17 @@ class _SideBarState extends State<SideBar> {
                 l10n.navBackends,
                 AppRoute.backends,
                 '/backends',
+              ),
+              // A dialog, not a page: it is never the selected item.
+              Padding(
+                padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+                child: SideBarItem(
+                  icon: Icons.settings_rounded,
+                  label: l10n.navSettings,
+                  selected: false,
+                  expanded: expanded,
+                  onTap: () => showSettingsDialog(context),
+                ),
               ),
               const SizedBox(height: AppSpacing.xs),
               AppVersion(compact: !expanded),

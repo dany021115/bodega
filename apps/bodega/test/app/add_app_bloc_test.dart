@@ -48,12 +48,12 @@ void main() {
     'a loose program goes into the bottle it was opened from, in the library',
     build: build,
     act: (bloc) => bloc
-      ..add(const AddAppEvent.load('prueba'))
+      ..add(const AddAppEvent.load('sample'))
       ..add(const AddAppEvent.exeChosen(exe))
       ..add(const AddAppEvent.submit()),
     verify: (bloc) {
       expect(bloc.state.step, AddAppStep.done);
-      verify(() => repository.addApp('prueba', 'Blur', exe)).called(1);
+      verify(() => repository.addApp('sample', 'Blur', exe)).called(1);
       verifyNever(() => bottles.setInLibrary(any(), any(), any()));
       verifyNever(() => repository.runInstaller(any(), any()));
     },
@@ -63,13 +63,13 @@ void main() {
     'an app added out of the library is hidden there, and stays in the bottle',
     build: build,
     act: (bloc) => bloc
-      ..add(const AddAppEvent.load('prueba'))
+      ..add(const AddAppEvent.load('sample'))
       ..add(const AddAppEvent.addToLibraryToggled(false))
       ..add(const AddAppEvent.exeChosen(exe))
       ..add(const AddAppEvent.submit()),
     verify: (bloc) {
       expect(bloc.state.step, AddAppStep.done);
-      verify(() => bottles.setInLibrary('prueba', 'blur/blur.exe', false))
+      verify(() => bottles.setInLibrary('sample', 'blur/blur.exe', false))
           .called(1);
     },
   );
@@ -79,17 +79,17 @@ void main() {
     build: () {
       when(
         () => bottles.setInLibrary(any(), any(), any()),
-      ).thenAnswer((_) async => left(const AppError.bottleNotFound('prueba')));
+      ).thenAnswer((_) async => left(const AppError.bottleNotFound('sample')));
       return build();
     },
     act: (bloc) => bloc
-      ..add(const AddAppEvent.load('prueba'))
+      ..add(const AddAppEvent.load('sample'))
       ..add(const AddAppEvent.addToLibraryToggled(false))
       ..add(const AddAppEvent.exeChosen(exe))
       ..add(const AddAppEvent.submit()),
     verify: (bloc) {
       expect(bloc.state.step, AddAppStep.form);
-      expect(bloc.state.error, const AppError.bottleNotFound('prueba'));
+      expect(bloc.state.error, const AppError.bottleNotFound('sample'));
     },
   );
 

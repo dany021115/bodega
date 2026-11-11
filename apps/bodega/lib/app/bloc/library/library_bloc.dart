@@ -33,7 +33,8 @@ class LibraryBloc extends Bloc<LibraryEvent, LibraryState> {
           emit(state.copyWith(isLoading: false, apps: apps, error: null));
         },
       );
-      // Bottles without an app count too: Botellas shows them open.
+      // Bottles without an app count too: the sidebar's BOTTLES list shows
+      // them open.
       (await _repository.bottleNames()).forEach(_watch);
     });
 
