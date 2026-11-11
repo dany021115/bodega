@@ -10,6 +10,10 @@ class EmptyState extends StatelessWidget {
   final IconData? actionIcon;
   final VoidCallback? onAction;
 
+  /// Shown in place of the action button: an action that is more than a tap,
+  /// such as a button whose menu opens beside it.
+  final Widget? action;
+
   const EmptyState({
     super.key,
     required this.icon,
@@ -18,6 +22,7 @@ class EmptyState extends StatelessWidget {
     this.actionLabel,
     this.actionIcon,
     this.onAction,
+    this.action,
   });
 
   @override
@@ -50,7 +55,10 @@ class EmptyState extends StatelessWidget {
               style: styles.bodySecondary,
               textAlign: TextAlign.center,
             ),
-            if (onAction != null && actionLabel != null) ...[
+            if (action case final action?) ...[
+              const SizedBox(height: AppSpacing.xxl),
+              action,
+            ] else if (onAction != null && actionLabel != null) ...[
               const SizedBox(height: AppSpacing.xxl),
               FilledButton.icon(
                 onPressed: onAction,

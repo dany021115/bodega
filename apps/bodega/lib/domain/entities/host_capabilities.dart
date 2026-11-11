@@ -14,5 +14,9 @@ abstract class HostCapabilities with _$HostCapabilities {
     @Default(false) bool gpu,
     @Default(false) bool gameMode,
     @Default(['msync', 'none']) List<String> syncModes,
+
+    /// Switch games, through an emulator the user installs or as the Mac
+    /// apps users make of them: the Mac only, for now.
+    @Default(true) bool switchGames,
   }) = _HostCapabilities;
 }

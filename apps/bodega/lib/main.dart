@@ -7,6 +7,7 @@ import 'package:bodega/app/bloc/library/library_bloc.dart';
 import 'package:bodega/app/bloc/locale/locale_bloc.dart';
 import 'package:bodega/app/bloc/sections/sections_bloc.dart';
 import 'package:bodega/app/bloc/setup/setup_bloc.dart';
+import 'package:bodega/app/bloc/switch/switch_bloc.dart';
 import 'package:bodega/app/bloc/theme/theme_bloc.dart';
 import 'package:bodega/app/bloc/update/update_bloc.dart';
 import 'package:bodega/app/bloc/view_mode/view_mode_bloc.dart';
@@ -57,6 +58,7 @@ class _BodegaAppState extends State<BodegaApp> {
         BlocProvider.value(value: getIt<InstallBloc>()),
         BlocProvider.value(value: _updates),
         BlocProvider.value(value: getIt<LibraryBloc>()),
+        BlocProvider.value(value: getIt<SwitchBloc>()),
         BlocProvider.value(value: getIt<LocaleBloc>()),
         BlocProvider.value(value: getIt<ViewModeBloc>()),
         BlocProvider(create: (_) => getIt<SectionsBloc>()),

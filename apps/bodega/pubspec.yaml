@@ -74,6 +74,10 @@ dev_dependencies:
   retrofit_generator: ^10.3.3
   mocktail: ^1.0.5
   bloc_test: ^10.0.0
+  # The pickers' fake in widget tests: it records and answers their calls.
+  file_selector_platform_interface: ^2.7.0
+  # The browser's fake in widget tests: it records the pages it is asked to open.
+  url_launcher_platform_interface: ^2.3.2
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

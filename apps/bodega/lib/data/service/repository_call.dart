@@ -131,5 +131,29 @@ AppError appErrorOf(engine.EngineFailure failure) {
     ),
     engine.ProcessFailed(:final command, :final exitCode) =>
       AppError.processFailed(command, exitCode, detail: detail),
+    engine.NoEmulator(:final name, :final app) => AppError.noEmulator(
+      name,
+      app,
+      detail: detail,
+    ),
+    engine.NotAnEmulator(:final path, :final name) => AppError.notAnEmulator(
+      path,
+      name,
+      detail: detail,
+    ),
+    // "Add games" takes any app bundle, so one that is not a native app gets
+    // here from the app. The extensions stay in the message (design §6).
+    engine.NotASwitchGame(:final path) => AppError.notASwitchGame(
+      path,
+      detail: detail,
+    ),
+    engine.SwitchGameNotFound(:final path) => AppError.switchGameNotFound(
+      path,
+      detail: detail,
+    ),
+    engine.SwitchGameRunning(:final path) => AppError.switchGameRunning(
+      path,
+      detail: detail,
+    ),
   };
 }

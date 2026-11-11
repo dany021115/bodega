@@ -1,5 +1,6 @@
 import 'package:bodega/app/bloc/bottles/bottles_bloc.dart';
 import 'package:bodega/app/bloc/library/library_bloc.dart';
+import 'package:bodega/app/bloc/setup/setup_bloc.dart';
 import 'package:bodega/app/presentation/bottles/new_bottle_dialog.dart';
 import 'package:bodega/app/router.dart';
 import 'package:bodega/app/shared/widgets/app_version.dart';
@@ -58,6 +59,8 @@ class _SideBarState extends State<SideBar> {
     final apps = context.select((LibraryBloc bloc) => bloc.state.apps);
     final loading = context.select((LibraryBloc bloc) => bloc.state.isLoading);
     final open = context.select((LibraryBloc bloc) => bloc.state.open);
+    // Known before the shell shows: the host check comes first.
+    final caps = context.read<SetupBloc>().state.capabilities;
 
     final counts = <String, int>{};
     for (final app in apps) {
@@ -102,6 +105,15 @@ class _SideBarState extends State<SideBar> {
                 AppRoute.library,
                 '/library',
               ),
+              // The other place that holds games, on a host that opens them.
+              // A generic gamepad: never a Nintendo mark.
+              if (caps.switchGames)
+                _section(
+                  Icons.videogame_asset_rounded,
+                  l10n.navSwitch,
+                  AppRoute.switchGames,
+                  '/switch',
+                ),
               const SizedBox(height: AppSpacing.sm),
               if (expanded)
                 Padding(

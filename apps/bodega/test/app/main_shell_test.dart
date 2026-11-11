@@ -2,11 +2,13 @@ import 'package:bloc_test/bloc_test.dart';
 import 'package:bodega/app/bloc/bottles/bottles_bloc.dart';
 import 'package:bodega/app/bloc/library/library_bloc.dart';
 import 'package:bodega/app/bloc/locale/locale_bloc.dart';
+import 'package:bodega/app/bloc/setup/setup_bloc.dart';
 import 'package:bodega/app/shared/widgets/language_menu.dart';
 import 'package:bodega/app/shared/widgets/app_version.dart';
 import 'package:bodega/app/shared/widgets/main_shell.dart';
 import 'package:bodega/app/shared/widgets/side_bar.dart';
 import 'package:bodega/domain/entities/bottle.dart';
+import 'package:bodega/domain/entities/host_capabilities.dart';
 import 'package:bodega/l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -25,16 +27,35 @@ class _MockLibrary extends MockBloc<LibraryEvent, LibraryState>
 class _MockLocale extends MockBloc<LocaleEvent, LocaleState>
     implements LocaleBloc {}
 
+class _MockSetup extends MockBloc<SetupEvent, SetupState>
+    implements SetupBloc {}
+
 void main() {
   final en = lookupAppL10n(const Locale('en'));
   late _MockBottles bottles;
   late _MockLibrary library;
   late _MockLocale language;
+  late _MockSetup setup;
+
+  /// The host check has ended, on a host that can do what [capabilities]
+  /// say.
+  void showHost(HostCapabilities capabilities) => whenListen(
+    setup,
+    const Stream<SetupState>.empty(),
+    initialState: SetupState(
+      isChecking: false,
+      runtime: true,
+      capabilities: capabilities,
+    ),
+  );
 
   setUp(() {
     bottles = _MockBottles();
     library = _MockLibrary();
     language = _MockLocale();
+    // A Mac: it opens Switch games.
+    setup = _MockSetup();
+    showHost(const HostCapabilities());
     whenListen(
       language,
       const Stream<LocaleState>.empty(),
@@ -66,12 +87,13 @@ void main() {
         BlocProvider<BottlesBloc>.value(value: bottles),
         BlocProvider<LibraryBloc>.value(value: library),
         BlocProvider<LocaleBloc>.value(value: language),
+        BlocProvider<SetupBloc>.value(value: setup),
       ],
       child: child,
     );
   }
 
-  Future<void> pumpShell(
+  Future<GoRouter> pumpShell(
     WidgetTester tester,
     double width, {
     Locale locale = const Locale('en'),
@@ -86,16 +108,32 @@ void main() {
           builder: (context, state, child) => MainShell(child: child),
           routes: [
             GoRoute(path: '/', builder: (_, _) => const SizedBox.expand()),
+            GoRoute(
+              path: '/switch',
+              builder: (_, _) => const SizedBox.expand(),
+            ),
           ],
         ),
       ],
     );
+    addTearDown(router.dispose);
 
     await tester.pumpWidget(
       providers(wrapRouter(router, locale: locale, breakpoints: true)),
     );
     await tester.pumpAndSettle();
+    return router;
   }
+
+  /// The side bar item called [label]: whether it is the selected one.
+  bool selected(WidgetTester tester, String label) => tester
+      .widget<Semantics>(
+        find.byWidgetPredicate(
+          (widget) => widget is Semantics && widget.properties.label == label,
+        ),
+      )
+      .properties
+      .selected!;
 
   testWidgets('at 1000 px the sidebar shows text', (tester) async {
     await pumpShell(tester, 1000);
@@ -166,6 +204,55 @@ void main() {
     }
   });
 
+  // switch-support SA18: the other place that holds games, under Library and
+  // above the bottles, only on a host that opens Switch games.
+  group('Switch', () {
+    testWidgets('at 1000 px it sits between Library and the bottles, and a '
+        'click opens it and marks it', (tester) async {
+      final router = await pumpShell(tester, 1000);
+      double top(Finder finder) => tester.getTopLeft(finder).dy;
+      final item = find.text(en.navSwitch);
+      expect(item, findsOneWidget);
+      expect(top(item), greaterThan(top(find.text(en.navLibrary))));
+      expect(top(item), lessThan(top(find.text(en.navBottles))));
+      expect(selected(tester, en.navSwitch), isFalse);
+
+      await tester.tap(item);
+      await tester.pumpAndSettle();
+      expect(router.state.matchedLocation, '/switch');
+      expect(selected(tester, en.navSwitch), isTrue);
+      expect(selected(tester, en.navLibrary), isFalse);
+    });
+
+    testWidgets('at 600 px only its icon shows, a button with a tooltip', (
+      tester,
+    ) async {
+      await pumpShell(tester, 600);
+      final icon = find.byIcon(Icons.videogame_asset_rounded);
+      expect(icon, findsOneWidget);
+      expect(find.text(en.navSwitch), findsNothing);
+      expect(find.byTooltip('Switch'), findsOneWidget);
+      expect(
+        tester.getSemantics(icon),
+        isSemantics(label: 'Switch', isButton: true),
+      );
+    });
+
+    for (final width in [1000.0, 600.0]) {
+      testWidgets('a host that does not open them has no item at $width px', (
+        tester,
+      ) async {
+        showHost(const HostCapabilities(switchGames: false));
+        await pumpShell(tester, width);
+        // The side bar is there, without the item.
+        expect(find.byIcon(Icons.apps_rounded), findsOneWidget);
+        expect(find.byIcon(Icons.videogame_asset_rounded), findsNothing);
+        expect(find.text(en.navSwitch), findsNothing);
+        expect(find.byTooltip('Switch'), findsNothing);
+      });
+    }
+  });
+
   testWidgets('in Spanish, its words are Spanish (L1)', (tester) async {
     final es = lookupAppL10n(const Locale('es'));
     await pumpShell(tester, 1000, locale: const Locale('es'));
@@ -216,6 +303,7 @@ void main() {
       await pumpBar(tester, '/backends');
       expect(rowFor(tester, 'Backends').properties.selected, isTrue);
       expect(rowFor(tester, 'Library').properties.selected, isFalse);
+      expect(rowFor(tester, 'Switch').properties.selected, isFalse);
       expect(rowFor(tester, 'Bottle steam').properties.selected, isFalse);
     });
 
@@ -242,8 +330,10 @@ void main() {
       addTearDown(tester.view.reset);
       await pumpBar(tester, '/library');
       expect(tester.takeException(), isNull);
-      expect(find.text('Backends'), findsOneWidget);
-      expect(find.text('Language'), findsOneWidget);
+      // The items above the bottles and below them all stay on screen.
+      for (final item in ['Library', 'Switch', 'Backends', 'Language']) {
+        expect(find.text(item).hitTestable(), findsOneWidget, reason: item);
+      }
     });
 
     testWidgets('asks for the bottles when it appears', (tester) async {

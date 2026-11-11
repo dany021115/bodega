@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -15,6 +16,7 @@ import 'package:bodega/app/bloc/new_bottle/new_bottle_bloc.dart';
 import 'package:bodega/app/bloc/run_options/run_options_bloc.dart';
 import 'package:bodega/app/bloc/sections/sections_bloc.dart';
 import 'package:bodega/app/bloc/setup/setup_bloc.dart';
+import 'package:bodega/app/bloc/switch/switch_bloc.dart';
 import 'package:bodega/app/bloc/update/update_bloc.dart';
 import 'package:bodega/app/bloc/view_mode/view_mode_bloc.dart';
 import 'package:bodega/app/presentation/add_app/add_app_dialog.dart';
@@ -30,10 +32,12 @@ import 'package:bodega/app/presentation/library/library_page.dart';
 import 'package:bodega/app/presentation/library/widgets/bottle_tag.dart';
 import 'package:bodega/app/shared/widgets/language_menu.dart';
 import 'package:bodega/app/presentation/setup/setup_page.dart';
+import 'package:bodega/app/presentation/switch/switch_page.dart';
 import 'package:bodega/app/router.dart';
 import 'package:bodega/app/shared/text/catalog_text.dart';
 import 'package:bodega/app/shared/text/error_text.dart';
 import 'package:bodega/app/shared/text/hint_text.dart';
+import 'package:bodega/app/shared/text/switch_text.dart';
 import 'package:bodega/app/shared/widgets/empty_state.dart';
 import 'package:bodega/app/shared/widgets/gradient_button.dart';
 import 'package:bodega/app/shared/widgets/install_panel.dart';
@@ -55,6 +59,8 @@ import 'package:bodega/domain/entities/install_step.dart';
 import 'package:bodega/domain/entities/library_app.dart';
 import 'package:bodega/domain/entities/log_hint.dart';
 import 'package:bodega/domain/entities/run_hint.dart';
+import 'package:bodega/domain/entities/switch_game.dart';
+import 'package:bodega/domain/entities/switch_status.dart';
 import 'package:bodega/l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -62,6 +68,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:toastification/toastification.dart';
 
 import '../support/pump.dart';
 
@@ -109,6 +116,9 @@ class _MockSetup extends MockBloc<SetupEvent, SetupState>
 
 class _MockLocale extends MockBloc<LocaleEvent, LocaleState>
     implements LocaleBloc {}
+
+class _MockSwitch extends MockBloc<SwitchEvent, SwitchState>
+    implements SwitchBloc {}
 
 // The longest texts and every chip at once: what would overflow first.
 final _long = 'A long note that takes up several lines on the screen. ' * 6;
@@ -305,6 +315,45 @@ final _backends = BackendsState(
   error: _error,
 );
 
+/// A Ryujinx.app picked from a folder whose name never breaks, so that its
+/// path takes 120 characters: the longest row of the Switch panel.
+final _switchApp = '/Volumes/${'x' * 99}/Ryujinx.app';
+
+/// Twelve Switch games with titles of 80 letters: the first one runs, and
+/// the second is a native game in quarantine, which the panel notes.
+final _switchGames = [
+  for (var i = 0; i < 12; i++)
+    SwitchGame(
+      path: i == 1 ? '/g/game $i.app' : '/g/game $i.nsp',
+      title: 'Game $i ${'with a long title ' * 5}'.substring(0, 80),
+      native: i == 1,
+      quarantined: i == 1,
+    ),
+];
+
+/// The most the Switch page shows at once (SA21): every game above, and a
+/// picked copy of the emulator in quarantine, with no keys and no firmware,
+/// so every row, button and note of the panel shows.
+final _switch = SwitchState(
+  isLoading: false,
+  status: SwitchStatus(
+    emulator: 'Ryubing',
+    appName: 'Ryujinx.app',
+    page: 'https://ryujinx.app/download',
+    install: EmulatorInstall(
+      app: _switchApp,
+      version: '1.3.3',
+      picked: true,
+      quarantined: true,
+    ),
+    keys: false,
+    firmware: false,
+    extensions: const ['xci', 'nsp', 'pfs0', 'nca', 'nro', 'nso'],
+  ),
+  games: _switchGames,
+  running: {_switchGames.first.path: '/l/a.log'},
+);
+
 void main() {
   final en = lookupAppL10n(const Locale('en'));
   late _MockCatalog catalog;
@@ -320,6 +369,7 @@ void main() {
   late _MockViewMode viewMode;
   late _MockLocale language;
   late _MockSetup setup;
+  late _MockSwitch switchGames;
 
   void showBottle(BottleDetailState state) => whenListen(
     bottle,
@@ -333,6 +383,12 @@ void main() {
   void showLibrary(LibraryState state) => whenListen(
     library,
     const Stream<LibraryState>.empty(),
+    initialState: state,
+  );
+
+  void showSwitch(SwitchState state) => whenListen(
+    switchGames,
+    const Stream<SwitchState>.empty(),
     initialState: state,
   );
 
@@ -392,6 +448,9 @@ void main() {
       const Stream<InstallState>.empty(),
       initialState: const InstallState(),
     );
+    // Loaded, with nothing in it: no spinner keeps a frame waiting.
+    switchGames = _MockSwitch();
+    showSwitch(const SwitchState(isLoading: false));
     showBottle(_bottle());
     showLibrary(
       LibraryState(
@@ -434,6 +493,7 @@ void main() {
     BlocProvider<ViewModeBloc>.value(value: viewMode),
     BlocProvider<LocaleBloc>.value(value: language),
     BlocProvider<SetupBloc>.value(value: setup),
+    BlocProvider<SwitchBloc>.value(value: switchGames),
   ];
 
   // [width] is the window's: the sidebar takes its part, as in the app. In
@@ -473,10 +533,12 @@ void main() {
 
   // There is no switch yet, but the light theme must be ready for one.
   testWidgets('every screen renders with the light theme', (tester) async {
+    showSwitch(_switch);
     for (final width in [720.0, 1150.0]) {
       await pump(tester, width, const CatalogPage(), light: true);
       await pump(tester, width, const LibraryPage(), light: true);
       await pump(tester, width, bottleView(), light: true);
+      await pump(tester, width, const SwitchPage(), light: true);
       await pump(tester, width, const BackendsPage(), light: true);
     }
     final context = tester.element(find.byType(BackendsPage));
@@ -694,6 +756,50 @@ void main() {
           LanguageMenu.spanish,
         ]) {
           expect(find.text(name).hitTestable(), findsOneWidget);
+        }
+      });
+
+      // switch-support SA21: the Switch page at its fullest, then with no
+      // emulator found, then with no games.
+      testWidgets('the Switch page fits at $width px $lang', (tester) async {
+        final l10n = lookupAppL10n(locale);
+        final found = l10n.switchEmulatorFound('Ryubing', '1.3.3', _switchApp);
+        final emulatorNote = l10n.switchQuarantineNote('Ryubing');
+        final gameNote = l10n.switchQuarantineNote(_switchGames[1].title);
+
+        // Each state, and what it shows that takes the most room: the
+        // panel's rows and notes, and the empty state.
+        for (final (state, shows) in [
+          (_switch, [found, emulatorNote, gameNote]),
+          (
+            _switch.copyWith(status: _switch.status!.copyWith(install: null)),
+            [
+              l10n.switchEmulatorMissing('Ryubing'),
+              l10n.switchDownloadEmulator('Ryubing'),
+              l10n.switchAfterDownload('Ryubing', 'Ryujinx.app'),
+              gameNote,
+            ],
+          ),
+          (
+            _switch.copyWith(games: const [], running: const {}),
+            [l10n.switchEmptyTitle, found, emulatorNote],
+          ),
+        ]) {
+          showSwitch(state);
+          // A fresh tree, so the page shows this state.
+          await tester.pumpWidget(const SizedBox());
+          await pumpAt(tester, const SwitchPage());
+          // Narrow, the panel goes under the games, in a list that builds it
+          // only once it scrolls near.
+          await tester.scrollUntilVisible(
+            find.text(l10n.commonCheckAgain),
+            300,
+            scrollable: find.byType(Scrollable).first,
+          );
+          for (final text in shows) {
+            expect(find.text(text), findsOneWidget, reason: text);
+          }
+          if (locale.languageCode == 'es') _expectNoEnglishLiterals(tester);
         }
       });
     }
@@ -1448,6 +1554,162 @@ void main() {
         '/bottles/$_longName',
       );
     });
+
+    // switch-support SA18: the item under Library opens the Switch page, and
+    // it is the one marked.
+    testWidgets('the Switch item of the sidebar opens /switch, and marks it', (
+      tester,
+    ) async {
+      final router = await pumpRouter(tester);
+      final bar = find.byType(SideBar);
+      bool selected(String label) => tester
+          .widget<Semantics>(
+            find.descendant(
+              of: bar,
+              matching: find.byWidgetPredicate(
+                (widget) =>
+                    widget is Semantics && widget.properties.label == label,
+              ),
+            ),
+          )
+          .properties
+          .selected!;
+
+      await tester.tap(
+        find.descendant(of: bar, matching: find.text(en.navSwitch)),
+      );
+      await tester.pumpAndSettle();
+      expect(router.state.matchedLocation, '/switch');
+      expect(find.byType(SwitchPage), findsOneWidget);
+      verify(() => switchGames.add(const SwitchEvent.load())).called(1);
+      expect(selected(en.navSwitch), isTrue);
+      expect(selected(en.navLibrary), isFalse);
+    });
+
+    // switch-support SA12: what the Switch section tells reaches whatever
+    // page shows, in the app's language: a game that ended badly as a
+    // warning, an add as a success, a failure as an error, and never the
+    // failure's detail (L9).
+    for (final locale in const [Locale('en'), Locale('es')]) {
+      testWidgets('Switch notices and errors toast on the library '
+          '(${locale.languageCode})', (tester) async {
+        final l10n = lookupAppL10n(locale);
+        final states = StreamController<SwitchState>();
+        addTearDown(states.close);
+        whenListen(
+          switchGames,
+          states.stream,
+          initialState: const SwitchState(isLoading: false),
+        );
+        final router = await pumpRouter(tester, locale: locale);
+        expect(router.state.matchedLocation, '/library');
+
+        /// The bloc emits [state], and the toast it brings, if any, slides
+        /// in: a toast is only found once it has some height.
+        Future<void> emit(SwitchState state) async {
+          states.add(state);
+          await tester.pumpAndSettle();
+        }
+
+        /// The kind of each toast that says [text].
+        List<ToastificationType?> kinds(String text) => [
+          for (final toast in tester.widgetList<BuiltInToastBuilder>(
+            find.ancestor(
+              of: find.text(text),
+              matching: find.byType(BuiltInToastBuilder),
+            ),
+          ))
+            toast.type,
+        ];
+
+        const exited = SwitchNotice.exited('Bodega Test', 1);
+        const running = AppError.switchGameRunning(
+          '/g/a.nsp',
+          detail: 'DETAIL-7f3',
+        );
+        const added = SwitchNotice.added(3, 2);
+        final failure = l10n.errSwitchGameRunning('/g/a.nsp');
+
+        // A game that ended badly: a warning.
+        await emit(
+          const SwitchState(isLoading: false, notice: exited, noticeId: 1),
+        );
+        expect(kinds(switchNoticeText(l10n, exited)), [
+          ToastificationType.warning,
+        ]);
+
+        // A failure: an error, in words of the ARBs. The notice the state
+        // keeps is no new one.
+        await emit(
+          const SwitchState(
+            isLoading: false,
+            notice: exited,
+            noticeId: 1,
+            error: running,
+          ),
+        );
+        expect(kinds(failure), [ToastificationType.error]);
+        expect(find.text(switchNoticeText(l10n, exited)), findsOneWidget);
+
+        // The bloc clears its error before each call: the same failure
+        // again is a second toast.
+        await emit(
+          const SwitchState(isLoading: false, notice: exited, noticeId: 1),
+        );
+        await emit(
+          const SwitchState(
+            isLoading: false,
+            notice: exited,
+            noticeId: 1,
+            error: running,
+          ),
+        );
+        expect(kinds(failure), [
+          ToastificationType.error,
+          ToastificationType.error,
+        ]);
+
+        // What an add found: a success. The error it keeps is no new one.
+        await emit(
+          const SwitchState(
+            isLoading: false,
+            notice: added,
+            noticeId: 2,
+            error: running,
+          ),
+        );
+        expect(kinds(switchNoticeText(l10n, added)), [
+          ToastificationType.success,
+        ]);
+        expect(find.text(failure), findsNWidgets(2));
+
+        // The same notice under a new id is a new toast.
+        await emit(
+          const SwitchState(
+            isLoading: false,
+            notice: added,
+            noticeId: 3,
+            error: running,
+          ),
+        );
+        expect(kinds(switchNoticeText(l10n, added)), [
+          ToastificationType.success,
+          ToastificationType.success,
+        ]);
+
+        // Never the failure's detail (L9).
+        expect(
+          find.textContaining('DETAIL-7f3', findRichText: true),
+          findsNothing,
+        );
+        if (locale.languageCode == 'es') _expectNoEnglishLiterals(tester);
+
+        // They close by themselves after 5 s: no timer outlives the test.
+        await tester.pump(const Duration(seconds: 6));
+        await tester.pumpAndSettle();
+        expect(find.byType(BuiltInToastBuilder), findsNothing);
+      });
+    }
 
     testWidgets('/bottles leads to the library', (tester) async {
       final router = await pumpRouter(tester);

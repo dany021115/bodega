@@ -8,6 +8,7 @@ class RouterManager {
     AppRoute.splash: (_) => '/',
     AppRoute.setup: (_) => '/setup',
     AppRoute.library: (_) => '/library',
+    AppRoute.switchGames: (_) => '/switch',
     AppRoute.catalog: (_) => '/catalog',
     AppRoute.catalogDetail: (p) => '/catalog/${p['id']}',
     AppRoute.bottles: (_) => '/bottles',
