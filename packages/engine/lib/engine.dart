@@ -239,6 +239,7 @@ Future<String> _launchIn(
   Map<String, String> extra = const {},
   GameFix? fix,
   String? note,
+  String? appKey,
 }) async {
   final dir = _existing(home, name);
   final rt = currentRuntime(home);
@@ -308,7 +309,7 @@ Future<String> _launchIn(
     launchEnv['WINEDLLOVERRIDES'] =
         '${launchEnv['WINEDLLOVERRIDES'] ?? _overrides};${overrides.join(';')}';
   }
-  await _start(
+  final process = await _start(
     rt,
     prefix,
     log,
@@ -319,6 +320,11 @@ Future<String> _launchIn(
     extra: launchEnv,
     remove: {if (!(avx ?? settings.avx)) 'ROSETTA_ADVERTISE_AVX'},
   );
+  // The pid is the run's process group too: stopApp and runningApps read it here.
+  if (appKey != null) {
+    File(log.replaceFirst(RegExp(r'\.log$'), '.pid'))
+        .writeAsStringSync('${process.pid}\n$appKey\n');
+  }
   return log;
 }
 

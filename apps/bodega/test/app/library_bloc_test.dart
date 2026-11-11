@@ -54,6 +54,8 @@ void main() {
     when(() => repository.apps()).thenAnswer((_) async => right(const []));
     when(() => repository.antiCheatHints(any(), any())).thenReturn(const []);
     when(() => repository.hintsIn(any())).thenAnswer((_) async => const []);
+    when(() => repository.runningApps(any()))
+        .thenAnswer((_) async => right(const []));
   });
 
   Future<void> settle() => Future<void>.delayed(Duration.zero);
@@ -158,6 +160,82 @@ void main() {
     expect(bloc.state.open, isEmpty);
     await bloc.close();
   });
+
+  test('one app of a bottle exits, and only its key leaves running', () async {
+    final exitA = Completer<void>();
+    final exitB = Completer<void>();
+    when(() => repository.open('steam', key: 'a'))
+        .thenAnswer((_) async => right('/l/a.log'));
+    when(() => repository.open('steam', key: 'b'))
+        .thenAnswer((_) async => right('/l/b.log'));
+    when(() => repository.firstExit('/l/a.log'))
+        .thenAnswer((_) => exitA.future);
+    when(() => repository.firstExit('/l/b.log'))
+        .thenAnswer((_) => exitB.future);
+    final bloc = LibraryBloc(repository, bottles)
+      ..add(const LibraryEvent.open('steam', 'a'));
+    await settle();
+    bloc.add(const LibraryEvent.open('steam', 'b'));
+    await settle();
+    expect(bloc.state.running, {
+      'steam': {'a', 'b'},
+    });
+
+    exitA.complete();
+    await settle();
+    await settle();
+    expect(bloc.state.running, {
+      'steam': {'b'},
+    });
+    expect(bloc.state.open, {'steam'});
+    await bloc.close();
+  });
+
+  test('stop with a key stops that app only', () async {
+    when(() => repository.open('steam', key: 'a'))
+        .thenAnswer((_) async => right('/l/a.log'));
+    when(() => repository.stopApp('/l/a.log'))
+        .thenAnswer((_) async => right(unit));
+    final bloc = LibraryBloc(repository, bottles)
+      ..add(const LibraryEvent.open('steam', 'a'));
+    await settle();
+    bloc.add(const LibraryEvent.stop('steam', 'a'));
+    await settle();
+
+    verify(() => repository.stopApp('/l/a.log')).called(1);
+    verifyNever(() => repository.stop(any()));
+    await bloc.close();
+  });
+
+  test('stop without a key stops the bottle', () async {
+    when(() => repository.stop('steam')).thenAnswer((_) async => right(unit));
+    final bloc = LibraryBloc(repository, bottles)
+      ..add(const LibraryEvent.stop('steam'));
+    await settle();
+
+    verify(() => repository.stop('steam')).called(1);
+    verifyNever(() => repository.stopApp(any()));
+    await bloc.close();
+  });
+
+  blocTest<LibraryBloc, LibraryState>(
+    'a detected bottle fills running from what is alive',
+    build: () {
+      when(() => repository.runningApps('steam'))
+          .thenAnswer((_) async => right([(key: 'k1', log: '/l/k1.log')]));
+      when(() => repository.firstExit('/l/k1.log'))
+          .thenAnswer((_) => Completer<void>().future);
+      return LibraryBloc(repository, bottles);
+    },
+    act: (bloc) => bloc.add(const LibraryEvent.detected('steam')),
+    wait: const Duration(milliseconds: 10),
+    verify: (bloc) {
+      expect(bloc.state.open, {'steam'});
+      expect(bloc.state.running, {
+        'steam': {'k1'},
+      });
+    },
+  );
 
   test('opening a second one keeps the hints of the first', () async {
     when(() => repository.open('steam', key: 'b'))

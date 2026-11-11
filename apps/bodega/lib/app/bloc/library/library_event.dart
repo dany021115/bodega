@@ -14,7 +14,9 @@ sealed class LibraryEvent with _$LibraryEvent {
   /// Follows a launch made elsewhere, such as with options.
   const factory LibraryEvent.track(String bottle, String log) =
       LibraryTrackEvent;
-  const factory LibraryEvent.stop(String bottle) = LibraryStopEvent;
+  /// Stops the bottle, or with [key] only that app.
+  const factory LibraryEvent.stop(String bottle, [String? key]) =
+      LibraryStopEvent;
   const factory LibraryEvent.setInLibrary(
     String bottle,
     String key,
@@ -24,5 +26,7 @@ sealed class LibraryEvent with _$LibraryEvent {
       LibrarySetHudEvent;
   const factory LibraryEvent.detected(String bottle) = LibraryDetectedEvent;
   const factory LibraryEvent.closed(String bottle) = LibraryClosedEvent;
+  const factory LibraryEvent.appClosed(String bottle, String key) =
+      LibraryAppClosedEvent;
   const factory LibraryEvent.checkHints() = LibraryCheckHintsEvent;
 }

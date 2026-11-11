@@ -9,6 +9,9 @@ abstract class LibraryState with _$LibraryState {
     @Default([]) List<LibraryApp> apps,
     @Default({}) Set<String> open,
 
+    /// Each bottle's apps with a run alive, by key.
+    @Default({}) Map<String, Set<String>> running,
+
     /// Each bottle's hints, as codes the page words (L6).
     @Default({}) Map<String, List<RunHint>> hints,
 
