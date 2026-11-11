@@ -17,7 +17,6 @@ import 'package:bodega/app/bloc/setup/setup_bloc.dart';
 import 'package:bodega/app/bloc/theme/theme_bloc.dart';
 import 'package:bodega/app/bloc/update/update_bloc.dart';
 import 'package:bodega/app/bloc/view_mode/view_mode_bloc.dart';
-import 'package:bodega/app/presentation/settings/settings_dialog.dart';
 import 'package:bodega/app/presentation/setup/setup_page.dart';
 import 'package:bodega/data/service/preference.dart';
 import 'package:bodega/di.dart';
@@ -160,31 +159,27 @@ void main() {
     });
   });
 
-  group('a choice in Settings applies at once and is kept (L5)', () {
+  // The side bar's language menu sends these events (language_menu_test.dart);
+  // the setup page has no side bar, so the test sends them to the app's bloc.
+  group('a language choice applies at once and is kept (L5)', () {
     /// The language of the page the app shows.
     Locale shown(WidgetTester tester) =>
         Localizations.localeOf(tester.element(find.byType(SetupPage)));
 
-    /// Opens the Settings dialog over the page, as its sidebar item does.
-    Future<void> openSettings(WidgetTester tester) async {
-      showSettingsDialog(tester.element(find.byType(SetupPage)));
-      await tester.pumpAndSettle();
-    }
+    /// Picks [code] as the language menu does.
+    void pick(String? code) => getIt<LocaleBloc>().add(LocaleEvent.set(code));
 
-    testWidgets('Spanish switches the app and the open dialog', (tester) async {
+    testWidgets('Spanish switches the app', (tester) async {
       await start(tester, const [Locale('en', 'US')]);
-      await openSettings(tester);
-      expect(find.text(en.navSettings), findsOneWidget);
+      expect(find.text(en.setupTitle), findsOneWidget);
 
-      await tester.tap(find.text(SettingsDialog.spanish));
-      // The next frame, with no restart.
-      await tester.pump();
+      pick('es');
+      // No restart: the bloc's new state reaches the running app.
+      await tester.pumpAndSettle();
 
       expect(shown(tester), const Locale('es'));
       expect(find.text(es.setupTitle), findsOneWidget);
-      expect(find.text(es.navSettings), findsOneWidget);
-      expect(find.text(es.settingsLanguageSystem), findsOneWidget);
-      expect(find.text(en.navSettings), findsNothing);
+      expect(find.text(en.setupTitle), findsNothing);
       verify(() => preferences.saveLanguage('es')).called(1);
     });
 
@@ -208,9 +203,8 @@ void main() {
       await start(tester, const [Locale('es', 'ES')]);
       expect(shown(tester), const Locale('en'));
 
-      await openSettings(tester);
-      await tester.tap(find.text(en.settingsLanguageSystem));
-      await tester.pump();
+      pick(null);
+      await tester.pumpAndSettle();
 
       expect(shown(tester), const Locale('es'));
       expect(find.text(es.setupTitle), findsOneWidget);

@@ -370,7 +370,6 @@
   "catalogGogGalaxyStatusNote": "Se instala, pero en Wine 11 muestra el inicio de sesión y se cierra a los dos segundos. Los juegos de GOG no tienen DRM: ejecuta sus instaladores offline en una botella.",
   "catalogGogGalaxyIssue1Symptom": "Muestra el inicio de sesión y se cierra unos dos segundos después",
   "catalogGogGalaxyIssue1Fix": "Sin solución; usa los instaladores offline de gog.com.",
-  "navSettings": "Ajustes",
-  "settingsLanguage": "Idioma",
-  "settingsLanguageSystem": "Sistema"
+  "navLanguage": "Idioma",
+  "languageSystem": "Sistema"
 }

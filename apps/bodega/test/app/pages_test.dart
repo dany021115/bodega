@@ -28,7 +28,7 @@ import 'package:bodega/app/presentation/catalog/catalog_detail_page.dart';
 import 'package:bodega/app/presentation/catalog/catalog_page.dart';
 import 'package:bodega/app/presentation/library/library_page.dart';
 import 'package:bodega/app/presentation/library/widgets/bottle_tag.dart';
-import 'package:bodega/app/presentation/settings/settings_dialog.dart';
+import 'package:bodega/app/shared/widgets/language_menu.dart';
 import 'package:bodega/app/presentation/setup/setup_page.dart';
 import 'package:bodega/app/router.dart';
 import 'package:bodega/app/shared/text/catalog_text.dart';
@@ -318,6 +318,7 @@ void main() {
   late _MockSections sections;
   late _MockGamepads gamepads;
   late _MockViewMode viewMode;
+  late _MockLocale language;
   late _MockSetup setup;
 
   void showBottle(BottleDetailState state) => whenListen(
@@ -369,6 +370,12 @@ void main() {
       viewMode,
       const Stream<ViewModeState>.empty(),
       initialState: const ViewModeState(),
+    );
+    language = _MockLocale();
+    whenListen(
+      language,
+      const Stream<LocaleState>.empty(),
+      initialState: const LocaleState(),
     );
     whenListen(
       sections,
@@ -422,6 +429,7 @@ void main() {
     BlocProvider<SectionsBloc>.value(value: sections),
     BlocProvider<GamepadsBloc>.value(value: gamepads),
     BlocProvider<ViewModeBloc>.value(value: viewMode),
+    BlocProvider<LocaleBloc>.value(value: language),
     BlocProvider<SetupBloc>.value(value: setup),
   ];
 
@@ -662,28 +670,28 @@ void main() {
         );
       });
 
-      testWidgets('the Settings dialog fits at $width px $lang', (
-        tester,
-      ) async {
-        final language = _MockLocale();
-        whenListen(
-          language,
-          const Stream<LocaleState>.empty(),
-          initialState: const LocaleState(),
-        );
+      testWidgets('the language menu fits at $width px $lang', (tester) async {
+        // At the foot of a column, as in the side bar.
         await pumpAt(
           tester,
           BlocProvider<LocaleBloc>.value(
             value: language,
-            child: const SettingsDialog(),
+            child: const Align(
+              alignment: Alignment.bottomLeft,
+              child: SizedBox(width: 220, child: LanguageMenu(expanded: true)),
+            ),
           ),
         );
-        // Its three choices, and Close on screen.
-        expect(find.byType(RadioListTile<String?>), findsNWidgets(3));
-        expect(
-          find.text(lookupAppL10n(locale).commonClose).hitTestable(),
-          findsOneWidget,
-        );
+        await tester.tap(find.byIcon(Icons.translate_rounded));
+        await tester.pumpAndSettle();
+        // Its three entries on screen.
+        for (final name in [
+          lookupAppL10n(locale).languageSystem,
+          LanguageMenu.english,
+          LanguageMenu.spanish,
+        ]) {
+          expect(find.text(name).hitTestable(), findsOneWidget);
+        }
       });
     }
   }

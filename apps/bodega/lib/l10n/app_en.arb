@@ -2123,16 +2123,12 @@
   "@catalogGogGalaxyIssue1Fix": {
     "description": "GOG Galaxy in the catalog: what to do about known issue 1 (catalogGogGalaxyIssue1Symptom), under it in the Known issues section of its page. The same text as its knownIssues[0].fix in the engine's catalog_data.dart."
   },
-  "navSettings": "Settings",
-  "@navSettings": {
-    "description": "The app's settings, today only its language: the sidebar item with a gear at the foot of the sidebar that opens the Settings dialog (also its tooltip when the sidebar shows only icons), and the title of that dialog. Not a bottle's settings (bottleSectionSettings)."
+  "navLanguage": "Language",
+  "@navLanguage": {
+    "description": "The sidebar item at the foot of the sidebar, above the version: a tap opens a short menu with the language the app shows its text in (languageSystem, then English and Spanish, each named in its own language). Also its tooltip when the sidebar shows only icons."
   },
-  "settingsLanguage": "Language",
-  "@settingsLanguage": {
-    "description": "Heading of the Settings dialog's only section: the language the app shows its text in. Under it, three choices: settingsLanguageSystem, then English and Spanish, each named in its own language."
-  },
-  "settingsLanguageSystem": "System",
-  "@settingsLanguageSystem": {
-    "description": "Choice in the Language section of the Settings dialog: the app follows the system's language (Spanish when the system prefers it to English; otherwise English). The other two choices are the languages' own names."
+  "languageSystem": "System",
+  "@languageSystem": {
+    "description": "First choice in the sidebar's language menu (navLanguage): the app follows the system's language (Spanish when the system prefers it to English; otherwise English). The other two choices are the languages' own names."
   }
 }

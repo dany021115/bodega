@@ -1,10 +1,10 @@
 import 'package:bodega/app/bloc/bottles/bottles_bloc.dart';
 import 'package:bodega/app/bloc/library/library_bloc.dart';
 import 'package:bodega/app/presentation/bottles/new_bottle_dialog.dart';
-import 'package:bodega/app/presentation/settings/settings_dialog.dart';
 import 'package:bodega/app/router.dart';
 import 'package:bodega/app/shared/widgets/app_version.dart';
 import 'package:bodega/app/shared/widgets/bottle_row.dart';
+import 'package:bodega/app/shared/widgets/language_menu.dart';
 import 'package:bodega/app/shared/widgets/side_bar_item.dart';
 import 'package:bodega/device/router/manager.dart';
 import 'package:bodega/device/theme/gradient.dart';
@@ -189,16 +189,10 @@ class _SideBarState extends State<SideBar> {
                 AppRoute.backends,
                 '/backends',
               ),
-              // A dialog, not a page: it is never the selected item.
+              // A menu, not a page: it is never the selected item.
               Padding(
                 padding: const EdgeInsets.only(bottom: AppSpacing.xs),
-                child: SideBarItem(
-                  icon: Icons.settings_rounded,
-                  label: l10n.navSettings,
-                  selected: false,
-                  expanded: expanded,
-                  onTap: () => showSettingsDialog(context),
-                ),
+                child: LanguageMenu(expanded: expanded),
               ),
               const SizedBox(height: AppSpacing.xs),
               AppVersion(compact: !expanded),

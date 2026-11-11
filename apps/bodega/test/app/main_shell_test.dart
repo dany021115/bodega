@@ -2,7 +2,7 @@ import 'package:bloc_test/bloc_test.dart';
 import 'package:bodega/app/bloc/bottles/bottles_bloc.dart';
 import 'package:bodega/app/bloc/library/library_bloc.dart';
 import 'package:bodega/app/bloc/locale/locale_bloc.dart';
-import 'package:bodega/app/presentation/settings/settings_dialog.dart';
+import 'package:bodega/app/shared/widgets/language_menu.dart';
 import 'package:bodega/app/shared/widgets/app_version.dart';
 import 'package:bodega/app/shared/widgets/main_shell.dart';
 import 'package:bodega/app/shared/widgets/side_bar.dart';
@@ -121,41 +121,47 @@ void main() {
     expect(find.text('G'), findsNothing);
   });
 
-  // L4: the language is set in a dialog, opened from a gear item at the foot
-  // of the sidebar.
-  group('Settings', () {
+  // L4: the language is picked from a short menu, opened from an item at the
+  // foot of the sidebar.
+  group('Language', () {
     testWidgets('at 1000 px it sits between Backends and the version', (
       tester,
     ) async {
       await pumpShell(tester, 1000);
       double top(Finder finder) => tester.getTopLeft(finder).dy;
-      final settings = find.text('Settings');
-      expect(settings, findsOneWidget);
-      expect(top(settings), greaterThan(top(find.text('Backends'))));
-      expect(top(settings), lessThan(top(find.byType(AppVersion))));
+      final item = find.text('Language');
+      expect(item, findsOneWidget);
+      expect(top(item), greaterThan(top(find.text('Backends'))));
+      expect(top(item), lessThan(top(find.byType(AppVersion))));
     });
 
-    testWidgets('at 600 px only its gear shows, a button with a tooltip', (
+    testWidgets('at 600 px only its icon shows, a button with a tooltip', (
       tester,
     ) async {
       await pumpShell(tester, 600);
-      final gear = find.byIcon(Icons.settings_rounded);
-      expect(gear, findsOneWidget);
-      expect(find.text(en.navSettings), findsNothing);
-      expect(find.byTooltip('Settings'), findsOneWidget);
+      final icon = find.byIcon(Icons.translate_rounded);
+      expect(icon, findsOneWidget);
+      expect(find.text(en.navLanguage), findsNothing);
+      expect(find.byTooltip('Language'), findsOneWidget);
       expect(
-        tester.getSemantics(gear),
-        isSemantics(label: 'Settings', isButton: true),
+        tester.getSemantics(icon),
+        isSemantics(label: 'Language', isButton: true),
       );
     });
 
     for (final width in [1000.0, 600.0]) {
-      testWidgets('a click opens the dialog at $width px', (tester) async {
+      testWidgets('a click opens the short menu at $width px', (tester) async {
         await pumpShell(tester, width);
-        expect(find.byType(SettingsDialog), findsNothing);
-        await tester.tap(find.byIcon(Icons.settings_rounded));
+        expect(find.text(LanguageMenu.spanish), findsNothing);
+        await tester.tap(find.byIcon(Icons.translate_rounded));
         await tester.pumpAndSettle();
-        expect(find.byType(SettingsDialog), findsOneWidget);
+        for (final name in [
+          en.languageSystem,
+          LanguageMenu.english,
+          LanguageMenu.spanish,
+        ]) {
+          expect(find.text(name).hitTestable(), findsOneWidget);
+        }
       });
     }
   });
@@ -167,7 +173,7 @@ void main() {
       (l10n) => l10n.navLibrary,
       (l10n) => l10n.navBottles,
       (l10n) => l10n.navNewBottle,
-      (l10n) => l10n.navSettings,
+      (l10n) => l10n.navLanguage,
     ]) {
       expect(find.text(text(es)), findsOneWidget);
       expect(find.text(text(en)), findsNothing);
@@ -237,7 +243,7 @@ void main() {
       await pumpBar(tester, '/library');
       expect(tester.takeException(), isNull);
       expect(find.text('Backends'), findsOneWidget);
-      expect(find.text('Settings'), findsOneWidget);
+      expect(find.text('Language'), findsOneWidget);
     });
 
     testWidgets('asks for the bottles when it appears', (tester) async {
