@@ -1,9 +1,11 @@
 import 'dart:io';
 
+import 'package:bodega/data/service/code_mapper.dart';
 import 'package:bodega/data/service/downloader.dart';
 import 'package:bodega/data/service/engine_home.dart';
 import 'package:bodega/data/service/repository_call.dart';
 import 'package:bodega/domain/entities/app_error.dart';
+import 'package:bodega/domain/entities/install_step.dart';
 import 'package:bodega/domain/repository/install_repository.dart';
 import 'package:dio/dio.dart';
 import 'package:engine/engine.dart' as engine;
@@ -25,10 +27,7 @@ class InstallRepositoryImpl implements InstallRepository {
     bool intoExisting = false,
   }) => repositoryCall(() {
     final entry = engine.catalogEntry(id);
-    if (!intoExisting && bottleExists(id)) {
-      throw 'Ya existe la botella $id. Bórrala en Botellas para instalar de '
-          'cero.';
-    }
+    if (!intoExisting && bottleExists(id)) throw AppError.bottleExists(id);
     final extension = entry.msi ? 'msi' : 'exe';
     return _downloader.fetch(
       entry.url,
@@ -45,7 +44,7 @@ class InstallRepositoryImpl implements InstallRepository {
   Future<Either<AppError, Unit>> install(
     String id,
     String setup,
-    void Function(String step) onStep, {
+    void Function(InstallStep step) onStep, {
     String? bottle,
   }) => repositoryCall(() async {
     await engine.installEntry(
@@ -54,7 +53,7 @@ class InstallRepositoryImpl implements InstallRepository {
       bottle: bottle,
       intoExisting: bottle != null,
       setup: setup,
-      onStep: onStep,
+      onStep: (step) => onStep(installStepOf(step)),
     );
     return unit;
   });

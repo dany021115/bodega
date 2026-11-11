@@ -1,6 +1,7 @@
 import 'package:bodega/device/theme/gradient.dart';
 import 'package:bodega/device/theme/radius.dart';
 import 'package:bodega/device/theme/spacing.dart';
+import 'package:bodega/l10n/l10n.dart';
 import 'package:flutter/material.dart';
 
 /// Switches the library between its grid and its list. The chosen one is in
@@ -49,6 +50,8 @@ class ViewToggle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
+
     return Material(
       color: Theme.of(context).colorScheme.surfaceContainerHigh,
       borderRadius: AppRadius.smBorder,
@@ -60,14 +63,14 @@ class ViewToggle extends StatelessWidget {
             _option(
               context,
               icon: Icons.grid_view_rounded,
-              tooltip: 'Vista en cuadrícula',
+              tooltip: l10n.viewGrid,
               selected: isGrid,
               onTap: () => onChanged(true),
             ),
             _option(
               context,
               icon: Icons.view_list_rounded,
-              tooltip: 'Vista en lista',
+              tooltip: l10n.viewList,
               selected: !isGrid,
               onTap: () => onChanged(false),
             ),

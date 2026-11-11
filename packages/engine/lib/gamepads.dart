@@ -57,8 +57,10 @@ List<Gamepad> parseInputDevices(
   return pads;
 }
 
-/// What is wrong, from the pads found and whether SDL2 is installed. [install]
-/// builds the command for the distro, as [_installCommand] does.
+/// What is wrong, from the pads found and whether SDL2 is installed: each pad
+/// that cannot be opened by name, with the command that installs the gamepad
+/// udev rules, and SDL2. [install] builds the command for the distro, as
+/// [_installCommand] does.
 List<HostIssue> gamepadIssues(
   List<Gamepad> pads, {
   required bool sdl,
@@ -67,19 +69,14 @@ List<HostIssue> gamepadIssues(
   for (final pad in pads)
     if (!pad.readable)
       (
-        title: 'Sin permiso para el mando ${pad.name}',
-        detail:
-            'Bodega no puede abrir ${pad.node}, así que Wine no verá el mando. '
-            'Hacen falta las reglas udev de mandos (en Arch, el paquete está '
-            'en multilib). Luego desconecta y vuelve a conectar el mando.',
+        kind: HostIssueKind.padNoAccess,
+        subject: pad.name,
         command: install('steam-devices', null, 'steam-devices'),
       ),
   if (!sdl)
     (
-      title: 'Falta SDL2',
-      detail:
-          'Wine usa SDL2 para entender los mandos. Sin ella usa udev, que '
-          'reconoce menos mandos.',
+      kind: HostIssueKind.noSdl,
+      subject: null,
       command: install('libsdl2-2.0-0', 'SDL2', 'sdl2-compat'),
     ),
 ];

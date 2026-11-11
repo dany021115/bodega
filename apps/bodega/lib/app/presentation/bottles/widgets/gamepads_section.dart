@@ -6,6 +6,7 @@ import 'package:bodega/device/theme/color.dart';
 import 'package:bodega/device/theme/spacing.dart';
 import 'package:bodega/device/theme/typography.dart';
 import 'package:bodega/domain/entities/gamepad.dart';
+import 'package:bodega/l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -20,14 +21,15 @@ class GamepadsSection extends StatelessWidget {
     final state = context.watch<GamepadsBloc>().state;
     final report = state.report;
     if (report == null) return const SizedBox.shrink();
+    final l10n = context.l10n;
     final styles = AppTextStyle(context);
 
     return CollapsibleSection(
       id: 'gamepads',
-      title: 'Mandos',
+      title: l10n.gamepadsTitle,
       children: [
         if (report.pads.isEmpty)
-          Text('No hay mandos conectados.', style: styles.bodySecondary),
+          Text(l10n.gamepadsNone, style: styles.bodySecondary),
         for (final pad in report.pads) _PadRow(pad: pad),
         for (final issue in report.issues) ...[
           const SizedBox(height: AppSpacing.md),
@@ -43,7 +45,7 @@ class GamepadsSection extends StatelessWidget {
                     const GamepadsEvent.load(),
                   ),
             icon: const Icon(Icons.refresh_rounded, size: 18),
-            label: const Text('Volver a comprobar'),
+            label: Text(l10n.commonCheckAgain),
           ),
         ),
       ],
@@ -82,7 +84,9 @@ class _PadRow extends StatelessWidget {
           ),
           const SizedBox(width: AppSpacing.sm),
           StatusChip(
-            label: pad.readable ? 'Listo' : 'Sin permiso',
+            label: context.l10n.gamepadsPadState(
+              pad.readable ? 'ready' : 'noAccess',
+            ),
             color: pad.readable ? AppColor.statusTested : AppColor.statusFlaky,
           ),
         ],

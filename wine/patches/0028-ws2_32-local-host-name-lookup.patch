@@ -1,0 +1,64 @@
+A Windows program that looks up its own computer name gets an address, as on
+Windows, instead of WSAHOST_NOT_FOUND.
+
+Windows always resolves its own host name. Wine hands a program the short
+name (GetComputerNameEx with ComputerNamePhysicalDnsHostname, e.g.
+"MacBook-Pro" for the host "MacBook-Pro.local"), and on a Mac that short name
+resolves only where the network's DNS happens to know it: macOS itself knows
+it as "<name>.local", through mDNS. When the lookup fails, getaddrinfo falls
+back to a NULL node, and its comment says to avoid a NULL service too because
+that is invalid, but it passes the caller's service through. A caller that
+gives none, as Python's socket.gethostbyname does, then gets EAI_NONAME, that
+is WSAHOST_NOT_FOUND (11001). A PyInstaller-built LAN launcher stopped at
+start with "socket.gaierror: [Errno 11001] getaddrinfo failed", right after
+Wine's "Failed to resolve your host name IP", on a network whose DNS did not
+know the Mac's name; on the network of the day before it had started (engine
+engine-wine-11.0-20261030T202616Z-primer-build, macOS 27).
+
+The fallback now tries the fully qualified name first, which on a Mac gives
+the machine's addresses, loopback and LAN, through mDNS, and only then the
+NULL node, with the service "0" when the caller gave none, as the comment
+meant.
+
+Checked 2026-11-10 on macOS 27, with Python's resolver and a C program that
+runs the same sequence on the host's getaddrinfo, on a network whose DNS did
+not know the short name: the short name and the NULL node with a NULL service
+both fail with EAI_NONAME, "<name>.local" gives 127.0.0.1 and the LAN address,
+and the NULL node with "0" gives 127.0.0.1. Upstream Wine 11.0 has the same
+code; not sent.
+
+diff -ruN a/dlls/ws2_32/protocol.c b/dlls/ws2_32/protocol.c
+--- a/dlls/ws2_32/protocol.c	2026-11-10 14:00:00
++++ b/dlls/ws2_32/protocol.c	2026-11-10 14:00:00
+@@ -205,16 +205,22 @@
+         }
+         if (!strcmp( fqdn, node ) || (!strncmp( fqdn, node, strlen( node ) ) && fqdn[strlen( node )] == '.'))
+         {
+-            /* If it didn't work it means the host name IP is not in /etc/hosts, try again
+-             * by sending a NULL host and avoid sending a NULL servname too because that
+-             * is invalid */
+-            ERR_(winediag)( "Failed to resolve your host name IP\n" );
+-            ret = do_getaddrinfo( NULL, service, hints, info );
+-            if (!ret && hints && (hints->ai_flags & AI_CANONNAME) && *info && !(*info)->ai_canonname)
++            /* Windows always resolves its own name. A Mac knows the short name only
++             * as "<name>.local", through mDNS: try the fully qualified name first. */
++            if (strcmp( fqdn, node )) ret = do_getaddrinfo( fqdn, service, hints, info );
++            if (ret)
+             {
+-                freeaddrinfo( *info );
+-                *info = NULL;
+-                return EAI_NONAME;
++                /* If it didn't work it means the host name IP is not in /etc/hosts, try again
++                 * by sending a NULL host and avoid sending a NULL servname too because that
++                 * is invalid */
++                ERR_(winediag)( "Failed to resolve your host name IP\n" );
++                ret = do_getaddrinfo( NULL, service ? service : "0", hints, info );
++                if (!ret && hints && (hints->ai_flags & AI_CANONNAME) && *info && !(*info)->ai_canonname)
++                {
++                    freeaddrinfo( *info );
++                    *info = NULL;
++                    return EAI_NONAME;
++                }
+             }
+         }
+     }

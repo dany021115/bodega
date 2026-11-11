@@ -129,17 +129,28 @@ void main() {
   });
 
   test('names and windows paths', () {
-    for (final name in ['prueba', 'cave-story_2']) {
+    for (final name in ['sample', 'cave-story_2']) {
       expect(bottleDir('/h', name), '/h/bottles/$name');
     }
     for (final name in ['', '.x', '-x', 'a.', 'a b', 'a/b', 'a:b', 'a' * 65]) {
-      expect(() => bottleDir('/h', name), throwsFormatException, reason: name);
+      expect(
+        () => bottleDir('/h', name),
+        throwsA(isA<BadBottleName>().having((f) => f.name, 'name', name)),
+        reason: name,
+      );
     }
     expect(winPathProblem('/Users/q/Library/Application Support/B'), isNull);
-    expect(winPathProblem('/Users/q/Juegos/Cave Story ñ/Juego.exe'), isNull);
+    expect(winPathProblem('/Users/q/Games/Cave Story ø/Game.exe'), isNull);
     expect(winPathProblem('/a/./b/../c'), isNull);
-    for (final path in ['/a./b', '/a /b', '/a?b', '/a:b', '/<a>', '/a|b']) {
-      expect(winPathProblem(path), isNotNull, reason: path);
+    for (final (path, part) in [
+      ('/a./b', 'a.'),
+      ('/a /b', 'a '),
+      ('/a?b', 'a?b'),
+      ('/a:b', 'a:b'),
+      ('/<a>', '<a>'),
+      ('/a|b', 'a|b'),
+    ]) {
+      expect(winPathProblem(path), (part: part, path: path), reason: path);
     }
 
     Directory('$tmp/real').createSync();
@@ -152,11 +163,10 @@ void main() {
     expect(
       () => bodegaHome({'BODEGA_HOME': '$tmp/a./b'}),
       throwsA(
-        isA<FormatException>().having(
-          (e) => e.message,
-          'message',
-          contains('"a."'),
-        ),
+        isA<BadWindowsPath>().having((f) => f.problem, 'problem', (
+          part: 'a.',
+          path: '$tmp/a./b',
+        )),
       ),
     );
     expect(Directory('$tmp/a.').existsSync(), isFalse);
@@ -168,7 +178,7 @@ void main() {
       for (final e in Directory('$home/runtimes').listSync())
         e.path.split('/').last,
     ]..sort();
-    final noRuntime = throwsA(contains('no hay runtime: bodega install'));
+    final noRuntime = throwsA(isA<NoRuntime>());
     expect(() => currentRuntime(home), noRuntime);
 
     final (a, aLibs) = await fakeRuntime(tmp, 'engine-a');
@@ -183,26 +193,23 @@ void main() {
     File('$a.sha256').deleteSync();
     await expectLater(
       installRuntime(home, a, aLibs),
-      throwsA(contains('ya instalado')),
+      throwsA(isA<AlreadyInstalled>().having((f) => f.path, 'path', rtA)),
     );
 
     final (b, bLibs) = await fakeRuntime(tmp, 'engine-b');
-    File('$b.sha256').writeAsStringSync('${'0' * 64}  engine-b.tar.gz\n');
-    await expectLater(
-      installRuntime(home, b, bLibs),
-      throwsA(contains('engine-b.tar.gz: FAILED')),
+    final mismatch = throwsA(
+      isA<ChecksumMismatch>().having((f) => f.file, 'file', b),
     );
+    File('$b.sha256').writeAsStringSync('${'0' * 64}  engine-b.tar.gz\n');
+    await expectLater(installRuntime(home, b, bLibs), mismatch);
     // A .sha256 that names another file, which does check out.
     File('$bLibs.sha256').copySync('$b.sha256');
-    await expectLater(
-      installRuntime(home, b, bLibs),
-      throwsA(contains('no corresponde a engine-b.tar.gz')),
-    );
+    await expectLater(installRuntime(home, b, bLibs), mismatch);
     File('$b.sha256').deleteSync();
     await expectLater(
       installRuntime(home, b, bLibs),
       throwsA(
-        contains('gh release download engine-b -R dany021115/bodega'),
+        isA<ChecksumMissing>().having((f) => f.file, 'file', '$b.sha256'),
       ),
     );
     expect(runtimes(), ['current', 'engine-a']);
@@ -211,8 +218,13 @@ void main() {
     await expectLater(
       installRuntime(home, c, cLibs),
       throwsA(
-        'runtime incompleto: falta '
-        'engine/lib/wine/x86_64-unix/libgnutls.30.dylib',
+        isA<IncompleteArchive>()
+            .having((f) => f.archive, 'archive', 'engine-c')
+            .having(
+              (f) => f.missing,
+              'missing',
+              'engine/lib/wine/x86_64-unix/libgnutls.30.dylib',
+            ),
       ),
     );
     expect(runtimes(), ['current', 'engine-a']);
@@ -240,11 +252,19 @@ void main() {
     );
     await expectLater(
       createBottle(home, 't'),
-      throwsA(allOf(contains('ya existe'), contains('rm -rf'))),
+      throwsA(isA<BottleExists>().having((f) => f.bottle, 'bottle', 't')),
     );
     await expectLater(
       createBottle(home, 'broken'),
-      throwsA(contains('$home/bottles/broken/logs/')),
+      throwsA(
+        isA<BottleSetupFailed>()
+            .having((f) => f.timedOut, 'timedOut', isFalse)
+            .having(
+              (f) => f.log,
+              'log',
+              startsWith('$home/bottles/broken/logs/'),
+            ),
+      ),
     );
     expect(
       Directory('$home/bottles/broken/logs').listSync().map((e) => e.path),
@@ -254,40 +274,50 @@ void main() {
     final logs = Directory('$home/bottles/t/logs');
     final before = logs.listSync().length;
     await expectLater(
-      runInBottle(home, 't', '$tmp/no/Juego.exe', []),
+      runInBottle(home, 't', '$tmp/no/Game.exe', []),
       throwsA(isA<FileSystemException>()),
+    );
+    final odd = File('$tmp/odd:/game.exe')..createSync(recursive: true);
+    await expectLater(
+      runInBottle(home, 't', odd.path, []),
+      throwsA(
+        isA<BadWindowsPath>().having((f) => f.problem, 'problem', (
+          part: 'odd:',
+          path: odd.path,
+        )),
+      ),
     );
     expect(logs.listSync(), hasLength(before));
 
-    Directory('$prefix/drive_c/Juegos').createSync();
+    Directory('$prefix/drive_c/Games').createSync();
     final clock = Stopwatch()..start();
-    final run = await runInBottle(home, 't', r'C:\Juegos\Mi Juego.exe', []);
+    final run = await runInBottle(home, 't', r'C:\Games\My Game.exe', []);
     expect(await exitOf(run), 7);
     expect(clock.elapsed, lessThan(const Duration(seconds: 2)));
-    expect(run, endsWith('-Mi_Juego.log'));
+    expect(run, endsWith('-My_Game.log'));
     final text = File(run).readAsStringSync();
     expect(text, contains('# exit=7\n'));
-    expect(text, contains('# cwd $prefix/drive_c/Juegos\n'));
+    expect(text, contains('# cwd $prefix/drive_c/Games\n'));
     expect(text, contains('# backend wine (auto)\n'));
     expect(backendOf(run), 'backend wine (auto)');
     expect(File(log).readAsStringSync(), isNot(contains('# backend')));
 
-    setBackend(home, 't', 'wine', exe: 'Mi Juego.exe');
-    final byExe = await runInBottle(home, 't', r'C:\Juegos\Mi Juego.exe', []);
+    setBackend(home, 't', 'wine', exe: 'My Game.exe');
+    final byExe = await runInBottle(home, 't', r'C:\Games\My Game.exe', []);
     await exitOf(byExe);
     expect(backendOf(byExe), 'backend wine (exe)');
     expect(
       File('$prefix/last-env').readAsStringSync(),
       contains('WINEMSYNC=1\n'),
     );
+    final noDxmt = throwsA(
+      isA<BackendNotInstalled>().having((f) => f.backend, 'backend', 'dxmt'),
+    );
     await expectLater(
       runInBottle(home, 't', 'notepad', [], backend: 'dxmt'),
-      throwsA(contains('bodega backend install dxmt')),
+      noDxmt,
     );
-    await expectLater(
-      backendTest(home, 't', 'dxmt'),
-      throwsA(contains('bodega backend install dxmt')),
-    );
+    await expectLater(backendTest(home, 't', 'dxmt'), noDxmt);
     final probes = await backendTest(home, 't', 'wine');
     expect(probes.map((p) => (p.bits, p.d3d)), [(64, '11'), (64, '12')]);
     expect(probes.every((p) => !p.ok), isTrue, reason: 'fake wine exits 7');
@@ -303,7 +333,12 @@ void main() {
       () => waitBottle(home, 'nope'),
       () => stopBottle(home, 'nope'),
     ]) {
-      await expectLater(missing(), throwsA('no existe la botella nope'));
+      await expectLater(
+        missing(),
+        throwsA(
+          isA<BottleNotFound>().having((f) => f.bottle, 'bottle', 'nope'),
+        ),
+      );
     }
   });
 
@@ -315,16 +350,19 @@ void main() {
         '0024:err:winediag:gnutls_process_attach failed to load libgnutls, '
         'no support for encryption\n'
         'wine client error:0: version mismatch 812/815.\r\n'
-        'wine: failed to open "C:\\\\Juegos\\\\x.exe"\n'
+        'wine: failed to open "C:\\\\Games\\\\x.exe"\n'
+        // A marker twice is still one hint.
+        'Wine cannot find the FreeType font library.\n'
         '# exit=53\n',
       );
     final clean = File('$tmp/clean.log')
       ..writeAsStringSync('# runtime engine-x\nok\r\n# exit=0\n');
-    final hints = await hintsIn(dirty.path);
-    expect(hints, hasLength(4));
-    for (final word in ['FreeType', 'GnuTLS', 'bodega stop', 'ruta']) {
-      expect(hints, contains(contains(word)), reason: word);
-    }
+    expect(await hintsIn(dirty.path), [
+      LogHint.freeType,
+      LogHint.gnuTls,
+      LogHint.otherServer,
+      LogHint.cannotOpen,
+    ]);
     expect(await hintsIn(clean.path), isEmpty);
   });
 
@@ -340,7 +378,7 @@ void main() {
         Link('$home/runtimes/current').createSync(target);
       });
       tearDownAll(() async {
-        for (final bottle in ['t', 'sonda']) {
+        for (final bottle in ['t', 'probe']) {
           if (Directory('$home/bottles/$bottle').existsSync()) {
             await stopBottle(home, bottle);
           }
@@ -378,9 +416,9 @@ void main() {
         final hostlibs = File(
           '$rt/engine/lib/wine/x86_64-unix/libgnutls.30.dylib',
         ).existsSync();
-        for (final lib in ['FreeType', 'GnuTLS']) {
-          final hint = contains(contains(lib));
-          expect(hints, hostlibs ? isNot(hint) : hint, reason: lib);
+        for (final lib in [LogHint.freeType, LogHint.gnuTls]) {
+          final hint = contains(lib);
+          expect(hints, hostlibs ? isNot(hint) : hint, reason: lib.name);
         }
         expect(await stopBottle(home, 't'), 0);
       });
@@ -391,8 +429,8 @@ void main() {
         final setup = File('$home/setup.exe')
           ..writeAsBytesSync(base64.decode(probe64Base64));
         final entry = CatalogEntry.fromJson({
-          'id': 'sonda',
-          'title': 'Sonda',
+          'id': 'probe',
+          'title': 'Probe',
           'status': 'reported',
           'statusNote': '',
           'installer': {
@@ -405,11 +443,11 @@ void main() {
           'args': <String>[],
           'backend': 'wine',
           'sync': 'none',
-          'env': {'BODEGA_PRUEBA': '1'},
+          'env': {'BODEGA_PROBE': '1'},
           'registry': [
             {
               'key': r'HKCU\Software\Bodega',
-              'name': 'Prueba',
+              'name': 'Probe',
               'type': 'REG_SZ',
               'data': 'ok',
             },
@@ -421,27 +459,27 @@ void main() {
         final clock = Stopwatch()..start();
         final dir = await installEntry(home, entry);
         print('install: ${clock.elapsed}');
-        expect(installedApps(home).single.bottle, 'sonda');
+        expect(installedApps(home).single.bottle, 'probe');
 
-        final query = await runInBottle(home, 'sonda', 'reg', [
+        final query = await runInBottle(home, 'probe', 'reg', [
           'query',
           r'HKCU\Software\Bodega',
           '/v',
-          'Prueba',
+          'Probe',
         ]);
         expect(await exitOf(query), 0);
         expect(File(query).readAsStringSync(encoding: latin1), contains('ok'));
 
-        final set = await runInBottle(home, 'sonda', 'cmd', ['/c', 'set']);
+        final set = await runInBottle(home, 'probe', 'cmd', ['/c', 'set']);
         expect(await exitOf(set), 0);
         final lines = File(set).readAsLinesSync(encoding: latin1);
         expect(lines.map((line) => line.trim()), contains('WINEMSYNC=0'));
         final logs = Directory('$dir/logs').listSync().map((e) => e.path);
-        expect(logs, contains(endsWith('-sonda-setup.log')));
-        expect(await stopBottle(home, 'sonda'), 0);
+        expect(logs, contains(endsWith('-probe-setup.log')));
+        expect(await stopBottle(home, 'probe'), 0);
       });
     },
-    skip: runtime == null ? 'BODEGA_TEST_RUNTIME no está definida' : false,
+    skip: runtime == null ? 'BODEGA_TEST_RUNTIME is not set' : false,
     timeout: const Timeout(Duration(minutes: 15)),
   );
 }

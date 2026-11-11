@@ -1,11 +1,15 @@
 import 'package:bodega/app/bloc/backends/backends_bloc.dart';
 import 'package:bodega/app/presentation/backends/widgets/gptk_section.dart';
 import 'package:bodega/app/presentation/backends/widgets/probe_dialog.dart';
+import 'package:bodega/app/shared/text/backend_text.dart';
+import 'package:bodega/app/shared/text/progress_text.dart';
+import 'package:bodega/app/shared/text/step_text.dart';
 import 'package:bodega/app/shared/widgets/status_chip.dart';
 import 'package:bodega/device/theme/color.dart';
 import 'package:bodega/device/theme/spacing.dart';
 import 'package:bodega/device/theme/typography.dart';
 import 'package:bodega/domain/entities/backend_info.dart';
+import 'package:bodega/l10n/l10n.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -16,17 +20,13 @@ class BackendCard extends StatelessWidget {
 
   const BackendCard({super.key, required this.backend, required this.state});
 
-  static const _descriptions = {
-    'wine': 'wined3d y vkd3d. Viene con el motor.',
-    'dxmt': 'D3D10 y D3D11 sobre Metal. El que usan los launchers.',
-    'dxvk': 'D3D10 y D3D11 sobre Vulkan, con MoltenVK.',
-    'd3dmetal': 'D3D11 y D3D12 sobre Metal, de Apple. Lo importas tú.',
-  };
-
   Future<void> _pickFile(BuildContext context) async {
     final bloc = context.read<BackendsBloc>();
-    const tarballs = XTypeGroup(label: 'Tarball', extensions: ['gz', 'GZ']);
-    final file = await openFile(acceptedTypeGroups: const [tarballs]);
+    final tarballs = XTypeGroup(
+      label: context.l10n.commonTarballFileType,
+      extensions: const ['gz', 'GZ'],
+    );
+    final file = await openFile(acceptedTypeGroups: [tarballs]);
     if (file != null) {
       bloc.add(BackendsEvent.installFile(backend.name, file.path));
     }
@@ -42,11 +42,28 @@ class BackendCard extends StatelessWidget {
     if (bottle != null) bloc.add(BackendsEvent.check(bottle, backend.name));
   }
 
+  /// Under the progress bar: the check, D3DMetal's step, the download or the
+  /// install, in that order.
+  String _progress(AppL10n l10n, {required bool isChecking}) {
+    if (isChecking) return l10n.backendChecking;
+    if (state.gptkStep case final step?) return gptkStepText(l10n, step);
+    if (state.isDownloading && state.fraction != 1) {
+      return downloadProgressText(
+        l10n,
+        received: state.received,
+        total: state.total,
+      );
+    }
+    return l10n.commonInstalling;
+  }
+
   @override
   Widget build(BuildContext context) {
     final styles = AppTextStyle(context);
+    final l10n = context.l10n;
     final bloc = context.read<BackendsBloc>();
     final name = backend.name;
+    final description = backendDescriptionText(l10n, name);
     final isBusy = state.busy == name;
     final isChecking = state.checking == name;
     final blocked = state.busy != null || state.checking != null;
@@ -62,22 +79,27 @@ class BackendCard extends StatelessWidget {
               children: [
                 Expanded(child: Text(name, style: styles.cardTitle)),
                 if (backend.installed)
-                  const StatusChip(
-                    label: 'Instalado',
+                  StatusChip(
+                    label: l10n.backendInstalled,
                     color: AppColor.statusTested,
                   )
                 else
-                  const StatusChip(
-                    label: 'No instalado',
+                  StatusChip(
+                    label: l10n.backendNotInstalled,
                     color: AppColor.statusUntested,
                   ),
               ],
             ),
-            const SizedBox(height: AppSpacing.xs),
-            Text(_descriptions[name] ?? '', style: styles.bodySecondary),
-            if (backend.use.isNotEmpty) ...[
+            if (description != null) ...[
               const SizedBox(height: AppSpacing.xs),
-              Text('Sirve para: ${backend.use}', style: styles.caption),
+              Text(description, style: styles.bodySecondary),
+            ],
+            if (backend.role case final role?) ...[
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                l10n.backendUsedFor(backendRoleText(l10n, role)),
+                style: styles.caption,
+              ),
             ],
             if (name == 'd3dmetal') ...[
               const SizedBox(height: AppSpacing.md),
@@ -93,12 +115,7 @@ class BackendCard extends StatelessWidget {
               Semantics(
                 liveRegion: true,
                 child: Text(
-                  isChecking
-                      ? 'Comprobando; cada caso puede tardar hasta 90 s'
-                      : state.gptkStep ??
-                            (state.isDownloading && state.fraction != 1
-                                ? 'Descargando'
-                                : 'Instalando'),
+                  _progress(l10n, isChecking: isChecking),
                   style: styles.caption,
                 ),
               ),
@@ -111,24 +128,24 @@ class BackendCard extends StatelessWidget {
                 if (isBusy && state.isDownloading && state.fraction != 1)
                   OutlinedButton(
                     onPressed: () => bloc.add(const BackendsEvent.cancel()),
-                    child: const Text('Cancelar'),
+                    child: Text(l10n.commonCancel),
                   ),
                 if (!backend.installed && backend.downloadable) ...[
                   FilledButton(
                     onPressed: blocked
                         ? null
                         : () => bloc.add(BackendsEvent.download(name)),
-                    child: const Text('Instalar'),
+                    child: Text(l10n.commonInstall),
                   ),
                   OutlinedButton(
                     onPressed: blocked ? null : () => _pickFile(context),
-                    child: const Text('Elegir archivo…'),
+                    child: Text(l10n.commonChooseFile),
                   ),
                 ],
                 if (backend.installed)
                   OutlinedButton(
                     onPressed: blocked ? null : () => _check(context),
-                    child: const Text('Comprobar'),
+                    child: Text(l10n.backendCheck),
                   ),
               ],
             ),
@@ -137,15 +154,18 @@ class BackendCard extends StatelessWidget {
               Row(
                 children: [
                   if (result.ok)
-                    const StatusChip(label: 'OK', color: AppColor.statusTested)
+                    StatusChip(
+                      label: l10n.backendCheckPassed,
+                      color: AppColor.statusTested,
+                    )
                   else
-                    const StatusChip(
-                      label: 'Falla',
+                    StatusChip(
+                      label: l10n.backendCheckFailed,
                       color: AppColor.statusBlocked,
                     ),
                   const SizedBox(width: AppSpacing.sm),
                   Text(
-                    '${result.bits} bits, D3D${result.d3d}',
+                    l10n.backendCheckCase(result.bits, result.d3d),
                     style: styles.body,
                   ),
                 ],

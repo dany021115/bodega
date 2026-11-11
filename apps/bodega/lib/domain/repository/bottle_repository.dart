@@ -1,6 +1,7 @@
 import 'package:bodega/domain/entities/app_error.dart';
 import 'package:bodega/domain/entities/bottle.dart';
 import 'package:bodega/domain/entities/bottle_detail.dart';
+import 'package:bodega/domain/entities/user_name_problem.dart';
 import 'package:fpdart/fpdart.dart';
 
 abstract class BottleRepository {
@@ -27,7 +28,7 @@ abstract class BottleRepository {
   Future<Either<AppError, Unit>> setUser(String name, String? user);
 
   /// U3: why [user] cannot be a Windows user name, or null if it can.
-  String? userProblem(String user);
+  UserNameProblem? userProblem(String user);
 
   Future<Either<AppError, Unit>> setWindowsVersion(String name, String version);
 

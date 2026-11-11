@@ -43,7 +43,7 @@ $install
 export BODEGA_HOME=\"\$(mktemp -d)\"
 out=\"\$(\$bin backend list)\"
 echo \"\$out\"
-echo \"\$out\" | grep -qx 'dxvk: instalado'
+echo \"\$out\" | grep -qx 'dxvk: installed'
 test -x \"\$BODEGA_HOME/runtimes/current/engine/bin/wine\"
 echo \"smoke $kind: OK\"
 "

@@ -45,12 +45,12 @@ Bottles, the runtime and the backend layers live in `~/.local/share/bodega` (or 
 ### CLI
 
 ```
-bodega create prueba
-bodega run prueba notepad
+bodega create games
+bodega run games notepad
 bodega backend list
-bodega backend test prueba dxvk
-bodega option prueba gpu discrete
-bodega option prueba gamemode on
+bodega backend test games dxvk
+bodega option games gpu discrete
+bodega option games gamemode on
 ```
 
 ### Linux options

@@ -4,6 +4,8 @@ import 'package:bloc_test/bloc_test.dart';
 import 'package:bodega/app/bloc/install/install_bloc.dart';
 import 'package:bodega/domain/entities/app_error.dart';
 import 'package:bodega/domain/entities/catalog_app.dart';
+import 'package:bodega/domain/entities/install_step.dart';
+import 'package:bodega/domain/entities/wine_tool.dart';
 import 'package:bodega/domain/repository/install_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fpdart/fpdart.dart';
@@ -15,7 +17,6 @@ const _app = CatalogApp(
   id: 'rockstar',
   title: 'Rockstar',
   status: CatalogStatus.reported,
-  statusNote: '',
   backend: 'dxvk',
   backendInstalled: true,
   sync: 'none',
@@ -28,8 +29,23 @@ void main() {
 
   setUpAll(() {
     registerFallbackValue((int _, int? _) {});
-    registerFallbackValue((String _) {});
+    registerFallbackValue((InstallStep _) {});
   });
+
+  /// install() reports [steps], then ends with [result].
+  void installs(
+    List<InstallStep> steps, [
+    Either<AppError, Unit> result = const Right(unit),
+  ]) {
+    when(
+      () =>
+          repository.install(any(), any(), any(), bottle: any(named: 'bottle')),
+    ).thenAnswer((call) async {
+      final onStep = call.positionalArguments[2] as void Function(InstallStep);
+      steps.forEach(onStep);
+      return result;
+    });
+  }
 
   void downloads(Either<AppError, String?> result) {
     when(
@@ -54,17 +70,7 @@ void main() {
     'shows the progress, one state per percent, and finishes',
     build: () {
       downloads(right('/d/setup.exe'));
-      when(
-        () => repository.install(
-          any(),
-          any(),
-          any(),
-          bottle: any(named: 'bottle'),
-        ),
-      ).thenAnswer((call) async {
-        (call.positionalArguments[2] as void Function(String))('Creando');
-        return right(unit);
-      });
+      installs(const [InstallStep.creatingBottle('rockstar')]);
       return InstallBloc(repository);
     },
     act: (bloc) => bloc.add(const InstallEvent.start(_app)),
@@ -101,7 +107,7 @@ void main() {
         bottle: 'rockstar',
         received: 100,
         total: 100,
-        step: 'Creando',
+        step: InstallStep.creatingBottle('rockstar'),
       ),
       InstallState(
         phase: InstallPhase.done,
@@ -109,7 +115,55 @@ void main() {
         bottle: 'rockstar',
         received: 100,
         total: 100,
-        step: 'Creando',
+        step: InstallStep.creatingBottle('rockstar'),
+      ),
+    ],
+  );
+
+  // The panel words the step, so the state holds the code and a language
+  // switch rewords it (L6).
+  blocTest<InstallBloc, InstallState>(
+    'keeps each step as a code, in the order it comes',
+    build: () {
+      installs(const [
+        InstallStep.syncMismatch('none'),
+        InstallStep.registry('ServicesPipeTimeout'),
+        InstallStep.runningInstaller(),
+        InstallStep.waiting(),
+      ]);
+      return InstallBloc(repository);
+    },
+    act: (bloc) => bloc.add(
+      const InstallEvent.start(_app, bottle: 'steam', setup: '/d/local.exe'),
+    ),
+    expect: () => [
+      const InstallState(
+        phase: InstallPhase.downloading,
+        app: _app,
+        bottle: 'steam',
+      ),
+      const InstallState(
+        phase: InstallPhase.installing,
+        app: _app,
+        bottle: 'steam',
+      ),
+      for (final step in const [
+        InstallStep.syncMismatch('none'),
+        InstallStep.registry('ServicesPipeTimeout'),
+        InstallStep.runningInstaller(),
+        InstallStep.waiting(),
+      ])
+        InstallState(
+          phase: InstallPhase.installing,
+          app: _app,
+          bottle: 'steam',
+          step: step,
+        ),
+      const InstallState(
+        phase: InstallPhase.done,
+        app: _app,
+        bottle: 'steam',
+        step: InstallStep.waiting(),
       ),
     ],
   );
@@ -150,13 +204,16 @@ void main() {
   blocTest<InstallBloc, InstallState>(
     'a network error fails with no bottle to delete',
     build: () {
-      downloads(left(const AppError.network('sin red')));
+      downloads(left(const AppError.network(detail: 'connection refused')));
       return InstallBloc(repository);
     },
     act: (bloc) => bloc.add(const InstallEvent.start(_app)),
     verify: (bloc) {
       expect(bloc.state.phase, InstallPhase.failed);
-      expect(bloc.state.error, const AppError.network('sin red'));
+      expect(
+        bloc.state.error,
+        const AppError.network(detail: 'connection refused'),
+      );
       expect(bloc.state.bottleLeft, isFalse);
       verifyNever(
         () => repository.install(
@@ -170,7 +227,7 @@ void main() {
   );
 
   blocTest<InstallBloc, InstallState>(
-    'an installer error keeps the log in its message and offers deleting',
+    'an installer error keeps its log and offers deleting',
     build: () {
       downloads(right('/d/setup.exe'));
       when(
@@ -182,7 +239,7 @@ void main() {
         ),
       ).thenAnswer(
         (_) async => left(
-          const AppError.engine('el instalador salió con 1; log: /l/a.log'),
+          const AppError.wineToolFailed(WineTool.installer, 1, '/l/a.log'),
         ),
       );
       when(() => repository.bottleExists('rockstar')).thenReturn(true);
@@ -193,7 +250,10 @@ void main() {
     act: (bloc) async {
       bloc.add(const InstallEvent.start(_app));
       await bloc.stream.firstWhere((s) => s.phase == InstallPhase.failed);
-      expect(bloc.state.error?.message, contains('/l/a.log'));
+      expect(
+        bloc.state.error,
+        const AppError.wineToolFailed(WineTool.installer, 1, '/l/a.log'),
+      );
       expect(bloc.state.bottleLeft, isTrue);
       bloc.add(const InstallEvent.removeBottle());
     },
@@ -251,7 +311,11 @@ void main() {
           any(),
           bottle: any(named: 'bottle'),
         ),
-      ).thenAnswer((_) async => left(const AppError.engine('falló')));
+      ).thenAnswer(
+        (_) async => left(
+          const AppError.wineToolFailed(WineTool.installer, 1, '/l/a.log'),
+        ),
+      );
       when(() => repository.bottleExists(any())).thenReturn(true);
       return InstallBloc(repository);
     },

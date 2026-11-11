@@ -4,7 +4,7 @@ Open-source launcher to play Windows games on Apple Silicon Macs (Wine x86_64 un
 
 ## Language
 
-Everything that goes into git is in English: code, comments, docs, `.sdd/` specs (this overrides the `sdd` skill's Spanish default), commit messages, branch names, tags, pull request titles and bodies, workflow and step names, and script messages. The only Spanish in the repo is the app's Spanish UI text, which the `i18n` change moves to the Spanish translation file. Talking to the user stays in Spanish.
+Everything that goes into git is in English: code, comments, docs, `.sdd/` specs (this overrides the `sdd` skill's Spanish default), commit messages, branch names, tags, pull request titles and bodies, workflow and step names, and script messages. The only Spanish in the repo is the translation: `apps/bodega/lib/l10n/app_es.arb`, `apps/bodega/macos/Runner/es.lproj/*.strings` and the `[es]` keys of `packaging/linux/bodega.desktop`; besides them, only the Settings dialog's name for Spanish, which is written in Spanish. Talking to the user stays in Spanish.
 
 ## Repo
 
@@ -35,13 +35,14 @@ Flutter 3.47 / Dart 3.13. These versions were chosen because TeeShot's own (free
 
 Assets use `spider` (activated globally): `spider build` writes `lib/resources/`.
 
-Freezed 4 syntax: `abstract class` for states and entities, `sealed class` for events.
+Freezed 4 syntax: `abstract class` for states and entities, `sealed class` for events and for unions with several factories, like `AppError`.
 
 ## Commands
 
 ```
 cd apps/bodega
 dart run build_runner build --delete-conflicting-outputs
+flutter gen-l10n   # after editing an ARB (flutter pub get, run and build also run it; build_runner does not)
 flutter analyze && flutter test && tool/check_layers.sh
 flutter run -d macos
 
@@ -53,11 +54,11 @@ tool/package_linux.sh   # .deb (needs dpkg-deb), .tar.gz, AppImage and Arch .pkg
 tool/version.sh get|bump|check   # SemVer in apps/bodega/pubspec.yaml
 ```
 
-Generated files (`*.g.dart`, `*.freezed.dart`, `*.config.dart`) are gitignored: run build_runner after cloning.
+Generated files (`*.g.dart`, `*.freezed.dart`, `*.config.dart`, and gen-l10n's `lib/l10n/app_localizations*.dart` and `untranslated.json`) are gitignored: run build_runner after cloning; `flutter pub get` runs gen-l10n.
 
 ## Layers
 
-See `rules/architecture.md`. The short version: `domain/` is pure Dart, **only `data/` imports `package:engine`**, and `device/` doesn't import `data/` or `domain/`. `tool/check_layers.sh` enforces it.
+See `rules/architecture.md`. The short version: `domain/` is pure Dart, **only `data/` imports `package:engine`**, and `device/` doesn't import `data/` or `domain/`. `tool/check_layers.sh` enforces it. What the user reads comes from the ARBs in `apps/bodega/lib/l10n/`, and only `app/` words it: see the "Text" section of `rules/architecture.md`.
 
 ## Lines not to cross
 

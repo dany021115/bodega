@@ -14,7 +14,7 @@ void main() {
 
   setUp(() {
     repository = _MockBackends();
-    when(() => repository.graphics('juegos', any()))
+    when(() => repository.graphics('games', any()))
         .thenAnswer((_) async => right(const {r'C:\Blur\Blur.exe': blur}));
   });
 
@@ -23,30 +23,25 @@ void main() {
     build: () => GraphicsBloc(repository),
     act: (bloc) => bloc
       ..add(
-        const GraphicsEvent.load('juegos', [
+        const GraphicsEvent.load('games', [
           r'C:\Blur\Blur.exe',
           r'C:\Program Files (x86)\Steam\Steam.exe',
-          r'C:\roto.exe',
+          r'C:\broken.exe',
         ]),
       )
-      ..add(const GraphicsEvent.load('juegos', [r'C:\Blur\Blur.exe'])),
+      ..add(const GraphicsEvent.load('games', [r'C:\Blur\Blur.exe'])),
     verify: (bloc) {
-      expect(bloc.state.of('juegos', r'C:\Blur\Blur.exe'), blur);
-      expect(bloc.state.of('juegos', r'C:\roto.exe'), isNull);
+      // What the exe draws with and its misfits, never text:
+      // app/shared/text/backend_text.dart words them.
+      expect(bloc.state.of('games', r'C:\Blur\Blur.exe'), blur);
+      expect(bloc.state.of('games', r'C:\broken.exe'), isNull);
       expect(bloc.state.byKey, hasLength(2));
       verify(
-        () => repository.graphics('juegos', [
+        () => repository.graphics('games', [
           r'C:\Blur\Blur.exe',
-          r'C:\roto.exe',
+          r'C:\broken.exe',
         ]),
       ).called(1);
-      expect(blur.label, 'DX9 · 32 bits');
-      expect(
-        blur.warning('Blur', 'd3dmetal'),
-        'Blur es de 32 bits con DirectX 9: d3dmetal no le sirve. '
-        'Usa Automático.',
-      );
-      expect(blur.warning('Blur', 'wine'), isNull);
     },
   );
 }

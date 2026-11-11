@@ -4,12 +4,8 @@ part 'catalog_app.freezed.dart';
 
 enum CatalogStatus { tested, reported, untested, blocked }
 
-@freezed
-abstract class KnownIssue with _$KnownIssue {
-  const factory KnownIssue({required String symptom, required String fix}) =
-      _KnownIssue;
-}
-
+/// An app of the catalog, as data: its prose (status note, why it is
+/// unstable, notes and known issues) is worded in app/ by [id] (design §7).
 @freezed
 abstract class CatalogApp with _$CatalogApp {
   const CatalogApp._();
@@ -18,16 +14,17 @@ abstract class CatalogApp with _$CatalogApp {
     required String id,
     required String title,
     required CatalogStatus status,
-    required String statusNote,
-    String? flaky,
+
+    /// The catalog marks it unstable; its prose says why.
+    @Default(false) bool flaky,
     required String backend,
     required bool backendInstalled,
     required String sync,
     required String host,
     required bool hasChecksum,
-    @Default([]) List<String> notes,
-    @Default([]) List<KnownIssue> knownIssues,
-    @Default({}) Map<String, String> source,
+
+    /// Where its recipe comes from, by field: null for one with no data.
+    @Default({}) Map<String, String?> source,
 
     /// The bottle it is installed in, and its key there.
     String? bottle,

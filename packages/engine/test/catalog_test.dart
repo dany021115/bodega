@@ -32,9 +32,9 @@ void catalog() {
     final source = File('$tmp/src-$id')..writeAsStringSync(script);
     return CatalogEntry.fromJson({
       'id': id,
-      'title': 'Programa X',
+      'title': 'Program X',
       'status': status,
-      'statusNote': 'motivo',
+      'statusNote': 'reason',
       'installer': {
         'url': url ?? 'file://${source.path}',
         'sha256': sha256,
@@ -42,7 +42,7 @@ void catalog() {
         'msi': msi,
       },
       'exe': 'Prog/x.exe',
-      'args': ['--uno'],
+      'args': ['--one'],
       'backend': backend,
       'sync': 'none',
       'env': env,
@@ -109,7 +109,17 @@ void catalog() {
     expect(status('epic-games'), 'blocked');
     expect(status('gog-galaxy'), 'blocked');
     expect(catalogEntry('ea-app').flaky, isNotNull);
-    expect(() => catalogEntry('nope'), throwsA(contains('nope')));
+    // A field the recipe has no data for is null, not text (E8).
+    expect(catalogEntry('gog-galaxy').source, containsPair('verified', null));
+    expect(catalogEntry('steam').source['verified'], startsWith('2026-'));
+    expect(
+      () => catalogEntry('nope'),
+      throwsA(
+        isA<BadChoice>()
+            .having((f) => f.kind, 'kind', ChoiceKind.catalogApp)
+            .having((f) => f.value, 'value', 'nope'),
+      ),
+    );
   });
 
   test('catalogEntries', () {
@@ -121,7 +131,7 @@ void catalog() {
 
   group('installEntry', () {
     test('installs', () async {
-      final steps = <String>[];
+      final steps = <InstallStep>[];
       final dir = await installEntry(
         home,
         fake(makeExe, env: {'FOO': '1'}),
@@ -145,30 +155,61 @@ void catalog() {
       expect(app['exe'], 'Prog/x.exe');
       expect(File('$prefix/server.log').readAsStringSync(), contains('k'));
       expect(File('$home/downloads/x-setup.exe').existsSync(), isFalse);
-      expect(steps.first, startsWith('sin checksum fijo'));
+      // Each step as a code with what it names (E2). A file URL has no host.
+      expect(steps, [
+        (kind: InstallStepKind.unpinnedDownload, subject: ''),
+        (kind: InstallStepKind.downloading, subject: null),
+        (kind: InstallStepKind.creatingBottle, subject: 'x'),
+        (kind: InstallStepKind.runningInstaller, subject: null),
+        (kind: InstallStepKind.waiting, subject: null),
+      ]);
       final logs = Directory('$dir/logs').listSync().map((e) => e.path);
       expect(logs, contains(endsWith('-x-setup.log')));
 
       await expectLater(
         installEntry(home, fake(makeExe)),
-        throwsA(allOf(contains('ya existe'), contains('rm -rf'))),
+        throwsA(isA<BottleExists>().having((f) => f.bottle, 'bottle', 'x')),
       );
     });
 
     test('refuses before creating anything', () async {
-      for (final (entry, error) in [
-        (fake(makeExe, status: 'blocked'), 'motivo'),
-        (fake(makeExe, backend: 'dxmt'), 'bodega backend install dxmt'),
-        (fake(makeExe, url: 'http://example.com/x.exe'), 'no es https'),
-        (fake(makeExe, sha256: '0' * 64), 'checksum incorrecto'),
+      for (final (entry, failure) in [
+        (
+          fake(makeExe, status: 'blocked'),
+          isA<CatalogBlocked>().having((f) => f.id, 'id', 'x'),
+        ),
+        (
+          fake(makeExe, backend: 'dxmt'),
+          isA<BackendNotInstalled>().having(
+            (f) => f.backend,
+            'backend',
+            'dxmt',
+          ),
+        ),
+        (
+          fake(makeExe, url: 'http://example.com/x.exe'),
+          isA<NotHttps>().having(
+            (f) => f.url,
+            'url',
+            'http://example.com/x.exe',
+          ),
+        ),
+        (
+          fake(makeExe, sha256: '0' * 64),
+          isA<ChecksumMismatch>().having(
+            (f) => f.file,
+            'file',
+            '$home/downloads/x-setup.exe',
+          ),
+        ),
       ]) {
-        await expectLater(installEntry(home, entry), throwsA(contains(error)));
+        await expectLater(installEntry(home, entry), throwsA(failure));
         expect(Directory('$home/bottles/x').existsSync(), isFalse);
         expect(File('$home/downloads/x-setup.exe').existsSync(), isFalse);
       }
       await expectLater(
         installEntry(home, catalogEntry('epic-games')),
-        throwsA(contains('legendary')),
+        throwsA(isA<CatalogBlocked>().having((f) => f.id, 'id', 'epic-games')),
       );
       expect(Directory('$home/bottles/epic-games').existsSync(), isFalse);
     });
@@ -203,7 +244,12 @@ void catalog() {
 
       await expectLater(
         installEntry(home, fake('$makeExe; exit 5', id: 'bad')),
-        throwsA(allOf(contains('salió con 5'), contains('-bad-setup.log'))),
+        throwsA(
+          isA<WineToolFailed>()
+              .having((f) => f.tool, 'tool', WineTool.installer)
+              .having((f) => f.exitCode, 'exitCode', 5)
+              .having((f) => f.log, 'log', endsWith('-bad-setup.log')),
+        ),
       );
       expect(File('$home/bottles/bad/apps.json').existsSync(), isFalse);
       expect(Directory('$home/bottles/bad/logs').existsSync(), isTrue);
@@ -216,7 +262,11 @@ void catalog() {
     test('missing exe', () async {
       await expectLater(
         installEntry(home, fake('true')),
-        throwsA(contains('no está Prog/x.exe')),
+        throwsA(
+          isA<InstallerNoExe>()
+              .having((f) => f.exe, 'exe', 'Prog/x.exe')
+              .having((f) => f.log, 'log', endsWith('-x-setup.log')),
+        ),
       );
       expect(File('$home/bottles/x/apps.json').existsSync(), isFalse);
     });
@@ -224,7 +274,7 @@ void catalog() {
     test('registry', () async {
       const value = {
         'key': r'HKLM\Some Key',
-        'name': 'Valor',
+        'name': 'Value',
         'type': 'REG_DWORD',
         'data': '16',
       };
@@ -238,7 +288,7 @@ void catalog() {
         [
           contains('Enable SDL'),
           contains('DisableInput'),
-          r'reg add HKLM\Some Key /v Valor /t REG_DWORD /d 16 /f',
+          r'reg add HKLM\Some Key /v Value /t REG_DWORD /d 16 /f',
         ],
       );
       await expectLater(
@@ -252,7 +302,11 @@ void catalog() {
             ],
           ),
         ),
-        throwsA(contains('reg add salió con 3')),
+        throwsA(
+          isA<WineToolFailed>()
+              .having((f) => f.tool, 'tool', WineTool.reg)
+              .having((f) => f.exitCode, 'exitCode', 3),
+        ),
       );
     });
 
@@ -280,7 +334,9 @@ void catalog() {
           fake(hang, id: 'never'),
           limit: const Duration(seconds: 1),
         ),
-        throwsA(contains('no está')),
+        throwsA(
+          isA<InstallerNoExe>().having((f) => f.exe, 'exe', 'Prog/x.exe'),
+        ),
       );
     });
   });
@@ -301,27 +357,35 @@ void catalog() {
       ..createSync(recursive: true)
       ..writeAsStringSync(failed);
 
-    final hints = antiCheatHints(home, 'b');
-    expect(hints, hasLength(1));
-    expect(hints.single, startsWith('POLYGON usa Easy Anti-Cheat'));
-    expect(hints.single, contains('No es un fallo de tu instalación'));
+    expect(antiCheatHints(home, 'b'), [(game: 'POLYGON')]);
 
     final after = log.lastModifiedSync().add(const Duration(seconds: 2));
     expect(antiCheatHints(home, 'b', since: after), isEmpty);
+
+    // A log that does not name its game still fails: for no game.
+    log.writeAsStringSync(failed.split('\r\n').skip(1).join('\r\n'));
+    expect(antiCheatHints(home, 'b'), [(game: null)]);
 
     log.writeAsStringSync('${failed}Launcher finished with: 0, \'ok\'.\r\n');
     expect(antiCheatHints(home, 'b'), isEmpty);
     log.writeAsStringSync('- ProcessTitle: POLYGON.\r\n');
     expect(antiCheatHints(home, 'b'), isEmpty);
-    expect(() => antiCheatHints(home, 'nope'), throwsA(contains('nope')));
+    expect(
+      () => antiCheatHints(home, 'nope'),
+      throwsA(isA<BottleNotFound>().having((f) => f.bottle, 'bottle', 'nope')),
+    );
   });
 
   test('installedApps', () async {
     expect(installedApps(home), isEmpty);
-    await createBottle(home, 'sin-app');
+    await createBottle(home, 'no-app');
     await expectLater(
-      openApp(home, 'sin-app'),
-      throwsA(contains('bodega run sin-app')),
+      openApp(home, 'no-app'),
+      throwsA(
+        isA<AppNotFound>()
+            .having((f) => f.bottle, 'bottle', 'no-app')
+            .having((f) => f.key, 'key', isNull),
+      ),
     );
 
     await installEntry(
@@ -331,14 +395,14 @@ void catalog() {
     await installEntry(home, fake(makeExe, id: 'a'), bottle: 'b');
     final apps = installedApps(home);
     expect(apps.map((app) => app.bottle), ['b', 'x']);
-    expect(apps.last.title, 'Programa X');
-    expect(apps.last.args, ['--uno']);
+    expect(apps.last.title, 'Program X');
+    expect(apps.last.args, ['--one']);
 
     final prefix = '$home/bottles/x/prefix';
     final log = await openApp(home, 'x');
     expect(await exitOf(log), 7);
     final text = File(log).readAsStringSync();
-    expect(text, contains(r'C:\Prog\x.exe --uno'));
+    expect(text, contains(r'C:\Prog\x.exe --one'));
     expect(text, contains('# cwd $prefix/drive_c/Prog\n'));
     expect(text, contains('# backend wine (exe)\n'));
     final env = File('$prefix/last-env').readAsStringSync();
@@ -357,8 +421,17 @@ void catalog() {
       contains('WINEMSYNC=0'),
     );
 
-    File('$home/bottles/b/apps.json').writeAsStringSync('{roto');
-    expect(() => installedApps(home), throwsA(contains('apps.json')));
+    File('$home/bottles/b/apps.json').writeAsStringSync('{broken');
+    expect(
+      () => installedApps(home),
+      throwsA(
+        isA<CorruptData>().having(
+          (f) => f.source,
+          'source',
+          '$home/bottles/b/apps.json',
+        ),
+      ),
+    );
   });
 }
 
@@ -375,7 +448,7 @@ void engineForApp() {
         'status': 'reported',
         'statusNote': '',
         'installer': {
-          'url': 'http://no-se-usa/x.exe',
+          'url': 'http://unused/x.exe',
           'sha256': sha256,
           'args': <String>[],
           'msi': false,
@@ -426,7 +499,9 @@ void engineForApp() {
         fake(id: 'y', sha256: '0' * 64),
         setup: again.path,
       ),
-      throwsA(contains('checksum incorrecto')),
+      throwsA(
+        isA<ChecksumMismatch>().having((f) => f.file, 'file', again.path),
+      ),
     );
     expect(Directory('$home/bottles/y').existsSync(), isFalse);
     expect(again.existsSync(), isTrue);
@@ -435,12 +510,12 @@ void engineForApp() {
   test('listBottles', () async {
     await runtime();
     expect(listBottles(home), isEmpty);
-    await createBottle(home, 'sola');
+    await createBottle(home, 'empty');
     final setup = File('$tmp/x-setup.exe')..writeAsStringSync(makeExe);
     await installEntry(home, fake(), setup: setup.path);
-    Directory('$home/bottles/rota').createSync();
+    Directory('$home/bottles/broken').createSync();
     final list = listBottles(home);
-    expect(list.map((b) => b.name), ['rota', 'sola', 'x']);
+    expect(list.map((b) => b.name), ['broken', 'empty', 'x']);
     expect(list.map((b) => b.ready), [false, true, true]);
     expect(list.map((b) => b.apps.firstOrNull?.title), [null, null, 'X']);
     expect(installedApps(home).map((a) => a.bottle), ['x']);
@@ -449,14 +524,14 @@ void engineForApp() {
   test('removeBottle', () async {
     await runtime();
     await createBottle(home, 't');
-    final outside = File('$tmp/fuera/dato.txt')..createSync(recursive: true);
-    Link('$home/bottles/t/prefix/z').createSync('$tmp/fuera');
+    final outside = File('$tmp/outside/data.txt')..createSync(recursive: true);
+    Link('$home/bottles/t/prefix/z').createSync('$tmp/outside');
     await removeBottle(home, 't');
     expect(Directory('$home/bottles/t').existsSync(), isFalse);
     expect(outside.existsSync(), isTrue);
     await expectLater(
       removeBottle(home, 't'),
-      throwsA(contains('no existe la botella')),
+      throwsA(isA<BottleNotFound>().having((f) => f.bottle, 'bottle', 't')),
     );
   });
 
@@ -478,26 +553,32 @@ void engineForApp() {
     await createBottle(home, 'a');
     await createBottle(home, 'b');
     final drive = '$home/bottles/a/prefix/drive_c';
-    File('$drive/Juego/j.exe').createSync(recursive: true);
-    addApp(home, 'a', 'Dentro', 'Juego/j.exe');
-    expect(installedApps(home).single.title, 'Dentro');
+    File('$drive/Game/g.exe').createSync(recursive: true);
+    addApp(home, 'a', 'Inside', 'Game/g.exe');
+    expect(installedApps(home).single.title, 'Inside');
     expect(
-      () => addApp(home, 'a', 'Otra', 'Juego/j.exe'),
-      throwsA(contains('ya tiene')),
+      () => addApp(home, 'a', 'Another', 'Game/g.exe'),
+      throwsA(isA<AppAlreadyAdded>().having((f) => f.bottle, 'bottle', 'a')),
     );
     expect(
-      () => addApp(home, 'b', 'Nada', 'Juego/j.exe'),
-      throwsA(contains('no existe')),
+      () => addApp(home, 'b', 'Nothing', 'Game/g.exe'),
+      throwsA(
+        isA<MissingFile>().having(
+          (f) => f.path,
+          'path',
+          '$home/bottles/b/prefix/drive_c/Game/g.exe',
+        ),
+      ),
     );
 
     final inside = await openApp(home, 'a');
     await exitOf(inside);
-    expect(File(inside).readAsStringSync(), contains(r'C:\Juego\j.exe'));
+    expect(File(inside).readAsStringSync(), contains(r'C:\Game\g.exe'));
 
-    final free = File('$tmp/Fuera/libre.exe')..createSync(recursive: true);
-    addApp(home, 'b', 'Fuera', free.path);
+    final free = File('$tmp/Outside/free.exe')..createSync(recursive: true);
+    addApp(home, 'b', 'Outside', free.path);
     final outside = await openApp(home, 'b');
     await exitOf(outside);
-    expect(File(outside).readAsStringSync(), contains('# cwd $tmp/Fuera\n'));
+    expect(File(outside).readAsStringSync(), contains('# cwd $tmp/Outside\n'));
   });
 }

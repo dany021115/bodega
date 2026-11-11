@@ -1,6 +1,7 @@
 import 'package:bodega/domain/entities/app_error.dart';
 import 'package:bodega/domain/entities/backend_info.dart';
 import 'package:bodega/domain/entities/exe_graphics.dart';
+import 'package:bodega/domain/entities/gptk_step.dart';
 import 'package:fpdart/fpdart.dart';
 
 abstract class BackendRepository {
@@ -27,10 +28,11 @@ abstract class BackendRepository {
   Future<Either<AppError, String?>> findGptkDmg(String version);
 
   /// I3: installs D3DMetal from a Game Porting Toolkit [dmg], replacing the
-  /// one there was. Returns the version installed.
-  Future<Either<AppError, String>> installD3DMetalDmg(
+  /// one there was. Returns the version installed, or null when its framework
+  /// does not say (E3).
+  Future<Either<AppError, String?>> installD3DMetalDmg(
     String dmg, {
-    required void Function(String step) onStep,
+    required void Function(GptkStep step) onStep,
     required bool Function() cancelled,
   });
 

@@ -38,7 +38,7 @@ void main() {
   );
 
   blocTest<UpdateBloc, UpdateState>(
-    '"Ahora no" remembers the version and hides it',
+    '"Not now" remembers the version and hides it',
     build: () => UpdateBloc(repository),
     seed: () => const UpdateState(update: update),
     act: (bloc) => bloc.add(const UpdateEvent.skip()),
@@ -86,7 +86,9 @@ void main() {
       var calls = 0;
       when(() => repository.download(any(), any())).thenAnswer(
         (_) async => calls++ == 0
-            ? left(const AppError.engine('no coincide con su SHA256'))
+            ? left(
+                const AppError.checksumMismatch('Bodega-1.4.0-macos-arm64.dmg'),
+              )
             : right(null),
       );
       return UpdateBloc(repository);

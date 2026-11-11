@@ -3,12 +3,14 @@ import 'package:bodega/app/presentation/catalog/widgets/catalog_chips.dart';
 import 'package:bodega/app/presentation/catalog/widgets/detail_action.dart';
 import 'package:bodega/app/presentation/catalog/widgets/detail_section.dart';
 import 'package:bodega/app/router.dart';
+import 'package:bodega/app/shared/text/catalog_text.dart';
 import 'package:bodega/app/shared/widgets/app_icon.dart';
 import 'package:bodega/app/shared/widgets/custom_loading.dart';
 import 'package:bodega/app/shared/widgets/empty_state.dart';
 import 'package:bodega/device/router/manager.dart';
 import 'package:bodega/device/theme/spacing.dart';
 import 'package:bodega/device/theme/typography.dart';
+import 'package:bodega/l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -17,16 +19,9 @@ class CatalogDetailPage extends StatelessWidget {
 
   const CatalogDetailPage({super.key, required this.id});
 
-  static const _sourceLabels = {
-    'repo': 'Repositorio',
-    'commit': 'Commit',
-    'path': 'Receta',
-    'license': 'Licencia',
-    'verified': 'Verificada',
-  };
-
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final styles = AppTextStyle(context);
 
     return Scaffold(
@@ -37,13 +32,14 @@ class CatalogDetailPage extends StatelessWidget {
           if (app == null) {
             return EmptyState(
               icon: Icons.search_off_rounded,
-              title: 'No está en el catálogo',
+              title: l10n.catalogNotFound,
               message: id,
-              actionLabel: 'Volver al catálogo',
+              actionLabel: l10n.catalogBackToCatalog,
               onAction: () =>
                   RouterManager.go(AppRoute.catalog, context: context),
             );
           }
+          final prose = catalogProse(app.id, l10n);
 
           return ListView(
             padding: const EdgeInsets.all(AppSpacing.xxl),
@@ -54,7 +50,7 @@ class CatalogDetailPage extends StatelessWidget {
                   onPressed: () =>
                       RouterManager.go(AppRoute.catalog, context: context),
                   icon: const Icon(Icons.arrow_back_rounded, size: 18),
-                  label: const Text('Catálogo'),
+                  label: Text(l10n.catalogTitle),
                 ),
               ),
               const SizedBox(height: AppSpacing.md),
@@ -74,55 +70,60 @@ class CatalogDetailPage extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: AppSpacing.lg),
-              Text(app.statusNote, style: styles.body),
-              if (app.flaky case final flaky?) ...[
-                const SizedBox(height: AppSpacing.sm),
-                Text(flaky, style: styles.bodySecondary),
+              if (prose != null) ...[
+                const SizedBox(height: AppSpacing.lg),
+                Text(prose.statusNote, style: styles.body),
+                if (prose.flaky case final flaky?) ...[
+                  const SizedBox(height: AppSpacing.sm),
+                  Text(flaky, style: styles.bodySecondary),
+                ],
               ],
               const SizedBox(height: AppSpacing.lg),
               DetailAction(app: app),
               DetailSection(
-                title: 'Configuración',
+                title: l10n.catalogConfigSection,
                 children: [
-                  Text('Backend: ${app.backend}', style: styles.body),
-                  Text('Sync: ${app.sync}', style: styles.body),
+                  Text(l10n.catalogBackend(app.backend), style: styles.body),
+                  Text(l10n.catalogSync(app.sync), style: styles.body),
                 ],
               ),
-              if (app.notes.isNotEmpty)
+              if (prose != null && prose.notes.isNotEmpty)
                 DetailSection(
-                  title: 'Notas',
+                  title: l10n.catalogNotesSection,
                   children: [
-                    for (final note in app.notes)
+                    for (final note in prose.notes)
                       Padding(
                         padding: const EdgeInsets.only(bottom: AppSpacing.sm),
                         child: Text(note, style: styles.body),
                       ),
                   ],
                 ),
-              if (app.knownIssues.isNotEmpty)
+              if (prose != null && prose.issues.isNotEmpty)
                 DetailSection(
-                  title: 'Problemas conocidos',
+                  title: l10n.catalogKnownIssuesSection,
                   children: [
-                    for (final issue in app.knownIssues)
+                    for (final (symptom, fix) in prose.issues)
                       Padding(
                         padding: const EdgeInsets.only(bottom: AppSpacing.md),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(issue.symptom, style: styles.cardTitle),
-                            Text(issue.fix, style: styles.bodySecondary),
+                            Text(symptom, style: styles.cardTitle),
+                            Text(fix, style: styles.bodySecondary),
                           ],
                         ),
                       ),
                   ],
                 ),
               DetailSection(
-                title: 'Procedencia',
+                title: l10n.catalogSourceSection,
                 children: [
                   for (final MapEntry(:key, :value) in app.source.entries)
                     SelectableText(
-                      '${_sourceLabels[key] ?? key}: $value',
+                      l10n.catalogSourceLine(
+                        catalogSourceText(l10n, key),
+                        value ?? l10n.catalogSourceNoData,
+                      ),
                       style: styles.caption,
                     ),
                 ],

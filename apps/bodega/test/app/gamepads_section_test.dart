@@ -4,10 +4,13 @@ import 'package:bodega/app/bloc/sections/sections_bloc.dart';
 import 'package:bodega/app/presentation/bottles/widgets/gamepads_section.dart';
 import 'package:bodega/domain/entities/gamepad.dart';
 import 'package:bodega/domain/entities/host_issue.dart';
+import 'package:bodega/l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+
+import '../support/pump.dart';
 
 class _MockGamepads extends MockBloc<GamepadsEvent, GamepadsState>
     implements GamepadsBloc {}
@@ -29,6 +32,7 @@ const _locked = Gamepad(
 );
 
 void main() {
+  final en = lookupAppL10n(const Locale('en'));
   late _MockGamepads gamepads;
   late _MockSections sections;
 
@@ -45,8 +49,8 @@ void main() {
     tester.view.physicalSize = const Size(380, 900);
     addTearDown(tester.view.reset);
     await tester.pumpWidget(
-      MaterialApp(
-        home: MultiBlocProvider(
+      wrapApp(
+        MultiBlocProvider(
           providers: [
             BlocProvider<GamepadsBloc>.value(value: gamepads),
             BlocProvider<SectionsBloc>.value(value: sections),
@@ -61,7 +65,7 @@ void main() {
 
   testWidgets('with nothing to check it takes no room', (tester) async {
     await pump(tester, const GamepadsState(isLoading: false));
-    expect(find.text('Mandos'), findsNothing);
+    expect(find.text(en.gamepadsTitle), findsNothing);
   });
 
   testWidgets('without gamepads it says so', (tester) async {
@@ -72,7 +76,7 @@ void main() {
         report: GamepadReport(pads: [], sdl: true, issues: []),
       ),
     );
-    expect(find.text('No hay mandos conectados.'), findsOneWidget);
+    expect(find.text('No controllers connected.'), findsOneWidget);
   });
 
   testWidgets('a pad Wine cannot open says so, and shows the fix', (
@@ -87,16 +91,20 @@ void main() {
           sdl: true,
           issues: [
             HostIssue(
-              title: 'Sin permiso para el mando Microsoft X-Box 360 pad',
-              detail: 'Bodega no puede abrir /dev/input/event26.',
+              kind: HostIssueKind.padNoAccess,
+              subject: 'Microsoft X-Box 360 pad',
               command: 'sudo pacman -S steam-devices',
             ),
           ],
         ),
       ),
     );
-    expect(find.text('Listo'), findsOneWidget);
-    expect(find.text('Sin permiso'), findsOneWidget);
+    expect(find.text('Ready'), findsOneWidget);
+    expect(find.text('No access'), findsOneWidget);
+    expect(
+      find.text('No access to the controller Microsoft X-Box 360 pad'),
+      findsOneWidget,
+    );
     expect(find.text('sudo pacman -S steam-devices'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
@@ -105,7 +113,7 @@ void main() {
 
   testWidgets('looking again asks the bloc', (tester) async {
     await pump(tester, const GamepadsState(isLoading: false, report: empty));
-    await tester.tap(find.text('Volver a comprobar'));
+    await tester.tap(find.text('Check again'));
     verify(() => gamepads.add(const GamepadsEvent.load())).called(1);
   });
 
@@ -113,7 +121,7 @@ void main() {
     await pump(tester, const GamepadsState(isLoading: true, report: empty));
     final button = tester.widget<OutlinedButton>(
       find.ancestor(
-        of: find.text('Volver a comprobar'),
+        of: find.text('Check again'),
         matching: find.byType(OutlinedButton),
       ),
     );

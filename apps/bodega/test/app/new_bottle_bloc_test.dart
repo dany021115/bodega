@@ -2,6 +2,7 @@ import 'package:bloc_test/bloc_test.dart';
 import 'package:bodega/app/bloc/new_bottle/new_bottle_bloc.dart';
 import 'package:bodega/domain/entities/app_error.dart';
 import 'package:bodega/domain/entities/bottle.dart';
+import 'package:bodega/domain/entities/wine_tool.dart';
 import 'package:bodega/domain/repository/bottle_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fpdart/fpdart.dart';
@@ -47,7 +48,7 @@ void main() {
     final bloc = build();
     await Future<void>.delayed(Duration.zero);
 
-    for (final name in ['-juegos', 'mis juegos', 'a' * 65]) {
+    for (final name in ['-games', 'my games', 'a' * 65]) {
       bloc.add(NewBottleEvent.nameChanged(name));
       await Future<void>.delayed(Duration.zero);
       expect(bloc.state.canSubmit, isFalse, reason: name);
@@ -58,14 +59,14 @@ void main() {
   blocTest<NewBottleBloc, NewBottleState>(
     'submitting creates the bottle with the chosen Windows and backend',
     build: () {
-      when(() => repository.create('juegos', windows: 'win10', backend: 'dxmt'))
+      when(() => repository.create('games', windows: 'win10', backend: 'dxmt'))
           .thenAnswer((_) async => right(unit));
       return build();
     },
     act: (bloc) async {
       await Future<void>.delayed(Duration.zero);
       bloc
-        ..add(const NewBottleEvent.nameChanged('juegos'))
+        ..add(const NewBottleEvent.nameChanged('games'))
         ..add(const NewBottleEvent.windowsChanged('win10'))
         ..add(const NewBottleEvent.backendChanged('dxmt'))
         ..add(const NewBottleEvent.submit());
@@ -73,9 +74,9 @@ void main() {
     wait: const Duration(milliseconds: 10),
     verify: (bloc) {
       verify(
-        () => repository.create('juegos', windows: 'win10', backend: 'dxmt'),
+        () => repository.create('games', windows: 'win10', backend: 'dxmt'),
       ).called(1);
-      expect(bloc.state.createdName, 'juegos');
+      expect(bloc.state.createdName, 'games');
       expect(bloc.state.isCreating, isFalse);
     },
   );
@@ -83,20 +84,30 @@ void main() {
   blocTest<NewBottleBloc, NewBottleState>(
     'a failed creation keeps the error and creates nothing',
     build: () {
-      when(
-        () => repository.create('juegos', windows: 'win11', backend: 'auto'),
-      ).thenAnswer((_) async => left(const AppError.engine('wineboot falló')));
+      when(() => repository.create('games', windows: 'win11', backend: 'auto'))
+          .thenAnswer(
+            (_) async => left(
+              const AppError.wineToolFailed(
+                WineTool.wineboot,
+                1,
+                '/l/wineboot.log',
+              ),
+            ),
+          );
       return build();
     },
     act: (bloc) async {
       await Future<void>.delayed(Duration.zero);
       bloc
-        ..add(const NewBottleEvent.nameChanged('juegos'))
+        ..add(const NewBottleEvent.nameChanged('games'))
         ..add(const NewBottleEvent.submit());
     },
     wait: const Duration(milliseconds: 10),
     verify: (bloc) {
-      expect(bloc.state.error, const AppError.engine('wineboot falló'));
+      expect(
+        bloc.state.error,
+        const AppError.wineToolFailed(WineTool.wineboot, 1, '/l/wineboot.log'),
+      );
       expect(bloc.state.createdName, isNull);
       expect(bloc.state.isCreating, isFalse);
     },

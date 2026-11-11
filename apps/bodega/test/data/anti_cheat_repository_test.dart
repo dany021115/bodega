@@ -41,7 +41,7 @@ void main() {
     DioException(
       requestOptions: RequestOptions(),
       type: DioExceptionType.connectionError,
-      message: 'sin red',
+      message: 'no network',
     ),
   );
 
@@ -75,7 +75,7 @@ void main() {
     final error = (await repository.games()).getLeft().toNullable();
 
     expect(error, isA<NetworkError>());
-    expect(error!.message, contains('sin red'));
+    expect(error!.detail, contains('no network'));
     expect(File('${home.path}/cache/anticheat.json').existsSync(), isFalse);
   });
 }

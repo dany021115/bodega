@@ -1,12 +1,16 @@
 import 'package:bloc_test/bloc_test.dart';
 import 'package:bodega/app/bloc/run_options/run_options_bloc.dart';
 import 'package:bodega/domain/entities/app_error.dart';
+import 'package:bodega/domain/entities/path_problem.dart';
 import 'package:bodega/domain/repository/library_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fpdart/fpdart.dart';
 import 'package:mocktail/mocktail.dart';
 
 class _MockLibrary extends Mock implements LibraryRepository {}
+
+/// A folder name Windows refuses (trap 11).
+const _odd = PathProblem.windowsName(part: 'odd:', path: '/g/odd:/a.exe');
 
 void main() {
   late _MockLibrary repository;
@@ -35,8 +39,8 @@ void main() {
   });
 
   RunOptionsState form({
-    String program = r'C:\Juego\a.exe',
-    String args = '-uno "dos tres"',
+    String program = r'C:\Game\a.exe',
+    String args = '-one "two three"',
     String env = 'DXVK_HUD=fps\n\nWINEDEBUG=+d3d',
     bool save = false,
   }) => RunOptionsState(
@@ -47,7 +51,7 @@ void main() {
     backend: 'dxvk',
     avx: false,
     save: save,
-    title: 'Mi juego',
+    title: 'My game',
   );
 
   blocTest<RunOptionsBloc, RunOptionsState>(
@@ -61,8 +65,8 @@ void main() {
       verify(
         () => repository.launch(
           'steam',
-          r'C:\Juego\a.exe',
-          args: ['-uno', 'dos tres'],
+          r'C:\Game\a.exe',
+          args: ['-one', 'two three'],
           env: {'DXVK_HUD': 'fps', 'WINEDEBUG': '+d3d'},
           backend: 'dxvk',
           avx: false,
@@ -90,9 +94,9 @@ void main() {
       verify(
         () => repository.saveLauncher(
           'steam',
-          'Mi juego',
-          r'C:\Juego\a.exe',
-          args: ['-uno', 'dos tres'],
+          'My game',
+          r'C:\Game\a.exe',
+          args: ['-one', 'two three'],
           env: {'DXVK_HUD': 'fps', 'WINEDEBUG': '+d3d'},
         ),
       ).called(1);
@@ -101,13 +105,13 @@ void main() {
   );
 
   blocTest<RunOptionsBloc, RunOptionsState>(
-    'a variable that is not NOMBRE=valor does not launch',
+    'a variable that is not NAME=value does not launch (E9)',
     build: () => RunOptionsBloc(repository),
     act: (bloc) => bloc
-      ..add(RunOptionsEvent.changed(form(env: 'BIEN=1\nmal')))
+      ..add(RunOptionsEvent.changed(form(env: 'GOOD=1\nbad')))
       ..add(const RunOptionsEvent.submit()),
     verify: (bloc) {
-      expect(bloc.state.error?.message, contains('línea 2'));
+      expect(bloc.state.error, const AppError.badEnvLine(2, 'bad'));
       expect(bloc.state.log, isNull);
       verifyNever(
         () => repository.launch(
@@ -134,16 +138,14 @@ void main() {
           backend: any(named: 'backend'),
           avx: any(named: 'avx'),
         ),
-      ).thenAnswer(
-        (_) async => left(const AppError.engine('"raro:" en /g/raro:/a.exe')),
-      );
+      ).thenAnswer((_) async => left(const AppError.badPath(_odd)));
       return RunOptionsBloc(repository);
     },
     act: (bloc) => bloc
-      ..add(RunOptionsEvent.changed(form(program: '/g/raro:/a.exe')))
+      ..add(RunOptionsEvent.changed(form(program: '/g/odd:/a.exe')))
       ..add(const RunOptionsEvent.submit()),
     verify: (bloc) {
-      expect(bloc.state.error?.message, contains('raro:'));
+      expect(bloc.state.error, const AppError.badPath(_odd));
       expect(bloc.state.isRunning, isFalse);
     },
   );
@@ -157,5 +159,10 @@ void main() {
     });
     expect(parseEnv('=1').isLeft(), isTrue);
     expect(parseEnv('1A=1').isLeft(), isTrue);
+    // Blank lines count, as the user sees them; the line is given trimmed.
+    expect(
+      parseEnv('A=1\n\n  1A=2 ').getLeft().toNullable(),
+      const AppError.badEnvLine(3, '1A=2'),
+    );
   });
 }

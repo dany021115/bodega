@@ -9,7 +9,7 @@ part 'run_options_event.dart';
 part 'run_options_state.dart';
 part 'run_options_bloc.freezed.dart';
 
-/// `Ejecutar con opciones` (V11). It launches, and the dialog hands the log to
+/// `Run with options` (V11). It launches, and the dialog hands the log to
 /// the library, which follows what is open.
 @injectable
 class RunOptionsBloc extends Bloc<RunOptionsEvent, RunOptionsState> {
@@ -74,7 +74,7 @@ class RunOptionsBloc extends Bloc<RunOptionsEvent, RunOptionsState> {
   }
 }
 
-/// `NOMBRE=valor`, one per line; blank lines are skipped.
+/// `NAME=value`, one per line; blank lines are skipped.
 Either<AppError, Map<String, String>> parseEnv(String text) {
   final env = <String, String>{};
   final name = RegExp(r'^[A-Za-z_][A-Za-z0-9_]*$');
@@ -83,11 +83,7 @@ Either<AppError, Map<String, String>> parseEnv(String text) {
     if (line.isEmpty) continue;
     final at = line.indexOf('=');
     if (at <= 0 || !name.hasMatch(line.substring(0, at))) {
-      return left(
-        AppError.engine(
-          'La línea ${index + 1} de las variables no es NOMBRE=valor: $line',
-        ),
-      );
+      return left(AppError.badEnvLine(index + 1, line));
     }
     env[line.substring(0, at)] = line.substring(at + 1);
   }

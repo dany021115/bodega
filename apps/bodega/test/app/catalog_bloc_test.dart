@@ -17,7 +17,6 @@ CatalogApp _app(String id, String title, {String? bottle}) => CatalogApp(
   id: id,
   title: title,
   status: CatalogStatus.reported,
-  statusNote: '',
   backend: 'dxmt',
   backendInstalled: true,
   sync: 'none',
@@ -92,15 +91,19 @@ void main() {
   blocTest<CatalogBloc, CatalogState>(
     'without the anti-cheat list the catalog keeps working',
     build: () {
-      when(() => antiCheat.games())
-          .thenAnswer((_) async => left(const AppError.network('sin red')));
+      when(() => antiCheat.games()).thenAnswer(
+        (_) async => left(const AppError.network(detail: 'no network')),
+      );
       return CatalogBloc(catalog, antiCheat);
     },
     act: (bloc) => bloc
       ..add(const CatalogEvent.load())
       ..add(const CatalogEvent.search('steam')),
     verify: (bloc) {
-      expect(bloc.state.antiCheatError, const AppError.network('sin red'));
+      expect(
+        bloc.state.antiCheatError,
+        const AppError.network(detail: 'no network'),
+      );
       expect(bloc.state.error, isNull);
       expect(bloc.state.visibleApps.single.id, 'steam');
     },

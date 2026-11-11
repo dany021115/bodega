@@ -21,11 +21,14 @@ abstract class BackendsState with _$BackendsState {
     /// The version whose dmg Bodega waits for in Downloads (I2).
     String? gptkWaiting,
 
-    /// What the D3DMetal install is doing (I3).
-    String? gptkStep,
+    /// What the D3DMetal install is doing (I3), as a code: the card words it
+    /// (L6).
+    GptkStep? gptkStep,
 
-    /// The D3DMetal version just installed, for the page to say so.
-    String? gptkInstalled,
+    /// The D3DMetal install that just ended well, for the page to say so. Its
+    /// version is null when the framework does not say, which still counts
+    /// as installed (E3).
+    ({String? version})? gptkInstalled,
 
     /// The backend being checked.
     String? checking,

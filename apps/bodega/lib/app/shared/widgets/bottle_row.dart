@@ -4,6 +4,7 @@ import 'package:bodega/device/theme/radius.dart';
 import 'package:bodega/device/theme/spacing.dart';
 import 'package:bodega/device/theme/typography.dart';
 import 'package:bodega/domain/entities/bottle.dart';
+import 'package:bodega/l10n/l10n.dart';
 import 'package:flutter/material.dart';
 
 /// A bottle in the sidebar: its name and apps count or, when compact, its icon.
@@ -27,16 +28,19 @@ class BottleRow extends StatelessWidget {
     this.appCount,
   });
 
+  /// The `state` of the label and the tooltip, a `select` in the ARBs:
+  /// `incomplete`, `open`, or `closed`, which their `other` branch words.
   String get _state => !bottle.ready
-      ? 'incompleta'
+      ? 'incomplete'
       : isOpen
-      ? 'abierta'
-      : 'cerrada';
+      ? 'open'
+      : 'closed';
 
   @override
   Widget build(BuildContext context) {
     final styles = AppTextStyle(context);
     final colors = Theme.of(context).colorScheme;
+    final l10n = context.l10n;
     final foreground = selected ? colors.onSurface : colors.onSurfaceVariant;
     final brand = AppGradient.brand;
     final tint = LinearGradient(
@@ -65,10 +69,10 @@ class BottleRow extends StatelessWidget {
     return Semantics(
       button: true,
       selected: selected,
-      label: 'Botella ${bottle.name}, $_state',
+      label: l10n.bottleRowLabel(bottle.name, _state),
       excludeSemantics: true,
       child: Tooltip(
-        message: expanded ? '' : '${bottle.name} ($_state)',
+        message: expanded ? '' : l10n.bottleRowTooltip(bottle.name, _state),
         child: Material(
           color: Colors.transparent,
           borderRadius: AppRadius.xsBorder,
@@ -110,7 +114,7 @@ class BottleRow extends StatelessWidget {
                           ),
                           if (count != null) ...[
                             Text(
-                              count == 1 ? '1 app' : '$count apps',
+                              l10n.bottleAppCount(count),
                               style: styles.caption,
                             ),
                             const SizedBox(width: AppSpacing.sm),

@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:bloc_test/bloc_test.dart';
 import 'package:bodega/app/bloc/library/library_bloc.dart';
 import 'package:bodega/domain/entities/library_app.dart';
+import 'package:bodega/domain/entities/log_hint.dart';
+import 'package:bodega/domain/entities/run_hint.dart';
 import 'package:bodega/domain/repository/bottle_repository.dart';
 import 'package:bodega/domain/repository/library_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -19,6 +21,14 @@ const _blur = LibraryApp(
   id: 'custom',
   title: 'Blur',
 );
+
+/// Easy Anti-Cheat failing for POLYGON, as its log names it.
+const _polygon = RunHint.antiCheat(game: 'POLYGON');
+
+// Hints as the repository makes them: a new object on each call, equal to any
+// other with the same code, so that only value equality finds it known (E14).
+RunHint _antiCheat(String? game) => RunHint.antiCheat(game: game);
+RunHint _log(LogHint hint) => RunHint.log(hint);
 
 void main() {
   late _MockLibrary repository;
@@ -153,7 +163,7 @@ void main() {
     when(() => repository.open('steam', key: 'b'))
         .thenAnswer((_) async => right('/l/a.log'));
     when(() => repository.antiCheatHints('steam', any()))
-        .thenReturn(const ['EAC falló']);
+        .thenReturn(const [_polygon]);
     final bloc = LibraryBloc(repository, bottles)
       ..add(const LibraryEvent.open('steam'));
     await settle();
@@ -162,7 +172,7 @@ void main() {
     bloc.add(const LibraryEvent.open('steam', 'b'));
     await settle();
 
-    expect(bloc.state.hints['steam'], ['EAC falló']);
+    expect(bloc.state.hints['steam'], [_polygon]);
     await bloc.close();
   });
 
@@ -217,11 +227,12 @@ void main() {
     verify: (bloc) => expect(bloc.state.open, {'steam'}),
   );
 
+  // Two checks find equal hints: one value, on the card and in one toast.
   blocTest<LibraryBloc, LibraryState>(
-    'a hint comes out once, and stays on the card',
+    'a hint comes out once, and stays on the card (E14)',
     build: () {
       when(() => repository.antiCheatHints('steam', any()))
-          .thenReturn(const ['EAC falló']);
+          .thenAnswer((_) => [_antiCheat('POLYGON')]);
       return LibraryBloc(repository, bottles);
     },
     act: (bloc) async {
@@ -233,14 +244,14 @@ void main() {
     },
     verify: (bloc) {
       expect(bloc.state.toastId, 1);
-      expect(bloc.state.toast, 'EAC falló');
-      expect(bloc.state.hints['steam'], ['EAC falló']);
+      expect(bloc.state.toast, _polygon);
+      expect(bloc.state.hints['steam'], [_polygon]);
     },
   );
 
   test('closing also reads the hints of the log', () async {
     when(() => repository.hintsIn('/l/a.log'))
-        .thenAnswer((_) async => const ['falta FreeType']);
+        .thenAnswer((_) async => const [RunHint.log(LogHint.freeType)]);
     firstExit.complete();
     bottleEmpty.complete();
 
@@ -249,7 +260,39 @@ void main() {
     await bloc.stream.firstWhere((state) => state.toastId == 1);
 
     expect(bloc.state.open, isEmpty);
-    expect(bloc.state.hints['steam'], ['falta FreeType']);
+    expect(bloc.state.hints['steam'], [const RunHint.log(LogHint.freeType)]);
     await bloc.close();
+  });
+
+  test('a closing run adds each of its hints once, in order (E14)', () async {
+    when(() => repository.antiCheatHints('steam', any()))
+        .thenAnswer((_) => [_antiCheat('A'), _antiCheat('B')]);
+    when(
+      () => repository.hintsIn('/l/a.log'),
+    ).thenAnswer((_) async => [_log(LogHint.freeType), _log(LogHint.freeType)]);
+    firstExit.complete();
+    bottleEmpty.complete();
+
+    final bloc = LibraryBloc(repository, bottles)
+      ..add(const LibraryEvent.open('steam'));
+    await bloc.stream.firstWhere((state) => state.toastId == 3);
+    await settle();
+
+    expect(bloc.state.hints['steam'], const [
+      RunHint.antiCheat(game: 'A'),
+      RunHint.antiCheat(game: 'B'),
+      RunHint.log(LogHint.freeType),
+    ]);
+    expect(bloc.state.toastId, 3);
+    expect(bloc.state.toast, const RunHint.log(LogHint.freeType));
+    await bloc.close();
+  });
+
+  test('two hints with the same code are equal, never the same object', () {
+    expect(_antiCheat('A'), _antiCheat('A'));
+    expect(identical(_antiCheat('A'), _antiCheat('A')), isFalse);
+    expect(_antiCheat('A'), isNot(_antiCheat('B')));
+    expect(_antiCheat(null), isNot(_antiCheat('A')));
+    expect(_log(LogHint.freeType), isNot(_log(LogHint.gnuTls)));
   });
 }

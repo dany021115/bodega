@@ -3,6 +3,7 @@ import 'package:bodega/device/theme/gradient.dart';
 import 'package:bodega/device/theme/radius.dart';
 import 'package:bodega/device/theme/spacing.dart';
 import 'package:bodega/device/theme/typography.dart';
+import 'package:bodega/l10n/l10n.dart';
 import 'package:flutter/material.dart';
 
 /// What a bottle without applications shows in their place.
@@ -13,6 +14,7 @@ class BottleEmptyApps extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final styles = AppTextStyle(context);
     final colors = Theme.of(context).colorScheme;
 
@@ -37,19 +39,19 @@ class BottleEmptyApps extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.xl),
           Text(
-            'Esta botella está vacía',
+            l10n.bottleEmptyTitle,
             style: styles.sectionTitle,
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: AppSpacing.sm),
           Text(
-            'Instala una app popular o agrega tu propio .exe.',
+            l10n.bottleEmptyMessage,
             style: styles.bodySecondary,
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: AppSpacing.xxl),
           GradientButton(
-            label: 'Agregar app',
+            label: l10n.bottleDetailAddApp,
             icon: Icons.add_rounded,
             onPressed: onAdd,
           ),

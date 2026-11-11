@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:bloc/bloc.dart';
 import 'package:bodega/domain/entities/app_error.dart';
 import 'package:bodega/domain/entities/library_app.dart';
+import 'package:bodega/domain/entities/run_hint.dart';
 import 'package:bodega/domain/repository/bottle_repository.dart';
 import 'package:bodega/domain/repository/library_repository.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
@@ -32,7 +33,8 @@ class LibraryBloc extends Bloc<LibraryEvent, LibraryState> {
           emit(state.copyWith(isLoading: false, apps: apps, error: null));
         },
       );
-      // Bottles without an app count too: Botellas shows them open.
+      // Bottles without an app count too: the sidebar's BOTTLES list shows
+      // them open.
       (await _repository.bottleNames()).forEach(_watch);
     });
 
@@ -192,10 +194,11 @@ class LibraryBloc extends Bloc<LibraryEvent, LibraryState> {
     _watching.remove(bottle);
   }
 
-  /// Each hint once per run: on the card, and one toast.
+  /// Each hint once per run: on the card, and one toast. Hints are values, so
+  /// an equal one is already there (E14).
   void _addHints(
     String bottle,
-    List<String> found,
+    List<RunHint> found,
     Emitter<LibraryState> emit,
   ) {
     for (final hint in found) {

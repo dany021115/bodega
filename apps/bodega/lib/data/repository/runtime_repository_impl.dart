@@ -1,8 +1,8 @@
+import 'package:bodega/data/service/code_mapper.dart';
 import 'package:bodega/data/service/engine_home.dart';
 import 'package:bodega/data/service/repository_call.dart';
 import 'package:bodega/domain/entities/app_error.dart';
 import 'package:bodega/domain/entities/host_capabilities.dart';
-import 'package:bodega/domain/entities/host_issue.dart';
 import 'package:bodega/domain/entities/runtime_status.dart';
 import 'package:bodega/domain/repository/runtime_repository.dart';
 import 'package:engine/engine.dart'
@@ -21,14 +21,7 @@ class RuntimeRepositoryImpl implements RuntimeRepository {
     final issues = await checkHost();
     final caps = hostCapabilities();
     return RuntimeStatus(
-      issues: [
-        for (final issue in issues)
-          HostIssue(
-            title: issue.title,
-            detail: issue.detail,
-            command: issue.command,
-          ),
-      ],
+      issues: [for (final issue in issues) hostIssueOf(issue)],
       runtime: hasRuntime(_home.path),
       capabilities: HostCapabilities(
         highRes: caps.highRes,

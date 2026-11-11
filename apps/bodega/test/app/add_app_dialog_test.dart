@@ -5,9 +5,13 @@ import 'package:bodega/app/presentation/add_app/add_app_dialog.dart';
 import 'package:bodega/device/theme/theme.dart';
 import 'package:bodega/domain/entities/app_error.dart';
 import 'package:bodega/domain/entities/catalog_app.dart';
+import 'package:bodega/domain/entities/path_problem.dart';
+import 'package:bodega/l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import '../support/pump.dart';
 
 class _MockAddApp extends MockBloc<AddAppEvent, AddAppState>
     implements AddAppBloc {}
@@ -15,15 +19,12 @@ class _MockAddApp extends MockBloc<AddAppEvent, AddAppState>
 class _MockCatalog extends MockBloc<CatalogEvent, CatalogState>
     implements CatalogBloc {}
 
-const _longNote =
-    'Una nota muy larga para comprobar que el texto de la tarjeta se corta '
-    'sin desbordar, aunque la ventana sea la más angosta posible.';
-
+/// The card shows the status note of [id] from the ARBs: Steam's is long
+/// enough to be cut short, even in the narrowest window there is.
 CatalogApp _app(String id, String title, CatalogStatus status) => CatalogApp(
   id: id,
-  title: '$title, con un título bastante largo para la tarjeta',
+  title: '$title, with a title that is rather long for the card',
   status: status,
-  statusNote: _longNote,
   backend: 'dxmt',
   backendInstalled: true,
   sync: 'none',
@@ -52,24 +53,25 @@ Future<void> _pump(
   );
 
   await tester.pumpWidget(
-    MaterialApp(
-      theme: AppTheme.getDarkTheme(),
-      home: MultiBlocProvider(
+    wrapApp(
+      MultiBlocProvider(
         providers: [
           BlocProvider<AddAppBloc>.value(value: addBloc),
           BlocProvider<CatalogBloc>.value(value: catalogBloc),
         ],
         child: const Scaffold(body: AddAppDialog()),
       ),
+      theme: AppTheme.getDarkTheme(),
     ),
   );
 }
 
 void main() {
+  final en = lookupAppL10n(const Locale('en'));
   const longBottle =
-      'Una botella con un nombre excesivamente largo para la cabecera';
+      'A bottle with a name that is far too long for the dialog header';
 
-  testWidgets('the Otros tab fits at 720 px, blocked apps cannot install', (
+  testWidgets('the Others tab fits at 720 px, blocked apps cannot install', (
     tester,
   ) async {
     await _pump(
@@ -85,13 +87,14 @@ void main() {
       ),
     );
 
-    await tester.tap(find.text('Otros'));
+    await tester.tap(find.text('Others'));
     await tester.pump();
 
     expect(find.textContaining('Steam'), findsOneWidget);
-    expect(find.text('Sin soporte'), findsOneWidget);
-    expect(find.text('No disponible'), findsOneWidget);
-    expect(find.text('Instalar'), findsNWidgets(2));
+    expect(find.text(en.catalogSteamStatusNote), findsOneWidget);
+    expect(find.text('Not supported'), findsOneWidget);
+    expect(find.text('Not available'), findsOneWidget);
+    expect(find.text('Install'), findsNWidgets(2));
     expect(tester.takeException(), isNull);
   });
 
@@ -100,15 +103,16 @@ void main() {
       tester,
       add: AddAppState(
         bottle: longBottle,
-        exe: '/g/${'setup_muy_largo_' * 8}.exe',
-        title: 'Un título larguísimo ' * 6,
+        exe: '/g/${'a_very_long_setup_' * 8}.exe',
+        title: 'A title longer than long ' * 6,
       ),
     );
 
-    expect(find.text('Es un instalador'), findsOneWidget);
-    expect(find.text('Ya es un programa'), findsOneWidget);
-    expect(find.text('Agregar'), findsOneWidget);
-    expect(find.text('Agregar a la biblioteca'), findsOneWidget);
+    expect(find.text('Add an app to $longBottle'), findsOneWidget);
+    expect(find.text("It's an installer"), findsOneWidget);
+    expect(find.text("It's already a program"), findsOneWidget);
+    expect(find.text('Add'), findsOneWidget);
+    expect(find.text('Add to library'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -120,12 +124,16 @@ void main() {
       add: const AddAppState(
         bottle: longBottle,
         step: AddAppStep.installing,
-        error: AppError.engine('un error muy largo que se puede copiar'),
+        error: AppError.badPath(
+          PathProblem.missing(
+            '/Users/me/Downloads/a/very/long/path/to/an/installer/setup.exe',
+          ),
+        ),
       ),
     );
 
-    expect(find.text('El instalador ya terminó'), findsOneWidget);
-    expect(find.text('Cancelar'), findsNothing);
+    expect(find.text('The installer has finished'), findsOneWidget);
+    expect(find.text(en.commonCancel), findsNothing);
     expect(tester.takeException(), isNull);
   });
 }

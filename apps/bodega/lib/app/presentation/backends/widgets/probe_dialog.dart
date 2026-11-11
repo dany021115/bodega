@@ -1,4 +1,5 @@
 import 'package:bodega/device/theme/spacing.dart';
+import 'package:bodega/l10n/l10n.dart';
 import 'package:flutter/material.dart';
 
 /// Asks which bottle runs the check, warning that it closes what is open in it.
@@ -27,30 +28,28 @@ class _ProbeDialogState extends State<ProbeDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final bottle = _bottle;
     return AlertDialog(
-      title: Text('Comprobar ${widget.backend}'),
+      title: Text(l10n.probeTitle(widget.backend)),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           if (widget.bottles.isEmpty)
-            const Text(
-              'Hace falta una botella. Instala algo desde el Catálogo y vuelve.',
-            )
+            Text(l10n.probeNoBottle)
           else ...[
-            const Text(
-              'Se cerrará todo lo que esté abierto en la botella que elijas. '
-              'Lo que no hayas guardado se perderá.',
-            ),
+            // It names the bottle chosen below, and follows the choice.
+            if (bottle != null) Text(l10n.bottleStopConfirm(bottle)),
             const SizedBox(height: AppSpacing.lg),
             DropdownButtonFormField<String>(
-              initialValue: _bottle,
-              decoration: const InputDecoration(labelText: 'Botella'),
+              initialValue: bottle,
+              decoration: InputDecoration(labelText: l10n.commonBottle),
               items: [
-                for (final bottle in widget.bottles)
-                  DropdownMenuItem(value: bottle, child: Text(bottle)),
+                for (final name in widget.bottles)
+                  DropdownMenuItem(value: name, child: Text(name)),
               ],
-              onChanged: (bottle) => setState(() => _bottle = bottle),
+              onChanged: (chosen) => setState(() => _bottle = chosen),
             ),
           ],
         ],
@@ -58,13 +57,13 @@ class _ProbeDialogState extends State<ProbeDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancelar'),
+          child: Text(l10n.commonCancel),
         ),
         FilledButton(
-          onPressed: _bottle == null
+          onPressed: bottle == null
               ? null
-              : () => Navigator.of(context).pop(_bottle),
-          child: const Text('Comprobar'),
+              : () => Navigator.of(context).pop(bottle),
+          child: Text(l10n.backendCheck),
         ),
       ],
     );

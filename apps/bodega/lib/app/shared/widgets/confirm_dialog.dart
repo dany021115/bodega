@@ -1,3 +1,4 @@
+import 'package:bodega/l10n/l10n.dart';
 import 'package:flutter/material.dart';
 
 /// True if the user confirmed it.
@@ -15,7 +16,7 @@ Future<bool> confirm(
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(false),
-          child: const Text('Cancelar'),
+          child: Text(context.l10n.commonCancel),
         ),
         FilledButton(
           onPressed: () => Navigator.of(context).pop(true),

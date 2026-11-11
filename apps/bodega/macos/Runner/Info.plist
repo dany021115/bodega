@@ -12,6 +12,11 @@
 	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
+	<key>CFBundleLocalizations</key>
+	<array>
+		<string>en</string>
+		<string>es</string>
+	</array>
 	<key>CFBundleName</key>
 	<string>$(PRODUCT_NAME)</string>
 	<key>CFBundlePackageType</key>
@@ -25,16 +30,25 @@
 	<key>NSHumanReadableCopyright</key>
 	<string>$(PRODUCT_COPYRIGHT)</string>
 	<key>NSDownloadsFolderUsageDescription</key>
-	<string>Bodega busca en Descargas el Game Porting Toolkit que bajaste de Apple, para instalar D3DMetal.</string>
+	<string>Bodega looks in Downloads for the Game Porting Toolkit you downloaded from Apple, to install D3DMetal.</string>
 	<key>NSLocalNetworkUsageDescription</key>
-	<string>Los juegos usan la red local para las partidas en LAN con otros equipos de tu casa.</string>
+	<string>Games use the local network for LAN matches with other computers in your home.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Los juegos de Windows usan el micrófono para el chat de voz.</string>
+	<string>Windows games use the microphone for voice chat.</string>
 	<key>NSCameraUsageDescription</key>
-	<string>Un programa de Windows quiere usar la cámara.</string>
+	<string>A Windows program wants to use the camera.</string>
 	<key>NSMainNibFile</key>
 	<string>MainMenu</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
+	<!-- Skia instead of Impeller. On Apple Silicon, Flutter 3.47's Impeller
+	     switches the window between wide gamut and sRGB when its screen
+	     changes, as when a game goes fullscreen. A frame drawn during that
+	     switch gets no texture, and Bodega quit in
+	     impeller::Canvas::SetupRenderPass (canvas.cc:1615), three times in
+	     one MW3 session. With Skia, Bodega lasted a whole session. Remove
+	     this key once Flutter fixes it. -->
+	<key>FLTEnableImpeller</key>
+	<false/>
 </dict>
 </plist>

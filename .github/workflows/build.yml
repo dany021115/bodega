@@ -82,7 +82,12 @@ jobs:
             --disable-tests \
             CC="ccache clang" CXX="ccache clang++" \
             CROSSCC="ccache x86_64-w64-mingw32-gcc" \
-            i386_CC="ccache i686-w64-mingw32-gcc" x86_64_CC="ccache x86_64-w64-mingw32-gcc"
+            i386_CC="ccache i686-w64-mingw32-gcc" x86_64_CC="ccache x86_64-w64-mingw32-gcc" \
+            i386_CFLAGS="-g -O2 -march=core2 -mfpmath=sse"
+          # i386 PE code does its float math in SSE, not x87: Rosetta translates SSE fast and x87
+          # slowly, and musl's sin/cos in msvcrt rely on x87 extended precision, which a D3D9 game
+          # cuts to single (Wine's setup_fpu, as Windows does): Blur then crashed in
+          # __rem_pio2_large (msvcr90+0x119b0, fldl through a pointer the reduction overwrote).
           make -j"$(sysctl -n hw.ncpu)"
           make install-lib
       - name: engine layout

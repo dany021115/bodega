@@ -1,11 +1,13 @@
 import 'dart:io';
 
+import 'package:bodega/data/service/code_mapper.dart';
 import 'package:bodega/data/service/downloader.dart';
 import 'package:bodega/data/service/engine_home.dart';
 import 'package:bodega/data/service/repository_call.dart';
 import 'package:bodega/domain/entities/app_error.dart';
 import 'package:bodega/domain/entities/backend_info.dart';
 import 'package:bodega/domain/entities/exe_graphics.dart';
+import 'package:bodega/domain/entities/gptk_step.dart';
 import 'package:bodega/domain/repository/backend_repository.dart';
 import 'package:dio/dio.dart';
 import 'package:engine/engine.dart' as engine;
@@ -29,7 +31,7 @@ class BackendRepositoryImpl implements BackendRepository {
           name: key,
           installed: value,
           downloadable: engine.pinnedBackend(key) != null,
-          use: engine.hostPlatform.backendUse(key),
+          role: backendRoleOf(engine.hostPlatform.backendRole(key)),
           version: key == 'd3dmetal' && value
               ? await engine.d3dmetalVersion(_home.path)
               : null,
@@ -51,7 +53,10 @@ class BackendRepositoryImpl implements BackendRepository {
     void Function(int received, int? total) onProgress,
   ) => repositoryCall(() async {
     final pin = engine.pinnedBackend(name);
-    if (pin == null) throw 'backend sin instalador: $name';
+    // Only pinned backends get a download button: the UI cannot reach this.
+    if (pin == null) {
+      throw AppError.unknown(detail: 'no installer for the backend $name');
+    }
     final tarball = '${_home.path}/downloads/${pin.url.split('/').last}';
     if (!File(tarball).existsSync()) {
       final path = await _downloader.fetch(
@@ -64,7 +69,7 @@ class BackendRepositoryImpl implements BackendRepository {
     }
     try {
       await engine.installBackend(_home.path, name, tarball: tarball);
-    } on String {
+    } on engine.EngineFailure {
       // A bad file must not be reused by the next attempt.
       File(tarball).deleteSync();
       rethrow;
@@ -102,15 +107,15 @@ class BackendRepositoryImpl implements BackendRepository {
       );
 
   @override
-  Future<Either<AppError, String>> installD3DMetalDmg(
+  Future<Either<AppError, String?>> installD3DMetalDmg(
     String dmg, {
-    required void Function(String step) onStep,
+    required void Function(GptkStep step) onStep,
     required bool Function() cancelled,
   }) => repositoryCall(
     () => engine.installD3DMetalDmg(
       _home.path,
       dmg,
-      onStep: onStep,
+      onStep: (step) => onStep(gptkStepOf(step)),
       cancelled: cancelled,
     ),
   );

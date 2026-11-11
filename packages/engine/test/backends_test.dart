@@ -115,7 +115,7 @@ void main() {
 
     await expectLater(
       installBackend(home, 'dxmt', tarball: tarball, sha256: '0' * 64),
-      throwsA(contains('checksum incorrecto')),
+      throwsA(isA<ChecksumMismatch>().having((f) => f.file, 'file', tarball)),
     );
     expect(Directory('$home/backends/dxmt').existsSync(), isFalse);
 
@@ -136,7 +136,7 @@ void main() {
     expect(slots(), ['dxmt']);
     await expectLater(
       installBackend(home, 'dxmt', tarball: tarball, sha256: sum),
-      throwsA(contains('ya instalado')),
+      throwsA(isA<AlreadyInstalled>().having((f) => f.path, 'path', dest)),
     );
 
     // A file:// download, then again from the finished file.
@@ -154,17 +154,25 @@ void main() {
     final bad = await fakeLayer('$tmp/bad', ['x86_64-windows/other.dll']);
     await expectLater(
       installBackend(home, 'dxvk2', tarball: bad.$1, sha256: bad.$2),
-      throwsA(contains('sin instalador')),
+      throwsA(
+        isA<NotDownloadable>().having((f) => f.backend, 'backend', 'dxvk2'),
+      ),
     );
     Directory('$home/backends/dxvk').deleteSync(recursive: true);
     await expectLater(
       installBackend(home, 'dxvk', tarball: bad.$1, sha256: bad.$2),
-      throwsA(contains('sin x86_64-windows/d3d11.dll')),
+      throwsA(
+        isA<IncompleteArchive>()
+            .having((f) => f.archive, 'archive', bad.$1)
+            .having((f) => f.missing, 'missing', 'x86_64-windows/d3d11.dll'),
+      ),
     );
     expect(slots(), ['dxmt']);
     await expectLater(
       installBackend(home, 'd3dmetal'),
-      throwsA(contains('backend import d3dmetal')),
+      throwsA(
+        isA<NotDownloadable>().having((f) => f.backend, 'backend', 'd3dmetal'),
+      ),
     );
   });
 
@@ -188,7 +196,7 @@ void main() {
     expect(File('$dest/wine/x86_64-windows/d3d12.dll').existsSync(), isTrue);
     await expectLater(
       importD3DMetal(home, '$tmp/ok'),
-      throwsA(contains('ya instalado')),
+      throwsA(isA<AlreadyInstalled>().having((f) => f.path, 'path', dest)),
     );
     Directory(dest).deleteSync(recursive: true);
 
@@ -206,20 +214,25 @@ void main() {
     for (final path in ['$tmp/CrossOver.app/Contents/gptk', '$tmp/link']) {
       await expectLater(
         importD3DMetal(home, path),
-        throwsA(contains('CrossOver.app')),
+        throwsA(isA<CrossOverCopy>()),
         reason: path,
       );
     }
+    Matcher noD3DMetal(String source, String missing) => throwsA(
+      isA<NoD3DMetal>()
+          .having((f) => f.source, 'source', source)
+          .having((f) => f.missing, 'missing', missing),
+    );
     fakeD3DMetal('$tmp/other');
-    File('$tmp/other/wine/x86_64-unix/dxgi.so').writeAsStringSync('otra');
+    File('$tmp/other/wine/x86_64-unix/dxgi.so').writeAsStringSync('other');
     await expectLater(
       importD3DMetal(home, '$tmp/other'),
-      throwsA(contains('no es la misma biblioteca')),
+      noD3DMetal('$tmp/other', 'wine/x86_64-unix/dxgi.so'),
     );
     fakeD3DMetal('$tmp/hole', skip: ['wine/x86_64-windows/d3d12.dll']);
     await expectLater(
       importD3DMetal(home, '$tmp/hole'),
-      throwsA(contains('d3d12.dll')),
+      noD3DMetal('$tmp/hole', 'wine/x86_64-windows/d3d12.dll'),
     );
     expect(Directory(dest).existsSync(), isFalse);
     expect(Directory('$home/backends/.tmp-d3dmetal').existsSync(), isFalse);
@@ -228,7 +241,7 @@ void main() {
   test('settings', () async {
     final dir = '$home/bottles/t';
     Directory(dir).createSync();
-    final program = fakePe('$tmp/Blur.exe', 0x14C, 'nada').path;
+    final program = fakePe('$tmp/Blur.exe', 0x14C, 'nothing').path;
     Future<String> origin() async {
       final c = await resolveBackend(home, dir, program, program);
       return '${c.name} ${c.origin}';
@@ -242,19 +255,41 @@ void main() {
     setBackend(home, 't', 'wine');
     expect(await origin(), 'dxmt exe');
     setBackend(home, 't', 'auto', exe: r'C:\x\BLUR.EXE');
-    expect(await origin(), 'wine botella');
+    expect(await origin(), 'wine bottle');
 
     final before = File('$dir/settings.json').readAsStringSync();
-    expect(() => setBackend(home, 't', 'foo'), throwsA(contains('foo')));
+    expect(
+      () => setBackend(home, 't', 'foo'),
+      throwsA(
+        isA<BadChoice>()
+            .having((f) => f.kind, 'kind', ChoiceKind.backend)
+            .having((f) => f.value, 'value', 'foo'),
+      ),
+    );
     expect(File('$dir/settings.json').readAsStringSync(), before);
-    expect(() => setBackend(home, 'nope', 'wine'), throwsA(contains('nope')));
+    expect(
+      () => setBackend(home, 'nope', 'wine'),
+      throwsA(isA<BottleNotFound>().having((f) => f.bottle, 'bottle', 'nope')),
+    );
 
-    File('$dir/settings.json').writeAsStringSync('{roto');
-    await expectLater(origin(), throwsA(contains('settings.json')));
+    // A bad value inside counts as a broken file, which names it.
+    Matcher corrupt(Object? detail) => throwsA(
+      isA<CorruptData>()
+          .having((f) => f.source, 'source', '$dir/settings.json')
+          .having((f) => f.detail, 'detail', detail),
+    );
+    File('$dir/settings.json').writeAsStringSync('{broken');
+    await expectLater(origin(), corrupt(isNotEmpty));
     File('$dir/settings.json').writeAsStringSync('{"backend":"foo"}');
-    await expectLater(origin(), throwsA(contains('settings.json')));
+    await expectLater(
+      origin(),
+      corrupt('${const BadChoice(ChoiceKind.backend, 'foo')}'),
+    );
     File('$dir/settings.json').writeAsStringSync('{"sync":"foo"}');
-    await expectLater(origin(), throwsA(contains('settings.json')));
+    await expectLater(
+      origin(),
+      corrupt('${const BadChoice(ChoiceKind.sync, 'foo')}'),
+    );
 
     // A2: an exception goes, but the program's variables stay.
     File('$dir/settings.json').writeAsStringSync(
@@ -291,7 +326,14 @@ void main() {
     expect(read.sync, 'none');
     expect(read.backend, 'wine');
     expect(read.programs['blur.exe']?.env, {'FOO': '1'});
-    await expectLater(setSync(home, 't', 'foo'), throwsA(contains('foo')));
+    await expectLater(
+      setSync(home, 't', 'foo'),
+      throwsA(
+        isA<BadChoice>()
+            .having((f) => f.kind, 'kind', ChoiceKind.sync)
+            .having((f) => f.value, 'value', 'foo'),
+      ),
+    );
     expect(
       jsonDecode(File('$dir/settings.json').readAsStringSync())['sync'],
       'none',
@@ -304,7 +346,7 @@ void main() {
     for (final name in ['dxmt', 'dxvk']) {
       install(home, name);
     }
-    final x = fakePe('$tmp/x.exe', 0x8664, 'nada').path;
+    final x = fakePe('$tmp/x.exe', 0x8664, 'nothing').path;
     Future<String> pick({String? option}) async {
       final c = await resolveBackend(home, dir, x, x, option: option);
       return '${c.name} ${c.origin}';
@@ -312,21 +354,21 @@ void main() {
 
     setBackend(home, 't', 'dxvk');
     setBackend(home, 't', 'dxmt', exe: 'x.exe');
-    expect(await pick(option: 'wine'), 'wine opcion');
+    expect(await pick(option: 'wine'), 'wine option');
     expect(await pick(), 'dxmt exe');
     setBackend(home, 't', 'auto', exe: 'x.exe');
-    expect(await pick(), 'dxvk botella');
+    expect(await pick(), 'dxvk bottle');
     expect(await pick(option: 'auto'), 'wine auto');
     setBackend(home, 't', 'auto');
     expect(await pick(), 'wine auto');
 
-    await expectLater(
-      pick(option: 'd3dmetal'),
-      throwsA(contains('bodega backend import d3dmetal')),
+    Matcher notInstalled(String backend) => throwsA(
+      isA<BackendNotInstalled>().having((f) => f.backend, 'backend', backend),
     );
+    await expectLater(pick(option: 'd3dmetal'), notInstalled('d3dmetal'));
     Directory('$home/backends/dxvk').deleteSync(recursive: true);
     setBackend(home, 't', 'dxvk');
-    await expectLater(pick(), throwsA(contains('bodega backend install dxvk')));
+    await expectLater(pick(), notInstalled('dxvk'));
     setBackend(home, 't', 'auto');
     install(home, 'dxvk');
 
@@ -347,12 +389,12 @@ void main() {
     );
     Directory('$home/backends/dxmt').deleteSync(recursive: true);
     expect(await auto(0x8664, 'x d3d10.dll y'), 'dxvk');
-    expect(await auto(0x8664, 'sin nada'), 'wine');
+    expect(await auto(0x8664, 'nothing at all'), 'wine');
     // A4: D3D9 games that mention newer DLLs.
     install(home, 'dxmt');
     expect(await auto(0x14C, 'd3d9.dll d3d10 dxgi.dll'), 'wine');
     expect(await auto(0x8664, 'd3d9.dll d3d11.dll'), 'dxmt');
-    expect(await auto(0x8664, 'solo d3d10.dll'), 'dxmt');
+    expect(await auto(0x8664, 'only d3d10.dll'), 'dxmt');
     final notPe = File('$tmp/n.exe')..writeAsStringSync('d3d12.dll');
     expect(
       (await resolveBackend(home, dir, notPe.path, notPe.path)).name,
@@ -364,7 +406,7 @@ void main() {
   test('exeGraphics and backendFits (G1, G3)', () async {
     Future<String> read(int machine, String text) async {
       final g = await exeGraphics(fakePe('$tmp/g.exe', machine, text).path);
-      return g == null ? 'nada' : '${g.directx} ${g.bits}';
+      return g == null ? 'none' : '${g.directx} ${g.bits}';
     }
 
     // Blur: D3D9 that probes d3d10 and dxgi.
@@ -374,7 +416,7 @@ void main() {
       await read(0x8664, 'd\x003\x00d\x001\x001\x00.\x00d\x00l\x00l'),
       'DX11 64',
     );
-    expect(await read(0x14C, 'solo dxgi.dll'), 'DX10 32');
+    expect(await read(0x14C, 'only dxgi.dll'), 'DX10 32');
     expect(await read(0x14C, 'opengl32.dll'), ' 32');
     expect(await exeGraphics('$tmp/no.exe'), isNull);
     File('$tmp/n.exe').writeAsStringSync('d3d12.dll');
@@ -392,11 +434,26 @@ void main() {
     expect(fits('d3dmetal', 32, ''), isTrue);
   });
 
+  test('backendRole says what each backend is for (G3)', () {
+    expect(
+      {
+        for (final backend in hostPlatform.backendNames)
+          backend: hostPlatform.backendRole(backend),
+      },
+      {
+        'wine': BackendRole.everythingElse,
+        'dxmt': BackendRole.dx10to11,
+        'dxvk': BackendRole.dx10to11,
+        'd3dmetal': BackendRole.dx11to12x64,
+      },
+    );
+  });
+
   test('findGptkDmg picks the newest finished dmg (I2)', () async {
-    final dir = Directory('$tmp/descargas')..createSync();
+    final dir = Directory('$tmp/downloads')..createSync();
     expect(await findGptkDmg('3.0', dir.path), isNull);
     File('${dir.path}/Game_Porting_Toolkit_3.0.dmg')
-      ..writeAsStringSync('viejo')
+      ..writeAsStringSync('old')
       ..setLastModifiedSync(DateTime(2025));
     File('${dir.path}/Game_Porting_Toolkit_3.0 (1).dmg').writeAsStringSync('');
     File('${dir.path}/Game_Porting_Toolkit_3.0.dmg.crdownload')
@@ -454,22 +511,37 @@ void main() {
       File(eval).copySync('$tmp/outer/Evaluation environment.dmg');
       final outer = await dmg('Game_Porting_Toolkit_3.0', '$tmp/outer');
       Directory('$tmp/empty').createSync();
-      final empty = await dmg('vacio', '$tmp/empty');
+      final empty = await dmg('Empty', '$tmp/empty');
+      // D3DMetal whose framework does not say its version.
+      fakeD3DMetal('$tmp/bare/redist/lib');
+      final bare = await dmg('Bare', '$tmp/bare');
 
       Future<String> mounts() async =>
           '${(await Process.run('/usr/bin/hdiutil', ['info'])).stdout}';
 
-      final steps = <String>[];
+      final steps = <GptkStep>[];
       expect(await installD3DMetalDmg(home, eval), '3.0');
       expect(await installD3DMetalDmg(home, outer, onStep: steps.add), '3.0');
-      expect(steps, contains('Importando D3DMetal'));
+      // Each step as a code (E2): the inner dmg shows no license here.
+      expect(steps, [GptkStep.opening, GptkStep.importing]);
       expect(
         Link('$home/backends/d3dmetal/wine/x86_64-unix/d3d11.so').targetSync(),
         '../../external/libd3dshared.dylib',
       );
+      // An unknown version is null, not a word (E3), and D3DMetal is there.
+      expect(await installD3DMetalDmg(home, bare), isNull);
+      expect(
+        File('$home/backends/d3dmetal/external/libd3dshared.dylib')
+            .existsSync(),
+        isTrue,
+      );
       await expectLater(
         installD3DMetalDmg(home, empty),
-        throwsA(contains('falta redist/lib')),
+        throwsA(
+          isA<NoD3DMetal>()
+              .having((f) => f.source, 'source', empty)
+              .having((f) => f.missing, 'missing', 'redist/lib'),
+        ),
       );
       expect(await mounts(), isNot(contains(tmp)));
     },
@@ -502,7 +574,7 @@ void main() {
       ['t'],
       ['--backend'],
       ['--backend', 'dxmt', 't'],
-      ['--otra', 't', 'a.exe'],
+      ['--other', 't', 'a.exe'],
     ]) {
       expect(parseRun(bad), isNull, reason: '$bad');
     }

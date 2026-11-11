@@ -8,11 +8,13 @@ import 'package:bodega/app/presentation/catalog/catalog_page.dart';
 import 'package:bodega/app/presentation/library/library_page.dart';
 import 'package:bodega/app/presentation/setup/setup_page.dart';
 import 'package:bodega/app/shared/widgets/custom_loading.dart';
+import 'package:bodega/app/shared/widgets/empty_state.dart';
 import 'package:bodega/app/shared/widgets/main_shell.dart';
 import 'package:bodega/app/shared/widgets/shell_body.dart';
 import 'package:bodega/device/router/manager.dart';
 import 'package:bodega/device/router/observer.dart';
 import 'package:bodega/device/router/transitions.dart';
+import 'package:bodega/l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -54,6 +56,8 @@ GoRouter createRouter(SetupBloc setup) {
     refreshListenable: _StreamRefresh(setup.stream),
     redirect: (context, state) =>
         setupRedirect(setup.state, state.matchedLocation),
+    // Instead of go_router's own page, which is English: "Page Not Found".
+    errorBuilder: _notFound,
     routes: [
       GoRoute(
         path: RouterManager.path(AppRoute.splash),
@@ -111,6 +115,22 @@ GoRouter createRouter(SetupBloc setup) {
         ],
       ),
     ],
+  );
+}
+
+/// A path the app does not have, in the app's language, with the way back.
+Widget _notFound(BuildContext context, GoRouterState state) {
+  final l10n = context.l10n;
+
+  return Scaffold(
+    body: EmptyState(
+      icon: Icons.explore_off_rounded,
+      title: l10n.routeNotFoundTitle,
+      message: l10n.routeNotFoundMessage(state.uri.path),
+      actionLabel: l10n.navBackToLibrary,
+      actionIcon: Icons.apps_rounded,
+      onAction: () => RouterManager.go(AppRoute.library, context: context),
+    ),
   );
 }
 

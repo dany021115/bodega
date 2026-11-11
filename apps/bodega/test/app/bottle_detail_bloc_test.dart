@@ -2,6 +2,7 @@ import 'package:bloc_test/bloc_test.dart';
 import 'package:bodega/app/bloc/bottle_detail/bottle_detail_bloc.dart';
 import 'package:bodega/domain/entities/app_error.dart';
 import 'package:bodega/domain/entities/bottle_detail.dart';
+import 'package:bodega/domain/entities/wine_tool.dart';
 import 'package:bodega/domain/repository/bottle_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fpdart/fpdart.dart';
@@ -163,7 +164,9 @@ void main() {
     'a failed setting is shown and the bottle stays',
     build: () {
       when(() => repository.setWindowsVersion('steam', 'win7')).thenAnswer(
-        (_) async => left(const AppError.engine('winecfg salió con 1')),
+        (_) async => left(
+          const AppError.wineToolFailed(WineTool.winecfg, 1, '/l/windows.log'),
+        ),
       );
       return build();
     },
@@ -174,7 +177,10 @@ void main() {
     },
     wait: const Duration(milliseconds: 10),
     verify: (bloc) {
-      expect(bloc.state.error, const AppError.engine('winecfg salió con 1'));
+      expect(
+        bloc.state.error,
+        const AppError.wineToolFailed(WineTool.winecfg, 1, '/l/windows.log'),
+      );
       expect(bloc.state.detail, _detail);
     },
   );
@@ -198,8 +204,9 @@ void main() {
   blocTest<BottleDetailBloc, BottleDetailState>(
     'an engine error stays in the state, with the bottle still shown',
     build: () {
-      when(() => repository.delete('steam'))
-          .thenAnswer((_) async => left(const AppError.engine('no se pudo')));
+      when(
+        () => repository.delete('steam'),
+      ).thenAnswer((_) async => left(const AppError.bottleNotFound('steam')));
       return build();
     },
     act: (bloc) async {
@@ -209,7 +216,7 @@ void main() {
     },
     wait: const Duration(milliseconds: 10),
     verify: (bloc) {
-      expect(bloc.state.error, const AppError.engine('no se pudo'));
+      expect(bloc.state.error, const AppError.bottleNotFound('steam'));
       expect(bloc.state.deleted, isFalse);
       expect(bloc.state.isBusy, isFalse);
       expect(bloc.state.detail, _detail);
@@ -220,35 +227,35 @@ void main() {
     'opens a log',
     build: () {
       when(() => repository.logLines('/l/a.log'))
-          .thenAnswer((_) async => right(const ['uno', 'dos']));
+          .thenAnswer((_) async => right(const ['one', 'two']));
       return build();
     },
     act: (bloc) => bloc.add(const BottleDetailEvent.openLog('/l/a.log')),
     verify: (bloc) {
       expect(bloc.state.logPath, '/l/a.log');
-      expect(bloc.state.logLines, ['uno', 'dos']);
+      expect(bloc.state.logLines, ['one', 'two']);
     },
   );
 
   blocTest<BottleDetailBloc, BottleDetailState>(
     'renaming reloads the bottle under its new name',
     build: () {
-      when(() => repository.renameBottle('steam', 'juegos'))
+      when(() => repository.renameBottle('steam', 'games'))
           .thenAnswer((_) async => right(unit));
-      when(() => repository.detail('juegos'))
-          .thenAnswer((_) async => right(_detail.copyWith(name: 'juegos')));
+      when(() => repository.detail('games'))
+          .thenAnswer((_) async => right(_detail.copyWith(name: 'games')));
       return build();
     },
     act: (bloc) async {
       bloc.add(load);
       await bloc.stream.first;
-      bloc.add(const BottleDetailEvent.rename('juegos'));
+      bloc.add(const BottleDetailEvent.rename('games'));
     },
     wait: const Duration(milliseconds: 10),
     verify: (bloc) {
-      verify(() => repository.renameBottle('steam', 'juegos')).called(1);
-      expect(bloc.state.detail?.name, 'juegos');
-      expect(bloc.state.renamedTo, 'juegos');
+      verify(() => repository.renameBottle('steam', 'games')).called(1);
+      expect(bloc.state.detail?.name, 'games');
+      expect(bloc.state.renamedTo, 'games');
       expect(bloc.state.isBusy, isFalse);
     },
   );
@@ -256,18 +263,18 @@ void main() {
   blocTest<BottleDetailBloc, BottleDetailState>(
     'a failed rename keeps the name and says why',
     build: () {
-      when(() => repository.renameBottle('steam', 'juegos'))
-          .thenAnswer((_) async => left(const AppError.engine('ya existe')));
+      when(() => repository.renameBottle('steam', 'games'))
+          .thenAnswer((_) async => left(const AppError.bottleExists('games')));
       return build();
     },
     act: (bloc) async {
       bloc.add(load);
       await bloc.stream.first;
-      bloc.add(const BottleDetailEvent.rename('juegos'));
+      bloc.add(const BottleDetailEvent.rename('games'));
     },
     wait: const Duration(milliseconds: 10),
     verify: (bloc) {
-      expect(bloc.state.error, const AppError.engine('ya existe'));
+      expect(bloc.state.error, const AppError.bottleExists('games'));
       expect(bloc.state.renamedTo, isNull);
       expect(bloc.state.detail, _detail);
     },

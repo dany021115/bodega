@@ -1,7 +1,57 @@
 part of 'engine.dart';
 
-/// Something the host lacks before bottles can run (R10).
-typedef HostIssue = ({String title, String detail, String? command});
+/// Something the host lacks before bottles can run (R10), as a code: what is
+/// wrong, the device it names ([subject], only for [HostIssueKind.padNoAccess])
+/// and the command that installs what is missing, where there is one. A UI
+/// words it; [describeHostIssue] gives it in English.
+typedef HostIssue = ({HostIssueKind kind, String? subject, String? command});
+
+/// What a [HostIssue] is about.
+enum HostIssueKind {
+  /// The Mac lacks Rosetta 2, which Wine x86_64 runs on.
+  noRosetta,
+
+  /// The processor is not x86_64.
+  unsupportedCpu,
+
+  /// No Vulkan loader or driver: DXVK draws with it.
+  noVulkan,
+
+  /// No PulseAudio library, which Wine plays sound through.
+  noAudio,
+
+  /// Bodega cannot open a gamepad's device, so Wine cannot either. The
+  /// subject is the pad's name.
+  padNoAccess,
+
+  /// No SDL2: Wine falls back to udev, which knows fewer gamepads.
+  noSdl,
+}
+
+/// What a backend is for, on the backends screen (G3).
+enum BackendRole {
+  /// D3DMetal on the Mac.
+  dx11to12x64('DirectX 11 and 12, 64 bits only'),
+
+  /// DXMT and DXVK on the Mac.
+  dx10to11('DirectX 10 and 11, 32 and 64 bits'),
+
+  /// Wine on the Mac: what the layers do not translate.
+  everythingElse(
+    'everything: DirectX 9 and older, and what the others cannot run',
+  ),
+
+  /// The dxvk layer on Linux, which brings DXVK and vkd3d-proton.
+  dx8to12('DirectX 8 to 12 (DXVK and vkd3d-proton)'),
+
+  /// Wine on Linux.
+  everythingSlower('everything, slower than dxvk');
+
+  const BackendRole(this.english);
+
+  /// For the CLI and logs.
+  final String english;
+}
 
 /// What the host offers, so that a UI hides the rest (R11).
 typedef HostCapabilities = ({
@@ -23,7 +73,7 @@ abstract class HostPlatform {
   static HostPlatform detect() => switch (Platform.operatingSystem) {
     'macos' => MacPlatform(),
     'linux' => LinuxPlatform(),
-    final other => throw 'sistema no soportado: $other',
+    final other => throw NotAvailable('Bodega', other),
   };
 
   /// `Mac` or `Linux`, for texts.
@@ -65,7 +115,7 @@ abstract class HostPlatform {
   bool backendFits(String backend, ExeGraphics exe);
 
   /// G3: what [backend] is for, for the backends screen.
-  String backendUse(String backend);
+  BackendRole backendRole(String backend);
   String mapBackend(String name);
   List<(int, String)> probeCases(String home, String backend);
   Future<void> prepareBottle(String home, String name);

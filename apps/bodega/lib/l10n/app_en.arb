@@ -1,0 +1,2134 @@
+{
+  "@@locale": "en",
+  "commonCancel": "Cancel",
+  "@commonCancel": {
+    "description": "Button that closes a dialog without doing anything."
+  },
+  "commonInstall": "Install",
+  "@commonInstall": {
+    "description": "Button that installs: a catalog app (on its page and in the add-app dialog), a backend (on its card, and a Game Porting Toolkit version on D3DMetal's card) or the engine (on the setup page)."
+  },
+  "commonInstalling": "Installing",
+  "@commonInstalling": {
+    "description": "An install in progress: the headline of the install panel while an app installs, until its first step shows, and the line under the progress bar of a backend's card once its file is downloaded or chosen."
+  },
+  "commonStop": "Stop",
+  "@commonStop": {
+    "description": "Button or tooltip that stops a bottle, so everything open in it closes: on an app's card or row while the app runs, in the bottle's panel, and as the button of the confirmation."
+  },
+  "commonOpen": "Open",
+  "@commonOpen": {
+    "description": "Opens an app: an item of the app's menu, and the button of an installed catalog app, on its page and in the install panel once the install ends."
+  },
+  "commonClose": "Close",
+  "@commonClose": {
+    "description": "Closes a dialog or the install panel: a button, or the tooltip of a dialog's × button."
+  },
+  "commonPlay": "Play",
+  "@commonPlay": {
+    "description": "Button or tooltip that starts an app, on its card or row."
+  },
+  "commonRename": "Rename",
+  "@commonRename": {
+    "description": "Renames a bottle: the tooltip of the button beside the bottle's name in its panel, and the button of the rename dialog."
+  },
+  "commonSave": "Save",
+  "@commonSave": {
+    "description": "Button that saves what a dialog changed: the Windows user dialog."
+  },
+  "commonDelete": "Delete",
+  "@commonDelete": {
+    "description": "Confirmation button of the dialog that deletes a bottle."
+  },
+  "commonChange": "Change",
+  "@commonChange": {
+    "description": "Confirmation button of a setting whose change closes what is open in the bottle."
+  },
+  "commonName": "Name",
+  "@commonName": {
+    "description": "Label of a name field: a bottle's, in the new-bottle and rename dialogs, or a Windows user's, in the Windows user dialog."
+  },
+  "commonBottle": "Bottle",
+  "@commonBottle": {
+    "description": "Label of a dropdown that picks a bottle: on a catalog app's page, the bottle to install the app in; in a backend's check dialog, the bottle the check runs in."
+  },
+  "commonChooseFile": "Choose file…",
+  "@commonChooseFile": {
+    "description": "Button that opens the file picker: on the setup page, on a backend's card, on a catalog app's page (an installer) and in the run-with-options dialog (the program)."
+  },
+  "commonCheckAgain": "Check again",
+  "@commonCheckAgain": {
+    "description": "Button that runs a system check again: the requirements, on the setup page, and the controllers, on a bottle's page."
+  },
+  "commonProgramsFileType": "Programs",
+  "@commonProgramsFileType": {
+    "description": "Name of the file type in the file pickers that choose a Windows program (.exe): the add-app dialog, Run .exe in the bottle's panel and the run-with-options dialog."
+  },
+  "commonTarballFileType": "Tarball",
+  "@commonTarballFileType": {
+    "description": "Name of the file type in the file pickers that take a .tar.gz archive: the Wine runtime on the setup page, and a backend on its card."
+  },
+  "bottleStopTitle": "Stop the bottle {bottle}",
+  "@bottleStopTitle": {
+    "description": "Title of the dialog that confirms stopping a bottle.",
+    "placeholders": {
+      "bottle": {
+        "type": "String",
+        "example": "Steam"
+      }
+    }
+  },
+  "bottleStopConfirm": "Everything open in the bottle {bottle} will close. Anything you haven't saved will be lost.",
+  "@bottleStopConfirm": {
+    "description": "Message of a confirmation whose action stops the bottle: stopping it, or a setting change that needs it stopped. Also in the check dialog of a backend, for the bottle chosen there, which the check stops.",
+    "placeholders": {
+      "bottle": {
+        "type": "String",
+        "example": "Steam"
+      }
+    }
+  },
+  "bottleChangeCloses": "Changing it closes what is open.",
+  "@bottleChangeCloses": {
+    "description": "Under a bottle setting whose change stops the bottle, and inside the text of the Windows user dialog (windowsUserHelp). It: the setting."
+  },
+  "bottleDelete": "Delete bottle",
+  "@bottleDelete": {
+    "description": "Button that deletes a bottle: in the bottle's panel, after a confirmation; in the install panel, at once, for the bottle a failed install left."
+  },
+  "bottleAppCount": "{count, plural, =1{1 app} other{{count} apps}}",
+  "@bottleAppCount": {
+    "description": "How many apps a bottle holds: beside its name in the sidebar, and at the start of the header of its page (bottleDetailSummary).",
+    "placeholders": {
+      "count": {
+        "type": "int",
+        "example": "3"
+      }
+    }
+  },
+  "libraryAdd": "Add to library",
+  "@libraryAdd": {
+    "description": "Adds an app to the library: an item of an app's menu, the chip on an app of a bottle's page while the app is out, and the switch of the add-app dialog."
+  },
+  "libraryRemove": "Remove from library",
+  "@libraryRemove": {
+    "description": "Item of an app's menu that takes the app out of the library; the app stays in its bottle."
+  },
+  "downloadProgress": "Downloading · {percent} · {received} MB of {total} MB",
+  "@downloadProgress": {
+    "description": "Under the progress bar of a download (an app's installer, an update, a backend). Sizes are MB of 10^6 bytes.",
+    "placeholders": {
+      "percent": {
+        "type": "double",
+        "format": "percentPattern",
+        "example": "0.42"
+      },
+      "received": {
+        "type": "double",
+        "format": "decimalPatternDigits",
+        "optionalParameters": {
+          "decimalDigits": 0
+        },
+        "example": "1234"
+      },
+      "total": {
+        "type": "double",
+        "format": "decimalPatternDigits",
+        "optionalParameters": {
+          "decimalDigits": 0
+        },
+        "example": "2468"
+      }
+    }
+  },
+  "downloadProgressNoTotal": "Downloading · {received} MB",
+  "@downloadProgressNoTotal": {
+    "description": "Under the progress bar of a download whose size is unknown. MB of 10^6 bytes.",
+    "placeholders": {
+      "received": {
+        "type": "double",
+        "format": "decimalPatternDigits",
+        "optionalParameters": {
+          "decimalDigits": 0
+        },
+        "example": "1234"
+      }
+    }
+  },
+  "navLibrary": "Library",
+  "@navLibrary": {
+    "description": "The library, where the apps of every bottle are: the sidebar item that opens it (also its tooltip when the sidebar shows only icons), and the title of its page."
+  },
+  "navBottles": "BOTTLES",
+  "@navBottles": {
+    "description": "Sidebar heading over the list of bottles, in capitals."
+  },
+  "navNewBottle": "New bottle",
+  "@navNewBottle": {
+    "description": "Button that opens the dialog that creates a bottle: in the sidebar over the list of bottles (also its tooltip), and on the empty library. The dialog's own title is newBottleTitle."
+  },
+  "navBackends": "Backends",
+  "@navBackends": {
+    "description": "The Backends page, where Wine and the graphics backends are installed and checked: the sidebar item that opens it (also its tooltip when the sidebar shows only icons), and the title of the page."
+  },
+  "navBackToLibrary": "Back to Library",
+  "@navBackToLibrary": {
+    "description": "Button on a page with nothing to show that goes to the library: the page of a path the app does not have, and a bottle's page when the bottle can't be loaded. Library is the page's name in the sidebar (navLibrary)."
+  },
+  "appVersionLabel": "Version {version}",
+  "@appVersionLabel": {
+    "description": "At the foot of the wide sidebar: the version of the running app.",
+    "placeholders": {
+      "version": {
+        "type": "String",
+        "example": "1.5.0"
+      }
+    }
+  },
+  "viewGrid": "Grid view",
+  "@viewGrid": {
+    "description": "Tooltip of the button that shows the apps as a grid of cards, in the library and on a bottle's page."
+  },
+  "viewList": "List view",
+  "@viewList": {
+    "description": "Tooltip of the button that shows the apps as a list of rows, in the library and on a bottle's page."
+  },
+  "libraryCount": "{apps, plural, =1{1 app} other{{apps} apps}} in {bottles, plural, =1{1 bottle} other{{bottles} bottles}}",
+  "@libraryCount": {
+    "description": "Under the library title: how many apps it shows, and in how many bottles they are.",
+    "placeholders": {
+      "apps": {
+        "type": "int",
+        "example": "12"
+      },
+      "bottles": {
+        "type": "int",
+        "example": "3"
+      }
+    }
+  },
+  "librarySearch": "Search",
+  "@librarySearch": {
+    "description": "Hint inside the library's search field, which filters the apps by title."
+  },
+  "libraryFilterBottle": "Filter by bottle",
+  "@libraryFilterBottle": {
+    "description": "Tooltip of the library's menu that shows the apps of one bottle, or of all of them."
+  },
+  "libraryAllBottles": "All bottles",
+  "@libraryAllBottles": {
+    "description": "In the library's bottle menu: the choice that shows the apps of every bottle, and the menu's label while it is chosen."
+  },
+  "libraryColumnApp": "APP",
+  "@libraryColumnApp": {
+    "description": "Heading of the library list's column with the app names, in capitals."
+  },
+  "libraryColumnBottle": "BOTTLE",
+  "@libraryColumnBottle": {
+    "description": "Heading of the library list's column with each app's bottle, in capitals."
+  },
+  "libraryColumnStatus": "STATUS",
+  "@libraryColumnStatus": {
+    "description": "Heading of the library list's column that says whether each app is running, in capitals."
+  },
+  "libraryEmptyTitle": "Your library is empty",
+  "@libraryEmptyTitle": {
+    "description": "Title of the library page while no bottle has an app in the library."
+  },
+  "libraryEmptyMessage": "Create a bottle and add your apps and games.",
+  "@libraryEmptyMessage": {
+    "description": "Under the title of the empty library, above the button that creates a bottle."
+  },
+  "libraryNoResultsTitle": "No results",
+  "@libraryNoResultsTitle": {
+    "description": "Title in the library when its search and its bottle menu leave no app to show."
+  },
+  "libraryNoResultsMessage": "No app matches your search.",
+  "@libraryNoResultsMessage": {
+    "description": "Under the title of a library search with no results."
+  },
+  "setupTitle": "Set up Bodega",
+  "@setupTitle": {
+    "description": "Title of the page shown at start while the computer lacks a requirement or the engine is not installed."
+  },
+  "setupEngineMissing": "The engine is missing",
+  "@setupEngineMissing": {
+    "description": "Title of the setup card that installs the engine (Wine and its libraries) from two files the user chooses."
+  },
+  "setupEngineFiles": "Choose the engine's two files. Each one needs its .sha256 file beside it.",
+  "@setupEngineFiles": {
+    "description": "Under the title of the setup card that installs the engine. A .sha256 file holds the checksum of the file with the same name."
+  },
+  "setupEngine": "Engine",
+  "@setupEngine": {
+    "description": "On the setup card, label of the row where the user chooses the engine's file, a tarball."
+  },
+  "setupLibraries": "Libraries",
+  "@setupLibraries": {
+    "description": "On the setup card, label of the row where the user chooses the file with the libraries the engine needs, a tarball."
+  },
+  "setupNoFile": "No file chosen",
+  "@setupNoFile": {
+    "description": "On the setup card, under a file's label while the user has not chosen that file."
+  },
+  "setupCopyCommand": "Copy command",
+  "@setupCopyCommand": {
+    "description": "Button under the terminal command that installs a missing requirement, on the setup page or in the controllers section of a bottle's page: it copies the command."
+  },
+  "setupCommandCopied": "Command copied",
+  "@setupCommandCopied": {
+    "description": "Toast after the user copies the terminal command of a missing requirement."
+  },
+  "routeNotFoundTitle": "Nothing here",
+  "@routeNotFoundTitle": {
+    "description": "Title of the page shown for a path the app does not have, instead of an error page."
+  },
+  "routeNotFoundMessage": "There is no page at {path}.",
+  "@routeNotFoundMessage": {
+    "description": "Under the title of the page shown for a path the app does not have.",
+    "placeholders": {
+      "path": {
+        "type": "String",
+        "example": "/bottles/steam/settings"
+      }
+    }
+  },
+  "appOpenHint": "Double-click to open",
+  "@appOpenHint": {
+    "description": "Screen-reader hint of an app's card or row: a double-click opens the app."
+  },
+  "appRunning": "Running",
+  "@appRunning": {
+    "description": "State of an app whose bottle is open: a chip on its card, a word on its row."
+  },
+  "appClosed": "Closed",
+  "@appClosed": {
+    "description": "State of an app that is not running, on its row: the app is closed."
+  },
+  "appOptions": "{title} options",
+  "@appOptions": {
+    "description": "Tooltip of the button that opens an app's menu, on its card or row.",
+    "placeholders": {
+      "title": {
+        "type": "String",
+        "example": "Steam"
+      }
+    }
+  },
+  "appMenuHud": "Performance HUD",
+  "@appMenuHud": {
+    "description": "Item of an app's menu, with a switch: shows the performance HUD on every launch of the app."
+  },
+  "appMenuHide": "Remove from bottle",
+  "@appMenuHide": {
+    "description": "Item of an app's menu: takes the app out of its bottle's list."
+  },
+  "bottleRowLabel": "{state, select, incomplete{Bottle {bottle}, incomplete} open{Bottle {bottle}, open} other{Bottle {bottle}, closed}}",
+  "@bottleRowLabel": {
+    "description": "Screen-reader label of a bottle in the sidebar: its name and its state. state is incomplete (its setup did not finish), open (something runs in it) or anything else for closed; the state word goes with the bottle.",
+    "placeholders": {
+      "bottle": {
+        "type": "String",
+        "example": "steam"
+      },
+      "state": {
+        "type": "String",
+        "example": "open"
+      }
+    }
+  },
+  "bottleRowTooltip": "{state, select, incomplete{{bottle} (incomplete)} open{{bottle} (open)} other{{bottle} (closed)}}",
+  "@bottleRowTooltip": {
+    "description": "Tooltip of a bottle in the narrow sidebar, which shows only its icon: its name and its state. state is incomplete, open, or anything else for closed; the state word goes with the bottle.",
+    "placeholders": {
+      "bottle": {
+        "type": "String",
+        "example": "steam"
+      },
+      "state": {
+        "type": "String",
+        "example": "open"
+      }
+    }
+  },
+  "installNoChecksum": "This installer has no fixed checksum: it relies on HTTPS and {host}.",
+  "@installNoChecksum": {
+    "description": "In the install panel, under the download progress of an app's installer that the catalog gives no checksum for, or as the panel's headline when that download is a step of the install. host is the server the installer comes from.",
+    "placeholders": {
+      "host": {
+        "type": "String",
+        "example": "cdn.akamai.steamstatic.com"
+      }
+    }
+  },
+  "installFailed": "Installation failed",
+  "@installFailed": {
+    "description": "Headline of the install panel when an app could not be installed, above the error."
+  },
+  "updateTitle": "A new version is available",
+  "@updateTitle": {
+    "description": "Title of the dialog that offers a newer version of Bodega."
+  },
+  "updateVersions": "Bodega {version} (you have {current})",
+  "@updateVersions": {
+    "description": "First line of the update dialog: the new version, and the one running.",
+    "placeholders": {
+      "version": {
+        "type": "String",
+        "example": "1.5.0"
+      },
+      "current": {
+        "type": "String",
+        "example": "1.4.2"
+      }
+    }
+  },
+  "updatePackageManager": "Update it with your package manager, using the release's file:",
+  "@updatePackageManager": {
+    "description": "In the update dialog of a Linux package, above the command that installs the new release's file."
+  },
+  "updateInstalling": "Installing. Bodega will close and open the new version.",
+  "@updateInstalling": {
+    "description": "In the update dialog while the new version installs; then Bodega restarts in it."
+  },
+  "updateKeepsData": "Your bottles, games and settings stay as they are.",
+  "@updateKeepsData": {
+    "description": "Note at the bottom of the update dialog: updating keeps the user's data."
+  },
+  "updateNotNow": "Not now",
+  "@updateNotNow": {
+    "description": "Button of the update dialog: closes it, and this version is not offered again (a newer one will be)."
+  },
+  "updateInstall": "Update",
+  "@updateInstall": {
+    "description": "Button of the update dialog: downloads and installs the new version."
+  },
+  "updateViewRelease": "View release",
+  "@updateViewRelease": {
+    "description": "Button of the update dialog when Bodega cannot install the version itself: opens its release page."
+  },
+  "catalogTitle": "Catalog",
+  "@catalogTitle": {
+    "description": "The catalog's name: the title of the page that lists the apps Bodega can install, and the back button of a catalog app's page, which goes to it."
+  },
+  "catalogSearchHint": "Search for an app or a game",
+  "@catalogSearchHint": {
+    "description": "Placeholder of the search field at the top of the catalog page: it searches the catalog's apps and the games of the anti-cheat list."
+  },
+  "catalogNoMatch": "No app in the catalog matches.",
+  "@catalogNoMatch": {
+    "description": "On the catalog page, when no app of the catalog matches the search."
+  },
+  "catalogStatusTested": "Tested",
+  "@catalogStatusTested": {
+    "description": "Status chip of a catalog app wherever the app shows (the catalog, its page, the add-app dialog): Bodega tested the app and it works. Goes with status, not with app."
+  },
+  "catalogStatusReported": "Reported",
+  "@catalogStatusReported": {
+    "description": "Status chip of a catalog app: others report that the app works, but Bodega did not test it. Goes with status, not with app."
+  },
+  "catalogStatusUntested": "Untested",
+  "@catalogStatusUntested": {
+    "description": "Status chip of a catalog app: nobody tested the app with the Wine that Bodega uses, so it may not work. Goes with status."
+  },
+  "catalogStatusBlocked": "Not supported",
+  "@catalogStatusBlocked": {
+    "description": "Status chip of a catalog app that does not work in Bodega and cannot be installed: the same text in the catalog, on the app's page and in the add-app dialog."
+  },
+  "catalogFlaky": "Unstable",
+  "@catalogFlaky": {
+    "description": "Chip on a catalog app that is known to fail at times under Wine: the app is unstable."
+  },
+  "catalogAppInstalled": "Installed",
+  "@catalogAppInstalled": {
+    "description": "State of a catalog app installed in a bottle: a chip on the app in the catalog and on its page, and the headline of the install panel once the install ends. Goes with app; a backend's own is backendInstalled."
+  },
+  "catalogAntiCheatTitle": "Anti-cheat",
+  "@catalogAntiCheatTitle": {
+    "description": "Title of the section of the catalog page that says what the anti-cheat list knows about the game searched."
+  },
+  "catalogAntiCheatLoadFailed": "The anti-cheat list couldn't be loaded. The catalog still works; it will try again when you open it.",
+  "@catalogAntiCheatLoadFailed": {
+    "description": "In the anti-cheat section of the catalog page, when the anti-cheat list could not be downloaded."
+  },
+  "catalogAntiCheatBlocked": "Doesn't work",
+  "@catalogAntiCheatBlocked": {
+    "description": "Chip on a game in the anti-cheat section of the catalog page: the game's anti-cheat does not work on Mac."
+  },
+  "catalogAntiCheatMayFail": "May fail",
+  "@catalogAntiCheatMayFail": {
+    "description": "Chip on a game in the anti-cheat section of the catalog page: the game may or may not work on Mac. catalogAntiCheatNote quotes it."
+  },
+  "catalogAntiCheatNote": "A game that isn't listed here isn't guaranteed to work, and \"{mayFail}\" can mean it won't start: POLYGON is listed that way, and on Mac it doesn't get past Easy Anti-Cheat. List from AreWeAntiCheatYet (MIT), with Highball's verdict for Mac.",
+  "@catalogAntiCheatNote": {
+    "description": "Caption under the anti-cheat section of the catalog page. mayFail is the chip's text, catalogAntiCheatMayFail, quoted. POLYGON is a game; AreWeAntiCheatYet and Highball are the names of the lists.",
+    "placeholders": {
+      "mayFail": {
+        "type": "String",
+        "example": "May fail"
+      }
+    }
+  },
+  "catalogNotFound": "Not in the catalog",
+  "@catalogNotFound": {
+    "description": "Title of the page shown for an app the catalog does not have."
+  },
+  "catalogBackToCatalog": "Back to the catalog",
+  "@catalogBackToCatalog": {
+    "description": "Button on the page shown for an app the catalog does not have: it goes back to the catalog."
+  },
+  "catalogConfigSection": "Configuration",
+  "@catalogConfigSection": {
+    "description": "Title of the section of a catalog app's page that says what the app is set up with: its graphics backend and its sync mode."
+  },
+  "catalogBackend": "Backend: {backend}",
+  "@catalogBackend": {
+    "description": "Line in the Configuration section of a catalog app's page: the graphics backend the app is installed with.",
+    "placeholders": {
+      "backend": {
+        "type": "String",
+        "example": "dxmt"
+      }
+    }
+  },
+  "catalogSync": "Sync: {sync}",
+  "@catalogSync": {
+    "description": "Line in the Configuration section of a catalog app's page: the sync mode the app is installed with.",
+    "placeholders": {
+      "sync": {
+        "type": "String",
+        "example": "msync"
+      }
+    }
+  },
+  "catalogNotesSection": "Notes",
+  "@catalogNotesSection": {
+    "description": "Title of the section of a catalog app's page with notes about the app."
+  },
+  "catalogKnownIssuesSection": "Known issues",
+  "@catalogKnownIssuesSection": {
+    "description": "Title of the section of a catalog app's page with the app's known problems and their fixes."
+  },
+  "catalogSourceSection": "Source",
+  "@catalogSourceSection": {
+    "description": "Title of the section of a catalog app's page that says where its recipe comes from: repository, commit, file, license and verification."
+  },
+  "catalogSourceRepo": "Repository",
+  "@catalogSourceRepo": {
+    "description": "Label of a line in the Source section of a catalog app's page: the repository the recipe comes from."
+  },
+  "catalogSourceCommit": "Commit",
+  "@catalogSourceCommit": {
+    "description": "Label of a line in the Source section of a catalog app's page: the commit of the recipe's repository."
+  },
+  "catalogSourcePath": "Recipe",
+  "@catalogSourcePath": {
+    "description": "Label of a line in the Source section of a catalog app's page: the recipe's file in its repository."
+  },
+  "catalogSourceLicense": "License",
+  "@catalogSourceLicense": {
+    "description": "Label of a line in the Source section of a catalog app's page: the recipe's license."
+  },
+  "catalogSourceVerified": "Verified",
+  "@catalogSourceVerified": {
+    "description": "Label of a line in the Source section of a catalog app's page: when and on what the recipe was verified. Goes with recipe."
+  },
+  "catalogSourceLine": "{label}: {value}",
+  "@catalogSourceLine": {
+    "description": "A line of the Source section of a catalog app's page: its label (catalogSourceRepo and the like) and its value.",
+    "placeholders": {
+      "label": {
+        "type": "String",
+        "example": "Repository"
+      },
+      "value": {
+        "type": "String",
+        "example": "gauthierpiarrette/highball-db"
+      }
+    }
+  },
+  "catalogBlockedNote": "It can't be installed: it's not supported, for the reasons above.",
+  "@catalogBlockedNote": {
+    "description": "Under the disabled Install button of a catalog app that is not supported (catalogStatusBlocked): the note above the button says why."
+  },
+  "catalogInstallBackend": "Install {backend}",
+  "@catalogInstallBackend": {
+    "description": "Button on a catalog app's page when the backend the app needs is not installed: it opens Backends, to install it.",
+    "placeholders": {
+      "backend": {
+        "type": "String",
+        "example": "dxmt"
+      }
+    }
+  },
+  "catalogNewBottle": "New bottle",
+  "@catalogNewBottle": {
+    "description": "Option of the bottle dropdown on a catalog app's page: a new bottle of its own, named after the app."
+  },
+  "catalogExistingBottleNote": "Installing into a bottle that already exists closes whatever is open in it, and leaves its backend and sync as they are.",
+  "@catalogExistingBottleNote": {
+    "description": "Under the bottle dropdown of a catalog app's page, when a bottle that already exists is chosen."
+  },
+  "catalogInstallerDownloaded": "Installer: will be downloaded",
+  "@catalogInstallerDownloaded": {
+    "description": "On a catalog app's page, when no installer file was chosen: Bodega downloads the installer."
+  },
+  "catalogInstallerFile": "Installer: {file}",
+  "@catalogInstallerFile": {
+    "description": "On a catalog app's page: the installer file chosen instead of downloading one.",
+    "placeholders": {
+      "file": {
+        "type": "String",
+        "example": "SteamSetup.exe"
+      }
+    }
+  },
+  "catalogDownloadInstaller": "Download",
+  "@catalogDownloadInstaller": {
+    "description": "Button beside a chosen installer file on a catalog app's page: it forgets the file, so the installer is downloaded."
+  },
+  "catalogInstallersFileType": "Installers",
+  "@catalogInstallersFileType": {
+    "description": "Name of the file type (.exe and .msi files) in the file picker that chooses an installer on a catalog app's page."
+  },
+  "catalogInstallRunning": "Another installation is in progress: {app}.",
+  "@catalogInstallRunning": {
+    "description": "Under the Install button of a catalog app's page while another app is being installed.",
+    "placeholders": {
+      "app": {
+        "type": "String",
+        "example": "Steam"
+      }
+    }
+  },
+  "addAppTitle": "Add an app to {bottle}",
+  "@addAppTitle": {
+    "description": "Title of the dialog that adds an app to a bottle.",
+    "placeholders": {
+      "bottle": {
+        "type": "String",
+        "example": "games"
+      }
+    }
+  },
+  "addAppSubtitle": "Add your own program or choose an app from the list.",
+  "@addAppSubtitle": {
+    "description": "Under the title of the dialog that adds an app to a bottle."
+  },
+  "addAppTabFile": "From an .exe",
+  "@addAppTabFile": {
+    "description": "Tab of the add-app dialog that adds a program from an .exe file."
+  },
+  "addAppTabOthers": "Others",
+  "@addAppTabOthers": {
+    "description": "Tab of the add-app dialog that lists the catalog's apps, to install one of them."
+  },
+  "addAppCatalogEmpty": "The catalog is empty.",
+  "@addAppCatalogEmpty": {
+    "description": "In the catalog tab of the add-app dialog, when the catalog has no apps."
+  },
+  "addAppInstallerRunning": "The installer opens in its own window. Finish it there and you'll continue here.",
+  "@addAppInstallerRunning": {
+    "description": "In the add-app dialog while the installer runs in its own window."
+  },
+  "addAppInstallerFinished": "Installer finished. Choose the installed program: it's usually in Program Files.",
+  "@addAppInstallerFinished": {
+    "description": "In the add-app dialog once the installer has finished: next, the program it installed is chosen."
+  },
+  "addAppIsInstaller": "It's an installer",
+  "@addAppIsInstaller": {
+    "description": "Title of a choice in the add-app dialog: the chosen .exe is an installer."
+  },
+  "addAppIsInstallerHint": "Run the installer inside the bottle, then choose the installed program.",
+  "@addAppIsInstallerHint": {
+    "description": "Under the choice addAppIsInstaller, in the add-app dialog."
+  },
+  "addAppIsProgram": "It's already a program",
+  "@addAppIsProgram": {
+    "description": "Title of a choice in the add-app dialog: the chosen .exe is the program itself."
+  },
+  "addAppIsProgramHint": "Add an .exe that's already on your computer or on the bottle's C: drive.",
+  "@addAppIsProgramHint": {
+    "description": "Under the choice addAppIsProgram, in the add-app dialog."
+  },
+  "addAppProgram": "Program",
+  "@addAppProgram": {
+    "description": "Label of the program an app runs: above the chosen program's file name in the add-app dialog, and on the field with its path in the run-with-options dialog."
+  },
+  "addAppNoProgram": "No program chosen",
+  "@addAppNoProgram": {
+    "description": "In the add-app dialog, where the chosen program's file name goes, before one is chosen."
+  },
+  "addAppChooseExe": "Choose .exe",
+  "@addAppChooseExe": {
+    "description": "Button of the add-app dialog that opens the file picker to choose the .exe."
+  },
+  "addAppTitleField": "Title",
+  "@addAppTitleField": {
+    "description": "Label of the field with an app's title, the name it shows in Bodega: in the add-app dialog, and in the run-with-options dialog when Save as a launcher is on."
+  },
+  "addAppInstallerDone": "The installer has finished",
+  "@addAppInstallerDone": {
+    "description": "Button of the add-app dialog, clicked once the installer has finished in its own window."
+  },
+  "addAppChooseProgram": "Choose the program…",
+  "@addAppChooseProgram": {
+    "description": "Button of the add-app dialog that opens the file picker to choose the program the installer installed."
+  },
+  "addAppAdd": "Add",
+  "@addAppAdd": {
+    "description": "Button of the add-app dialog that adds the program to the bottle."
+  },
+  "addAppLibraryHint": "It shows on the main screen",
+  "@addAppLibraryHint": {
+    "description": "Under the switch libraryAdd of the add-app dialog: an app in the library shows on the main screen."
+  },
+  "addAppAddedToLibrary": "{title} is now in your library",
+  "@addAppAddedToLibrary": {
+    "description": "Toast after an app was added to a bottle and to the library.",
+    "placeholders": {
+      "title": {
+        "type": "String",
+        "example": "Blur"
+      }
+    }
+  },
+  "addAppAddedToBottle": "{title} was added to the bottle",
+  "@addAppAddedToBottle": {
+    "description": "Toast after an app was added to a bottle, but not to the library.",
+    "placeholders": {
+      "title": {
+        "type": "String",
+        "example": "Blur"
+      }
+    }
+  },
+  "addAppUnavailable": "Not available",
+  "@addAppUnavailable": {
+    "description": "Disabled button of a catalog app that is not supported, in the add-app dialog, where Install would be."
+  },
+  "backendDescriptionWine": "wined3d and vkd3d. It comes with the engine.",
+  "@backendDescriptionWine": {
+    "description": "On the card of the wine backend, under its name: what it is. The engine is Bodega's Wine build."
+  },
+  "backendDescriptionDxmt": "D3D10 and D3D11 on Metal. The one launchers use.",
+  "@backendDescriptionDxmt": {
+    "description": "On the card of the dxmt backend, under its name: what it is. Launchers are apps such as Steam that open games."
+  },
+  "backendDescriptionDxvk": "D3D10 and D3D11 on Vulkan, through MoltenVK.",
+  "@backendDescriptionDxvk": {
+    "description": "On the card of the dxvk backend, under its name: what it is."
+  },
+  "backendDescriptionD3dMetal": "D3D11 and D3D12 on Metal, by Apple. You import it yourself.",
+  "@backendDescriptionD3dMetal": {
+    "description": "On the card of the d3dmetal backend, under its name: what it is. Bodega never downloads it: the user imports Apple's Game Porting Toolkit."
+  },
+  "backendInstalled": "Installed",
+  "@backendInstalled": {
+    "description": "Chip on a backend's card: the backend is installed. Goes with backend, not with an app or a bottle."
+  },
+  "backendNotInstalled": "Not installed",
+  "@backendNotInstalled": {
+    "description": "Chip on a backend's card: the backend is not installed. Goes with backend."
+  },
+  "backendUsedFor": "Used for: {role}",
+  "@backendUsedFor": {
+    "description": "On a backend's card, under its description: which games it is for.",
+    "placeholders": {
+      "role": {
+        "type": "String",
+        "example": "DirectX 10 and 11, 32 and 64 bits",
+        "description": "The backend's role, one of the backendRole messages: the DirectX versions and architectures it covers."
+      }
+    }
+  },
+  "backendChecking": "Checking; each case can take up to 90 s",
+  "@backendChecking": {
+    "description": "Under the progress bar of a backend's card while it is checked in a bottle. 90 s is the time limit of each case."
+  },
+  "backendCheck": "Check",
+  "@backendCheck": {
+    "description": "Button that checks a backend in a bottle: on an installed backend's card it opens the check dialog, and in that dialog it starts the check."
+  },
+  "backendCheckPassed": "OK",
+  "@backendCheckPassed": {
+    "description": "Chip beside a case of a backend's check: the case passed."
+  },
+  "backendCheckFailed": "Failed",
+  "@backendCheckFailed": {
+    "description": "Chip beside a case of a backend's check: the case failed."
+  },
+  "backendCheckCase": "{bits}-bit, D3D{d3d}",
+  "@backendCheckCase": {
+    "description": "Beside the chip of a case of a backend's check: what the case ran.",
+    "placeholders": {
+      "bits": {
+        "type": "int",
+        "example": "64",
+        "description": "The architecture of the case, 32 or 64: not a count."
+      },
+      "d3d": {
+        "type": "String",
+        "example": "11",
+        "description": "The Direct3D version of the case."
+      }
+    }
+  },
+  "gptkChooseVersion": "Choose a version of Apple's Game Porting Toolkit.",
+  "@gptkChooseVersion": {
+    "description": "On D3DMetal's card when it is not installed, above the Game Porting Toolkit versions that can install it."
+  },
+  "gptkInstalledVersion": "You have D3DMetal {version}.",
+  "@gptkInstalledVersion": {
+    "description": "On D3DMetal's card when it is installed, above the Game Porting Toolkit versions.",
+    "placeholders": {
+      "version": {
+        "type": "String",
+        "example": "3.0"
+      }
+    }
+  },
+  "gptkTested": "Tested",
+  "@gptkTested": {
+    "description": "Chip on a Game Porting Toolkit version: it was checked with Bodega. Goes with version."
+  },
+  "gptkUntested": "Beta, untested",
+  "@gptkUntested": {
+    "description": "Chip on a Game Porting Toolkit version: a beta not checked with Bodega yet. Goes with version."
+  },
+  "gptkReinstall": "Reinstall",
+  "@gptkReinstall": {
+    "description": "Button on the Game Porting Toolkit version that is installed: installs it again."
+  },
+  "gptkWaiting": "Sign in to Apple in your browser and download Game Porting Toolkit {version}. Bodega installs it as soon as it shows up in Downloads.",
+  "@gptkWaiting": {
+    "description": "On D3DMetal's card, under the progress bar while Bodega waits for the Game Porting Toolkit dmg that the browser downloads. Downloads is the user's Downloads folder.",
+    "placeholders": {
+      "version": {
+        "type": "String",
+        "example": "3.0"
+      }
+    }
+  },
+  "gptkPickDmg": "I already have it: choose the dmg…",
+  "@gptkPickDmg": {
+    "description": "Button under the Game Porting Toolkit versions on D3DMetal's card: opens the file picker to install a dmg the user already downloaded."
+  },
+  "gptkLicenseNote": "Bodega doesn't download D3DMetal: your browser does, with your Apple account, and you accept its license.",
+  "@gptkLicenseNote": {
+    "description": "Note at the bottom of D3DMetal's card."
+  },
+  "gptkDiskImage": "Disk image",
+  "@gptkDiskImage": {
+    "description": "File type in the file picker that installs D3DMetal from a Game Porting Toolkit .dmg file."
+  },
+  "gptkInstalledToast": "D3DMetal {version} is installed.",
+  "@gptkInstalledToast": {
+    "description": "First sentence of the toast shown when D3DMetal was installed. gptkToastChecking or gptkToastNeedsBottle follows it.",
+    "placeholders": {
+      "version": {
+        "type": "String",
+        "example": "3.0"
+      }
+    }
+  },
+  "gptkToastChecking": "Checking…",
+  "@gptkToastChecking": {
+    "description": "Second sentence of the toast shown when D3DMetal was installed: Bodega checks it in a bottle now."
+  },
+  "gptkToastNeedsBottle": "Create a bottle to check it.",
+  "@gptkToastNeedsBottle": {
+    "description": "Second sentence of the toast shown when D3DMetal was installed, when there is no bottle to check it in."
+  },
+  "probeTitle": "Check {backend}",
+  "@probeTitle": {
+    "description": "Title of the dialog that picks the bottle a backend is checked in.",
+    "placeholders": {
+      "backend": {
+        "type": "String",
+        "example": "dxvk"
+      }
+    }
+  },
+  "probeNoBottle": "You need a bottle. Install something from the catalog and come back.",
+  "@probeNoBottle": {
+    "description": "In the check dialog of a backend when there is no bottle to check it in. The catalog is the list of apps Bodega can install."
+  },
+  "bottleStatus": "{status, select, incomplete{Incomplete} open{Open} other{Closed}}",
+  "@bottleStatus": {
+    "description": "Chip under the bottle's name in its panel: the state of the bottle, incomplete (its setup did not finish), open (something runs in it) or closed (other).",
+    "placeholders": {
+      "status": {
+        "type": "String",
+        "example": "open"
+      }
+    }
+  },
+  "bottleRenameStopFirst": "Stop it to rename it",
+  "@bottleRenameStopFirst": {
+    "description": "Tooltip of the rename button beside the bottle's name while the bottle is open: it (the bottle) has to be stopped first."
+  },
+  "bottleFactApps": "{count, plural, =1{App} other{Apps}}",
+  "@bottleFactApps": {
+    "description": "Caption of the first fact in the bottle's panel, under the number of apps the bottle holds.",
+    "placeholders": {
+      "count": {
+        "type": "int",
+        "example": "8"
+      }
+    }
+  },
+  "bottleGraphics": "Graphics",
+  "@bottleGraphics": {
+    "description": "Label of a graphics backend choice: in the bottle's panel, the caption of its fact and the label of its dropdown; the dropdown of a new bottle's backend; and the dropdown of the backend for one run, in the run-with-options dialog."
+  },
+  "bottleGraphicsAuto": "Automatic",
+  "@bottleGraphicsAuto": {
+    "description": "Graphics backend option that lets Bodega pick one for each app: in the bottle's panel (its fact, its dropdown and the misfit warning) and in the new-bottle dialog's dropdown. Goes with the noun backend (masculine in Spanish); the GPU's own is bottleGpuAuto."
+  },
+  "bottleMisfitWarning": "{backend} won't work for {apps}. Use {automatic}.",
+  "@bottleMisfitWarning": {
+    "description": "Warning under the bottle's graphics dropdown when the backend chosen does not suit some of its apps. {apps} lists them, each with what it draws with (graphicsLabel) in parentheses; {automatic} is the text of the Automatic option (bottleGraphicsAuto).",
+    "placeholders": {
+      "backend": {
+        "type": "String",
+        "example": "d3dmetal"
+      },
+      "apps": {
+        "type": "String",
+        "example": "Blur (DX9 · 32 bits)"
+      },
+      "automatic": {
+        "type": "String",
+        "example": "Automatic"
+      }
+    }
+  },
+  "bottleRunWithOptions": "Run with options…",
+  "@bottleRunWithOptions": {
+    "description": "Opens the dialog that runs a program of the bottle with options: a button in the bottle's panel, and an item of an app's menu, for that app. The dialog's own title is runOptionsTitle."
+  },
+  "bottleRunExe": "Run .exe…",
+  "@bottleRunExe": {
+    "description": "Button in the bottle's panel that picks a Windows program and runs it once in the bottle, without adding it to the bottle's apps."
+  },
+  "bottleDriveC": "C: drive",
+  "@bottleDriveC": {
+    "description": "Button in the bottle's panel that opens the bottle's C: drive in the file manager."
+  },
+  "bottleTerminal": "Terminal",
+  "@bottleTerminal": {
+    "description": "Button in the bottle's panel that opens a Windows command prompt in the bottle."
+  },
+  "bottleDeleteTitle": "Delete the bottle {bottle}",
+  "@bottleDeleteTitle": {
+    "description": "Title of the dialog that confirms deleting a bottle.",
+    "placeholders": {
+      "bottle": {
+        "type": "String",
+        "example": "Steam"
+      }
+    }
+  },
+  "bottleDeleteConfirm": "Anything open in it will close, and its folder will be deleted with everything you installed in it. This can't be undone.",
+  "@bottleDeleteConfirm": {
+    "description": "Message of the dialog that confirms deleting a bottle (it: the bottle)."
+  },
+  "bottleSectionSettings": "Settings",
+  "@bottleSectionSettings": {
+    "description": "Title of the folding section of the bottle's panel that holds the bottle's settings."
+  },
+  "bottleWindowsVersion": "Windows version",
+  "@bottleWindowsVersion": {
+    "description": "Label of the dropdown that picks the Windows version a bottle reports to its programs: in the bottle's settings and in the new-bottle dialog."
+  },
+  "bottleWindowsUser": "Windows user",
+  "@bottleWindowsUser": {
+    "description": "The bottle setting with the user name that the bottle's games see: its title in the bottle's panel, and the title of the dialog that changes it."
+  },
+  "bottleWindowsUserDefault": "{user} (from your computer)",
+  "@bottleWindowsUserDefault": {
+    "description": "Value of the Windows user setting in the bottle's panel when the bottle uses the computer's user name.",
+    "placeholders": {
+      "user": {
+        "type": "String",
+        "example": "maria"
+      }
+    }
+  },
+  "bottleChangeUser": "Change…",
+  "@bottleChangeUser": {
+    "description": "Button beside the Windows user setting in the bottle's panel that opens the dialog to change it."
+  },
+  "bottleMsyncOn": "Turn on msync",
+  "@bottleMsyncOn": {
+    "description": "Title of the confirmation before turning msync on for a bottle, which stops the bottle."
+  },
+  "bottleMsyncOff": "Turn off msync",
+  "@bottleMsyncOff": {
+    "description": "Title of the confirmation before turning msync off for a bottle, which stops the bottle."
+  },
+  "bottleHighRes": "High-density display",
+  "@bottleHighRes": {
+    "description": "Switch in the bottle's settings that makes Wine draw at the full resolution of high-density (Retina) displays."
+  },
+  "bottleHighResNote": "Sharper on high-density displays.",
+  "@bottleHighResNote": {
+    "description": "Note under the high-density display switch, followed by bottleChangeCloses."
+  },
+  "bottleHighResOn": "Turn on high-density display",
+  "@bottleHighResOn": {
+    "description": "Title of the confirmation before turning the high-density display on for a bottle, which stops the bottle."
+  },
+  "bottleHighResOff": "Turn off high-density display",
+  "@bottleHighResOff": {
+    "description": "Title of the confirmation before turning the high-density display off for a bottle, which stops the bottle."
+  },
+  "bottleDlssNote": "With D3DMetal or DXMT and a game that supports it. Untested.",
+  "@bottleDlssNote": {
+    "description": "Note under the DLSS switch in the bottle's settings."
+  },
+  "bottleAvx": "Advertise AVX",
+  "@bottleAvx": {
+    "description": "Switch that has Rosetta tell programs the processor has AVX: in the bottle's settings, and for one run in the run-with-options dialog."
+  },
+  "bottleAvxNote": "Turn it off if a game quits at launch.",
+  "@bottleAvxNote": {
+    "description": "Note under the Advertise AVX switch (it: the switch), in the bottle's settings and in the run-with-options dialog."
+  },
+  "bottleGpu": "GPU",
+  "@bottleGpu": {
+    "description": "Label of the dropdown in the bottle's settings that picks the GPU the bottle's games use."
+  },
+  "bottleGpuAuto": "Automatic",
+  "@bottleGpuAuto": {
+    "description": "GPU option that lets the system pick it, in the bottle's settings. Goes with the noun GPU; the graphics backend's own is bottleGraphicsAuto."
+  },
+  "bottleGpuDiscrete": "Discrete",
+  "@bottleGpuDiscrete": {
+    "description": "GPU option in the bottle's settings: always the discrete one. Goes with the noun GPU."
+  },
+  "bottleGameModeNote": "Uses gamemoderun if it's installed.",
+  "@bottleGameModeNote": {
+    "description": "Note under the GameMode switch in the bottle's settings."
+  },
+  "bottleSectionTools": "Wine tools",
+  "@bottleSectionTools": {
+    "description": "Title of the folding section of the bottle's panel with Wine's own tools, each a button that opens its window."
+  },
+  "bottleToolWineConfig": "Wine configuration",
+  "@bottleToolWineConfig": {
+    "description": "Wine tool button in the bottle's panel: opens winecfg."
+  },
+  "bottleToolRegistry": "Registry editor",
+  "@bottleToolRegistry": {
+    "description": "Wine tool button in the bottle's panel: opens regedit."
+  },
+  "bottleToolTaskManager": "Task manager",
+  "@bottleToolTaskManager": {
+    "description": "Wine tool button in the bottle's panel: opens taskmgr."
+  },
+  "bottleToolControlPanel": "Control panel",
+  "@bottleToolControlPanel": {
+    "description": "Wine tool button in the bottle's panel: opens Wine's control panel."
+  },
+  "bottleToolGameControllers": "Game controllers",
+  "@bottleToolGameControllers": {
+    "description": "Wine tool button in the bottle's panel: opens Windows' game controllers panel (joy.cpl)."
+  },
+  "bottleToolUninstall": "Uninstall programs",
+  "@bottleToolUninstall": {
+    "description": "Wine tool button in the bottle's panel: opens Wine's uninstaller."
+  },
+  "bottleSectionDetails": "Details",
+  "@bottleSectionDetails": {
+    "description": "Title of the folding section of the bottle's panel with its per-program exceptions and its logs."
+  },
+  "bottleExceptions": "Per-program exceptions",
+  "@bottleExceptions": {
+    "description": "Caption above the programs of the bottle that use another graphics backend than the bottle's, each shown as program → backend."
+  },
+  "bottleExceptionRemove": "Remove the exception for {exe}",
+  "@bottleExceptionRemove": {
+    "description": "Tooltip of the button that removes a program's graphics backend exception in the bottle's panel.",
+    "placeholders": {
+      "exe": {
+        "type": "String",
+        "example": "Blur.exe"
+      }
+    }
+  },
+  "bottleLogs": "Logs",
+  "@bottleLogs": {
+    "description": "Caption above the bottle's run logs in its panel."
+  },
+  "bottleLogsEmpty": "No logs yet.",
+  "@bottleLogsEmpty": {
+    "description": "In the bottle's panel when nothing has run in the bottle yet."
+  },
+  "bottleLogRunning": "Running",
+  "@bottleLogRunning": {
+    "description": "Under a log's name in the bottle's panel: the program that writes the log is still running."
+  },
+  "bottleLogExited": "Exited with code {code}",
+  "@bottleLogExited": {
+    "description": "Under a log's name in the bottle's panel: the exit code of the program that wrote the log.",
+    "placeholders": {
+      "code": {
+        "type": "int",
+        "example": "1"
+      }
+    }
+  },
+  "bottleDetailTitle": "Installed apps",
+  "@bottleDetailTitle": {
+    "description": "Title above the apps on a bottle's page."
+  },
+  "bottleDetailSummary": "{apps} in {bottle} · {inLibrary, plural, other{{inLibrary} in your library}}",
+  "@bottleDetailSummary": {
+    "description": "Under the title of a bottle's page: how many apps the bottle holds (apps, the text of bottleAppCount), its name, and how many of those apps are in the library.",
+    "placeholders": {
+      "apps": {
+        "type": "String",
+        "example": "3 apps"
+      },
+      "bottle": {
+        "type": "String",
+        "example": "Steam"
+      },
+      "inLibrary": {
+        "type": "int",
+        "example": "2"
+      }
+    }
+  },
+  "bottleDetailAddApp": "Add app",
+  "@bottleDetailAddApp": {
+    "description": "Button on a bottle's page, and in its empty state, that opens the dialog to add an app to the bottle."
+  },
+  "bottleDetailOpenFailed": "Couldn't open the bottle",
+  "@bottleDetailOpenFailed": {
+    "description": "Title of a bottle's page when the bottle can't be loaded; the error shows under it."
+  },
+  "bottleEmptyTitle": "This bottle is empty",
+  "@bottleEmptyTitle": {
+    "description": "Title shown on a bottle's page in place of its apps when it has none."
+  },
+  "bottleEmptyMessage": "Install a popular app or add your own .exe.",
+  "@bottleEmptyMessage": {
+    "description": "Under the title of an empty bottle's page (bottleEmptyTitle): what to do with an empty bottle."
+  },
+  "bottleNameRule": "Use letters without accents, numbers, - and _, up to 64 characters, starting with a letter or number.",
+  "@bottleNameRule": {
+    "description": "Error under the name field of the new-bottle and rename dialogs, when the name breaks the rule for a bottle's folder name."
+  },
+  "newBottleTitle": "New bottle",
+  "@newBottleTitle": {
+    "description": "Title of the dialog that creates a bottle. navNewBottle is the button that opens it."
+  },
+  "newBottleSubtitle": "It's where your apps and games are installed.",
+  "@newBottleSubtitle": {
+    "description": "Under the title of the new-bottle dialog: what a bottle is."
+  },
+  "newBottleCreating": "Creating the bottle…",
+  "@newBottleCreating": {
+    "description": "Shown in the new-bottle dialog, with a spinner, while the bottle is made."
+  },
+  "newBottleNote": "It can take a few minutes the first time. Then you add apps from the bottle.",
+  "@newBottleNote": {
+    "description": "Note at the bottom of the new-bottle dialog."
+  },
+  "newBottleCreate": "Create bottle",
+  "@newBottleCreate": {
+    "description": "Button that creates the bottle in the new-bottle dialog."
+  },
+  "newBottleNameTaken": "You already have a bottle with that name.",
+  "@newBottleNameTaken": {
+    "description": "Error under the name field of the new-bottle dialog, when another bottle has the name (ignoring case)."
+  },
+  "renameBottleTitle": "Rename bottle",
+  "@renameBottleTitle": {
+    "description": "Title of the dialog that renames a bottle."
+  },
+  "runOptionsTitle": "Run with options",
+  "@runOptionsTitle": {
+    "description": "Title of the dialog that runs a program of a bottle with arguments, variables and a graphics backend of its own. bottleRunWithOptions is what opens it."
+  },
+  "runOptionsArgs": "Arguments",
+  "@runOptionsArgs": {
+    "description": "Label of the field with the program's command-line arguments, in the run-with-options dialog."
+  },
+  "runOptionsEnv": "Environment variables",
+  "@runOptionsEnv": {
+    "description": "Label of the field with environment variables for this run, in the run-with-options dialog."
+  },
+  "runOptionsEnvHint": "NAME=value, one per line. WINEDEBUG goes here.",
+  "@runOptionsEnvHint": {
+    "description": "Hint inside the environment variables field of the run-with-options dialog: the format of a line. WINEDEBUG is a variable name and stays as is."
+  },
+  "runOptionsGraphicsBottle": "Same as the bottle",
+  "@runOptionsGraphicsBottle": {
+    "description": "First option of the graphics dropdown of the run-with-options dialog (bottleGraphics): the run uses the bottle's graphics backend."
+  },
+  "runOptionsSave": "Save as a launcher",
+  "@runOptionsSave": {
+    "description": "Switch of the run-with-options dialog that also keeps the program, with these options, as an app of the bottle."
+  },
+  "runOptionsSaveHint": "It stays in the bottle, with these arguments and variables.",
+  "@runOptionsSaveHint": {
+    "description": "Under the Save as a launcher switch of the run-with-options dialog."
+  },
+  "runOptionsRun": "Run",
+  "@runOptionsRun": {
+    "description": "Button of the run-with-options dialog that starts the program."
+  },
+  "windowsUserHelp": "The name the games in this bottle see. {closes} Your saved games are kept.",
+  "@windowsUserHelp": {
+    "description": "Text at the top of the Windows user dialog. closes is the sentence of bottleChangeCloses: changing the name closes what is open in the bottle.",
+    "placeholders": {
+      "closes": {
+        "type": "String",
+        "example": "Changing it closes what is open."
+      }
+    }
+  },
+  "windowsUserUseHost": "Use {user}",
+  "@windowsUserUseHost": {
+    "description": "Button of the Windows user dialog that goes back to the computer's own user name for this bottle; user is that name.",
+    "placeholders": {
+      "user": {
+        "type": "String",
+        "example": "quasar"
+      }
+    }
+  },
+  "gamepadsTitle": "Controllers",
+  "@gamepadsTitle": {
+    "description": "Title of the section of a bottle's page that lists the game controllers the system sees."
+  },
+  "gamepadsNone": "No controllers connected.",
+  "@gamepadsNone": {
+    "description": "In the controllers section of a bottle's page when the system sees no game controller."
+  },
+  "gamepadsPadState": "{state, select, ready{Ready} other{No access}}",
+  "@gamepadsPadState": {
+    "description": "Chip beside a game controller's name in the controllers section of a bottle's page (masculine in Spanish, it agrees with mando). state is ready when Wine can use the controller; any other value means Bodega has no permission to open it.",
+    "placeholders": {
+      "state": {
+        "type": "String",
+        "example": "ready"
+      }
+    }
+  },
+  "libraryToggleIn": "In library",
+  "@libraryToggleIn": {
+    "description": "Chip on an app of a bottle's page while the app is in the library; clicking it takes the app out. Off, the chip reads libraryAdd."
+  },
+  "errBottleNotFound": "The bottle {bottle} doesn't exist.",
+  "@errBottleNotFound": {
+    "description": "Error, in the error panel of the screen that failed or in a toast: no bottle has that name, for instance one deleted outside Bodega. bottle is the name.",
+    "placeholders": {
+      "bottle": {
+        "type": "String",
+        "example": "steam"
+      }
+    }
+  },
+  "errBottleExists": "A bottle named {bottle} already exists.",
+  "@errBottleExists": {
+    "description": "Error, in the error panel of the screen that failed or in a toast: creating or renaming a bottle, or installing a catalog app into a new one, needs a name a bottle already has. bottle is that name. It gives no advice, since none fits every place it shows: the catalog install names no bottle, and its dropdown already offers that one.",
+    "placeholders": {
+      "bottle": {
+        "type": "String",
+        "example": "steam"
+      }
+    }
+  },
+  "errBottleNotReady": "The bottle {bottle} isn't ready. Delete it from its page and create it again.",
+  "@errBottleNotReady": {
+    "description": "Error, in the error panel of the screen that failed or in a toast: the bottle has no Windows prefix ready to run, so it has to be made again. bottle is its name.",
+    "placeholders": {
+      "bottle": {
+        "type": "String",
+        "example": "steam"
+      }
+    }
+  },
+  "errBottleOpen": "The bottle {bottle} is open. Stop it, then try again.",
+  "@errBottleOpen": {
+    "description": "Error, in the error panel of the screen that failed or in a toast: the bottle is running, and what was asked, such as renaming it, needs it stopped. bottle is its name. It points to the app's Stop button, never to a command.",
+    "placeholders": {
+      "bottle": {
+        "type": "String",
+        "example": "steam"
+      }
+    }
+  },
+  "errBottleSetupTimedOut": "Setting up the bottle took more than 10 minutes, so it was stopped. Log: {log}",
+  "@errBottleSetupTimedOut": {
+    "description": "Error, in the new-bottle dialog: Wine kept working on the new bottle for more than 10 minutes, so Bodega stopped it. log is the path of the setup's log.",
+    "placeholders": {
+      "log": {
+        "type": "String",
+        "example": "/Users/me/Library/Application Support/Bodega/bottles/steam/logs/wineboot.log"
+      }
+    }
+  },
+  "errBottleSetupFailed": "Couldn't set up the bottle: syswow64/kernel32.dll or system.reg is missing. Log: {log}",
+  "@errBottleSetupFailed": {
+    "description": "Error, in the new-bottle dialog: Wine finished, but the new bottle lacks a file every bottle has. log is the path of the setup's log.",
+    "placeholders": {
+      "log": {
+        "type": "String",
+        "example": "/Users/me/Library/Application Support/Bodega/bottles/steam/logs/wineboot.log"
+      }
+    }
+  },
+  "errBadBottleName": "\"{name}\" isn't a valid bottle name. {rule}",
+  "@errBadBottleName": {
+    "description": "Error, in the new-bottle and rename dialogs: a name the engine refuses for a bottle. name is that name; rule is bottleNameRule, in the same language.",
+    "placeholders": {
+      "name": {
+        "type": "String",
+        "example": "my games"
+      },
+      "rule": {
+        "type": "String",
+        "example": "Use letters without accents, numbers, - and _, up to 64 characters, starting with a letter or number."
+      }
+    }
+  },
+  "errBadUserName": "\"{user}\" can't be a Windows user name. {reason}",
+  "@errBadUserName": {
+    "description": "Error, in the error panel of the screen that failed or in a toast: a name the bottle cannot take as its Windows user. user is that name; reason is one of the problemUserName… sentences, in the same language.",
+    "placeholders": {
+      "user": {
+        "type": "String",
+        "example": "Dany"
+      },
+      "reason": {
+        "type": "String",
+        "example": "The name is longer than 20 characters."
+      }
+    }
+  },
+  "errUserNameTaken": "C:\\users\\{user} already exists in the bottle: delete that folder or choose another name.",
+  "@errUserNameTaken": {
+    "description": "Error, in the error panel of the screen that failed or in a toast: the bottle already has a profile folder by the Windows user name chosen. user is that name.",
+    "placeholders": {
+      "user": {
+        "type": "String",
+        "example": "Dany"
+      }
+    }
+  },
+  "errAppNotFound": "The bottle {bottle} has no app {app}.",
+  "@errAppNotFound": {
+    "description": "Error, in the error panel of the screen that failed or in a toast: an app asked for is not in the bottle. bottle is its name; app is the app's key, its program as the bottle lists it.",
+    "placeholders": {
+      "bottle": {
+        "type": "String",
+        "example": "steam"
+      },
+      "app": {
+        "type": "String",
+        "example": "steam.exe"
+      }
+    }
+  },
+  "errNoApps": "The bottle {bottle} has no app yet. Add one from its page.",
+  "@errNoApps": {
+    "description": "Error, in the error panel of the screen that failed or in a toast: the bottle was asked to open its app, and it has none. bottle is its name.",
+    "placeholders": {
+      "bottle": {
+        "type": "String",
+        "example": "steam"
+      }
+    }
+  },
+  "errAppAlreadyAdded": "The bottle {bottle} already has that app.",
+  "@errAppAlreadyAdded": {
+    "description": "Error, in the add-app dialog: the program chosen is already one of the bottle's apps. bottle is its name.",
+    "placeholders": {
+      "bottle": {
+        "type": "String",
+        "example": "steam"
+      }
+    }
+  },
+  "errBadEnvLine": "Line {line} of the variables isn't NAME=value: {text}",
+  "@errBadEnvLine": {
+    "description": "Error, in the run-with-options dialog: a line of the environment variables is not a variable. line counts from 1; text is the line as written. NAME=value is the form runOptionsEnvHint gives.",
+    "placeholders": {
+      "line": {
+        "type": "int",
+        "example": "2"
+      },
+      "text": {
+        "type": "String",
+        "example": "WINEDEBUG"
+      }
+    }
+  },
+  "errNoRuntime": "The engine isn't installed. Restart Bodega to set it up.",
+  "@errNoRuntime": {
+    "description": "Error, in the error panel of the screen that failed or in a toast: the engine every bottle runs on is gone. On start, Bodega opens its setup page when the engine is missing."
+  },
+  "errAlreadyInstalled": "It's already installed in {path}. To replace it: with every bottle stopped, delete that folder and install it again.",
+  "@errAlreadyInstalled": {
+    "description": "Error, on the setup page or a backend's card: the engine, or that backend, is already in that folder. path is the folder.",
+    "placeholders": {
+      "path": {
+        "type": "String",
+        "example": "/Users/me/Library/Application Support/Bodega/backends/dxvk"
+      }
+    }
+  },
+  "errChecksumMismatch": "{file} doesn't match its checksum. Download it again.",
+  "@errChecksumMismatch": {
+    "description": "Error, in the error panel of the screen that failed or in a toast: a file downloaded or chosen is not the one expected, so it was not installed. file is its path or name.",
+    "placeholders": {
+      "file": {
+        "type": "String",
+        "example": "/Users/me/Downloads/engine-11.0.tar.gz"
+      }
+    }
+  },
+  "errIncompleteArchive": "{archive} is incomplete: {missing} is missing.",
+  "@errIncompleteArchive": {
+    "description": "Error, in the error panel of the screen that failed or in a toast: a tarball, a disk image or an engine lacks a file it must hold. archive is it; missing is the file.",
+    "placeholders": {
+      "archive": {
+        "type": "String",
+        "example": "engine-11.0"
+      },
+      "missing": {
+        "type": "String",
+        "example": "engine/bin/wine"
+      }
+    }
+  },
+  "errCorruptData": "{source} isn't valid.",
+  "@errCorruptData": {
+    "description": "Error, in the error panel of the screen that failed or in a toast: a file Bodega keeps cannot be read. source is the file.",
+    "placeholders": {
+      "source": {
+        "type": "String",
+        "example": "/Users/me/Library/Application Support/Bodega/bottles/steam/apps.json"
+      }
+    }
+  },
+  "errBackendNotInstalled": "{backend} isn't installed. Install it in {backends}.",
+  "@errBackendNotInstalled": {
+    "description": "Error, in the error panel of the screen that failed or in a toast: the graphics backend chosen is not installed. backend is its name; backends is navBackends, the page that installs it, in the same language.",
+    "placeholders": {
+      "backend": {
+        "type": "String",
+        "example": "dxvk"
+      },
+      "backends": {
+        "type": "String",
+        "example": "Backends"
+      }
+    }
+  },
+  "errNoD3DMetal": "There is no D3DMetal in {source}: {missing} is missing.",
+  "@errNoD3DMetal": {
+    "description": "Error, in D3DMetal's section of the Backends page: the disk image or folder chosen does not hold D3DMetal. source is it; missing is what it lacks.",
+    "placeholders": {
+      "source": {
+        "type": "String",
+        "example": "/Users/me/Downloads/Game_Porting_Toolkit_2.1.dmg"
+      },
+      "missing": {
+        "type": "String",
+        "example": "redist/lib"
+      }
+    }
+  },
+  "errCrossOverCopy": "Bodega doesn't import D3DMetal from CrossOver.app: use your own copy.",
+  "@errCrossOverCopy": {
+    "description": "Error, in D3DMetal's section of the Backends page: the folder chosen is inside CrossOver.app, which Bodega does not take D3DMetal from."
+  },
+  "errMountFailed": "Couldn't open {image}.",
+  "@errMountFailed": {
+    "description": "Error, in D3DMetal's section of the Backends page: macOS could not open the disk image chosen. image is its path.",
+    "placeholders": {
+      "image": {
+        "type": "String",
+        "example": "/Users/me/Downloads/Game_Porting_Toolkit_2.1.dmg"
+      }
+    }
+  },
+  "errLicenseNotAccepted": "Apple's license wasn't accepted. Try again, and accept it in the window that opens.",
+  "@errLicenseNotAccepted": {
+    "description": "Error, in D3DMetal's section of the Backends page: the window of Apple's license was left without accepting it."
+  },
+  "errCancelled": "The installation was cancelled.",
+  "@errCancelled": {
+    "description": "Error, in D3DMetal's section of the Backends page: the user cancelled the import."
+  },
+  "errWinebootFailed": "Couldn't create the bottle: wineboot exited with code {code}. Log: {log}",
+  "@errWinebootFailed": {
+    "description": "Error, in the new-bottle dialog: Wine's wineboot, which makes a bottle, failed. code is its exit code; log is the path of its log.",
+    "placeholders": {
+      "code": {
+        "type": "int",
+        "example": "1"
+      },
+      "log": {
+        "type": "String",
+        "example": "/Users/me/Library/Application Support/Bodega/bottles/steam/logs/wineboot.log"
+      }
+    }
+  },
+  "errRegFailed": "Couldn't change the bottle's registry: reg add exited with code {code}. Log: {log}",
+  "@errRegFailed": {
+    "description": "Error, in the error panel of the screen that failed or in a toast: Wine's reg add, which writes a setting into the bottle's registry, failed. code is its exit code; log is the path of its log.",
+    "placeholders": {
+      "code": {
+        "type": "int",
+        "example": "1"
+      },
+      "log": {
+        "type": "String",
+        "example": "/Users/me/Library/Application Support/Bodega/bottles/steam/logs/reg.log"
+      }
+    }
+  },
+  "errInstallerFailed": "The installer exited with code {code}. Log: {log}",
+  "@errInstallerFailed": {
+    "description": "Error, in the install panel: a catalog app's installer failed. code is its exit code; log is the path of its log.",
+    "placeholders": {
+      "code": {
+        "type": "int",
+        "example": "1"
+      },
+      "log": {
+        "type": "String",
+        "example": "/Users/me/Library/Application Support/Bodega/bottles/steam/logs/steam-setup.log"
+      }
+    }
+  },
+  "errWinecfgFailed": "Couldn't change the Windows version: winecfg exited with code {code}. Log: {log}",
+  "@errWinecfgFailed": {
+    "description": "Error, in the error panel of the screen that failed or in a toast: Wine's winecfg, which sets the bottle's Windows version, failed. code is its exit code; log is the path of its log.",
+    "placeholders": {
+      "code": {
+        "type": "int",
+        "example": "1"
+      },
+      "log": {
+        "type": "String",
+        "example": "/Users/me/Library/Application Support/Bodega/bottles/steam/logs/windows.log"
+      }
+    }
+  },
+  "errInstallerNoExe": "The installer finished, but {exe} isn't there. Log: {log}",
+  "@errInstallerNoExe": {
+    "description": "Error, in the install panel: a catalog app's installer ended well, but the program it should leave is missing. exe is that program, inside the bottle; log is the path of the installer's log.",
+    "placeholders": {
+      "exe": {
+        "type": "String",
+        "example": "Program Files (x86)/Steam/steam.exe"
+      },
+      "log": {
+        "type": "String",
+        "example": "/Users/me/Library/Application Support/Bodega/bottles/steam/logs/steam-setup.log"
+      }
+    }
+  },
+  "errProcessFailed": "{command} exited with code {code}.",
+  "@errProcessFailed": {
+    "description": "Error, in the error panel of the screen that failed or in a toast: a program of the computer's that Bodega runs failed. command is what was run; code is its exit code.",
+    "placeholders": {
+      "command": {
+        "type": "String",
+        "example": "/usr/bin/tar -xzf engine-11.0.tar.gz"
+      },
+      "code": {
+        "type": "int",
+        "example": "1"
+      }
+    }
+  },
+  "errProcessNoAnswer": "{command} didn't answer as expected.",
+  "@errProcessNoAnswer": {
+    "description": "Error, in the error panel of the screen that failed or in a toast: a program Bodega runs ended, but without the answer expected, such as the engine's version. command is what was run.",
+    "placeholders": {
+      "command": {
+        "type": "String",
+        "example": "wine --version"
+      }
+    }
+  },
+  "errDownloadCut": "The download stopped at {received} MB of {total} MB. Try again: it goes on from there.",
+  "@errDownloadCut": {
+    "description": "Error, in the error panel of the screen that failed or in a toast: the server stopped sending a file before its end. received and total are MB of 10^6 bytes, as downloadProgress counts them; the next try goes on from where it stopped.",
+    "placeholders": {
+      "received": {
+        "type": "double",
+        "format": "decimalPatternDigits",
+        "optionalParameters": {
+          "decimalDigits": 0
+        },
+        "example": "1234"
+      },
+      "total": {
+        "type": "double",
+        "format": "decimalPatternDigits",
+        "optionalParameters": {
+          "decimalDigits": 0
+        },
+        "example": "2468"
+      }
+    }
+  },
+  "errUpdateNotInstallable": "This version can't be installed from the app. Download it from its release page.",
+  "@errUpdateNotInstallable": {
+    "description": "Error, in the update dialog: this copy of Bodega cannot install the new version by itself, so the user downloads it from the release page."
+  },
+  "errUpdateNoChecksum": "The release has no checksum for {file}, so Bodega won't install it.",
+  "@errUpdateNoChecksum": {
+    "description": "Error, in the update dialog: the release lists no checksum for its file, so Bodega does not install it. file is the file's name.",
+    "placeholders": {
+      "file": {
+        "type": "String",
+        "example": "Bodega-1.5.0-macos-arm64.dmg"
+      }
+    }
+  },
+  "errUpdateNotWritable": "Bodega can't write to {folder}. Update by hand from the release page.",
+  "@errUpdateNotWritable": {
+    "description": "Error, in the update dialog: the new version cannot be put where Bodega is. folder is that folder; the user downloads the new version from its release page instead.",
+    "placeholders": {
+      "folder": {
+        "type": "String",
+        "example": "/Applications"
+      }
+    }
+  },
+  "errNetwork": "Couldn't connect. Check your network and try again.",
+  "@errNetwork": {
+    "description": "Error, in the error panel of the screen that failed or in a toast: a download, or a request to a server, failed."
+  },
+  "errUnknown": "Something went wrong.",
+  "@errUnknown": {
+    "description": "Error, in the error panel of the screen that failed or in a toast: a failure Bodega has no words for."
+  },
+  "problemPathMissing": "{path} doesn't exist.",
+  "@problemPathMissing": {
+    "description": "Why a file cannot be used, in an error panel (the add-app and run-with-options dialogs, the setup page): nothing is at that path, such as a program moved away or the .sha256 beside an engine file. path is that path.",
+    "placeholders": {
+      "path": {
+        "type": "String",
+        "example": "/Users/me/Downloads/engine-11.0.tar.gz.sha256"
+      }
+    }
+  },
+  "problemPathWindowsName": "Windows can't use {path}: \"{part}\" ends in a dot or a space, or holds one of <>:\"|?*. Rename it and try again.",
+  "@problemPathWindowsName": {
+    "description": "Why a file cannot be used, in an error panel (the add-app and run-with-options dialogs): Windows refuses a folder or file name in its path. path is the whole path; part is the name Windows refuses.",
+    "placeholders": {
+      "path": {
+        "type": "String",
+        "example": "/Users/me/Games/odd:/game.exe"
+      },
+      "part": {
+        "type": "String",
+        "example": "odd:"
+      }
+    }
+  },
+  "problemUserNameEmpty": "The name is empty.",
+  "@problemUserNameEmpty": {
+    "description": "Why a name cannot be a bottle's Windows user: under the name field of the Windows user dialog, or as the reason of errBadUserName."
+  },
+  "problemUserNameTooLong": "The name is longer than 20 characters.",
+  "@problemUserNameTooLong": {
+    "description": "Why a name cannot be a bottle's Windows user: under the name field of the Windows user dialog, or as the reason of errBadUserName."
+  },
+  "problemUserNameBadCharacter": "The name can't hold any of \" / \\ [ ] : ; | = , + * ? < >",
+  "@problemUserNameBadCharacter": {
+    "description": "Why a name cannot be a bottle's Windows user: under the name field of the Windows user dialog, or as the reason of errBadUserName. It lists the characters Windows refuses in a user name."
+  },
+  "problemUserNameOnlyDots": "The name can't be only dots or spaces.",
+  "@problemUserNameOnlyDots": {
+    "description": "Why a name cannot be a bottle's Windows user: under the name field of the Windows user dialog, or as the reason of errBadUserName."
+  },
+  "problemUserNameTaken": "The bottle already has a profile folder by that name.",
+  "@problemUserNameTaken": {
+    "description": "Why a name cannot be a bottle's Windows user: the bottle already has its folder under C:\\users. Under the name field of the Windows user dialog, or as the reason of errBadUserName."
+  },
+  "commonCopyDetails": "Copy details",
+  "@commonCopyDetails": {
+    "description": "Button under an error, shown when the error has technical details (the engine's message or a program's output, in English, never shown on screen): it copies them, to paste into a bug report. On the install panel, the Backends, catalog and setup pages, and in the new-bottle, run-with-options, add-app and update dialogs."
+  },
+  "commonCopied": "Copied",
+  "@commonCopied": {
+    "description": "Toast after the user clicks Copy details under an error: the error's technical details are on the clipboard."
+  },
+  "hintFreeType": "Wine can't find FreeType: reinstall the engine with its libraries.",
+  "@hintFreeType": {
+    "description": "Advice after a bottle's run, under the bottle on its page, in the tooltip of the warning icon on its first app in the library, and in a toast: its log shows that Wine could not find FreeType, a library that comes with the engine. Engine and libraries are the words of the setup page (setupEngine, setupLibraries)."
+  },
+  "hintGnuTls": "Wine can't load GnuTLS: reinstall the engine with its libraries.",
+  "@hintGnuTls": {
+    "description": "Advice after a bottle's run, under the bottle on its page, in the tooltip of the warning icon on its first app in the library, and in a toast: its log shows that Wine could not load GnuTLS, a library that comes with the engine. Engine and libraries are the words of the setup page (setupEngine, setupLibraries)."
+  },
+  "hintOtherServer": "A Wine server from another engine is still running in this bottle. Stop the bottle, then open the app again.",
+  "@hintOtherServer": {
+    "description": "Advice after a bottle's run, under the bottle on its page, in the tooltip of the warning icon on its first app in the library, and in a toast: its log shows that a Wine server of another engine version still runs in the bottle. It points to the app's Stop button, never to a command."
+  },
+  "hintCannotOpen": "Wine couldn't open the program. Check its path: Windows doesn't accept a name that ends in a dot or a space, or that holds one of <>:\"|?*.",
+  "@hintCannotOpen": {
+    "description": "Advice after a bottle's run, under the bottle on its page, in the tooltip of the warning icon on its first app in the library, and in a toast: its log shows that Wine could not open the program, because its path is wrong or Windows refuses one of the names in it."
+  },
+  "hintFixNotApplied": "Steam was already open, so this game's fix didn't reach it. Stop the bottle and open the game again from Bodega.",
+  "@hintFixNotApplied": {
+    "description": "Advice after a bottle's run, under the bottle on its page, in the tooltip of the warning icon on its first app in the library, and in a toast: Bodega has a fix for the game (settings it adds when it opens the game), but Steam was already open in the bottle, so the game started from that Steam without them."
+  },
+  "hintAntiCheat": "{game} uses Easy Anti-Cheat, which couldn't load under Wine (error 206). This isn't a problem with your installation: it depends on the game's developers and on Epic.",
+  "@hintAntiCheat": {
+    "description": "Advice after a bottle's run, under the bottle on its page, in the tooltip of the warning icon on its first app in the library, and in a toast: Easy Anti-Cheat failed to load under Wine, with its error 206. game is the game's title, as Easy Anti-Cheat's log gives it. Bodega cannot fix it: Epic and the game's developers decide.",
+    "placeholders": {
+      "game": {
+        "type": "String",
+        "example": "POLYGON"
+      }
+    }
+  },
+  "hintAntiCheatUnnamed": "This game uses Easy Anti-Cheat, which couldn't load under Wine (error 206). This isn't a problem with your installation: it depends on the game's developers and on Epic.",
+  "@hintAntiCheatUnnamed": {
+    "description": "Advice after a bottle's run, as hintAntiCheat: Easy Anti-Cheat failed to load under Wine, with its error 206, for a game whose title its log does not give, so the sentence says this game instead."
+  },
+  "stepDownloading": "Downloading the installer",
+  "@stepDownloading": {
+    "description": "Headline of the install panel while Bodega downloads an app's installer as a step of its install."
+  },
+  "stepSyncMismatch": "This bottle keeps its sync ({bottleSync}), not {app}'s ({appSync}). If {app} fails, change it in the bottle's settings.",
+  "@stepSyncMismatch": {
+    "description": "Headline of the install panel when an app installs into an existing bottle whose sync mode is not the one the app asks for: the bottle keeps its own. The bottle's settings are the Settings section of its page, which holds the msync switch. bottleSync and appSync are sync modes, shown as the app writes them elsewhere.",
+    "placeholders": {
+      "bottleSync": {
+        "type": "String",
+        "example": "none"
+      },
+      "app": {
+        "type": "String",
+        "example": "Steam"
+      },
+      "appSync": {
+        "type": "String",
+        "example": "msync"
+      }
+    }
+  },
+  "stepCreatingBottle": "Creating the bottle {bottle}",
+  "@stepCreatingBottle": {
+    "description": "Headline of the install panel while Bodega creates the bottle an app installs into.",
+    "placeholders": {
+      "bottle": {
+        "type": "String",
+        "example": "steam"
+      }
+    }
+  },
+  "stepRegistry": "Writing {value} to the Windows registry",
+  "@stepRegistry": {
+    "description": "Headline of the install panel while Bodega writes one of the Windows registry values an app needs, before its installer runs. value is the registry value's name.",
+    "placeholders": {
+      "value": {
+        "type": "String",
+        "example": "ServicesPipeTimeout"
+      }
+    }
+  },
+  "stepRunningInstaller": "Running the installer",
+  "@stepRunningInstaller": {
+    "description": "Headline of the install panel while an app's installer runs."
+  },
+  "stepWaiting": "Waiting for the installation to finish",
+  "@stepWaiting": {
+    "description": "Headline of the install panel once an app's installer exited, while Bodega waits for what it left running to end."
+  },
+  "stepGptkOpening": "Opening the disk image",
+  "@stepGptkOpening": {
+    "description": "Under the progress bar of D3DMetal's card while Bodega opens the Game Porting Toolkit disk image (.dmg) it installs D3DMetal from."
+  },
+  "stepGptkAcceptLicense": "Accept Apple's license in the window that opened",
+  "@stepGptkAcceptLicense": {
+    "description": "Under the progress bar of D3DMetal's card while Bodega waits for the user to accept Apple's license, in the window that macOS opened for the Game Porting Toolkit disk image."
+  },
+  "stepGptkImporting": "Importing D3DMetal",
+  "@stepGptkImporting": {
+    "description": "Under the progress bar of D3DMetal's card while Bodega copies D3DMetal from the Game Porting Toolkit disk image."
+  },
+  "gptkInstalledToastNoVersion": "D3DMetal is installed.",
+  "@gptkInstalledToastNoVersion": {
+    "description": "First sentence of the toast shown when D3DMetal was installed but its version could not be read. gptkToastChecking or gptkToastNeedsBottle follows it."
+  },
+  "issueNoRosettaTitle": "Rosetta is missing",
+  "@issueNoRosettaTitle": {
+    "description": "Title of a requirement card on the setup page: the Mac lacks Rosetta 2, which Bodega needs. The command that installs it shows under the card's text, with setupCopyCommand."
+  },
+  "issueNoRosettaDetail": "Windows games run on Rosetta 2.",
+  "@issueNoRosettaDetail": {
+    "description": "Under issueNoRosettaTitle, on its requirement card: why Rosetta 2 is needed."
+  },
+  "issueUnsupportedCpuTitle": "Unsupported processor",
+  "@issueUnsupportedCpuTitle": {
+    "description": "Title of a requirement card on the setup page (Linux): the computer's processor is not x86_64, so Bodega cannot run there. The card has no command."
+  },
+  "issueUnsupportedCpuDetail": "Bodega needs an x86_64 processor.",
+  "@issueUnsupportedCpuDetail": {
+    "description": "Under issueUnsupportedCpuTitle, on its requirement card. x86_64 is the name of a processor architecture."
+  },
+  "issueNoVulkanTitle": "Vulkan is missing",
+  "@issueNoVulkanTitle": {
+    "description": "Title of a requirement card on the setup page (Linux): the system lacks Vulkan, a graphics library, or a driver for it. The command that installs them shows under the card's text."
+  },
+  "issueNoVulkanDetail": "Games draw with Vulkan (DXVK).",
+  "@issueNoVulkanDetail": {
+    "description": "Under issueNoVulkanTitle, on its requirement card: why Vulkan is needed. DXVK is the backend that draws with it."
+  },
+  "issueNoAudioTitle": "Audio is missing",
+  "@issueNoAudioTitle": {
+    "description": "Title of a requirement card on the setup page (Linux): the system lacks the PulseAudio library, so games would have no sound. The command that installs it shows under the card's text."
+  },
+  "issueNoAudioDetail": "Wine needs PulseAudio, or PipeWire with Pulse support.",
+  "@issueNoAudioDetail": {
+    "description": "Under issueNoAudioTitle, on its requirement card. PulseAudio and PipeWire are Linux sound systems; Pulse is short for PulseAudio."
+  },
+  "issuePadNoAccessTitle": "No access to the controller {pad}",
+  "@issuePadNoAccessTitle": {
+    "description": "Title of a requirement card in the controllers section of a bottle's page (Linux): Bodega cannot open that game controller, so games will not see it. The command that installs the rules that allow it shows under the card's text.",
+    "placeholders": {
+      "pad": {
+        "type": "String",
+        "example": "Microsoft X-Box 360 pad",
+        "description": "The controller's name, as the system gives it."
+      }
+    }
+  },
+  "issuePadNoAccessDetail": "Bodega can't open the controller, so Wine won't see it. Install the controller udev rules (on Arch, the package is in multilib), then unplug the controller and plug it in again.",
+  "@issuePadNoAccessDetail": {
+    "description": "Under issuePadNoAccessTitle, on its requirement card: what the command under it installs, and what to do after. udev is the Linux device manager; multilib is a repository of Arch Linux."
+  },
+  "issueNoSdlTitle": "SDL2 is missing",
+  "@issueNoSdlTitle": {
+    "description": "Title of a requirement card in the controllers section of a bottle's page (Linux): the system lacks SDL2, a library Wine reads game controllers through. The command that installs it shows under the card's text."
+  },
+  "issueNoSdlDetail": "Wine uses SDL2 to understand controllers. Without it, Wine uses udev, which knows fewer controllers.",
+  "@issueNoSdlDetail": {
+    "description": "Under issueNoSdlTitle, on its requirement card. SDL2 is a library (feminine in Spanish, la biblioteca); udev is the Linux device manager."
+  },
+  "backendRoleDx11to12x64": "DirectX 11 and 12, 64 bits only",
+  "@backendRoleDx11to12x64": {
+    "description": "What D3DMetal is for, after backendUsedFor on its card: games that draw with DirectX 11 or 12, built for 64 bits."
+  },
+  "backendRoleDx10to11": "DirectX 10 and 11, 32 and 64 bits",
+  "@backendRoleDx10to11": {
+    "description": "What DXMT and DXVK are for on the Mac, after backendUsedFor on their cards: games that draw with DirectX 10 or 11, built for 32 or 64 bits."
+  },
+  "backendRoleEverythingElse": "Everything: DirectX 9 and older, and what the others can't run",
+  "@backendRoleEverythingElse": {
+    "description": "What Wine's own graphics are for on the Mac, after backendUsedFor on its card: games that draw with DirectX 9 or older, and those the other backends cannot run."
+  },
+  "backendRoleDx8to12": "DirectX 8 to 12 (DXVK and vkd3d-proton)",
+  "@backendRoleDx8to12": {
+    "description": "What the dxvk backend is for on Linux, after backendUsedFor on its card: games that draw with DirectX 8 to 12. DXVK and vkd3d-proton are the two translators it brings."
+  },
+  "backendRoleEverythingSlower": "Everything, slower than dxvk",
+  "@backendRoleEverythingSlower": {
+    "description": "What Wine's own graphics are for on Linux, after backendUsedFor on its card: every game, but slower than the dxvk backend."
+  },
+  "graphicsLabel": "{directx} · {bits} bits",
+  "@graphicsLabel": {
+    "description": "What a program draws with: beside its app on the cards and rows of the library and of a bottle's page, and after each app the misfit warning lists (bottleMisfitWarning). directx is the DirectX version the program names, bits its architecture.",
+    "placeholders": {
+      "directx": {
+        "type": "String",
+        "example": "DX9",
+        "description": "DX12, DX11, DX10 or DX9."
+      },
+      "bits": {
+        "type": "int",
+        "example": "32",
+        "description": "The program's architecture, 32 or 64: not a count."
+      }
+    }
+  },
+  "graphicsBits": "{bits} bits",
+  "@graphicsBits": {
+    "description": "What a program draws with, where graphicsLabel shows, when the program names no DirectX version: only its architecture.",
+    "placeholders": {
+      "bits": {
+        "type": "int",
+        "example": "64",
+        "description": "The program's architecture, 32 or 64: not a count."
+      }
+    }
+  },
+  "graphicsMisfitWarning": "{program} is {bits}-bit, with DirectX {version}: {backend} won't work for it.",
+  "@graphicsMisfitWarning": {
+    "description": "Warning under the graphics dropdown of the run-with-options dialog when the backend chosen does not suit the program to run. It points to no other option: that dropdown has no Automatic one (the bottle's own warning, bottleMisfitWarning, does point to it).",
+    "placeholders": {
+      "program": {
+        "type": "String",
+        "example": "Blur",
+        "description": "The app's title, or the file name of the program."
+      },
+      "bits": {
+        "type": "int",
+        "example": "32",
+        "description": "The program's architecture, 32 or 64: not a count."
+      },
+      "version": {
+        "type": "String",
+        "example": "9",
+        "description": "The DirectX version the program names: 9, 10, 11 or 12."
+      },
+      "backend": {
+        "type": "String",
+        "example": "d3dmetal"
+      }
+    }
+  },
+  "catalogSourceNoData": "no data",
+  "@catalogSourceNoData": {
+    "description": "Value of a line in the Source section of a catalog app's page when the recipe has none: Verified (catalogSourceVerified) for a recipe with no verification on record. Lowercase: it follows the label and a colon."
+  },
+  "catalogSteamStatusNote": "Tested in Bodega on 2026-11-04 (M2 Pro, macOS 27.0.1): it installs, opens, signs in, downloads and launches games. Muck (D3D11) ran with DXMT. Games with Easy Anti-Cheat, such as POLYGON, don't start.",
+  "@catalogSteamStatusNote": {
+    "description": "Steam in the catalog: the note on its status, under the status chip on its page and on its card in the add-app dialog. The same text as its statusNote in the engine's catalog_data.dart."
+  },
+  "catalogSteamNote1": "The first start downloads the 64-bit client (about 235 MB) and unpacks it: under Rosetta it takes 15-25 min and may look frozen. If it closes, open it again: it carries on.",
+  "@catalogSteamNote1": {
+    "description": "Steam in the catalog: note 1 of the Notes section of its page, also shown in the install panel once it is installed. The same text as its notes[0] in the engine's catalog_data.dart."
+  },
+  "catalogSteamNote2": "Keep Settings > Interface > GPU acceleration in web views turned on: without it, the window is black on Wine 11.",
+  "@catalogSteamNote2": {
+    "description": "Steam in the catalog: note 2 of the Notes section of its page, also shown in the install panel once it is installed. The same text as its notes[1] in the engine's catalog_data.dart. Settings > Interface > … is Steam's own menu path: use the words Steam shows in the target language."
+  },
+  "catalogSteamNote3": "This bottle runs without msync because the Steam window hangs with it. Highball reports that games perform about 40% better with msync.",
+  "@catalogSteamNote3": {
+    "description": "Steam in the catalog: note 3 of the Notes section of its page, also shown in the install panel once it is installed. The same text as its notes[2] in the engine's catalog_data.dart."
+  },
+  "catalogSteamNote4": "If a game fails with the Steam overlay, turn it off in the In Game section of Steam's settings.",
+  "@catalogSteamNote4": {
+    "description": "Steam in the catalog: note 4 of the Notes section of its page, also shown in the install panel once it is installed. The same text as its notes[3] in the engine's catalog_data.dart. In Game is a section of Steam's settings: use the name Steam shows in the target language."
+  },
+  "catalogSteamIssue1Symptom": "NO CONNECTION right after signing in",
+  "@catalogSteamIssue1Symptom": {
+    "description": "Steam in the catalog: what goes wrong in known issue 1, in the Known issues section of its page. The same text as its knownIssues[0].symptom in the engine's catalog_data.dart. Keep NO CONNECTION in English: Steam shows it."
+  },
+  "catalogSteamIssue1Fix": "Quit the native Mac Steam.",
+  "@catalogSteamIssue1Fix": {
+    "description": "Steam in the catalog: what to do about known issue 1 (catalogSteamIssue1Symptom), under it in the Known issues section of its page. The same text as its knownIssues[0].fix in the engine's catalog_data.dart."
+  },
+  "catalogSteamIssue2Symptom": "A game with Easy Anti-Cheat doesn't start: error 206, Failed to load the anti-cheat module",
+  "@catalogSteamIssue2Symptom": {
+    "description": "Steam in the catalog: what goes wrong in known issue 2, in the Known issues section of its page. The same text as its knownIssues[1].symptom in the engine's catalog_data.dart. Keep Failed to load the anti-cheat module in English: the game shows it."
+  },
+  "catalogSteamIssue2Fix": "No fix in Bodega: it depends on the game's developers and on Epic. Checked with POLYGON, which doesn't start in CrossOver either.",
+  "@catalogSteamIssue2Fix": {
+    "description": "Steam in the catalog: what to do about known issue 2 (catalogSteamIssue2Symptom), under it in the Known issues section of its page. The same text as its knownIssues[1].fix in the engine's catalog_data.dart."
+  },
+  "catalogSteamIssue3Symptom": "A freshly installed client closes about three minutes after its first update, before signing in",
+  "@catalogSteamIssue3Symptom": {
+    "description": "Steam in the catalog: what goes wrong in known issue 3, in the Known issues section of its page. The same text as its knownIssues[2].symptom in the engine's catalog_data.dart."
+  },
+  "catalogSteamIssue3Fix": "Open it again; it only happens on that first run.",
+  "@catalogSteamIssue3Fix": {
+    "description": "Steam in the catalog: what to do about known issue 3 (catalogSteamIssue3Symptom), under it in the Known issues section of its page. The same text as its knownIssues[2].fix in the engine's catalog_data.dart."
+  },
+  "catalogSteamIssue4Symptom": "Error nested exception on signal stack during the first update",
+  "@catalogSteamIssue4Symptom": {
+    "description": "Steam in the catalog: what goes wrong in known issue 4, in the Known issues section of its page. The same text as its knownIssues[3].symptom in the engine's catalog_data.dart. Keep nested exception on signal stack in English: Wine shows it."
+  },
+  "catalogSteamIssue4Fix": "Open it again; it carries on where it left off.",
+  "@catalogSteamIssue4Fix": {
+    "description": "Steam in the catalog: what to do about known issue 4 (catalogSteamIssue4Symptom), under it in the Known issues section of its page. The same text as its knownIssues[3].fix in the engine's catalog_data.dart."
+  },
+  "catalogSteamIssue5Symptom": "The download stops at around 215/235 MB",
+  "@catalogSteamIssue5Symptom": {
+    "description": "Steam in the catalog: what goes wrong in known issue 5, in the Known issues section of its page. The same text as its knownIssues[4].symptom in the engine's catalog_data.dart."
+  },
+  "catalogSteamIssue5Fix": "Stop the bottle and open Steam again; it carries on.",
+  "@catalogSteamIssue5Fix": {
+    "description": "Steam in the catalog: what to do about known issue 5 (catalogSteamIssue5Symptom), under it in the Known issues section of its page. The same text as its knownIssues[4].fix in the engine's catalog_data.dart."
+  },
+  "catalogSteamIssue6Symptom": "Steam Client Service doesn't start (GLE 126)",
+  "@catalogSteamIssue6Symptom": {
+    "description": "Steam in the catalog: what goes wrong in known issue 6, in the Known issues section of its page. The same text as its knownIssues[5].symptom in the engine's catalog_data.dart."
+  },
+  "catalogSteamIssue6Fix": "It doesn't matter for most games; only some anti-cheats or drivers need it.",
+  "@catalogSteamIssue6Fix": {
+    "description": "Steam in the catalog: what to do about known issue 6 (catalogSteamIssue6Symptom), under it in the Known issues section of its page. The same text as its knownIssues[5].fix in the engine's catalog_data.dart."
+  },
+  "catalogSteamIssue7Symptom": "The Steam window is black on Wine 11, with DXMT and with DXVK",
+  "@catalogSteamIssue7Symptom": {
+    "description": "Steam in the catalog: what goes wrong in known issue 7, in the Known issues section of its page. The same text as its knownIssues[6].symptom in the engine's catalog_data.dart."
+  },
+  "catalogSteamIssue7Fix": "GPU acceleration in web views has to be turned on. Highball does it by briefly going through its Wine 10 engine, which Bodega doesn't have: no fix tested here.",
+  "@catalogSteamIssue7Fix": {
+    "description": "Steam in the catalog: what to do about known issue 7 (catalogSteamIssue7Symptom), under it in the Known issues section of its page. The same text as its knownIssues[6].fix in the engine's catalog_data.dart."
+  },
+  "catalogRockstarStatusNote": "Highball verified it on an engine from the CrossOver 26.3 tree (r15): installer, service and sign-in window with DXVK. Not tested in Bodega, and our DXVK is a different version.",
+  "@catalogRockstarStatusNote": {
+    "description": "Rockstar Games Launcher in the catalog: the note on its status, under the status chip on its page and on its card in the add-app dialog. The same text as its statusNote in the engine's catalog_data.dart."
+  },
+  "catalogRockstarNote1": "The installer comes with what it needs from Social Club.",
+  "@catalogRockstarNote1": {
+    "description": "Rockstar Games Launcher in the catalog: note 1 of the Notes section of its page, also shown in the install panel once it is installed. The same text as its notes[0] in the engine's catalog_data.dart."
+  },
+  "catalogRockstarNote2": "If it freezes on the logo, try opening it with the D3DMetal backend. Highball also suggests vcrun2019, which Bodega doesn't install yet.",
+  "@catalogRockstarNote2": {
+    "description": "Rockstar Games Launcher in the catalog: note 2 of the Notes section of its page, also shown in the install panel once it is installed. The same text as its notes[1] in the engine's catalog_data.dart."
+  },
+  "catalogRockstarIssue1Symptom": "The sign-in window is empty",
+  "@catalogRockstarIssue1Symptom": {
+    "description": "Rockstar Games Launcher in the catalog: what goes wrong in known issue 1, in the Known issues section of its page. The same text as its knownIssues[0].symptom in the engine's catalog_data.dart."
+  },
+  "catalogRockstarIssue1Fix": "Stop the bottle and open the launcher again.",
+  "@catalogRockstarIssue1Fix": {
+    "description": "Rockstar Games Launcher in the catalog: what to do about known issue 1 (catalogRockstarIssue1Symptom), under it in the Known issues section of its page. The same text as its knownIssues[0].fix in the engine's catalog_data.dart."
+  },
+  "catalogRockstarIssue2Symptom": "The installer stays on Preparing to Install... forever",
+  "@catalogRockstarIssue2Symptom": {
+    "description": "Rockstar Games Launcher in the catalog: what goes wrong in known issue 2, in the Known issues section of its page. The same text as its knownIssues[1].symptom in the engine's catalog_data.dart. Keep Preparing to Install... in English: the installer shows it."
+  },
+  "catalogRockstarIssue2Fix": "No known fix.",
+  "@catalogRockstarIssue2Fix": {
+    "description": "Rockstar Games Launcher in the catalog: what to do about known issue 2 (catalogRockstarIssue2Symptom), under it in the Known issues section of its page. The same text as its knownIssues[1].fix in the engine's catalog_data.dart."
+  },
+  "catalogRockstarIssue3Symptom": "Error #1.000.7 or #1.500.7 when signing in",
+  "@catalogRockstarIssue3Symptom": {
+    "description": "Rockstar Games Launcher in the catalog: what goes wrong in known issue 3, in the Known issues section of its page. The same text as its knownIssues[2].symptom in the engine's catalog_data.dart."
+  },
+  "catalogRockstarIssue3Fix": "Set the Mac's time with an automatic time zone and try again.",
+  "@catalogRockstarIssue3Fix": {
+    "description": "Rockstar Games Launcher in the catalog: what to do about known issue 3 (catalogRockstarIssue3Symptom), under it in the Known issues section of its page. The same text as its knownIssues[2].fix in the engine's catalog_data.dart."
+  },
+  "catalogEaAppStatusNote": "Highball verified it on an engine from the CrossOver 26.3 tree (r15): installation, service and sign-in window, without getting as far as signing in. Not tested in Bodega.",
+  "@catalogEaAppStatusNote": {
+    "description": "EA app in the catalog: the note on its status, under the status chip on its page and on its card in the add-app dialog. The same text as its statusNote in the engine's catalog_data.dart."
+  },
+  "catalogEaAppFlaky": "It is one of the most unstable launchers under Wine. Also, Highball fixes a link in its installation with a step of its own that Bodega doesn't have, so the installation may say the executable is missing.",
+  "@catalogEaAppFlaky": {
+    "description": "EA app in the catalog: why it is marked unstable (catalogFlaky), under its status note on its page. The same text as its flaky in the engine's catalog_data.dart."
+  },
+  "catalogEaAppNote1": "Errors from its background service may show up; they can be closed.",
+  "@catalogEaAppNote1": {
+    "description": "EA app in the catalog: note 1 of the Notes section of its page, also shown in the install panel once it is installed. The same text as its notes[0] in the engine's catalog_data.dart."
+  },
+  "catalogEaAppNote2": "The Sikarugir community uses it with D3DMetal: the alternative is to open it with the D3DMetal backend.",
+  "@catalogEaAppNote2": {
+    "description": "EA app in the catalog: note 2 of the Notes section of its page, also shown in the install panel once it is installed. The same text as its notes[1] in the engine's catalog_data.dart."
+  },
+  "catalogEaAppIssue1Symptom": "The installer starts and sits there with no window and no CPU use",
+  "@catalogEaAppIssue1Symptom": {
+    "description": "EA app in the catalog: what goes wrong in known issue 1, in the Known issues section of its page. The same text as its knownIssues[0].symptom in the engine's catalog_data.dart."
+  },
+  "catalogEaAppIssue1Fix": "If nothing shows up within a minute, stop the bottle and try again.",
+  "@catalogEaAppIssue1Fix": {
+    "description": "EA app in the catalog: what to do about known issue 1 (catalogEaAppIssue1Symptom), under it in the Known issues section of its page. The same text as its knownIssues[0].fix in the engine's catalog_data.dart."
+  },
+  "catalogEaAppIssue2Symptom": "A dark, empty window, or the app isn't there after a successful install",
+  "@catalogEaAppIssue2Symptom": {
+    "description": "EA app in the catalog: what goes wrong in known issue 2, in the Known issues section of its page. The same text as its knownIssues[1].symptom in the engine's catalog_data.dart."
+  },
+  "catalogEaAppIssue2Fix": "In Program Files/Electronic Arts/EA Desktop, EA Desktop must be a link to the version's folder. Highball creates it on its own; in Bodega you have to make it by hand.",
+  "@catalogEaAppIssue2Fix": {
+    "description": "EA app in the catalog: what to do about known issue 2 (catalogEaAppIssue2Symptom), under it in the Known issues section of its page. The same text as its knownIssues[1].fix in the engine's catalog_data.dart."
+  },
+  "catalogUbisoftConnectStatusNote": "Highball saw its sign-in window on an engine from the CrossOver 26.3 tree (r4) with DXMT, without signing in. Not tested in Bodega.",
+  "@catalogUbisoftConnectStatusNote": {
+    "description": "Ubisoft Connect in the catalog: the note on its status, under the status chip on its page and on its card in the add-app dialog. The same text as its statusNote in the engine's catalog_data.dart."
+  },
+  "catalogUbisoftConnectNote1": "Turn off the overlay in Connect's settings: it injects itself into games and fails under Wine.",
+  "@catalogUbisoftConnectNote1": {
+    "description": "Ubisoft Connect in the catalog: note 1 of the Notes section of its page, also shown in the install panel once it is installed. The same text as its notes[0] in the engine's catalog_data.dart."
+  },
+  "catalogUbisoftConnectNote2": "It uses DXMT, which Highball verified the window with, although its recipe pins D3DMetal.",
+  "@catalogUbisoftConnectNote2": {
+    "description": "Ubisoft Connect in the catalog: note 2 of the Notes section of its page, also shown in the install panel once it is installed. The same text as its notes[1] in the engine's catalog_data.dart."
+  },
+  "catalogUbisoftConnectIssue1Symptom": "The launcher runs, but its window comes up white or black",
+  "@catalogUbisoftConnectIssue1Symptom": {
+    "description": "Ubisoft Connect in the catalog: what goes wrong in known issue 1, in the Known issues section of its page. The same text as its knownIssues[0].symptom in the engine's catalog_data.dart."
+  },
+  "catalogUbisoftConnectIssue1Fix": "Highball saw this on its Wine 10 engine. Try opening it with another backend.",
+  "@catalogUbisoftConnectIssue1Fix": {
+    "description": "Ubisoft Connect in the catalog: what to do about known issue 1 (catalogUbisoftConnectIssue1Symptom), under it in the Known issues section of its page. The same text as its knownIssues[0].fix in the engine's catalog_data.dart."
+  },
+  "catalogBattleNetStatusNote": "Highball only verified it on its Wine 10 engine; on Wine 11 r10 the window stayed black. Bodega uses Wine 11, so it may not work.",
+  "@catalogBattleNetStatusNote": {
+    "description": "Battle.net in the catalog: the note on its status, under the status chip on its page and on its card in the add-app dialog. The same text as its statusNote in the engine's catalog_data.dart."
+  },
+  "catalogBattleNetFlaky": "The sign-in may close when you submit it: try again and turn off hardware acceleration in its settings.",
+  "@catalogBattleNetFlaky": {
+    "description": "Battle.net in the catalog: why it is marked unstable (catalogFlaky), under its status note on its page. The same text as its flaky in the engine's catalog_data.dart."
+  },
+  "catalogBattleNetNote1": "Its installer has a window and downloads the client: let it finish.",
+  "@catalogBattleNetNote1": {
+    "description": "Battle.net in the catalog: note 1 of the Notes section of its page, also shown in the install panel once it is installed. The same text as its notes[0] in the engine's catalog_data.dart."
+  },
+  "catalogBattleNetNote2": "When it finishes, the client opens its sign-in; Bodega closes it so that the first start uses its settings.",
+  "@catalogBattleNetNote2": {
+    "description": "Battle.net in the catalog: note 2 of the Notes section of its page, also shown in the install panel once it is installed. The same text as its notes[1] in the engine's catalog_data.dart."
+  },
+  "catalogBattleNetIssue1Symptom": "The sign-in window opens, but its content is black",
+  "@catalogBattleNetIssue1Symptom": {
+    "description": "Battle.net in the catalog: what goes wrong in known issue 1, in the Known issues section of its page. The same text as its knownIssues[0].symptom in the engine's catalog_data.dart."
+  },
+  "catalogBattleNetIssue1Fix": "No confirmed fix on Wine 11.",
+  "@catalogBattleNetIssue1Fix": {
+    "description": "Battle.net in the catalog: what to do about known issue 1 (catalogBattleNetIssue1Symptom), under it in the Known issues section of its page. The same text as its knownIssues[0].fix in the engine's catalog_data.dart."
+  },
+  "catalogBattleNetIssue2Symptom": "It closes when you submit the sign-in",
+  "@catalogBattleNetIssue2Symptom": {
+    "description": "Battle.net in the catalog: what goes wrong in known issue 2, in the Known issues section of its page. The same text as its knownIssues[1].symptom in the engine's catalog_data.dart."
+  },
+  "catalogBattleNetIssue2Fix": "Try again and turn off hardware acceleration in its settings.",
+  "@catalogBattleNetIssue2Fix": {
+    "description": "Battle.net in the catalog: what to do about known issue 2 (catalogBattleNetIssue2Symptom), under it in the Known issues section of its page. The same text as its knownIssues[1].fix in the engine's catalog_data.dart."
+  },
+  "catalogEpicGamesStatusNote": "It checks Windows permissions that Wine doesn't keep, and installing games fails with DP-07. The alternative is legendary, which Bodega doesn't include yet.",
+  "@catalogEpicGamesStatusNote": {
+    "description": "Epic Games Launcher in the catalog: the note on its status, under the status chip on its page and on its card in the add-app dialog. The same text as its statusNote in the engine's catalog_data.dart."
+  },
+  "catalogEpicGamesNote1": "Its interface is heavy: the first start takes minutes.",
+  "@catalogEpicGamesNote1": {
+    "description": "Epic Games Launcher in the catalog: note 1 of the Notes section of its page, also shown in the install panel once it is installed. The same text as its notes[0] in the engine's catalog_data.dart."
+  },
+  "catalogEpicGamesIssue1Symptom": "Installing any game fails with You do not have permission to install to... (DP-07)",
+  "@catalogEpicGamesIssue1Symptom": {
+    "description": "Epic Games Launcher in the catalog: what goes wrong in known issue 1, in the Known issues section of its page. The same text as its knownIssues[0].symptom in the engine's catalog_data.dart. Keep You do not have permission to install to... in English: the launcher shows it."
+  },
+  "catalogEpicGamesIssue1Fix": "No fix within the launcher.",
+  "@catalogEpicGamesIssue1Fix": {
+    "description": "Epic Games Launcher in the catalog: what to do about known issue 1 (catalogEpicGamesIssue1Symptom), under it in the Known issues section of its page. The same text as its knownIssues[0].fix in the engine's catalog_data.dart."
+  },
+  "catalogGogGalaxyStatusNote": "It installs, but on Wine 11 it shows the sign-in and closes two seconds later. GOG games have no DRM: run their offline installers in a bottle.",
+  "@catalogGogGalaxyStatusNote": {
+    "description": "GOG Galaxy in the catalog: the note on its status, under the status chip on its page and on its card in the add-app dialog. The same text as its statusNote in the engine's catalog_data.dart."
+  },
+  "catalogGogGalaxyIssue1Symptom": "It shows the sign-in and closes about two seconds later",
+  "@catalogGogGalaxyIssue1Symptom": {
+    "description": "GOG Galaxy in the catalog: what goes wrong in known issue 1, in the Known issues section of its page. The same text as its knownIssues[0].symptom in the engine's catalog_data.dart."
+  },
+  "catalogGogGalaxyIssue1Fix": "No fix; use the offline installers from gog.com.",
+  "@catalogGogGalaxyIssue1Fix": {
+    "description": "GOG Galaxy in the catalog: what to do about known issue 1 (catalogGogGalaxyIssue1Symptom), under it in the Known issues section of its page. The same text as its knownIssues[0].fix in the engine's catalog_data.dart."
+  },
+  "navLanguage": "Language",
+  "@navLanguage": {
+    "description": "The sidebar item at the foot of the sidebar, above the version: a tap opens a short menu with the language the app shows its text in (languageSystem, then English and Spanish, each named in its own language). Also its tooltip when the sidebar shows only icons."
+  },
+  "languageSystem": "System",
+  "@languageSystem": {
+    "description": "First choice in the sidebar's language menu (navLanguage): the app follows the system's language (Spanish when the system prefers it to English; otherwise English). The other two choices are the languages' own names."
+  }
+}

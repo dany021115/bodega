@@ -1,3 +1,4 @@
+import 'package:bodega/l10n/l10n.dart';
 import 'package:flutter/material.dart';
 
 /// The bottle's name is also its folder name.
@@ -30,23 +31,22 @@ class _RenameBottleDialogState extends State<RenameBottleDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final name = _name.text.trim();
     final valid = _validName.hasMatch(name);
     final changed = name != widget.current;
     final canSave = valid && changed;
 
     return AlertDialog(
-      title: const Text('Renombrar botella'),
+      title: Text(l10n.renameBottleTitle),
       content: SizedBox(
         width: 360,
         child: TextField(
           controller: _name,
           autofocus: true,
           decoration: InputDecoration(
-            labelText: 'Nombre',
-            errorText: name.isEmpty || valid
-                ? null
-                : 'Usa letras, números, guiones o guiones bajos, sin espacios.',
+            labelText: l10n.commonName,
+            errorText: name.isEmpty || valid ? null : l10n.bottleNameRule,
           ),
           onChanged: (_) => setState(() {}),
           onSubmitted: canSave ? (_) => Navigator.of(context).pop(name) : null,
@@ -55,11 +55,11 @@ class _RenameBottleDialogState extends State<RenameBottleDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancelar'),
+          child: Text(l10n.commonCancel),
         ),
         FilledButton(
           onPressed: canSave ? () => Navigator.of(context).pop(name) : null,
-          child: const Text('Renombrar'),
+          child: Text(l10n.commonRename),
         ),
       ],
     );

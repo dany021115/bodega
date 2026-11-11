@@ -3,6 +3,7 @@ import 'package:bodega/app/bloc/setup/setup_bloc.dart';
 import 'package:bodega/domain/entities/app_error.dart';
 import 'package:bodega/domain/entities/host_capabilities.dart';
 import 'package:bodega/domain/entities/host_issue.dart';
+import 'package:bodega/domain/entities/path_problem.dart';
 import 'package:bodega/domain/entities/runtime_status.dart';
 import 'package:bodega/domain/repository/runtime_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -33,7 +34,7 @@ void main() {
     build: () {
       statusIs(
         issues: const [
-          HostIssue(title: 'Falta Rosetta', detail: 'x', command: 'cmd'),
+          HostIssue(kind: HostIssueKind.noRosetta, command: 'cmd'),
         ],
         installed: true,
       );
@@ -42,7 +43,7 @@ void main() {
     act: (bloc) => bloc.add(const SetupEvent.check()),
     verify: (bloc) {
       expect(bloc.state.isChecking, isFalse);
-      expect(bloc.state.issues.single.title, 'Falta Rosetta');
+      expect(bloc.state.issues.single.kind, HostIssueKind.noRosetta);
       expect(bloc.state.isReady, isFalse);
     },
   );
@@ -96,7 +97,9 @@ void main() {
     build: () {
       when(() => runtime.install(engine: 'e.tar.xz', hostlibs: 'h.tar.xz'))
           .thenAnswer(
-            (_) async => left(const AppError.engine('falta el .sha256')),
+            (_) async => left(
+              const AppError.badPath(PathProblem.missing('e.tar.xz.sha256')),
+            ),
           );
       return SetupBloc(runtime);
     },
@@ -106,7 +109,10 @@ void main() {
       ..add(const SetupEvent.install()),
     verify: (bloc) {
       expect(bloc.state.isInstalling, isFalse);
-      expect(bloc.state.error, const AppError.engine('falta el .sha256'));
+      expect(
+        bloc.state.error,
+        const AppError.badPath(PathProblem.missing('e.tar.xz.sha256')),
+      );
       expect(bloc.state.engine, 'e.tar.xz');
     },
   );

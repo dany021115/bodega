@@ -82,9 +82,7 @@ class Downloader {
       }
 
       if (total != null && received != total) {
-        throw AppError.network(
-          'La descarga se cortó en $received de $total bytes',
-        );
+        throw AppError.downloadCut(received, total);
       }
       part.renameSync(dest);
       return dest;
@@ -95,9 +93,11 @@ class Downloader {
     }
   }
 
+  /// The app asks only for HTTPS: anything else, a redirect included, is
+  /// refused before a byte is written.
   void _requireHttps(Uri uri) {
     if (httpsOnly && uri.scheme != 'https') {
-      throw AppError.network('La descarga no es por HTTPS: $uri');
+      throw AppError.unknown(detail: 'not an HTTPS download: $uri');
     }
   }
 }

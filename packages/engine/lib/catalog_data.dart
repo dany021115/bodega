@@ -1,13 +1,17 @@
 /// The catalog (C1), from gauthierpiarrette/highball-db at f0bf6a2 (CC0-1.0).
 /// Text in the app, not a file, because `dart compile exe` carries no assets.
 /// Nothing here comes from CrossOver's data.
+///
+/// The prose is English, as the CLI prints it. The app has the same text, and
+/// its translation, in its ARBs: `apps/bodega/test/app/catalog_text_test.dart`
+/// fails until they follow a change here (design §7).
 const catalogJson = r'''
 [
   {
     "id": "steam",
     "title": "Steam",
     "status": "tested",
-    "statusNote": "Probado en Bodega el 2026-11-04 (M2 Pro, macOS 27.0.1): instala, abre, inicia sesión, descarga y lanza juegos. Muck (D3D11) corrió con DXMT. Los juegos con Easy Anti-Cheat, como POLYGON, no arrancan.",
+    "statusNote": "Tested in Bodega on 2026-11-04 (M2 Pro, macOS 27.0.1): it installs, opens, signs in, downloads and launches games. Muck (D3D11) ran with DXMT. Games with Easy Anti-Cheat, such as POLYGON, don't start.",
     "installer": {
       "url": "https://cdn.akamai.steamstatic.com/client/installer/SteamSetup.exe",
       "sha256": null,
@@ -21,39 +25,39 @@ const catalogJson = r'''
     "env": {},
     "registry": [],
     "notes": [
-      "El primer arranque baja el cliente de 64 bits (unos 235 MB) y lo descomprime: bajo Rosetta tarda 15-25 min y puede parecer colgado. Si se cierra, ábrelo otra vez: continúa.",
-      "Deja activada la opción Ajustes > Interfaz > aceleración por GPU en vistas web: sin ella, la ventana sale en negro en Wine 11.",
-      "Esta botella va sin msync porque la ventana de Steam se cuelga con él. Highball reporta que los juegos rinden en torno a un 40 % más con msync.",
-      "Si un juego falla con el overlay de Steam, desactívalo en los ajustes de Steam, sección En la partida."
+      "The first start downloads the 64-bit client (about 235 MB) and unpacks it: under Rosetta it takes 15-25 min and may look frozen. If it closes, open it again: it carries on.",
+      "Keep Settings > Interface > GPU acceleration in web views turned on: without it, the window is black on Wine 11.",
+      "This bottle runs without msync because the Steam window hangs with it. Highball reports that games perform about 40% better with msync.",
+      "If a game fails with the Steam overlay, turn it off in the In Game section of Steam's settings."
     ],
     "knownIssues": [
       {
-        "symptom": "NO CONNECTION justo después de iniciar sesión",
-        "fix": "Cierra el Steam nativo de Mac."
+        "symptom": "NO CONNECTION right after signing in",
+        "fix": "Quit the native Mac Steam."
       },
       {
-        "symptom": "Un juego con Easy Anti-Cheat no arranca: error 206, Failed to load the anti-cheat module",
-        "fix": "Sin solución en Bodega: depende de los desarrolladores del juego y de Epic. Comprobado con POLYGON, que tampoco arranca en CrossOver."
+        "symptom": "A game with Easy Anti-Cheat doesn't start: error 206, Failed to load the anti-cheat module",
+        "fix": "No fix in Bodega: it depends on the game's developers and on Epic. Checked with POLYGON, which doesn't start in CrossOver either."
       },
       {
-        "symptom": "Un cliente recién instalado se cierra unos tres minutos después de su primera actualización, antes de iniciar sesión",
-        "fix": "Ábrelo otra vez; solo pasa en esa primera ejecución."
+        "symptom": "A freshly installed client closes about three minutes after its first update, before signing in",
+        "fix": "Open it again; it only happens on that first run."
       },
       {
-        "symptom": "Error nested exception on signal stack durante la primera actualización",
-        "fix": "Ábrelo otra vez; continúa donde iba."
+        "symptom": "Error nested exception on signal stack during the first update",
+        "fix": "Open it again; it carries on where it left off."
       },
       {
-        "symptom": "La descarga se para hacia 215/235 MB",
-        "fix": "bodega stop steam y ábrelo otra vez; continúa."
+        "symptom": "The download stops at around 215/235 MB",
+        "fix": "Stop the bottle and open Steam again; it carries on."
       },
       {
-        "symptom": "Steam Client Service no arranca (GLE 126)",
-        "fix": "No importa para la mayoría de los juegos; solo lo necesitan algunos anti-cheat o drivers."
+        "symptom": "Steam Client Service doesn't start (GLE 126)",
+        "fix": "It doesn't matter for most games; only some anti-cheats or drivers need it."
       },
       {
-        "symptom": "La ventana de Steam sale en negro en Wine 11, con DXMT y con DXVK",
-        "fix": "Hay que activar la aceleración por GPU en vistas web. Highball lo hace pasando un momento por su motor Wine 10, que Bodega no tiene: sin solución probada aquí."
+        "symptom": "The Steam window is black on Wine 11, with DXMT and with DXVK",
+        "fix": "GPU acceleration in web views has to be turned on. Highball does it by briefly going through its Wine 10 engine, which Bodega doesn't have: no fix tested here."
       }
     ],
     "source": {
@@ -68,7 +72,7 @@ const catalogJson = r'''
     "id": "rockstar",
     "title": "Rockstar Games Launcher",
     "status": "reported",
-    "statusNote": "Highball lo verificó en un motor del árbol de CrossOver 26.3 (r15): instalador, servicio y ventana de inicio de sesión con DXVK. Sin probar en Bodega, y nuestro DXVK es otra versión.",
+    "statusNote": "Highball verified it on an engine from the CrossOver 26.3 tree (r15): installer, service and sign-in window with DXVK. Not tested in Bodega, and our DXVK is a different version.",
     "installer": {
       "url": "https://gamedownloads.rockstargames.com/public/installer/Rockstar-Games-Launcher.exe",
       "sha256": null,
@@ -95,21 +99,21 @@ const catalogJson = r'''
       }
     ],
     "notes": [
-      "El instalador trae lo que necesita de Social Club.",
-      "Si se congela en el logo, prueba bodega open --backend d3dmetal rockstar. Highball también sugiere vcrun2019, que Bodega aún no instala."
+      "The installer comes with what it needs from Social Club.",
+      "If it freezes on the logo, try opening it with the D3DMetal backend. Highball also suggests vcrun2019, which Bodega doesn't install yet."
     ],
     "knownIssues": [
       {
-        "symptom": "La ventana de inicio de sesión sale vacía",
-        "fix": "bodega stop rockstar y ábrelo otra vez."
+        "symptom": "The sign-in window is empty",
+        "fix": "Stop the bottle and open the launcher again."
       },
       {
-        "symptom": "El instalador se queda para siempre en Preparing to Install...",
-        "fix": "Sin solución conocida."
+        "symptom": "The installer stays on Preparing to Install... forever",
+        "fix": "No known fix."
       },
       {
-        "symptom": "Error #1.000.7 o #1.500.7 al iniciar sesión",
-        "fix": "Pon la hora del Mac con zona horaria automática e inténtalo otra vez."
+        "symptom": "Error #1.000.7 or #1.500.7 when signing in",
+        "fix": "Set the Mac's time with an automatic time zone and try again."
       }
     ],
     "source": {
@@ -124,8 +128,8 @@ const catalogJson = r'''
     "id": "ea-app",
     "title": "EA app",
     "status": "reported",
-    "statusNote": "Highball lo verificó en un motor del árbol de CrossOver 26.3 (r15): instalación, servicio y ventana de inicio de sesión, sin llegar a iniciar sesión. Sin probar en Bodega.",
-    "flaky": "Es de los launchers más inestables bajo Wine. Además, Highball arregla un enlace de su instalación con un paso propio que Bodega no tiene, así que la instalación puede decir que falta el ejecutable.",
+    "statusNote": "Highball verified it on an engine from the CrossOver 26.3 tree (r15): installation, service and sign-in window, without getting as far as signing in. Not tested in Bodega.",
+    "flaky": "It is one of the most unstable launchers under Wine. Also, Highball fixes a link in its installation with a step of its own that Bodega doesn't have, so the installation may say the executable is missing.",
     "installer": {
       "url": "https://origin-a.akamaihd.net/EA-Desktop-Client-Download/installer-releases/EAappInstaller.exe",
       "sha256": null,
@@ -139,17 +143,17 @@ const catalogJson = r'''
     "env": {},
     "registry": [],
     "notes": [
-      "Pueden salir errores de su servicio en segundo plano; se pueden cerrar.",
-      "La comunidad de Sikarugir lo usa con D3DMetal: la alternativa es bodega open --backend d3dmetal ea-app."
+      "Errors from its background service may show up; they can be closed.",
+      "The Sikarugir community uses it with D3DMetal: the alternative is to open it with the D3DMetal backend."
     ],
     "knownIssues": [
       {
-        "symptom": "El instalador arranca y se queda sin ventana y sin usar CPU",
-        "fix": "Si no aparece nada en un minuto, bodega stop ea-app y vuelve a intentarlo."
+        "symptom": "The installer starts and sits there with no window and no CPU use",
+        "fix": "If nothing shows up within a minute, stop the bottle and try again."
       },
       {
-        "symptom": "Ventana oscura y vacía, o la app no está tras instalar bien",
-        "fix": "En Program Files/Electronic Arts/EA Desktop, EA Desktop debe ser un enlace a la carpeta de la versión. Highball lo crea solo; en Bodega hay que hacerlo a mano."
+        "symptom": "A dark, empty window, or the app isn't there after a successful install",
+        "fix": "In Program Files/Electronic Arts/EA Desktop, EA Desktop must be a link to the version's folder. Highball creates it on its own; in Bodega you have to make it by hand."
       }
     ],
     "source": {
@@ -164,7 +168,7 @@ const catalogJson = r'''
     "id": "ubisoft-connect",
     "title": "Ubisoft Connect",
     "status": "reported",
-    "statusNote": "Highball vio su ventana de inicio de sesión en un motor del árbol de CrossOver 26.3 (r4) con DXMT, sin iniciar sesión. Sin probar en Bodega.",
+    "statusNote": "Highball saw its sign-in window on an engine from the CrossOver 26.3 tree (r4) with DXMT, without signing in. Not tested in Bodega.",
     "installer": {
       "url": "https://static3.cdn.ubi.com/orbit/launcher_installer/UbisoftConnectInstaller.exe",
       "sha256": null,
@@ -178,13 +182,13 @@ const catalogJson = r'''
     "env": {"WINE_SIMULATE_WRITECOPY": "1"},
     "registry": [],
     "notes": [
-      "Desactiva el overlay en los ajustes de Connect: se inyecta en los juegos y falla bajo Wine.",
-      "Usa DXMT, con el que Highball verificó la ventana, aunque su receta fija D3DMetal."
+      "Turn off the overlay in Connect's settings: it injects itself into games and fails under Wine.",
+      "It uses DXMT, which Highball verified the window with, although its recipe pins D3DMetal."
     ],
     "knownIssues": [
       {
-        "symptom": "El launcher corre, pero su ventana sale en blanco o en negro",
-        "fix": "Highball lo vio en su motor Wine 10. Prueba otro backend con bodega open --backend."
+        "symptom": "The launcher runs, but its window comes up white or black",
+        "fix": "Highball saw this on its Wine 10 engine. Try opening it with another backend."
       }
     ],
     "source": {
@@ -199,8 +203,8 @@ const catalogJson = r'''
     "id": "battle-net",
     "title": "Battle.net",
     "status": "untested",
-    "statusNote": "Highball solo lo verificó en su motor Wine 10; en Wine 11 r10 la ventana quedó en negro. Bodega usa Wine 11, así que puede no funcionar.",
-    "flaky": "El inicio de sesión puede cerrarse al enviarlo: reintenta y desactiva la aceleración por hardware en sus ajustes.",
+    "statusNote": "Highball only verified it on its Wine 10 engine; on Wine 11 r10 the window stayed black. Bodega uses Wine 11, so it may not work.",
+    "flaky": "The sign-in may close when you submit it: try again and turn off hardware acceleration in its settings.",
     "installer": {
       "url": "https://downloader.battle.net/download/getInstaller?os=win&installer=Battle.net-Setup.exe",
       "sha256": null,
@@ -214,17 +218,17 @@ const catalogJson = r'''
     "env": {},
     "registry": [],
     "notes": [
-      "Su instalador tiene ventana y baja el cliente: déjalo terminar.",
-      "Al terminar, el cliente abre su inicio de sesión; Bodega lo cierra para que el primer arranque use sus ajustes."
+      "Its installer has a window and downloads the client: let it finish.",
+      "When it finishes, the client opens its sign-in; Bodega closes it so that the first start uses its settings."
     ],
     "knownIssues": [
       {
-        "symptom": "La ventana de inicio de sesión abre, pero su contenido sale en negro",
-        "fix": "Sin solución confirmada en Wine 11."
+        "symptom": "The sign-in window opens, but its content is black",
+        "fix": "No confirmed fix on Wine 11."
       },
       {
-        "symptom": "Se cierra al enviar el inicio de sesión",
-        "fix": "Reintenta y desactiva la aceleración por hardware en sus ajustes."
+        "symptom": "It closes when you submit the sign-in",
+        "fix": "Try again and turn off hardware acceleration in its settings."
       }
     ],
     "source": {
@@ -239,7 +243,7 @@ const catalogJson = r'''
     "id": "epic-games",
     "title": "Epic Games Launcher",
     "status": "blocked",
-    "statusNote": "Comprueba permisos de Windows que Wine no guarda, y al instalar juegos falla con DP-07. La alternativa es legendary, que Bodega aún no incluye.",
+    "statusNote": "It checks Windows permissions that Wine doesn't keep, and installing games fails with DP-07. The alternative is legendary, which Bodega doesn't include yet.",
     "installer": {
       "url": "https://launcher-public-service-prod06.ol.epicgames.com/launcher/api/installer/download/EpicGamesLauncherInstaller.msi",
       "sha256": null,
@@ -252,11 +256,11 @@ const catalogJson = r'''
     "sync": "none",
     "env": {},
     "registry": [],
-    "notes": ["Su interfaz es pesada: el primer arranque tarda minutos."],
+    "notes": ["Its interface is heavy: the first start takes minutes."],
     "knownIssues": [
       {
-        "symptom": "Instalar cualquier juego falla con You do not have permission to install to... (DP-07)",
-        "fix": "Sin solución dentro del launcher."
+        "symptom": "Installing any game fails with You do not have permission to install to... (DP-07)",
+        "fix": "No fix within the launcher."
       }
     ],
     "source": {
@@ -271,7 +275,7 @@ const catalogJson = r'''
     "id": "gog-galaxy",
     "title": "GOG Galaxy",
     "status": "blocked",
-    "statusNote": "Se instala, pero en Wine 11 muestra el inicio de sesión y se cierra a los dos segundos. Los juegos de GOG no tienen DRM: usa sus instaladores offline con bodega create y bodega run.",
+    "statusNote": "It installs, but on Wine 11 it shows the sign-in and closes two seconds later. GOG games have no DRM: run their offline installers in a bottle.",
     "installer": {
       "url": "https://content-system.gog.com/open_link/download?path=/open/galaxy/client/setup_galaxy_2.1.6.29.exe",
       "sha256": "c2888e0a1425823e47ed04c26e2d3c81cb14564a8e92d9c9628c3ed77a9d87bc",
@@ -287,8 +291,8 @@ const catalogJson = r'''
     "notes": [],
     "knownIssues": [
       {
-        "symptom": "Muestra el inicio de sesión y se cierra unos dos segundos después",
-        "fix": "Sin solución; usa los instaladores offline de gog.com."
+        "symptom": "It shows the sign-in and closes about two seconds later",
+        "fix": "No fix; use the offline installers from gog.com."
       }
     ],
     "source": {
@@ -296,7 +300,7 @@ const catalogJson = r'''
       "commit": "f0bf6a2",
       "path": "recipes/launchers/gog-galaxy.json",
       "license": "CC0-1.0",
-      "verified": "sin datos"
+      "verified": null
     }
   }
 ]

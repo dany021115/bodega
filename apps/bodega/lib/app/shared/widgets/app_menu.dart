@@ -1,3 +1,4 @@
+import 'package:bodega/l10n/l10n.dart';
 import 'package:flutter/material.dart';
 
 enum AppMenuAction { open, options, hud, library, hide }
@@ -19,6 +20,7 @@ Future<AppMenuAction?> showAppMenu(
       button.localToGlobal(Offset.zero, ancestor: overlay) & button.size;
   final width = overlay.size.width;
   final toRight = width - rect.right >= _menuWidth || rect.left < _menuWidth;
+  final l10n = anchor.l10n;
 
   return showMenu<AppMenuAction>(
     context: anchor,
@@ -28,17 +30,17 @@ Future<AppMenuAction?> showAppMenu(
         ? RelativeRect.fromLTRB(rect.right, rect.top, width, 0)
         : RelativeRect.fromLTRB(width, rect.top, width - rect.left, 0),
     items: [
-      const PopupMenuItem(value: AppMenuAction.open, child: Text('Abrir')),
-      const PopupMenuItem(
+      PopupMenuItem(value: AppMenuAction.open, child: Text(l10n.commonOpen)),
+      PopupMenuItem(
         value: AppMenuAction.options,
-        child: Text('Ejecutar con opciones…'),
+        child: Text(l10n.bottleRunWithOptions),
       ),
       // A switch that is saved for this app: the item's tap flips it.
       PopupMenuItem(
         value: AppMenuAction.hud,
         child: Row(
           children: [
-            const Expanded(child: Text('HUD de rendimiento')),
+            Expanded(child: Text(l10n.appMenuHud)),
             IgnorePointer(
               child: Switch(value: hud, onChanged: (_) {}),
             ),
@@ -47,14 +49,9 @@ Future<AppMenuAction?> showAppMenu(
       ),
       PopupMenuItem(
         value: AppMenuAction.library,
-        child: Text(
-          inLibrary ? 'Quitar de la biblioteca' : 'Agregar a la biblioteca',
-        ),
+        child: Text(inLibrary ? l10n.libraryRemove : l10n.libraryAdd),
       ),
-      const PopupMenuItem(
-        value: AppMenuAction.hide,
-        child: Text('Quitar de la botella'),
-      ),
+      PopupMenuItem(value: AppMenuAction.hide, child: Text(l10n.appMenuHide)),
     ],
   );
 }

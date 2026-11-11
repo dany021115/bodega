@@ -74,9 +74,9 @@ void main() {
   test('an update keeps the bottles, D3DMetal and the runtime in use (A5)', () {
     hostPlatform = MacPlatform(bundle: bundle);
     final dir = bodegaHome(env);
-    _write('$dir/bottles/juegos/settings.json', '{"backend": "d3dmetal"}');
-    _write('$dir/bottles/juegos/prefix/drive_c/Juego/partida.sav', 'nivel 9');
-    _write('$dir/backends/d3dmetal/external/libd3dshared.dylib', 'mio');
+    _write('$dir/bottles/games/settings.json', '{"backend": "d3dmetal"}');
+    _write('$dir/bottles/games/prefix/drive_c/Game/save.sav', 'level 9');
+    _write('$dir/backends/d3dmetal/external/libd3dshared.dylib', 'mine');
     final before = {
       for (final file in Directory(dir).listSync(recursive: true))
         if (file is File) file.path: file.readAsStringSync(),
@@ -84,8 +84,8 @@ void main() {
 
     // The next version brings another Wine, a newer dxvk and dxmt.
     final next = '$tmp/next';
-    _write('$next/runtime/wine-y/engine/bin/wine', 'wine nuevo');
-    _write('$next/backends/dxvk/wine/x64/d3d11.dll', 'dll nueva');
+    _write('$next/runtime/wine-y/engine/bin/wine', 'new wine');
+    _write('$next/backends/dxvk/wine/x64/d3d11.dll', 'new dll');
     _write('$next/backends/dxmt/wine/x64/d3d11.dll', 'dxmt');
     hostPlatform = MacPlatform(bundle: next);
     bodegaHome(env);

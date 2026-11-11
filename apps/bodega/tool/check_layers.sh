@@ -26,6 +26,8 @@ check 'only data/ imports package:engine' 'package:engine/' \
   lib/app lib/device lib/domain lib/main.dart lib/di.dart
 check 'device/ does not import data/ or domain/' 'package:bodega/(data|domain)/' \
   lib/device
+check 'only app/ and main.dart import package:bodega/l10n/' 'package:bodega/l10n/' \
+  lib/domain lib/data lib/device lib/di.dart
 check 'absolute imports: package:bodega/...' '\.\.?/' lib
 
 [ "$status" -eq 0 ] && echo 'Layers OK'

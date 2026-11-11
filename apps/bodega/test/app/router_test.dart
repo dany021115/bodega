@@ -5,7 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   const ready = SetupState(isChecking: false, runtime: true);
-  const issue = HostIssue(title: 'Falta Rosetta', detail: 'x', command: 'cmd');
+  const issue = HostIssue(kind: HostIssueKind.noRosetta, command: 'cmd');
 
   test('without the runtime or with an issue, always to /setup', () {
     for (final state in [

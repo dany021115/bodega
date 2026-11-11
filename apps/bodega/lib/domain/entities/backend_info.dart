@@ -1,3 +1,4 @@
+import 'package:bodega/domain/entities/backend_role.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 part 'backend_info.freezed.dart';
@@ -11,8 +12,8 @@ abstract class BackendInfo with _$BackendInfo {
     /// Has a pinned tarball to download.
     required bool downloadable,
 
-    /// What it is for (G3).
-    @Default('') String use,
+    /// What it is for (G3). Without it, its card does not say.
+    BackendRole? role,
 
     /// The version installed, where Bodega can tell (D3DMetal's, I1).
     String? version,

@@ -110,7 +110,7 @@ void main() {
   test(
     'findCI matches each segment without regard to case',
     skip: _caseInsensitiveDisk()
-        ? 'el disco no distingue mayúsculas, como el de un Mac'
+        ? 'the disk is case-insensitive, like a Mac disk'
         : false,
     () {
       final real = '$tmp/Program Files/Steam/STEAM.EXE';
@@ -185,12 +185,27 @@ void main() {
       hostPlatform.backendFits('dxvk', (bits: 32, directx: 'DX9')),
       isTrue,
     );
-    expect(hostPlatform.backendUse('dxvk'), contains('vkd3d-proton'));
+    expect(hostPlatform.backendRole('dxvk'), BackendRole.dx8to12);
+    expect(hostPlatform.backendRole('wine'), BackendRole.everythingSlower);
   });
 
   test('the Mac-only installers refuse on Linux', () async {
-    await expectLater(installSdl(home), throwsA(contains('Linux')));
-    await expectLater(importD3DMetal(home, tmp), throwsA(contains('Linux')));
+    await expectLater(
+      installSdl(home),
+      throwsA(
+        isA<NotAvailable>()
+            .having((f) => f.what, 'what', 'SDL')
+            .having((f) => f.host, 'host', 'Linux'),
+      ),
+    );
+    await expectLater(
+      importD3DMetal(home, tmp),
+      throwsA(
+        isA<NotAvailable>()
+            .having((f) => f.what, 'what', 'd3dmetal')
+            .having((f) => f.host, 'host', 'Linux'),
+      ),
+    );
   });
 
   test('prepareBottle copies the dxvk layer once per VERSION', () async {
@@ -248,7 +263,11 @@ void main() {
     makeBottle();
     expect(
       () => setBottleOptions(home, 'b', gpu: 'turbo'),
-      throwsA(contains('gpu desconocida')),
+      throwsA(
+        isA<BadChoice>()
+            .having((f) => f.kind, 'kind', ChoiceKind.gpu)
+            .having((f) => f.value, 'value', 'turbo'),
+      ),
     );
     setBottleOptions(home, 'b', gpu: 'discrete');
     expect(bottleSettings(home, 'b').gpu, 'discrete');

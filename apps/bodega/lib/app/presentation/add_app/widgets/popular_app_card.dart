@@ -1,3 +1,4 @@
+import 'package:bodega/app/shared/text/catalog_text.dart';
 import 'package:bodega/app/shared/widgets/app_icon.dart';
 import 'package:bodega/app/shared/widgets/gradient_button.dart';
 import 'package:bodega/app/shared/widgets/status_chip.dart';
@@ -5,6 +6,7 @@ import 'package:bodega/device/theme/color.dart';
 import 'package:bodega/device/theme/spacing.dart';
 import 'package:bodega/device/theme/typography.dart';
 import 'package:bodega/domain/entities/catalog_app.dart';
+import 'package:bodega/l10n/l10n.dart';
 import 'package:flutter/material.dart';
 
 /// A catalog app in the add dialog. Blocked ones are dimmed and can't install.
@@ -16,13 +18,14 @@ class PopularAppCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final styles = AppTextStyle(context);
     final blocked = app.status == CatalogStatus.blocked;
-    final (label, color) = switch (app.status) {
-      CatalogStatus.tested => ('Probado', AppColor.statusTested),
-      CatalogStatus.reported => ('Reportado', AppColor.statusReported),
-      CatalogStatus.untested => ('Sin probar', AppColor.statusUntested),
-      CatalogStatus.blocked => ('Sin soporte', AppColor.statusBlocked),
+    final color = switch (app.status) {
+      CatalogStatus.tested => AppColor.statusTested,
+      CatalogStatus.reported => AppColor.statusReported,
+      CatalogStatus.untested => AppColor.statusUntested,
+      CatalogStatus.blocked => AppColor.statusBlocked,
     };
 
     return Opacity(
@@ -45,14 +48,19 @@ class PopularAppCard extends StatelessWidget {
                       style: styles.cardTitle,
                     ),
                     const SizedBox(height: AppSpacing.xs),
-                    StatusChip(label: label, color: color),
-                    const SizedBox(height: AppSpacing.xs),
-                    Text(
-                      app.statusNote,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: styles.caption,
+                    StatusChip(
+                      label: catalogStatusText(l10n, app.status),
+                      color: color,
                     ),
+                    if (catalogProse(app.id, l10n) case final prose?) ...[
+                      const SizedBox(height: AppSpacing.xs),
+                      Text(
+                        prose.statusNote,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: styles.caption,
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -61,7 +69,7 @@ class PopularAppCard extends StatelessWidget {
               ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 132),
                 child: GradientButton(
-                  label: blocked ? 'No disponible' : 'Instalar',
+                  label: blocked ? l10n.addAppUnavailable : l10n.commonInstall,
                   onPressed: blocked ? null : onInstall,
                 ),
               ),

@@ -7,7 +7,7 @@ abstract class UpdateRepository {
   /// or no answer. No answer is null too: an update is not worth an error.
   Future<Either<AppError, AppUpdate?>> check();
 
-  /// "Ahora no": no more notices of [version].
+  /// "Not now": no more notices of [version].
   Future<Either<AppError, Unit>> skip(String version);
 
   /// A4: the installer, checked against its SHA-256. Null if it was cancelled

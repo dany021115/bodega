@@ -49,14 +49,15 @@ void main() {
   blocTest<GamepadsBloc, GamepadsState>(
     'an error is kept, and the last report with it',
     build: () {
-      when(() => repository.report())
-          .thenAnswer((_) async => left(const AppError.engine('falló')));
+      when(
+        () => repository.report(),
+      ).thenAnswer((_) async => left(const AppError.unknown(detail: 'boom')));
       return GamepadsBloc(repository);
     },
     seed: () => const GamepadsState(isLoading: false, report: _report),
     act: (bloc) => bloc.add(const GamepadsEvent.load()),
     verify: (bloc) {
-      expect(bloc.state.error?.message, 'falló');
+      expect(bloc.state.error, const AppError.unknown(detail: 'boom'));
       expect(bloc.state.report, _report);
     },
   );

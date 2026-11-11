@@ -14,6 +14,8 @@ import 'probe_data.dart';
 part 'apps.dart';
 part 'backends.dart';
 part 'catalog.dart';
+part 'english.dart';
+part 'failures.dart';
 part 'fixes.dart';
 part 'platform.dart';
 part 'platform_linux.dart';
@@ -26,10 +28,10 @@ String bodegaHome(Map<String, String> env) {
   final dir = Directory(env['BODEGA_HOME'] ?? hostPlatform.defaultHome(env));
   // Also before creating it, so that a bad root is not left on disk.
   if (winPathProblem(dir.absolute.path) case final problem?) {
-    throw FormatException(problem);
+    throw BadWindowsPath(problem);
   }
   final home = (dir..createSync(recursive: true)).resolveSymbolicLinksSync();
-  if (winPathProblem(home) case final problem?) throw FormatException(problem);
+  if (winPathProblem(home) case final problem?) throw BadWindowsPath(problem);
   for (final sub in ['runtimes', 'bottles']) {
     Directory('$home/$sub').createSync();
   }
@@ -38,26 +40,21 @@ String bodegaHome(Map<String, String> env) {
 }
 
 /// Trap 11: Wine exits 53 when a path component ends in `.` or space or
-/// contains `<>:"|?*`. Returns what is wrong, or null. `.` and `..` only
-/// navigate, so they pass.
-String? winPathProblem(String path) {
+/// contains `<>:"|?*`. Returns the first such component with the whole path,
+/// or null. `.` and `..` only navigate, so they pass.
+PathProblem? winPathProblem(String path) {
   final bad = path
       .split('/')
       .where((part) => part != '.' && part != '..')
       .where(RegExp(r'[<>:"|?*]|[. ]$').hasMatch)
       .firstOrNull;
-  if (bad == null) return null;
-  return '"$bad" en $path: Windows no admite nombres que acaben en punto o '
-      'espacio ni que lleven <>:"|?*';
+  return bad == null ? null : (part: bad, path: path);
 }
 
 /// `bottles/<name>`, once [name] passes R8.
 String bottleDir(String home, String name) {
   if (!RegExp(r'^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$').hasMatch(name)) {
-    throw FormatException(
-      'nombre de botella no válido: "$name" (letras, números, _ y -, '
-      'hasta 64, sin empezar por _ ni -)',
-    );
+    throw BadBottleName(name);
   }
   return '$home/bottles/$name';
 }
@@ -106,22 +103,22 @@ Future<String> installRuntime(
 ) async {
   final id = _tag(engine);
   final dest = Directory('$home/runtimes/$id');
-  if (dest.existsSync()) {
-    throw 'ya instalado: ${dest.path}. Para reinstalarlo, o para cambiar las '
-        'hostlibs: bodega stop de cada botella, rm -rf "${dest.path}" y otra '
-        'vez bodega install con los tarballs guardados';
-  }
+  if (dest.existsSync()) throw AlreadyInstalled(dest.path);
   for (final tarball in [engine, hostlibs]) {
     if (!File('$tarball.sha256').existsSync()) {
-      throw 'falta $tarball.sha256: gh release download ${_tag(tarball)} '
-          '-R dany021115/bodega';
+      throw ChecksumMissing('$tarball.sha256');
     }
     final name = tarball.split('/').last, dir = File(tarball).parent.path;
-    // -c checks whatever file the .sha256 names, so it must name this one.
+    // -c checks whatever file the .sha256 names, so it must name this one. It
+    // exits 1 on a wrong hash, which is a mismatch too, not a failed tool.
     final (shasum, shaArgs) = hostPlatform.sha256Tool;
-    final out = await _run(shasum, [...shaArgs, '-c', '$name.sha256'], dir);
-    if (out != '$name: OK\n') {
-      throw '$name.sha256 no corresponde a $name: ${out.trim()}';
+    final check = await Process.run(shasum, [
+      ...shaArgs,
+      '-c',
+      '$name.sha256',
+    ], workingDirectory: dir);
+    if (check.exitCode != 0 || check.stdout != '$name: OK\n') {
+      throw ChecksumMismatch(tarball);
     }
   }
   final tmp = Directory('$home/runtimes/.tmp-$id');
@@ -134,7 +131,7 @@ Future<String> installRuntime(
     await hostPlatform.afterExtract(tmp.path);
     for (final file in requiredFiles) {
       if (!File('${tmp.path}/$file').existsSync()) {
-        throw 'runtime incompleto: falta $file';
+        throw IncompleteArchive(id, file);
       }
     }
     // --version only checks that WINEPREFIX is absolute; it never creates it
@@ -146,7 +143,11 @@ Future<String> installRuntime(
       includeParentEnvironment: false,
     );
     if (!'${version.stdout}'.startsWith('wine-')) {
-      throw 'wine --version no responde: ${version.stdout}${version.stderr}';
+      throw ProcessFailed(
+        'wine --version',
+        null,
+        '${version.stdout}${version.stderr}',
+      );
     }
     tmp.renameSync(dest.path);
   } catch (_) {
@@ -165,9 +166,7 @@ Future<String> installRuntime(
 String currentRuntime(String home) {
   // Directory follows the link, so a dangling `current` counts as none.
   final current = Directory('$home/runtimes/current');
-  if (!current.existsSync()) {
-    throw 'no hay runtime: bodega install <engine.tar.gz> <hostlibs.tar.gz>';
-  }
+  if (!current.existsSync()) throw const NoRuntime();
   return current.resolveSymbolicLinksSync();
 }
 
@@ -177,10 +176,7 @@ String currentRuntime(String home) {
 Future<String> createBottle(String home, String name) async {
   final dir = bottleDir(home, name);
   final rt = currentRuntime(home);
-  if (Directory(dir).existsSync()) {
-    throw 'ya existe $dir; para empezar de cero: '
-        'bodega stop $name y rm -rf "$dir"';
-  }
+  if (Directory(dir).existsSync()) throw BottleExists(name);
   Directory('$dir/logs').createSync(recursive: true);
   final prefix = '$dir/prefix';
   final log = _newLog(dir, 'wineboot', rt, dir, ['wineboot']);
@@ -188,21 +184,18 @@ Future<String> createBottle(String home, String name) async {
   final code = await wineboot.exitCode;
   if (code != 0) {
     await _wineserver(rt, prefix, '-k');
-    throw 'wineboot salió con $code; log: $log';
+    throw WineToolFailed(WineTool.wineboot, code, log);
   }
   await _wineserver(rt, prefix, '-w').timeout(
     const Duration(minutes: 10),
     onTimeout: () async {
       await _wineserver(rt, prefix, '-k');
-      throw 'wineserver -w pasó de 10 min y se paró la botella; log: $log';
+      throw BottleSetupFailed(log, true);
     },
   );
   // ponytail: syswow64 is not repaired (Highball copies i386-windows); in a
   // prototype that failure has to show.
-  if (!_ready(prefix)) {
-    throw 'la botella no quedó lista: falta syswow64/kernel32.dll o '
-        'system.reg; log: $log';
-  }
+  if (!_ready(prefix)) throw BottleSetupFailed(log, false);
   await hostPlatform.prepareBottle(home, name);
   return log;
 }
@@ -251,15 +244,12 @@ Future<String> _launchIn(
   final rt = currentRuntime(home);
   final prefix = '$dir/prefix';
   final drive = '$prefix/drive_c';
-  if (!_ready(prefix)) {
-    throw 'la botella $name no está lista: bodega stop $name, '
-        'rm -rf "$dir" y bodega create $name';
-  }
+  if (!_ready(prefix)) throw BottleNotReady(name);
   var exe = program, cwd = drive;
   String? scan;
   if (program.contains('/')) {
     exe = File(program).resolveSymbolicLinksSync();
-    if (winPathProblem(exe) case final problem?) throw FormatException(problem);
+    if (winPathProblem(exe) case final problem?) throw BadWindowsPath(problem);
     cwd = File(exe).parent.path;
     scan = exe;
   } else if (program.toLowerCase().startsWith(r'c:\')) {
@@ -360,40 +350,70 @@ Future<int> exitOf(String log) async {
   return int.parse(exitFile.readAsStringSync().trim());
 }
 
-const _hints = {
-  'cannot find the FreeType':
-      'Wine no encuentra FreeType: reinstala el runtime con sus hostlibs',
-  'ailed to load libgnutls':
-      'Wine no carga GnuTLS: reinstala el runtime con sus hostlibs',
-  'version mismatch':
-      'hay un wineserver de otro runtime: bodega stop <botella>',
-  'wine: failed to open':
-      'Wine no pudo abrir el programa: revisa su ruta (trampa 11)',
-  fixNotApplied:
-      'Steam ya estaba abierto, así que el arreglo de este juego no le llegó. '
-      'Para la botella y vuelve a abrir el juego desde Bodega.',
-};
+/// What a run's log can show that the user can act on (R16). Each hint holds
+/// the marker that [hintsIn] looks for in a line, and its English text.
+enum LogHint {
+  /// Wine cannot find FreeType: the runtime lacks its hostlibs.
+  freeType(
+    'cannot find the FreeType',
+    'Wine cannot find FreeType: reinstall the runtime with its hostlibs',
+  ),
 
-/// One hint per marker found in [log] (R16), read as a stream so that a huge
-/// log never sits in memory.
-Future<List<String>> hintsIn(String log) async {
-  final found = <String>{};
+  /// Wine cannot load GnuTLS: the runtime lacks its hostlibs. The marker
+  /// leaves out the F, which Wine writes in either case.
+  gnuTls(
+    'ailed to load libgnutls',
+    'Wine cannot load GnuTLS: reinstall the runtime with its hostlibs',
+  ),
+
+  /// A wineserver of another runtime holds the bottle.
+  otherServer(
+    'version mismatch',
+    'a wineserver from another runtime is running: bodega stop <bottle>',
+  ),
+
+  /// Wine could not open the program, as when a name in its path breaks
+  /// trap 11.
+  cannotOpen(
+    'wine: failed to open',
+    'Wine could not open the program: check its path, where Windows refuses '
+        'a name that ends in a dot or a space, or holds <>:"|?* (trap 11)',
+  ),
+
+  /// Steam was already open, so the fix of the game did not reach it:
+  /// Bodega's own note, [fixNotApplied].
+  fixNotApplied(
+    _fixNote,
+    "Steam was already open, so this game's fix did not reach it. Stop the "
+    'bottle and open the game again from Bodega.',
+  );
+
+  const LogHint(this.marker, this.english);
+
+  /// What a line of the log holds when this hint applies.
+  final String marker;
+
+  /// For the CLI and logs.
+  final String english;
+}
+
+/// The hints whose markers [log] holds, once each and in the order of
+/// [LogHint] (R16), read as a stream so that a huge log never sits in memory.
+Future<List<LogHint>> hintsIn(String log) async {
+  final found = <LogHint>{};
   final lines = File(log)
       .openRead()
       .transform(latin1.decoder)
       .transform(const LineSplitter());
   await for (final line in lines) {
-    found.addAll(_hints.keys.where(line.contains));
+    found.addAll(LogHint.values.where((hint) => line.contains(hint.marker)));
   }
-  return [
-    for (final MapEntry(:key, :value) in _hints.entries)
-      if (found.contains(key)) value,
-  ];
+  return LogHint.values.where(found.contains).toList();
 }
 
 String _existing(String home, String name) {
   final dir = bottleDir(home, name);
-  if (!Directory(dir).existsSync()) throw 'no existe la botella $name';
+  if (!Directory(dir).existsSync()) throw BottleNotFound(name);
   return dir;
 }
 
@@ -491,14 +511,11 @@ bool hasSdl(String home) =>
 /// launch. Returns where it went.
 Future<String> installSdl(String home, {String? dmg}) async {
   if (!hostPlatform.capabilities.sdl) {
-    throw 'SDL no disponible en ${hostPlatform.displayName}';
+    throw NotAvailable('SDL', hostPlatform.displayName);
   }
   final dest = _sdlPath(home);
   final file = dmg ?? await _download(home, _sdl.url, _sdl.sha256);
-  final got = await sha256Of(file);
-  if (got != _sdl.sha256) {
-    throw 'checksum incorrecto en $file: $got, se esperaba ${_sdl.sha256}';
-  }
+  if (await sha256Of(file) != _sdl.sha256) throw ChecksumMismatch(file);
   final mount = Directory.systemTemp.createTempSync('bodega-sdl');
   await _run('/usr/bin/hdiutil', [
     'attach',
@@ -511,7 +528,7 @@ Future<String> installSdl(String home, {String? dmg}) async {
   try {
     final framework = File('${mount.path}/SDL2.framework/Versions/A/SDL2');
     final slice = x86Slice(framework.readAsBytesSync());
-    if (slice == null) throw 'SDL2 sin parte x86_64 en $file';
+    if (slice == null) throw IncompleteArchive(file, 'SDL2.framework (x86_64)');
     // The part alone keeps the framework's signature, which names files it
     // no longer has beside it: Wine loads it anyway, but a local signature
     // leaves nothing to object to.
@@ -576,7 +593,7 @@ String _newLog(
       '${backend == null ? '' : '# backend $backend\n'}'
       '# cwd $cwd\n'
       '# argv ${argv.join(' ')}\n'
-      '${note == null ? '' : '# aviso $note\n'}',
+      '${note == null ? '' : '# note $note\n'}',
     );
   return log.path;
 }
@@ -584,8 +601,11 @@ String _newLog(
 Future<String> _run(String exe, List<String> args, [String? cwd]) async {
   final result = await Process.run(exe, args, workingDirectory: cwd);
   if (result.exitCode != 0) {
-    throw '$exe ${args.join(' ')} salió con ${result.exitCode}: '
-        '${result.stdout}${result.stderr}';
+    throw ProcessFailed(
+      '$exe ${args.join(' ')}',
+      result.exitCode,
+      '${result.stdout}${result.stderr}',
+    );
   }
   return '${result.stdout}';
 }
@@ -624,9 +644,9 @@ Future<void> removeBottle(String home, String name) async {
 Future<void> renameBottle(String home, String from, String to) async {
   final target = bottleDir(home, to);
   final dir = _existing(home, from);
-  if (Directory(target).existsSync()) throw 'ya existe la botella $to';
+  if (Directory(target).existsSync()) throw BottleExists(to);
   if (hasRuntime(home) && await _serverRunning(home, dir)) {
-    throw 'la botella $from está abierta: bodega stop $from';
+    throw BottleOpen(from);
   }
   Directory(dir).renameSync(target);
   await hostPlatform.prepareBottle(home, to);

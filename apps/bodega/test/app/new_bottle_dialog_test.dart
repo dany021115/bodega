@@ -6,9 +6,13 @@ import 'package:bodega/app/shared/widgets/gradient_button.dart';
 import 'package:bodega/device/theme/theme.dart';
 import 'package:bodega/domain/entities/app_error.dart';
 import 'package:bodega/domain/entities/backend_info.dart';
+import 'package:bodega/domain/entities/wine_tool.dart';
+import 'package:bodega/l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import '../support/pump.dart';
 
 class _MockNewBottle extends MockBloc<NewBottleEvent, NewBottleState>
     implements NewBottleBloc {}
@@ -20,6 +24,7 @@ Future<void> _pump(
   WidgetTester tester, {
   required NewBottleState state,
   BackendsState backends = const BackendsState(isLoading: false),
+  Locale locale = const Locale('en'),
 }) async {
   // The smallest window the app goes down to.
   tester.view.physicalSize = const Size(720, 480);
@@ -37,25 +42,28 @@ Future<void> _pump(
   );
 
   await tester.pumpWidget(
-    MaterialApp(
-      theme: AppTheme.getDarkTheme(),
-      home: MultiBlocProvider(
+    wrapApp(
+      MultiBlocProvider(
         providers: [
           BlocProvider<NewBottleBloc>.value(value: bottle),
           BlocProvider<BackendsBloc>.value(value: backendBloc),
         ],
         child: const Scaffold(body: NewBottleDialog()),
       ),
+      locale: locale,
+      theme: AppTheme.getDarkTheme(),
     ),
   );
 }
 
 void main() {
+  final en = lookupAppL10n(const Locale('en'));
+
   testWidgets('fits at 720 px with long names and backends', (tester) async {
     await _pump(
       tester,
       state: NewBottleState(
-        name: 'un-nombre-de-botella-que-no-cabe-en-el-campo-' * 3,
+        name: 'a-bottle-name-that-does-not-fit-in-the-field-' * 3,
         taken: const ['gaming'],
       ),
       backends: BackendsState(
@@ -63,7 +71,7 @@ void main() {
         backends: [
           for (var i = 0; i < 3; i++)
             BackendInfo(
-              name: 'backend-con-nombre-largo-$i',
+              name: 'backend-with-a-long-name-$i',
               installed: true,
               downloadable: false,
             ),
@@ -71,9 +79,9 @@ void main() {
       ),
     );
 
-    expect(find.text('Nueva botella'), findsOneWidget);
-    expect(find.text('Crear botella'), findsOneWidget);
-    expect(find.text('Automático'), findsOneWidget);
+    expect(find.text('New bottle'), findsOneWidget);
+    expect(find.text('Create bottle'), findsOneWidget);
+    expect(find.text('Automatic'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -85,7 +93,10 @@ void main() {
       state: const NewBottleState(name: 'gaming', taken: ['Gaming']),
     );
 
-    expect(find.text('Ya tienes una botella con ese nombre.'), findsOneWidget);
+    expect(
+      find.text('You already have a bottle with that name.'),
+      findsOneWidget,
+    );
     final button = tester.widget<GradientButton>(find.byType(GradientButton));
     expect(button.onPressed, isNull);
   });
@@ -95,26 +106,59 @@ void main() {
   ) async {
     await _pump(
       tester,
-      state: const NewBottleState(name: 'juegos', isCreating: true),
+      state: const NewBottleState(name: 'games', isCreating: true),
     );
 
-    expect(find.text('Creando la botella…'), findsOneWidget);
-    expect(find.text('Crear botella'), findsNothing);
+    expect(find.text('Creating the bottle…'), findsOneWidget);
+    expect(find.text(en.newBottleCreate), findsNothing);
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('an error from the engine is selectable text', (tester) async {
-    await _pump(
-      tester,
-      state: const NewBottleState(
-        name: 'juegos',
-        error: AppError.engine('no se pudo crear la botella'),
-      ),
-    );
+  testWidgets('an error from the engine is selectable text, and a long one '
+      'fits at 720 px with its Copy details button', (tester) async {
+    const log =
+        '/Users/someone/Library/Application Support/Bodega/bottles/games/'
+        'logs/wineboot-2026-11-10-14-52-07.log';
+    for (final locale in AppL10n.supportedLocales) {
+      await _pump(
+        tester,
+        state: const NewBottleState(
+          name: 'games',
+          // With a detail, as data/ sets it: Copy details shows too (L9).
+          error: AppError.wineToolFailed(
+            WineTool.wineboot,
+            1,
+            log,
+            detail: 'stderr: boom',
+          ),
+        ),
+        locale: locale,
+      );
 
-    expect(
-      find.widgetWithText(SelectableText, 'no se pudo crear la botella'),
-      findsOneWidget,
-    );
+      expect(
+        find.widgetWithText(
+          SelectableText,
+          lookupAppL10n(locale).errWinebootFailed(1, log),
+        ),
+        findsOneWidget,
+        reason: '$locale',
+      );
+      // The button scrolls with the text, under it: outside the scroll it
+      // would take the little room the text has here.
+      final scroll = find.ancestor(
+        of: find.byType(SelectableText),
+        matching: find.byType(SingleChildScrollView),
+      );
+      expect(scroll, findsOneWidget, reason: '$locale');
+      expect(
+        find.descendant(
+          of: scroll,
+          matching: find.text(lookupAppL10n(locale).commonCopyDetails),
+        ),
+        findsOneWidget,
+        reason: '$locale',
+      );
+      expect(tester.takeException(), isNull, reason: '$locale');
+    }
   });
 }

@@ -4,6 +4,7 @@ import 'package:bodega/device/theme/color.dart';
 import 'package:bodega/device/theme/spacing.dart';
 import 'package:bodega/device/theme/typography.dart';
 import 'package:bodega/domain/entities/anti_cheat_game.dart';
+import 'package:bodega/l10n/l10n.dart';
 import 'package:flutter/material.dart';
 
 /// What the anti-cheat list says about the game being searched (P5).
@@ -14,19 +15,16 @@ class AntiCheatSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final styles = AppTextStyle(context);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Anti-cheat', style: styles.subsectionTitle),
+        Text(l10n.catalogAntiCheatTitle, style: styles.subsectionTitle),
         const SizedBox(height: AppSpacing.sm),
         if (state.antiCheatError != null)
-          Text(
-            'No se pudo cargar la lista de anti-cheat. El catálogo sigue '
-            'funcionando; se volverá a intentar al abrirlo.',
-            style: styles.bodySecondary,
-          ),
+          Text(l10n.catalogAntiCheatLoadFailed, style: styles.bodySecondary),
         for (final game in state.antiCheatMatches)
           Padding(
             padding: const EdgeInsets.only(bottom: AppSpacing.sm),
@@ -43,24 +41,22 @@ class AntiCheatSection extends StatelessWidget {
                 ),
                 const SizedBox(width: AppSpacing.md),
                 if (game.verdict == AntiCheatVerdict.blocked)
-                  const StatusChip(
-                    label: 'No funciona',
+                  StatusChip(
+                    label: l10n.catalogAntiCheatBlocked,
                     color: AppColor.statusBlocked,
                   )
                 else
-                  const StatusChip(
-                    label: 'Puede fallar',
+                  StatusChip(
+                    label: l10n.catalogAntiCheatMayFail,
                     color: AppColor.statusFlaky,
                   ),
               ],
             ),
           ),
         const SizedBox(height: AppSpacing.xs),
+        // The chip's label is quoted from its own key, so both always match.
         Text(
-          'Que un juego no aparezca aquí no garantiza nada, y "Puede fallar" '
-          'puede querer decir que no arranca: POLYGON sale así y en Mac no pasa '
-          'de Easy Anti-Cheat. Lista de AreWeAntiCheatYet (MIT), con el '
-          'veredicto para Mac de Highball.',
+          l10n.catalogAntiCheatNote(l10n.catalogAntiCheatMayFail),
           style: styles.caption,
         ),
       ],

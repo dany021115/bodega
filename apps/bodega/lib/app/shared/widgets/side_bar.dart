@@ -4,12 +4,14 @@ import 'package:bodega/app/presentation/bottles/new_bottle_dialog.dart';
 import 'package:bodega/app/router.dart';
 import 'package:bodega/app/shared/widgets/app_version.dart';
 import 'package:bodega/app/shared/widgets/bottle_row.dart';
+import 'package:bodega/app/shared/widgets/language_menu.dart';
 import 'package:bodega/app/shared/widgets/side_bar_item.dart';
 import 'package:bodega/device/router/manager.dart';
 import 'package:bodega/device/theme/gradient.dart';
 import 'package:bodega/device/theme/radius.dart';
 import 'package:bodega/device/theme/spacing.dart';
 import 'package:bodega/device/theme/typography.dart';
+import 'package:bodega/l10n/l10n.dart';
 import 'package:bodega/resources/assets_images.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -50,6 +52,7 @@ class _SideBarState extends State<SideBar> {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     final styles = AppTextStyle(context);
+    final l10n = context.l10n;
     final expanded = widget.expanded;
     final bottles = context.select((BottlesBloc bloc) => bloc.state.bottles);
     final apps = context.select((LibraryBloc bloc) => bloc.state.apps);
@@ -95,7 +98,7 @@ class _SideBarState extends State<SideBar> {
               ),
               _section(
                 Icons.apps_rounded,
-                'Biblioteca',
+                l10n.navLibrary,
                 AppRoute.library,
                 '/library',
               ),
@@ -106,14 +109,14 @@ class _SideBarState extends State<SideBar> {
                     left: AppSpacing.md,
                     bottom: AppSpacing.xs,
                   ),
-                  child: Text('BOTELLAS', style: styles.label),
+                  child: Text(l10n.navBottles, style: styles.label),
                 )
               else
                 const Divider(),
               // The same dialog as the library's empty state: a bottle is
               // always created the same way.
               Tooltip(
-                message: 'Nueva botella',
+                message: l10n.navNewBottle,
                 // Ink paints on the nearest Material, which would sit under the
                 // sidebar's own background and be hidden by it.
                 child: Material(
@@ -139,7 +142,7 @@ class _SideBarState extends State<SideBar> {
                             const SizedBox(width: AppSpacing.xs),
                             Flexible(
                               child: Text(
-                                'Nueva botella',
+                                l10n.navNewBottle,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: styles.body?.copyWith(
@@ -182,9 +185,14 @@ class _SideBarState extends State<SideBar> {
               const SizedBox(height: AppSpacing.sm),
               _section(
                 Icons.memory_rounded,
-                'Backends',
+                l10n.navBackends,
                 AppRoute.backends,
                 '/backends',
+              ),
+              // A menu, not a page: it is never the selected item.
+              Padding(
+                padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+                child: LanguageMenu(expanded: expanded),
               ),
               const SizedBox(height: AppSpacing.xs),
               AppVersion(compact: !expanded),
