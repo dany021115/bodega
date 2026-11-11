@@ -4,7 +4,7 @@ Open-source launcher to play Windows games on Apple Silicon Macs (Wine x86_64 un
 
 ## Language
 
-Everything that goes into git is in English: code, comments, docs, `.sdd/` specs (this overrides the `sdd` skill's Spanish default), commit messages, branch names, tags, pull request titles and bodies, workflow and step names, and script messages. The only Spanish in the repo is the translation: `apps/bodega/lib/l10n/app_es.arb`, `apps/bodega/macos/Runner/es.lproj/*.strings` and the `[es]` keys of `packaging/linux/bodega.desktop`; besides them, only the Settings dialog's name for Spanish, which is written in Spanish. Talking to the user stays in Spanish.
+Everything that goes into git is in English: code, comments, docs, `.sdd/` specs (this overrides the `sdd` skill's Spanish default), commit messages, branch names, tags, pull request titles and bodies, workflow and step names, and script messages. The only Spanish in the repo is the translation: `apps/bodega/lib/l10n/app_es.arb`, `apps/bodega/macos/Runner/es.lproj/*.strings` and the `[es]` keys of `packaging/linux/bodega.desktop`; besides them, only the language menu's own name for Spanish, which is written in Spanish. Talking to the user stays in Spanish.
 
 ## Repo
 

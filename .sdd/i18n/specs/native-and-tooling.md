@@ -73,7 +73,7 @@ The app shall generate `AppL10n` with Flutter gen-l10n from `lib/l10n/app_en.arb
 - Check: `flutter test test/app/catalog_text_test.dart`.
 
 ## N11 · Every screen in both locales
-`test/app/pages_test.dart` shall run its width loop (`:353`: 720, 801, 1150 and 1921 px) in `en` and in `es`, the Settings dialog included.
+`test/app/pages_test.dart` shall run its width loop (`:353`: 720, 801, 1150 and 1921 px) in `en` and in `es`, the language menu included.
 - **Given** the loop, **when** `flutter test test/app/pages_test.dart --reporter expanded` runs, **then** each test shows once per locale (`nothing overflows at 720.0 px (es)`) and all pass.
 - **Given** an `app_es.arb` value padded until it overflows at 720 px, **when** the test runs, **then** only `(es)` tests fail.
 - Check: that run; the padding as a temporary edit, reverted after.
@@ -90,9 +90,9 @@ The app shall generate `AppL10n` with Flutter gen-l10n from `lib/l10n/app_en.arb
 - Check: that commit's diff holds both lines; the `smoke` run at release, which the user starts.
 
 ## N14 · Rules and docs
-`.claude/CLAUDE.md` and `.claude/rules/` shall carry the rules of `design.md` §10, and outside `.sdd/` the only Spanish left in git shall be the translation files and the Settings dialog's name for Spanish (L19).
+`.claude/CLAUDE.md` and `.claude/rules/` shall carry the rules of `design.md` §10, and outside `.sdd/` the only Spanish left in git shall be the translation files and the language menu's name for Spanish (L19).
 - **Given** the rules, **when** ``grep -n 'user reads in Spanish\|throws `String`' .claude/rules/*.md`` runs, **then** it finds nothing (today `code-style.md:21`, `architecture.md:24`); `.claude/CLAUDE.md` names the Spanish files and allows that one name (`:7`), lists `flutter gen-l10n` (`:42-54`) and `app_localizations*.dart` (`:56`); `architecture.md` has a "Text" section.
-- **Given** the committed change, **when** `git grep -lIP '[áéíóúñÁÉÍÓÚÑ¿¡]' -- . ':!.sdd'` runs at the repo root, **then** it lists only `apps/bodega/lib/l10n/app_es.arb`, `apps/bodega/macos/Runner/es.lproj/*.strings` and `apps/bodega/lib/app/presentation/settings/settings_dialog.dart`, whose `Español` L19 and design §2 require, plus `bodega.desktop` if an `[es]` value has an accent (today: 65 files).
+- **Given** the committed change, **when** `git grep -lIP '[áéíóúñÁÉÍÓÚÑ¿¡]' -- . ':!.sdd'` runs at the repo root, **then** it lists only `apps/bodega/lib/l10n/app_es.arb`, `apps/bodega/macos/Runner/es.lproj/*.strings` and `apps/bodega/lib/app/shared/widgets/language_menu.dart`, whose `Español` L19 and design §2 require, plus `bodega.desktop` if an `[es]` value has an accent (today: 65 files).
 - Check: those two greps; reading the diff of `.claude/`.
 
 ## N15 · Dead widgets removed

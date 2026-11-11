@@ -96,7 +96,7 @@ Each engine code shall reach `app/` through a domain twin and an exhaustive mapp
 
 ## E15 · Real bottles and devices (USER)
 On a real Mac and a real Linux box, codes from real bottles and devices shall reach the screen in the active language, with no Spanish from the engine and no CLI command.
-- **Given** Steam already open in a bottle on the Mac, **when** the user opens a game that has a fix from Bodega and closes it, **then** the fix-not-applied hint shows once, on the card and in one toast, and switching the language in Settings rewords the card.
+- **Given** Steam already open in a bottle on the Mac, **when** the user opens a game that has a fix from Bodega and closes it, **then** the fix-not-applied hint shows once, on the card and in one toast, and switching the language in the language menu rewords the card.
 - **Given** the user's Game Porting Toolkit dmg, **when** they import D3DMetal, **then** each step and the final toast read in the active language.
 - **Given** a pad Bodega cannot open on Linux, **when** the user opens a bottle's Gamepads section, **then** the issue names the pad, in the active language, with its install command.
 - **Check:** screenshots on the user's Mac and Linux box, in English and in Spanish.

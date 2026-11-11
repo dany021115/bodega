@@ -20,15 +20,15 @@ On a real Mac and a real Linux box, the app shall open in the language that the 
 - **Given** Linux, **when** `/opt/bodega/bodega` or the AppImage starts from a terminal with `LANG=es_ES.UTF-8`, `LANGUAGE=fr:es` or `LANG=C`, **then** it opens in Spanish, Spanish and English.
 - **Check:** the user's screenshots on the Mac and on a Linux box, in `verify.md`.
 
-## L4 · Settings dialog
-The app shall offer the language in a Settings dialog, opened from a gear item in the sidebar footer, that holds only three choices: System, English and Español.
-- **Given** the shell at 1000 px, **then** a "Settings" item sits between Backends and the version (`side_bar.dart:183-190`); at 600 px only its gear shows, with the tooltip "Settings" and button semantics.
-- **Given** the dialog in `en` and in `es`, **then** it has one Language section of three radios (System from the ARB; `English` and `Español` the same in both locales), the active one checked and in a group, a Close button and no theme switch; choosing Español adds `LocaleEvent.set('es')`, and System adds `set(null)`.
-- **Check:** `flutter test test/app/main_shell_test.dart test/app/settings_dialog_test.dart`.
+## L4 · Language menu
+The app shall offer the language in a short menu, opened from a "Language" item in the sidebar footer, that holds only three choices: System, English and Español.
+- **Given** the shell at 1000 px, **then** a "Language" item sits between Backends and the version (`side_bar.dart:186-198`); at 600 px only its icon shows, with the tooltip "Language" and button semantics; at both widths a click opens the menu.
+- **Given** the menu in `en` and in `es`, **then** it holds three entries and nothing else (System from the ARB; `English` and `Español` the same in both locales), the current one checked; choosing Español adds `LocaleEvent.set('es')` and closes the menu, System adds `set(null)`, and the current entry adds nothing.
+- **Check:** `flutter test test/app/main_shell_test.dart test/app/language_menu_test.dart`.
 
 ## L5 · The choice applies at once and is kept
 A choice shall apply at once, without a restart, and be saved under `PreferenceKey.language`, where no value means System, so the next start shows it from the first frame.
-- **Given** `BodegaApp` in `en`, **when** Español is chosen in Settings, **then** `Localizations.localeOf` is `es` on the next frame and the open dialog reads in Spanish.
+- **Given** `BodegaApp` in `en`, **when** Español is chosen (the menu's `LocaleEvent.set('es')`, which the test adds to the app's `LocaleBloc`, since the setup page has no sidebar), **then** `Localizations.localeOf` is `es` without a restart, the page reads in Spanish and `saveLanguage('es')` is called.
 - **Given** a saved `es`, **when** `LocaleBloc` is built, **then** its first state is `es`, with no event; a saved `fr` reads as System; choosing System calls `saveLanguage(null)`, which removes the key, and the system's list applies again (L2).
 - **Check:** `flutter test test/app/locale_bloc_test.dart test/app/app_locale_test.dart`.
 
@@ -103,11 +103,11 @@ The update dialog shall show a release's notes and its package command as publis
 
 ## L18 · No overflow in either language
 No screen, dialog or panel shall overflow in either language at the widths that matter: 720, 801, 1150 and 1921 px (`pages_test.dart:353`).
-- **Given** every case of `pages_test.dart` with its long texts, the Settings dialog included, **when** each renders at each width in `en` and in `es`, **then** no overflow or other exception is reported.
+- **Given** every case of `pages_test.dart` with its long texts, the open language menu included, **when** each renders at each width in `en` and in `es`, **then** no overflow or other exception is reported.
 - **Check:** `flutter test test/app/pages_test.dart`.
 
 ## L19 · No Spanish in the app's Dart code
-No Dart file in `lib/` (outside the generated `lib/l10n/`) or `test/` shall hold Spanish in code, comments or fixtures, except the name `Español` in the Settings dialog, and tests shall reach Spanish only through `lookupAppL10n(const Locale('es'))` (the engine: `engine-codes.md`).
-- **When** `grep -rniE '[áéíóúñ¿¡]|\b(botellas?|instalar|cancelar|abrir|cerrar|parar|elegir|nueva|agregar|carpeta|una|los|las|para|esta|con)\b' lib test --include='*.dart' --exclude-dir=l10n` runs, **then** it prints only the `Español` line of `settings_dialog.dart`.
+No Dart file in `lib/` (outside the generated `lib/l10n/`) or `test/` shall hold Spanish in code, comments or fixtures, except the name `Español` in the language menu, and tests shall reach Spanish only through `lookupAppL10n(const Locale('es'))` and that name only through `LanguageMenu.spanish` (the engine: `engine-codes.md`).
+- **When** `grep -rniE '[áéíóúñ¿¡]|\b(botellas?|instalar|cancelar|abrir|cerrar|parar|elegir|nueva|agregar|carpeta|una|los|las|para|esta|con)\b' lib test --include='*.dart' --exclude-dir=l10n` runs, **then** it prints only lines of `language_menu.dart` that hold the name `Español`.
 - The grep's word list and T29's ARB scan both miss Spanish words that no ARB message holds: in M3, a dictionary sweep of the test fixtures found ten such words, which T29 turned English.
 - **Check:** the grep above.

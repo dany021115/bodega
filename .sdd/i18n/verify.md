@@ -1,5 +1,7 @@
 # i18n · M3 verification (T31)
 
+After this run, the sidebar's language menu replaced the Settings dialog (2026-11-11, design §2), so this file's mentions of the dialog and `settings_dialog.dart` describe M3 as it was verified then.
+
 Run on 2026-11-10, 20:41 to 20:58 EST, on the dev Mac (Flutter 3.47.0, Dart 3.13.0, Xcode 27).
 
 - Where: the merged M3 sandbox, a scratch copy of the repo. Its `base` tree has the same blobs as the real repo's `HEAD` (`4134b54`, branch `feat/i18n`), apart from `wine/` and `.sdd/`, which the sandbox leaves out. All of M3 sits on top: 46 changed files and 9 new ones.
