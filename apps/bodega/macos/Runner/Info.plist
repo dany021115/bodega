@@ -36,5 +36,14 @@
 	<string>MainMenu</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
+	<!-- Skia instead of Impeller. On Apple Silicon, Flutter 3.47's Impeller
+	     switches the window between wide gamut and sRGB when its screen
+	     changes, as when a game goes fullscreen. A frame drawn during that
+	     switch gets no texture, and Bodega quit in
+	     impeller::Canvas::SetupRenderPass (canvas.cc:1615), three times in
+	     one MW3 session. With Skia, Bodega lasted a whole session. Remove
+	     this key once Flutter fixes it. -->
+	<key>FLTEnableImpeller</key>
+	<false/>
 </dict>
 </plist>
