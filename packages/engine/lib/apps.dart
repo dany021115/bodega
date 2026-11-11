@@ -404,7 +404,57 @@ Future<String> openApp(
     avx: avx,
     fix: fix,
     note: missed ? fixNotApplied : null,
+    appKey: app.key,
   );
+}
+
+/// The pid of the run whose `.pid` file is [pidFile], or null when it has
+/// exited, its pid is gone, or the pid now runs another command.
+int? _runPid(String pidFile) {
+  final file = File(pidFile);
+  if (!file.existsSync()) return null;
+  if (File(pidFile.replaceFirst(RegExp(r'\.pid$'), '.exit')).existsSync()) {
+    return null;
+  }
+  final pid = int.tryParse(file.readAsLinesSync().firstOrNull ?? '');
+  if (pid == null || !_alive(pid)) return null;
+  final log = pidFile.replaceFirst(RegExp(r'\.pid$'), '.log');
+  final command =
+      Process.runSync('ps', ['-p', '$pid', '-o', 'command=']).stdout as String;
+  return command.contains(log) ? pid : null;
+}
+
+bool _alive(int pid) => Process.runSync('kill', ['-0', '$pid']).exitCode == 0;
+
+/// Ends the run of [log] and its whole process group, never the bottle's
+/// wineserver: SIGTERM, up to 5 s for the leader to die, then SIGKILL.
+Future<void> stopApp(String log) async {
+  final pid = _runPid(log.replaceFirst(RegExp(r'\.log$'), '.pid'));
+  if (pid == null) return;
+  // Detached starts do not make the shell its own group leader, so the group
+  // is read from the live shell, before it can exit.
+  final group = int.tryParse(
+    (Process.runSync('ps', ['-o', 'pgid=', '-p', '$pid']).stdout as String)
+        .trim(),
+  );
+  if (group == null) return;
+  await Process.run('kill', ['-TERM', '--', '-$group']);
+  for (var i = 0; i < 20 && _alive(pid); i++) {
+    await Future<void>.delayed(const Duration(milliseconds: 250));
+  }
+  await Process.run('kill', ['-KILL', '--', '-$group']);
+}
+
+/// The apps of [bottle] with a run still alive, by their key and log (M6).
+List<({String key, String log})> runningApps(String home, String bottle) {
+  final logs = Directory('${bottleDir(home, bottle)}/logs');
+  if (!logs.existsSync()) return [];
+  return [
+    for (final file in logs.listSync().whereType<File>())
+      if (file.path.endsWith('.pid') && _runPid(file.path) != null)
+        if (file.readAsLinesSync() case [_, final key, ...])
+          (key: key, log: file.path.replaceFirst(RegExp(r'\.pid$'), '.log')),
+  ];
 }
 
 /// What a `.lnk` points to (MS-SHLLINK), or null for anything else: a shortcut

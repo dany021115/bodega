@@ -412,6 +412,9 @@ void main() {
           ),
         ],
         open: {'steam', _longName},
+        running: {
+          'steam': {'s', 'steam:1'},
+        },
         hints: {'steam': _hints, _longName: _hints},
       ),
     );

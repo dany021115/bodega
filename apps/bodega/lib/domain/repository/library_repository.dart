@@ -43,6 +43,14 @@ abstract class LibraryRepository {
 
   Future<Either<AppError, Unit>> stop(String bottle);
 
+  /// Ends the run of [log] and its process group, never the bottle's.
+  Future<Either<AppError, Unit>> stopApp(String log);
+
+  /// The apps of [bottle] with a run still alive, by their key and log.
+  Future<Either<AppError, List<({String key, String log})>>> runningApps(
+    String bottle,
+  );
+
   /// Ends when the first process of [log] exits.
   Future<void> firstExit(String log);
 

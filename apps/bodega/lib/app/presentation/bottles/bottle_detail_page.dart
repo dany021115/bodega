@@ -18,7 +18,6 @@ import 'package:bodega/app/shared/widgets/app_row.dart';
 import 'package:bodega/app/shared/widgets/custom_loading.dart';
 import 'package:bodega/app/shared/widgets/empty_state.dart';
 import 'package:bodega/app/shared/widgets/gradient_button.dart';
-import 'package:bodega/app/shared/widgets/stop_bottle.dart';
 import 'package:bodega/app/shared/widgets/view_toggle.dart';
 import 'package:bodega/device/helpers/app_toast.dart';
 import 'package:bodega/device/router/manager.dart';
@@ -130,7 +129,9 @@ class BottleDetailView extends StatelessWidget {
     return Builder(
       builder: (itemContext) {
         void menu(BuildContext button) => _menu(button, detail, app);
-        void stop() => confirmStopBottle(itemContext, detail.name);
+        void stop() => context.read<LibraryBloc>().add(
+          LibraryEvent.stop(detail.name, app.key),
+        );
         final found = graphicsOf(itemContext, detail.name, app.exe);
         final graphics = found == null
             ? null
@@ -172,7 +173,7 @@ class BottleDetailView extends StatelessWidget {
     final styles = AppTextStyle(context);
     final isGrid = context.select((ViewModeBloc bloc) => bloc.state.isGrid);
     final running = context.select(
-      (LibraryBloc bloc) => bloc.state.open.contains(detail.name),
+      (LibraryBloc bloc) => bloc.state.running[detail.name] ?? const <String>{},
     );
     final inLibrary = detail.apps.where((app) => app.inLibrary).length;
     final canAdd = detail.ready && !isBusy;
@@ -197,14 +198,20 @@ class BottleDetailView extends StatelessWidget {
               detail,
               detail.apps[index],
               isGrid: true,
-              running: running,
+              running: running.contains(detail.apps[index].key),
             ),
           )
         : Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               for (final app in detail.apps)
-                _app(context, detail, app, isGrid: false, running: running),
+                _app(
+                  context,
+                  detail,
+                  app,
+                  isGrid: false,
+                  running: running.contains(app.key),
+                ),
             ],
           );
 

@@ -94,6 +94,18 @@ class LibraryRepositoryImpl implements LibraryRepository {
         return unit;
       });
 
+  @override
+  Future<Either<AppError, Unit>> stopApp(String log) =>
+      repositoryCall(() async {
+        await engine.stopApp(log);
+        return unit;
+      });
+
+  @override
+  Future<Either<AppError, List<({String key, String log})>>> runningApps(
+    String bottle,
+  ) => repositoryCall(() => engine.runningApps(_home.path, bottle));
+
   // A failure in these two only means there is nothing left to wait for.
   @override
   Future<void> firstExit(String log) =>

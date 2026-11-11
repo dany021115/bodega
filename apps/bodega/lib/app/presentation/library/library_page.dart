@@ -11,7 +11,6 @@ import 'package:bodega/app/shared/widgets/app_menu.dart';
 import 'package:bodega/app/shared/widgets/app_row.dart';
 import 'package:bodega/app/shared/widgets/custom_loading.dart';
 import 'package:bodega/app/shared/widgets/empty_state.dart';
-import 'package:bodega/app/shared/widgets/stop_bottle.dart';
 import 'package:bodega/app/shared/widgets/view_toggle.dart';
 import 'package:bodega/device/helpers/app_toast.dart';
 import 'package:bodega/device/theme/radius.dart';
@@ -95,7 +94,7 @@ class _LibraryPageState extends State<LibraryPage> {
     required bool first,
     required bool asRow,
   }) {
-    final running = state.open.contains(app.bottle);
+    final running = state.running[app.bottle]?.contains(app.key) ?? false;
     // The hints are of the bottle: they show on its first application.
     final hints = first
         ? state.hints[app.bottle] ?? const <RunHint>[]
@@ -106,7 +105,7 @@ class _LibraryPageState extends State<LibraryPage> {
     return Builder(
       builder: (anchor) {
         void play() => bloc.add(LibraryEvent.open(app.bottle, app.key));
-        void stop() => confirmStopBottle(anchor, app.bottle);
+        void stop() => bloc.add(LibraryEvent.stop(app.bottle, app.key));
         void menu(BuildContext button) => _menu(button, app);
         final found = graphicsOf(anchor, app.bottle, app.exe);
         final graphics = found == null

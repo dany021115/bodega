@@ -151,6 +151,33 @@ void main() {
     expect(en.libraryCount(2, 3), '2 apps in 3 bottles');
   });
 
+  testWidgets('only the running app of a bottle shows Stop', (tester) async {
+    final apps = [
+      const LibraryApp(bottle: 'b', key: 'k1', id: 'k1', title: 'Alpha'),
+      const LibraryApp(bottle: 'b', key: 'k2', id: 'k2', title: 'Beta'),
+    ];
+    givenLibrary(
+      LibraryState(
+        isLoading: false,
+        apps: apps,
+        open: const {'b'},
+        running: const {
+          'b': {'k1'},
+        },
+      ),
+    );
+    givenView(isGrid: true);
+
+    await pump(tester, 1100);
+    expect(find.text('Running'), findsOneWidget);
+    expect(find.byTooltip('Stop'), findsOneWidget);
+    expect(find.byTooltip('Play'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Stop'));
+    await tester.pump();
+    verify(() => library.add(const LibraryEvent.stop('b', 'k1'))).called(1);
+  });
+
   testWidgets('a search without results says so', (tester) async {
     givenLibrary(LibraryState(isLoading: false, apps: _apps));
     givenView(isGrid: false);

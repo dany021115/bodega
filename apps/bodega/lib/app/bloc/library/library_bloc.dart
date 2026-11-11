@@ -20,6 +20,7 @@ class LibraryBloc extends Bloc<LibraryEvent, LibraryState> {
   final LibraryRepository _repository;
   final BottleRepository _bottles;
   final Map<String, ({DateTime since, String? log})> _runs = {};
+  final Map<String, Map<String, String>> _appLogs = {};
   final Set<String> _watching = {};
   final Set<String> _opening = {};
   Timer? _hintTimer;
@@ -50,9 +51,15 @@ class LibraryBloc extends Bloc<LibraryEvent, LibraryState> {
       final result = await _repository.open(bottle, key: event.key);
       result.match((error) => emit(state.copyWith(error: error)), (log) {
         _begin(bottle, since, log);
+        final key = event.key ?? _firstKey(bottle);
+        if (key != null) {
+          _appLogs.putIfAbsent(bottle, () => {})[key] = log;
+          _followApp(bottle, key, log);
+        }
         emit(
           state.copyWith(
             open: {...state.open, bottle},
+            running: key == null ? state.running : _withRunning(bottle, key),
             hints: wasOpen ? state.hints : ({...state.hints}..remove(bottle)),
             error: null,
           ),
@@ -85,7 +92,13 @@ class LibraryBloc extends Bloc<LibraryEvent, LibraryState> {
     );
 
     on<LibraryStopEvent>((event, emit) async {
-      final result = await _repository.stop(event.bottle);
+      final key = event.key;
+      final log = key == null ? null : _appLogs[event.bottle]?[key];
+      // An app with no live run has nothing to stop.
+      if (key != null && log == null) return;
+      final result = log == null
+          ? await _repository.stop(event.bottle)
+          : await _repository.stopApp(log);
       result.match((error) => emit(state.copyWith(error: error)), (_) {});
     });
 
@@ -113,21 +126,44 @@ class LibraryBloc extends Bloc<LibraryEvent, LibraryState> {
       );
     });
 
-    on<LibraryDetectedEvent>((event, emit) {
-      if (_runs.containsKey(event.bottle)) return;
-      _begin(event.bottle, DateTime.now(), null);
-      emit(state.copyWith(open: {...state.open, event.bottle}));
+    on<LibraryDetectedEvent>((event, emit) async {
+      final bottle = event.bottle;
+      if (_runs.containsKey(bottle)) return;
+      _begin(bottle, DateTime.now(), null);
+      final found = await _repository.runningApps(bottle);
+      final apps = found.match(
+        (_) => const <({String key, String log})>[],
+        (apps) => apps,
+      );
+      for (final app in apps) {
+        _appLogs.putIfAbsent(bottle, () => {})[app.key] = app.log;
+        _followApp(bottle, app.key, app.log);
+      }
+      emit(
+        state.copyWith(
+          open: {...state.open, bottle},
+          running: apps.isEmpty
+              ? state.running
+              : {...state.running, bottle: {for (final app in apps) app.key}},
+        ),
+      );
     });
 
     on<LibraryClosedEvent>((event, emit) async {
       final bottle = event.bottle;
+      _appLogs.remove(bottle);
       final run = _runs.remove(bottle);
       if (run == null) return;
       if (_runs.isEmpty) {
         _hintTimer?.cancel();
         _hintTimer = null;
       }
-      emit(state.copyWith(open: {...state.open}..remove(bottle)));
+      emit(
+        state.copyWith(
+          open: {...state.open}..remove(bottle),
+          running: {...state.running}..remove(bottle),
+        ),
+      );
       // What ran may have added apps (an installer's shortcuts, a Steam game).
       add(const LibraryEvent.load());
 
@@ -136,6 +172,18 @@ class LibraryBloc extends Bloc<LibraryEvent, LibraryState> {
         ..._repository.antiCheatHints(bottle, run.since),
         if (log != null) ...await _repository.hintsIn(log),
       ], emit);
+    });
+
+    on<LibraryAppClosedEvent>((event, emit) {
+      _appLogs[event.bottle]?.remove(event.key);
+      final running = {...state.running};
+      final keys = {...?running[event.bottle]}..remove(event.key);
+      if (keys.isEmpty) {
+        running.remove(event.bottle);
+      } else {
+        running[event.bottle] = keys;
+      }
+      emit(state.copyWith(running: running));
     });
 
     on<LibraryCheckHintsEvent>((event, emit) {
@@ -173,6 +221,24 @@ class LibraryBloc extends Bloc<LibraryEvent, LibraryState> {
     await _repository.waitBottle(bottle);
     if (!isClosed) add(LibraryEvent.closed(bottle));
   }
+
+  /// An app's own run ends when its first process exits. A run replaced by a
+  /// newer launch of the same app no longer counts, so it reports nothing.
+  Future<void> _followApp(String bottle, String key, String log) async {
+    await _repository.firstExit(log);
+    if (!isClosed && _appLogs[bottle]?[key] == log) {
+      add(LibraryEvent.appClosed(bottle, key));
+    }
+  }
+
+  /// The bottle's first app, as the engine opens it when no key is given.
+  String? _firstKey(String bottle) =>
+      state.apps.where((app) => app.bottle == bottle).firstOrNull?.key;
+
+  Map<String, Set<String>> _withRunning(String bottle, String key) => {
+    ...state.running,
+    bottle: {...?state.running[bottle], key},
+  };
 
   /// Finds what is already running, as after reopening Bodega: with no server
   /// `waitBottle` returns at once (design §5).
