@@ -2,6 +2,7 @@ import 'package:bloc_test/bloc_test.dart';
 import 'package:bodega/app/bloc/backends/backends_bloc.dart';
 import 'package:bodega/domain/entities/app_error.dart';
 import 'package:bodega/domain/entities/backend_info.dart';
+import 'package:bodega/domain/entities/gptk_step.dart';
 import 'package:bodega/domain/repository/backend_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fpdart/fpdart.dart';
@@ -26,9 +27,28 @@ void main() {
 
   setUpAll(() {
     registerFallbackValue((int _, int? _) {});
-    registerFallbackValue((String _) {});
+    registerFallbackValue((GptkStep _) {});
     registerFallbackValue(() => false);
   });
+
+  /// The dmg is in Downloads, and installing it reports [steps], then ends
+  /// with [result].
+  void importsDmg(List<GptkStep> steps, Either<AppError, String?> result) {
+    when(() => repository.findGptkDmg('3.0'))
+        .thenAnswer((_) async => right('/d/G.dmg'));
+    when(
+      () => repository.installD3DMetalDmg(
+        '/d/G.dmg',
+        onStep: any(named: 'onStep'),
+        cancelled: any(named: 'cancelled'),
+      ),
+    ).thenAnswer((call) async {
+      steps.forEach(call.namedArguments[#onStep] as void Function(GptkStep));
+      return result;
+    });
+    when(() => repository.check('prueba', 'd3dmetal'))
+        .thenAnswer((_) async => right(const []));
+  }
 
   setUp(() {
     repository = _MockBackends();
@@ -88,45 +108,81 @@ void main() {
     'a wrong SHA is shown, and the backend stays not installed',
     build: () {
       when(() => repository.download('dxvk', any())).thenAnswer(
-        (_) async => left(const AppError.engine('checksum incorrecto')),
+        (_) async =>
+            left(const AppError.checksumMismatch('/h/downloads/dxvk.tar.gz')),
       );
       return BackendsBloc(repository);
     },
     act: (bloc) => bloc.add(const BackendsEvent.download('dxvk')),
     verify: (bloc) {
-      expect(bloc.state.error, const AppError.engine('checksum incorrecto'));
+      expect(
+        bloc.state.error,
+        const AppError.checksumMismatch('/h/downloads/dxvk.tar.gz'),
+      );
       expect(bloc.state.busy, isNull);
       expect(bloc.state.backends, const [missing]);
     },
   );
 
+  /// What a state says of the D3DMetal install: its step and its result.
+  Matcher gptkState({GptkStep? step, ({String? version})? installed}) =>
+      isA<BackendsState>()
+          .having((s) => s.gptkStep, 'gptkStep', step)
+          .having((s) => s.gptkInstalled, 'gptkInstalled', installed);
+
   blocTest<BackendsBloc, BackendsState>(
     'installs D3DMetal from the dmg in Downloads, then checks it (I2, I3)',
     build: () {
-      when(() => repository.findGptkDmg('3.0'))
-          .thenAnswer((_) async => right('/d/G.dmg'));
-      when(
-        () => repository.installD3DMetalDmg(
-          '/d/G.dmg',
-          onStep: any(named: 'onStep'),
-          cancelled: any(named: 'cancelled'),
-        ),
-      ).thenAnswer((call) async {
-        (call.namedArguments[#onStep] as void Function(String))('Importando');
-        return right('3.0');
-      });
-      when(() => repository.check('prueba', 'd3dmetal'))
-          .thenAnswer((_) async => right(const []));
+      importsDmg(const [GptkStep.opening, GptkStep.importing], right('3.0'));
+      return BackendsBloc(repository);
+    },
+    act: (bloc) => bloc.add(const BackendsEvent.installGptk(gptk)),
+    wait: const Duration(milliseconds: 50),
+    // Each step as a code, which the card words (L6).
+    expect: () => containsAllInOrder([
+      gptkState(step: GptkStep.opening),
+      gptkState(step: GptkStep.importing),
+      gptkState(installed: (version: '3.0')),
+    ]),
+    verify: (bloc) {
+      expect(bloc.state.busy, isNull);
+      expect(bloc.state.gptkStep, isNull);
+      expect(bloc.state.gptkInstalled, (version: '3.0'));
+      expect(bloc.state.error, isNull);
+      verify(() => repository.check('prueba', 'd3dmetal')).called(1);
+    },
+  );
+
+  blocTest<BackendsBloc, BackendsState>(
+    'a version it cannot read still counts as installed (E3)',
+    build: () {
+      importsDmg(const [GptkStep.importing], right(null));
       return BackendsBloc(repository);
     },
     act: (bloc) => bloc.add(const BackendsEvent.installGptk(gptk)),
     wait: const Duration(milliseconds: 50),
     verify: (bloc) {
-      expect(bloc.state.busy, isNull);
-      expect(bloc.state.gptkStep, isNull);
-      expect(bloc.state.gptkInstalled, '3.0');
+      expect(bloc.state.gptkInstalled, (version: null));
       expect(bloc.state.error, isNull);
       verify(() => repository.check('prueba', 'd3dmetal')).called(1);
+    },
+  );
+
+  blocTest<BackendsBloc, BackendsState>(
+    'a failed install says nothing was installed, and checks nothing',
+    build: () {
+      importsDmg(const [
+        GptkStep.acceptLicense,
+      ], left(const AppError.licenseNotAccepted()));
+      return BackendsBloc(repository);
+    },
+    act: (bloc) => bloc.add(const BackendsEvent.installGptk(gptk)),
+    wait: const Duration(milliseconds: 50),
+    verify: (bloc) {
+      expect(bloc.state.gptkStep, isNull);
+      expect(bloc.state.gptkInstalled, isNull);
+      expect(bloc.state.error, const AppError.licenseNotAccepted());
+      verifyNever(() => repository.check(any(), any()));
     },
   );
 

@@ -10,10 +10,13 @@ import 'package:bodega/app/bloc/bottle_detail/bottle_detail_bloc.dart';
 import 'package:bodega/app/bloc/bottles/bottles_bloc.dart';
 import 'package:bodega/app/bloc/gamepads/gamepads_bloc.dart';
 import 'package:bodega/app/bloc/graphics/graphics_bloc.dart';
+import 'package:bodega/app/bloc/install/install_bloc.dart';
 import 'package:bodega/app/bloc/library/library_bloc.dart';
 import 'package:bodega/app/bloc/new_bottle/new_bottle_bloc.dart';
+import 'package:bodega/app/bloc/run_options/run_options_bloc.dart';
 import 'package:bodega/app/bloc/sections/sections_bloc.dart';
 import 'package:bodega/app/bloc/setup/setup_bloc.dart';
+import 'package:bodega/app/bloc/update/update_bloc.dart';
 import 'package:bodega/app/bloc/view_mode/view_mode_bloc.dart';
 import 'package:bodega/app/presentation/backends/widgets/backend_card.dart';
 import 'package:bodega/app/presentation/backends/widgets/gptk_section.dart';
@@ -24,19 +27,41 @@ import 'package:bodega/app/presentation/bottles/widgets/bottle_column.dart';
 import 'package:bodega/app/presentation/bottles/widgets/gamepads_section.dart';
 import 'package:bodega/app/presentation/bottles/widgets/library_toggle.dart';
 import 'package:bodega/app/presentation/bottles/widgets/rename_bottle_dialog.dart';
+import 'package:bodega/app/presentation/bottles/widgets/run_options_dialog.dart';
 import 'package:bodega/app/presentation/bottles/widgets/windows_user_dialog.dart';
+import 'package:bodega/app/presentation/library/widgets/bottle_tag.dart';
+import 'package:bodega/app/presentation/setup/widgets/requirement_card.dart';
 import 'package:bodega/app/shared/text/backend_text.dart';
 import 'package:bodega/app/shared/text/catalog_text.dart';
+import 'package:bodega/app/shared/text/error_text.dart';
+import 'package:bodega/app/shared/text/hint_text.dart';
+import 'package:bodega/app/shared/text/issue_text.dart';
+import 'package:bodega/app/shared/text/problem_text.dart';
 import 'package:bodega/app/shared/text/progress_text.dart';
+import 'package:bodega/app/shared/text/step_text.dart';
+import 'package:bodega/app/shared/widgets/copy_details_button.dart';
+import 'package:bodega/app/shared/widgets/install_panel.dart';
+import 'package:bodega/app/shared/widgets/shell_body.dart';
+import 'package:bodega/domain/entities/app_error.dart';
 import 'package:bodega/domain/entities/backend_info.dart';
+import 'package:bodega/domain/entities/backend_role.dart';
 import 'package:bodega/domain/entities/bottle_detail.dart';
 import 'package:bodega/domain/entities/catalog_app.dart';
 import 'package:bodega/domain/entities/exe_graphics.dart';
 import 'package:bodega/domain/entities/gamepad.dart';
+import 'package:bodega/domain/entities/gptk_step.dart';
 import 'package:bodega/domain/entities/host_capabilities.dart';
+import 'package:bodega/domain/entities/host_issue.dart';
+import 'package:bodega/domain/entities/install_step.dart';
 import 'package:bodega/domain/entities/library_app.dart';
+import 'package:bodega/domain/entities/log_hint.dart';
+import 'package:bodega/domain/entities/path_problem.dart';
+import 'package:bodega/domain/entities/run_hint.dart';
+import 'package:bodega/domain/entities/user_name_problem.dart';
+import 'package:bodega/domain/entities/wine_tool.dart';
 import 'package:bodega/l10n/l10n.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
@@ -58,11 +83,17 @@ class _MockGamepads extends MockBloc<GamepadsEvent, GamepadsState>
 class _MockGraphics extends MockBloc<GraphicsEvent, GraphicsState>
     implements GraphicsBloc {}
 
+class _MockInstall extends MockBloc<InstallEvent, InstallState>
+    implements InstallBloc {}
+
 class _MockLibrary extends MockBloc<LibraryEvent, LibraryState>
     implements LibraryBloc {}
 
 class _MockNewBottle extends MockBloc<NewBottleEvent, NewBottleState>
     implements NewBottleBloc {}
+
+class _MockRunOptions extends MockBloc<RunOptionsEvent, RunOptionsState>
+    implements RunOptionsBloc {}
 
 class _MockSections extends MockBloc<SectionsEvent, SectionsState>
     implements SectionsBloc {}
@@ -70,11 +101,17 @@ class _MockSections extends MockBloc<SectionsEvent, SectionsState>
 class _MockSetup extends MockBloc<SetupEvent, SetupState>
     implements SetupBloc {}
 
+class _MockUpdate extends MockBloc<UpdateEvent, UpdateState>
+    implements UpdateBloc {}
+
 class _MockViewMode extends MockBloc<ViewModeEvent, ViewModeState>
     implements ViewModeBloc {}
 
 const _es = Locale('es');
 const _locales = [Locale('en'), _es];
+
+/// What the CLI says to run, where the app says what to do in it (L8).
+final _command = RegExp(r'\bbodega [a-z]|rm -rf|gh release|sudo ');
 
 /// The bottle of the bottle screens' cases.
 const _bottle = 'steam';
@@ -120,6 +157,70 @@ final _badNames = ['-steam', '_steam', 'my games', 'x' * 65];
 
 /// A text without its digits: what is left to change when only a count does.
 String _words(String text) => text.replaceAll(RegExp(r'\d'), '');
+
+// Run hints.
+
+/// One of each hint, and what its text has to name (L8).
+const _hintCases = <(RunHint, List<String>)>[
+  (RunHint.log(LogHint.freeType), ['FreeType']),
+  (RunHint.log(LogHint.gnuTls), ['GnuTLS']),
+  (RunHint.log(LogHint.otherServer), []),
+  (RunHint.log(LogHint.cannotOpen), ['<>:"|?*']),
+  (RunHint.log(LogHint.fixNotApplied), ['Steam', 'Bodega']),
+  (RunHint.antiCheat(game: 'POLYGON'), ['POLYGON', 'Easy Anti-Cheat', '206']),
+  (RunHint.antiCheat(), ['Easy Anti-Cheat', '206']),
+];
+
+/// What a bottle shows after a run that missed its fix and failed Easy
+/// Anti-Cheat.
+const _shownHints = [
+  RunHint.log(LogHint.fixNotApplied),
+  RunHint.antiCheat(game: 'POLYGON'),
+];
+
+// Install and D3DMetal steps.
+
+/// The app being installed: it asks for msync.
+const _steamApp = CatalogApp(
+  id: 'steam',
+  title: 'Steam',
+  status: CatalogStatus.tested,
+  backend: 'dxmt',
+  backendInstalled: true,
+  sync: 'msync',
+  host: 'cdn.akamai.steamstatic.com',
+  hasChecksum: true,
+);
+
+/// D3DMetal before its import: Bodega never downloads it.
+const _d3dmetal = BackendInfo(
+  name: 'd3dmetal',
+  installed: false,
+  downloadable: false,
+);
+
+// Host issues, backend roles and graphics.
+
+const _pad = 'Microsoft X-Box 360 pad';
+const _installCommand = 'sudo apt install steam-devices';
+
+/// One issue of each kind, as the engine gives them: only a pad issue names
+/// something.
+final _issues = [
+  for (final kind in HostIssueKind.values)
+    HostIssue(
+      kind: kind,
+      subject: kind == HostIssueKind.padNoAccess ? _pad : null,
+      command: kind == HostIssueKind.unsupportedCpu ? null : _installCommand,
+    ),
+];
+
+/// What Blur draws with: DX9 in 32 bits, which d3dmetal does not suit (G3).
+const _blurGraphics = ExeGraphics(
+  bits: 32,
+  directx: 'DX9',
+  misfits: ['d3dmetal'],
+);
 
 void main() {
   final en = lookupAppL10n(const Locale('en'));
@@ -508,16 +609,20 @@ void main() {
         tester,
       ) async {
         const role = 'DirectX 10 and 11, 32 and 64 bits';
-        await pumpCard(tester, _dxmt.copyWith(use: role), idle);
+        final dxmt = _dxmt.copyWith(role: BackendRole.dx10to11);
+        await pumpCard(tester, dxmt, idle);
         expect(
           find.text('D3D10 and D3D11 on Metal. The one launchers use.'),
           findsOneWidget,
         );
         expect(find.text('Used for: $role'), findsOneWidget);
 
-        await pumpCard(tester, _dxmt.copyWith(use: role), idle, locale: _es);
+        await pumpCard(tester, dxmt, idle, locale: _es);
         expect(find.text(es.backendDescriptionDxmt), findsOneWidget);
-        expect(find.text(es.backendUsedFor(role)), findsOneWidget);
+        expect(
+          find.text(es.backendUsedFor(es.backendRoleDx10to11)),
+          findsOneWidget,
+        );
       });
 
       testWidgets('a backend it does not know shows no description', (
@@ -738,7 +843,9 @@ void main() {
           await pumpSection(
             tester,
             before,
-            changes: Stream.value(before.copyWith(gptkInstalled: '3.0')),
+            changes: Stream.value(
+              before.copyWith(gptkInstalled: (version: '3.0')),
+            ),
             locale: locale,
           );
           // The state arrives and asks for the toast; the next frame adds it to
@@ -1554,6 +1661,1297 @@ void main() {
             );
           }
         }
+      });
+    });
+  });
+
+  // T16: lib/app/shared/text/error_text.dart and problem_text.dart, for every
+  // AppError code, user-name and path problem (L6, L8, E13).
+  group('errors and problems', () {
+    /// The raw text behind a code, which no text may show (E13).
+    const detail = 'DETAIL-7f3';
+    const log = '/l/steam/logs/a.log';
+
+    /// One of each code, and what its text has to name: the bottle, path,
+    /// log or value it carries (L8).
+    final codes = <(AppError, List<String>)>[
+      (const AppError.bottleNotFound('steam', detail: detail), ['steam']),
+      (const AppError.bottleExists('steam', detail: detail), ['steam']),
+      (const AppError.bottleNotReady('steam', detail: detail), ['steam']),
+      (const AppError.bottleOpen('steam', detail: detail), ['steam']),
+      for (final timedOut in [true, false])
+        (AppError.bottleSetupFailed(log, timedOut, detail: detail), [log]),
+      (const AppError.badBottleName('my games', detail: detail), ['my games']),
+      for (final problem in UserNameProblem.values)
+        (AppError.badUserName('Dany', problem, detail: detail), ['Dany']),
+      (
+        const AppError.badPath(PathProblem.missing('/g/a.exe'), detail: detail),
+        ['/g/a.exe'],
+      ),
+      (
+        const AppError.badPath(
+          PathProblem.windowsName(part: 'odd:', path: '/g/odd:/a.exe'),
+          detail: detail,
+        ),
+        ['"odd:"', '/g/odd:/a.exe'],
+      ),
+      (
+        const AppError.appNotFound('steam', 'blur.exe', detail: detail),
+        ['steam', 'blur.exe'],
+      ),
+      (const AppError.appNotFound('steam', null, detail: detail), ['steam']),
+      (const AppError.appAlreadyAdded('steam', detail: detail), ['steam']),
+      (const AppError.badEnvLine(2, 'bad', detail: detail), ['2', 'bad']),
+      (const AppError.noRuntime(detail: detail), []),
+      (
+        const AppError.alreadyInstalled('/h/backends/dxvk', detail: detail),
+        ['/h/backends/dxvk'],
+      ),
+      (
+        const AppError.checksumMismatch('/d/dxvk.tar.gz', detail: detail),
+        ['/d/dxvk.tar.gz'],
+      ),
+      (
+        const AppError.incompleteArchive(
+          'engine-11.0',
+          'engine/bin/wine',
+          detail: detail,
+        ),
+        ['engine-11.0', 'engine/bin/wine'],
+      ),
+      (
+        const AppError.corruptData('/b/steam/apps.json', detail: detail),
+        ['/b/steam/apps.json'],
+      ),
+      (const AppError.backendNotInstalled('dxvk', detail: detail), ['dxvk']),
+      (
+        const AppError.noD3DMetal('/v/GPTK', 'redist/lib', detail: detail),
+        ['/v/GPTK', 'redist/lib'],
+      ),
+      (const AppError.crossOverCopy(detail: detail), []),
+      (
+        const AppError.mountFailed('/d/GPTK.dmg', detail: detail),
+        ['/d/GPTK.dmg'],
+      ),
+      (const AppError.licenseNotAccepted(detail: detail), []),
+      (const AppError.cancelled(detail: detail), []),
+      for (final tool in WineTool.values)
+        (AppError.wineToolFailed(tool, 53, log, detail: detail), ['53', log]),
+      (
+        const AppError.installerNoExe('Steam/steam.exe', log, detail: detail),
+        ['Steam/steam.exe', log],
+      ),
+      (
+        const AppError.processFailed(
+          '/usr/bin/hdiutil attach',
+          2,
+          detail: detail,
+        ),
+        ['/usr/bin/hdiutil attach', '2'],
+      ),
+      (
+        const AppError.processFailed('wine --version', null, detail: detail),
+        ['wine --version'],
+      ),
+      (
+        const AppError.downloadCut(1234000000, 2468000000, detail: detail),
+        ['234', '468'],
+      ),
+      (const AppError.updateNotInstallable(detail: detail), []),
+      (
+        const AppError.updateNoChecksum(
+          'Bodega-1.5.0-macos-arm64.dmg',
+          detail: detail,
+        ),
+        ['Bodega-1.5.0-macos-arm64.dmg'],
+      ),
+      (
+        const AppError.updateNotWritable('/Applications', detail: detail),
+        ['/Applications'],
+      ),
+      (const AppError.network(detail: detail), []),
+      (const AppError.unknown(detail: detail), []),
+    ];
+
+    test('the cases hold every code', () {
+      expect({
+        for (final (error, _) in codes) error.runtimeType,
+      }, hasLength(31));
+    });
+
+    for (final (language, l10n) in [('en', en), ('es', es)]) {
+      test('in $language, each code is worded, names what it carries, gives no '
+          'command and leaves its detail out (L8, E13)', () {
+        for (final (error, names) in codes) {
+          final text = error.localized(l10n);
+          final reason = '$language: $error';
+          expect(text.trim(), isNotEmpty, reason: reason);
+          for (final name in names) {
+            expect(text, contains(name), reason: reason);
+          }
+          expect(text, isNot(contains(_command)), reason: reason);
+          expect(text, isNot(contains(detail)), reason: reason);
+        }
+      });
+    }
+
+    test('each code has words of its own, and Spanish ones', () {
+      for (final l10n in [en, es]) {
+        final texts = [for (final (error, _) in codes) error.localized(l10n)];
+        expect(texts.toSet(), hasLength(texts.length), reason: l10n.localeName);
+      }
+      for (final (error, _) in codes) {
+        expect(
+          error.localized(es),
+          isNot(error.localized(en)),
+          reason: '$error',
+        );
+      }
+    });
+
+    test('an open bottle says to stop it, where the engine says bodega stop '
+        '(L8)', () {
+      const open = AppError.bottleOpen(
+        'steam',
+        detail: 'the bottle steam is open: bodega stop steam',
+      );
+      expect(
+        open.localized(en),
+        'The bottle steam is open. Stop it, then try again.',
+      );
+      expect(open.localized(es), es.errBottleOpen('steam'));
+    });
+
+    test('a label or a sentence inside an error comes from its own key, in the '
+        'same language (L12)', () {
+      for (final l10n in [en, es]) {
+        expect(
+          const AppError.backendNotInstalled('dxvk').localized(l10n),
+          contains(l10n.navBackends),
+        );
+        expect(
+          const AppError.badBottleName('my games').localized(l10n),
+          contains(l10n.bottleNameRule),
+        );
+        expect(
+          const AppError.badUserName(
+            'Dany',
+            UserNameProblem.tooLong,
+          ).localized(l10n),
+          contains(l10n.problemUserNameTooLong),
+        );
+      }
+    });
+
+    test('a cut download counts MB of 10^6 bytes, for the locale (L13)', () {
+      const cut = AppError.downloadCut(1234000000, 2468000000);
+      expect(cut.localized(en), contains('1,234 MB of 2,468 MB'));
+      expect(
+        cut.localized(es),
+        allOf(contains('1.234 MB'), contains('2.468 MB')),
+      );
+    });
+
+    group('problem texts', () {
+      test('each user-name problem has words of its own, and Spanish ones', () {
+        for (final l10n in [en, es]) {
+          final texts = [
+            for (final problem in UserNameProblem.values)
+              userNameProblemText(l10n, problem),
+          ];
+          expect(texts, everyElement(isNotEmpty), reason: l10n.localeName);
+          expect(
+            texts.toSet(),
+            hasLength(UserNameProblem.values.length),
+            reason: l10n.localeName,
+          );
+        }
+        for (final problem in UserNameProblem.values) {
+          expect(
+            userNameProblemText(es, problem),
+            isNot(userNameProblemText(en, problem)),
+            reason: problem.name,
+          );
+        }
+      });
+
+      test('a path problem names the path, and the name Windows refuses', () {
+        const missing = PathProblem.missing('/g/a.exe');
+        const odd = PathProblem.windowsName(
+          part: 'odd:',
+          path: '/g/odd:/a.exe',
+        );
+        expect(pathProblemText(en, missing), "/g/a.exe doesn't exist.");
+        for (final l10n in [en, es]) {
+          expect(pathProblemText(l10n, missing), contains('/g/a.exe'));
+          expect(
+            pathProblemText(l10n, odd),
+            allOf(contains('"odd:"'), contains('/g/odd:/a.exe')),
+          );
+          expect(
+            pathProblemText(l10n, odd),
+            isNot(pathProblemText(l10n, missing)),
+          );
+        }
+      });
+    });
+
+    testWidgets('an error panel rewords when the language changes (L6)', (
+      tester,
+    ) async {
+      const error = AppError.bottleExists('games');
+      final bottle = _MockNewBottle();
+      whenListen(
+        bottle,
+        const Stream<NewBottleState>.empty(),
+        initialState: const NewBottleState(name: 'games', error: error),
+      );
+      final backends = _MockBackends();
+      when(() => backends.state)
+          .thenReturn(const BackendsState(isLoading: false));
+
+      // The same state, under one language and then the other.
+      for (final (shown, other) in [(en, es), (es, en)]) {
+        await tester.pumpWidget(
+          wrapApp(
+            MultiBlocProvider(
+              providers: [
+                BlocProvider<NewBottleBloc>.value(value: bottle),
+                BlocProvider<BackendsBloc>.value(value: backends),
+              ],
+              child: const Scaffold(body: NewBottleDialog()),
+            ),
+            locale: Locale(shown.localeName),
+          ),
+        );
+        expect(find.text(error.localized(shown)), findsOneWidget);
+        expect(find.text(error.localized(other)), findsNothing);
+      }
+    });
+
+    testWidgets('the Windows user dialog words the problem in the active '
+        'language', (tester) async {
+      for (final locale in _locales) {
+        final l10n = lookupAppL10n(locale);
+        await tester.pumpWidget(
+          wrapApp(
+            Scaffold(
+              body: WindowsUserDialog(
+                current: '',
+                macUser: 'quasar',
+                problem: (_) => UserNameProblem.tooLong,
+              ),
+            ),
+            locale: locale,
+          ),
+        );
+        expect(
+          find.text(userNameProblemText(l10n, UserNameProblem.tooLong)),
+          findsOneWidget,
+          reason: '$locale',
+        );
+      }
+    });
+  });
+
+  // T18: Copy details under an error panel, and the toast that follows a
+  // copy (L9).
+  group('copy details (L9)', () {
+    /// The raw text behind an error: a tool's stderr (E13).
+    const detail = 'stderr: boom';
+
+    test('the button and its toast, in English', () {
+      expect(en.commonCopyDetails, 'Copy details');
+      expect(en.commonCopied, 'Copied');
+    });
+
+    test('each has Spanish words of its own', () {
+      for (final text in <String Function(AppL10n)>[
+        (l10n) => l10n.commonCopyDetails,
+        (l10n) => l10n.commonCopied,
+      ]) {
+        expect(text(es).trim(), isNotEmpty);
+        expect(text(es), isNot(text(en)));
+      }
+      expect(es.commonCopied, isNot(es.commonCopyDetails));
+    });
+
+    for (final locale in _locales) {
+      final l10n = lookupAppL10n(locale);
+
+      testWidgets('the button and its toast read in the active language, and '
+          'the detail only reaches the clipboard (${locale.languageCode})', (
+        tester,
+      ) async {
+        final copied = <Object?>[];
+        tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          SystemChannels.platform,
+          (call) async {
+            if (call.method == 'Clipboard.setData') {
+              copied.add((call.arguments as Map)['text']);
+            }
+            return null;
+          },
+        );
+        addTearDown(
+          () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+            SystemChannels.platform,
+            null,
+          ),
+        );
+
+        await tester.pumpWidget(
+          wrapApp(
+            const Scaffold(
+              body: CopyDetailsButton(error: AppError.unknown(detail: detail)),
+            ),
+            locale: locale,
+          ),
+        );
+        expect(find.text(l10n.commonCopyDetails), findsOneWidget);
+        expect(find.textContaining('boom', findRichText: true), findsNothing);
+
+        await tester.tap(find.text(l10n.commonCopyDetails));
+        // The copy, then the toast, which slides in.
+        await tester.pumpAndSettle();
+        expect(copied, [detail]);
+        expect(find.text(l10n.commonCopied), findsOneWidget);
+        expect(find.textContaining('boom', findRichText: true), findsNothing);
+        // The toast closes by itself.
+        await tester.pump(const Duration(seconds: 6));
+        await tester.pumpAndSettle();
+      });
+    }
+
+    testWidgets('an error without a detail gets no button', (tester) async {
+      await tester.pumpWidget(
+        wrapApp(
+          const Scaffold(body: CopyDetailsButton(error: AppError.unknown())),
+        ),
+      );
+      expect(find.text(en.commonCopyDetails), findsNothing);
+      expect(find.byType(TextButton), findsNothing);
+    });
+  });
+
+  // T19: lib/app/shared/text/hint_text.dart for every run hint (L8), and
+  // the three places that show them, which reword when the language changes
+  // (L6).
+  group('run hints (L8)', () {
+    test('the cases hold every hint', () {
+      expect({
+        for (final (hint, _) in _hintCases)
+          if (hint case LogRunHint(hint: final log)) log,
+      }, LogHint.values.toSet());
+      expect(
+        {
+          for (final (hint, _) in _hintCases)
+            if (hint case AntiCheatRunHint(:final game)) game,
+        },
+        {'POLYGON', null},
+      );
+    });
+
+    for (final (language, l10n) in [('en', en), ('es', es)]) {
+      test('in $language, each hint is worded, names what it carries and '
+          'gives no command', () {
+        for (final (hint, names) in _hintCases) {
+          final text = hint.localized(l10n);
+          final reason = '$language: $hint';
+          expect(text.trim(), isNotEmpty, reason: reason);
+          for (final name in names) {
+            expect(text, contains(name), reason: reason);
+          }
+          expect(text, isNot(contains(_command)), reason: reason);
+        }
+      });
+    }
+
+    test('each hint has words of its own, and Spanish ones', () {
+      for (final l10n in [en, es]) {
+        final texts = [
+          for (final (hint, _) in _hintCases) hint.localized(l10n),
+        ];
+        expect(texts.toSet(), hasLength(texts.length), reason: l10n.localeName);
+      }
+      for (final (hint, _) in _hintCases) {
+        expect(hint.localized(es), isNot(hint.localized(en)), reason: '$hint');
+      }
+    });
+
+    test('a hint from a log reads as its own key, in both languages', () {
+      for (final l10n in [en, es]) {
+        for (final log in LogHint.values) {
+          expect(
+            RunHint.log(log).localized(l10n),
+            logHintText(l10n, log),
+            reason: '${l10n.localeName}: $log',
+          );
+        }
+        expect(
+          const RunHint.log(LogHint.gnuTls).localized(l10n),
+          l10n.hintGnuTls,
+        );
+      }
+    });
+
+    test('another Wine server says to stop the bottle, where the engine says '
+        'bodega stop', () {
+      const server = RunHint.log(LogHint.otherServer);
+      expect(
+        server.localized(en),
+        'A Wine server from another engine is still running in this bottle. '
+        'Stop the bottle, then open the app again.',
+      );
+      expect(server.localized(es), es.hintOtherServer);
+    });
+
+    test('Easy Anti-Cheat names the game its log names, or says this game', () {
+      expect(
+        const RunHint.antiCheat(game: 'POLYGON').localized(en),
+        "POLYGON uses Easy Anti-Cheat, which couldn't load under Wine "
+        "(error 206). This isn't a problem with your installation: it depends "
+        "on the game's developers and on Epic.",
+      );
+      expect(
+        const RunHint.antiCheat().localized(en),
+        startsWith('This game uses Easy Anti-Cheat'),
+      );
+      expect(
+        const RunHint.antiCheat(game: 'POLYGON').localized(es),
+        es.hintAntiCheat('POLYGON'),
+      );
+      expect(const RunHint.antiCheat().localized(es), es.hintAntiCheatUnnamed);
+    });
+
+    // The state holds codes, so what is on screen rewords on a switch (L6).
+    group('the places that show hints word them in the active language (L6)', () {
+      /// The same state, under one language and then the other.
+      final switches = [(en, es), (es, en)];
+
+      String tooltip(AppL10n l10n) =>
+          [for (final hint in _shownHints) hint.localized(l10n)].join('\n');
+
+      testWidgets("a bottle tag's warning, one line per hint", (tester) async {
+        for (final (shown, other) in switches) {
+          await tester.pumpWidget(
+            wrapApp(
+              const Scaffold(
+                body: BottleTag(bottle: 'steam', hints: _shownHints),
+              ),
+              locale: Locale(shown.localeName),
+            ),
+          );
+          expect(find.byTooltip(tooltip(shown)), findsOneWidget);
+          expect(find.byTooltip(tooltip(other)), findsNothing);
+        }
+
+        // No hint, no warning.
+        await tester.pumpWidget(
+          wrapApp(
+            const Scaffold(
+              body: BottleTag(bottle: 'steam', hints: []),
+            ),
+          ),
+        );
+        expect(find.byIcon(Icons.warning_amber_rounded), findsNothing);
+      });
+
+      testWidgets("a bottle's page, one paragraph per hint", (tester) async {
+        final bottle = _MockBottleDetail();
+        final library = _MockLibrary();
+        final setup = _MockSetup();
+        final sections = _MockSections();
+        final graphics = _MockGraphics();
+        final gamepads = _MockGamepads();
+        when(() => library.state)
+            .thenReturn(const LibraryState(isLoading: false));
+        when(() => setup.state).thenReturn(const SetupState(isChecking: false));
+        when(() => sections.state).thenReturn(const SectionsState());
+        when(() => graphics.state).thenReturn(const GraphicsState());
+        when(() => gamepads.state)
+            .thenReturn(const GamepadsState(isLoading: false));
+        tester.view.devicePixelRatio = 1;
+        tester.view.physicalSize = const Size(600, 3000);
+        addTearDown(tester.view.reset);
+
+        for (final (shown, other) in switches) {
+          await tester.pumpWidget(
+            wrapApp(
+              MultiBlocProvider(
+                providers: [
+                  BlocProvider<BottleDetailBloc>.value(value: bottle),
+                  BlocProvider<LibraryBloc>.value(value: library),
+                  BlocProvider<SetupBloc>.value(value: setup),
+                  BlocProvider<SectionsBloc>.value(value: sections),
+                  BlocProvider<GraphicsBloc>.value(value: graphics),
+                  BlocProvider<GamepadsBloc>.value(value: gamepads),
+                ],
+                child: const Scaffold(
+                  body: SingleChildScrollView(
+                    child: BottleColumn(
+                      detail: BottleDetail(
+                        name: 'steam',
+                        ready: true,
+                        backend: 'auto',
+                        sync: 'msync',
+                      ),
+                      isBusy: false,
+                      isOpen: false,
+                      hints: _shownHints,
+                    ),
+                  ),
+                ),
+              ),
+              locale: Locale(shown.localeName),
+            ),
+          );
+          for (final hint in _shownHints) {
+            expect(find.text(hint.localized(shown)), findsOneWidget);
+            expect(find.text(hint.localized(other)), findsNothing);
+          }
+        }
+      });
+
+      testWidgets('the toast of a new hint', (tester) async {
+        const hint = RunHint.log(LogHint.otherServer);
+        for (final (shown, other) in switches) {
+          final library = _MockLibrary();
+          final updates = _MockUpdate();
+          final install = _MockInstall();
+          whenListen(
+            library,
+            Stream.value(const LibraryState(toast: hint, toastId: 1)),
+            initialState: const LibraryState(),
+          );
+          whenListen(
+            updates,
+            const Stream<UpdateState>.empty(),
+            initialState: const UpdateState(),
+          );
+          whenListen(
+            install,
+            const Stream<InstallState>.empty(),
+            initialState: const InstallState(),
+          );
+          // A fresh tree, so the listener subscribes to this stream.
+          await tester.pumpWidget(const SizedBox());
+          await tester.pumpWidget(
+            MultiBlocProvider(
+              providers: [
+                BlocProvider<LibraryBloc>.value(value: library),
+                BlocProvider<UpdateBloc>.value(value: updates),
+                BlocProvider<InstallBloc>.value(value: install),
+              ],
+              child: wrapApp(
+                const ShellBody(child: SizedBox.expand()),
+                locale: Locale(shown.localeName),
+              ),
+            ),
+          );
+          // The state arrives and asks for the toast; the next frame adds it to
+          // the toasts' list, and it slides in.
+          await tester.pump();
+          await tester.pump();
+          await tester.pump(const Duration(milliseconds: 500));
+          expect(find.text(hint.localized(shown)), findsOneWidget);
+          expect(find.text(hint.localized(other)), findsNothing);
+
+          // It closes by itself after 5 s: no timer outlives the test.
+          await tester.pump(const Duration(seconds: 6));
+          await tester.pumpAndSettle();
+        }
+      });
+    });
+  });
+
+  // T20: lib/app/shared/text/step_text.dart for every install and D3DMetal
+  // step, the widgets that show them, and the D3DMetal toast when its
+  // version is unknown (L6, L8, E3).
+  group('install and D3DMetal steps', () {
+    group('installStepText', () {
+      /// One of each step, its English text and what its text has to name.
+      const steps = <(InstallStep, String, List<String>)>[
+        (
+          InstallStep.unpinnedDownload('example.com'),
+          'This installer has no fixed checksum: it relies on HTTPS and '
+              'example.com.',
+          ['example.com'],
+        ),
+        (InstallStep.downloading(), 'Downloading the installer', []),
+        (
+          InstallStep.syncMismatch('none'),
+          "This bottle keeps its sync (none), not Steam's (msync). If Steam "
+              "fails, change it in the bottle's settings.",
+          ['none', 'Steam', 'msync'],
+        ),
+        (
+          InstallStep.creatingBottle('steam'),
+          'Creating the bottle steam',
+          ['steam'],
+        ),
+        (
+          InstallStep.registry('ServicesPipeTimeout'),
+          'Writing ServicesPipeTimeout to the Windows registry',
+          ['ServicesPipeTimeout'],
+        ),
+        (InstallStep.runningInstaller(), 'Running the installer', []),
+        (InstallStep.waiting(), 'Waiting for the installation to finish', []),
+      ];
+
+      test('the cases hold every step', () {
+        expect({
+          for (final (step, _, _) in steps) step.runtimeType,
+        }, hasLength(7));
+      });
+
+      test('in English, each step reads as written', () {
+        for (final (step, english, _) in steps) {
+          expect(
+            installStepText(en, step, _steamApp),
+            english,
+            reason: '$step',
+          );
+        }
+      });
+
+      for (final (language, l10n) in [('en', en), ('es', es)]) {
+        test('in $language, each step names what it carries and gives no '
+            'command (L8)', () {
+          for (final (step, _, names) in steps) {
+            final text = installStepText(l10n, step, _steamApp);
+            final reason = '$language: $step';
+            expect(text.trim(), isNotEmpty, reason: reason);
+            for (final name in names) {
+              expect(text, contains(name), reason: reason);
+            }
+            expect(text, isNot(contains(_command)), reason: reason);
+          }
+        });
+      }
+
+      test('each step has words of its own, and Spanish ones', () {
+        for (final l10n in [en, es]) {
+          final texts = [
+            for (final (step, _, _) in steps)
+              installStepText(l10n, step, _steamApp),
+          ];
+          expect(
+            texts.toSet(),
+            hasLength(steps.length),
+            reason: l10n.localeName,
+          );
+        }
+        for (final (step, _, _) in steps) {
+          expect(
+            installStepText(es, step, _steamApp),
+            isNot(installStepText(en, step, _steamApp)),
+            reason: '$step',
+          );
+        }
+      });
+
+      test('a download with no pinned checksum reads as the download note: one '
+          'meaning, one text (L15)', () {
+        for (final l10n in [en, es]) {
+          expect(
+            installStepText(
+              l10n,
+              const InstallStep.unpinnedDownload('example.com'),
+              _steamApp,
+            ),
+            l10n.installNoChecksum('example.com'),
+          );
+        }
+      });
+
+      test('a sync mismatch names the app and the sync it asks for, in Spanish '
+          'too', () {
+        expect(
+          installStepText(
+            es,
+            const InstallStep.syncMismatch('none'),
+            _steamApp,
+          ),
+          es.stepSyncMismatch('none', 'Steam', 'msync'),
+        );
+      });
+    });
+
+    group('gptkStepText', () {
+      const english = {
+        GptkStep.opening: 'Opening the disk image',
+        GptkStep.acceptLicense:
+            "Accept Apple's license in the window that opened",
+        GptkStep.importing: 'Importing D3DMetal',
+      };
+
+      test('in English, each step reads as written', () {
+        expect(english.keys, containsAll(GptkStep.values));
+        for (final MapEntry(key: step, value: text) in english.entries) {
+          expect(gptkStepText(en, step), text, reason: '$step');
+        }
+      });
+
+      test('each step has words of its own, and Spanish ones', () {
+        for (final l10n in [en, es]) {
+          final texts = [
+            for (final step in GptkStep.values) gptkStepText(l10n, step),
+          ];
+          expect(texts, everyElement(isNotEmpty), reason: l10n.localeName);
+          expect(texts, everyElement(isNot(contains(_command))));
+          expect(
+            texts.toSet(),
+            hasLength(GptkStep.values.length),
+            reason: l10n.localeName,
+          );
+        }
+        for (final step in GptkStep.values) {
+          expect(
+            gptkStepText(es, step),
+            isNot(gptkStepText(en, step)),
+            reason: '$step',
+          );
+        }
+      });
+    });
+
+    group('the install panel', () {
+      Future<void> pumpPanel(
+        WidgetTester tester,
+        InstallState state, {
+        Locale locale = const Locale('en'),
+      }) async {
+        final bloc = _MockInstall();
+        whenListen(
+          bloc,
+          const Stream<InstallState>.empty(),
+          initialState: state,
+        );
+        await tester.pumpWidget(
+          BlocProvider<InstallBloc>.value(
+            value: bloc,
+            child: wrapApp(
+              const Scaffold(body: InstallPanel()),
+              locale: locale,
+            ),
+          ),
+        );
+      }
+
+      testWidgets('says the step in the active language (L6)', (tester) async {
+        const state = InstallState(
+          phase: InstallPhase.installing,
+          app: _steamApp,
+          step: InstallStep.registry('ServicesPipeTimeout'),
+        );
+        await pumpPanel(tester, state);
+        expect(
+          find.text('Writing ServicesPipeTimeout to the Windows registry'),
+          findsOneWidget,
+        );
+
+        await pumpPanel(tester, state, locale: _es);
+        expect(
+          find.text(es.stepRegistry('ServicesPipeTimeout')),
+          findsOneWidget,
+        );
+        expect(find.text(en.stepRegistry('ServicesPipeTimeout')), findsNothing);
+      });
+
+      testWidgets('before its first step, says it is installing', (
+        tester,
+      ) async {
+        const state = InstallState(
+          phase: InstallPhase.installing,
+          app: _steamApp,
+        );
+        await pumpPanel(tester, state);
+        expect(find.text('Installing'), findsOneWidget);
+        await pumpPanel(tester, state, locale: _es);
+        expect(find.text(es.commonInstalling), findsOneWidget);
+      });
+    });
+
+    group("D3DMetal's card and section", () {
+      late _MockBackends bloc;
+
+      setUp(() => bloc = _MockBackends());
+
+      const idle = BackendsState(isLoading: false);
+
+      Future<void> pumpCard(
+        WidgetTester tester,
+        BackendsState state, {
+        Locale locale = const Locale('en'),
+      }) async {
+        whenListen(
+          bloc,
+          const Stream<BackendsState>.empty(),
+          initialState: state,
+        );
+        await tester.pumpWidget(
+          BlocProvider<BackendsBloc>.value(
+            value: bloc,
+            child: wrapApp(
+              Scaffold(
+                body: SingleChildScrollView(
+                  child: BackendCard(backend: _d3dmetal, state: state),
+                ),
+              ),
+              locale: locale,
+            ),
+          ),
+        );
+      }
+
+      testWidgets("the card says the import's step in the active language "
+          '(L6)', (tester) async {
+        for (final step in GptkStep.values) {
+          final importing = idle.copyWith(busy: 'd3dmetal', gptkStep: step);
+          await pumpCard(tester, importing);
+          expect(find.text(gptkStepText(en, step)), findsOneWidget);
+          // The import can be cancelled at any step.
+          expect(find.text('Cancel'), findsOneWidget);
+
+          await pumpCard(tester, importing, locale: _es);
+          expect(find.text(gptkStepText(es, step)), findsOneWidget);
+          expect(find.text(gptkStepText(en, step)), findsNothing);
+        }
+      });
+
+      group('a version it cannot read still toasts (E3)', () {
+        // The install ends: an unknown version arrives, with the bottles there
+        // are. A fresh tree, so the listener subscribes to this install's
+        // stream.
+        Future<void> install(
+          WidgetTester tester, {
+          required List<String> bottles,
+          Locale locale = const Locale('en'),
+        }) async {
+          final before = idle.copyWith(bottles: bottles);
+          whenListen(
+            bloc,
+            Stream.value(before.copyWith(gptkInstalled: (version: null))),
+            initialState: before,
+          );
+          await tester.pumpWidget(const SizedBox());
+          await tester.pumpWidget(
+            BlocProvider<BackendsBloc>.value(
+              value: bloc,
+              child: wrapApp(
+                Scaffold(
+                  body: SingleChildScrollView(
+                    child: GptkSection(state: before),
+                  ),
+                ),
+                locale: locale,
+              ),
+            ),
+          );
+          // The state arrives and asks for the toast; the next frame adds it to
+          // the toasts' list, and it slides in.
+          await tester.pump();
+          await tester.pump();
+          await tester.pump(const Duration(milliseconds: 500));
+        }
+
+        // The toast closes by itself after 5 s: no timer outlives the test.
+        Future<void> letItClose(WidgetTester tester) async {
+          await tester.pump(const Duration(seconds: 6));
+          await tester.pumpAndSettle();
+        }
+
+        testWidgets('without the version, and the check that follows', (
+          tester,
+        ) async {
+          await install(tester, bottles: const ['steam']);
+          expect(find.text('D3DMetal is installed. Checking…'), findsOneWidget);
+          await letItClose(tester);
+
+          await install(tester, bottles: const []);
+          expect(
+            find.text('D3DMetal is installed. Create a bottle to check it.'),
+            findsOneWidget,
+          );
+          await letItClose(tester);
+        });
+
+        testWidgets('in Spanish, each sentence from its key', (tester) async {
+          await install(tester, bottles: const ['steam'], locale: _es);
+          expect(
+            find.text(
+              '${es.gptkInstalledToastNoVersion} ${es.gptkToastChecking}',
+            ),
+            findsOneWidget,
+          );
+          expect(
+            es.gptkInstalledToastNoVersion,
+            isNot(en.gptkInstalledToastNoVersion),
+          );
+          await letItClose(tester);
+        });
+      });
+    });
+  });
+
+  // T21: lib/app/shared/text/issue_text.dart for host issues, and
+  // backend_text.dart for backend roles and what an exe draws with, with the
+  // widgets that show them (L8).
+  group('host issues, backend roles and graphics', () {
+    group('host issues', () {
+      test('words each kind in English', () {
+        String words(HostIssueKind kind) {
+          final text = hostIssueText(en, _issues[kind.index]);
+          return '${text.title} | ${text.detail}';
+        }
+
+        expect(
+          words(HostIssueKind.noRosetta),
+          'Rosetta is missing | Windows games run on Rosetta 2.',
+        );
+        expect(
+          words(HostIssueKind.unsupportedCpu),
+          'Unsupported processor | Bodega needs an x86_64 processor.',
+        );
+        expect(
+          words(HostIssueKind.noVulkan),
+          'Vulkan is missing | Games draw with Vulkan (DXVK).',
+        );
+        expect(
+          words(HostIssueKind.noAudio),
+          'Audio is missing | Wine needs PulseAudio, or PipeWire with Pulse '
+          'support.',
+        );
+        expect(
+          words(HostIssueKind.padNoAccess),
+          'No access to the controller $_pad | '
+          "Bodega can't open the controller, so Wine won't see it. Install the "
+          'controller udev rules (on Arch, the package is in multilib), then '
+          'unplug the controller and plug it in again.',
+        );
+        expect(
+          words(HostIssueKind.noSdl),
+          'SDL2 is missing | Wine uses SDL2 to understand controllers. Without '
+          'it, Wine uses udev, which knows fewer controllers.',
+        );
+      });
+
+      for (final (language, l10n) in [('en', en), ('es', es)]) {
+        test('in $language, each kind has words of its own, and no command '
+            '(L8)', () {
+          final texts = [
+            for (final issue in _issues) ...[
+              hostIssueText(l10n, issue).title,
+              hostIssueText(l10n, issue).detail,
+            ],
+          ];
+          expect(texts.toSet(), hasLength(texts.length));
+          for (final text in texts) {
+            expect(text.trim(), isNotEmpty);
+            // The card shows the install command apart, to copy.
+            expect(text, isNot(contains(_installCommand)));
+            expect(text, isNot(contains('bodega ')));
+          }
+        });
+
+        test('in $language, a pad issue names the pad (E3)', () {
+          final pad = _issues[HostIssueKind.padNoAccess.index];
+          expect(hostIssueText(l10n, pad).title, contains(_pad));
+        });
+      }
+
+      test('each text is translated', () {
+        for (final issue in _issues) {
+          final english = hostIssueText(en, issue);
+          final spanish = hostIssueText(es, issue);
+          expect(spanish.title, isNot(english.title), reason: '${issue.kind}');
+          expect(
+            spanish.detail,
+            isNot(english.detail),
+            reason: '${issue.kind}',
+          );
+        }
+      });
+
+      Future<void> pumpCard(
+        WidgetTester tester,
+        HostIssue issue,
+        Locale locale,
+      ) => tester.pumpWidget(
+        wrapApp(
+          Scaffold(body: RequirementCard(issue: issue)),
+          locale: locale,
+        ),
+      );
+
+      for (final locale in _locales) {
+        testWidgets(
+          'a card names the pad in the active language, and keeps its '
+          'install command (${locale.languageCode})',
+          (tester) async {
+            final l10n = lookupAppL10n(locale);
+            await pumpCard(
+              tester,
+              _issues[HostIssueKind.padNoAccess.index],
+              locale,
+            );
+
+            expect(find.text(l10n.issuePadNoAccessTitle(_pad)), findsOneWidget);
+            expect(find.text(l10n.issuePadNoAccessDetail), findsOneWidget);
+            expect(find.text(_installCommand), findsOneWidget);
+            expect(find.text(l10n.setupCopyCommand), findsOneWidget);
+          },
+        );
+      }
+
+      testWidgets('a card rewords when the language changes (L6)', (
+        tester,
+      ) async {
+        final issue = _issues[HostIssueKind.noRosetta.index];
+        await pumpCard(tester, issue, const Locale('en'));
+        expect(find.text(en.issueNoRosettaTitle), findsOneWidget);
+
+        await pumpCard(tester, issue, _es);
+        expect(find.text(es.issueNoRosettaTitle), findsOneWidget);
+        expect(find.text(es.issueNoRosettaDetail), findsOneWidget);
+        expect(find.text(en.issueNoRosettaTitle), findsNothing);
+        expect(find.text(en.issueNoRosettaDetail), findsNothing);
+      });
+    });
+
+    group('backend roles', () {
+      test('words each role in English', () {
+        expect(
+          {
+            for (final role in BackendRole.values)
+              role: backendRoleText(en, role),
+          },
+          {
+            BackendRole.dx11to12x64: 'DirectX 11 and 12, 64 bits only',
+            BackendRole.dx10to11: 'DirectX 10 and 11, 32 and 64 bits',
+            BackendRole.everythingElse: "Everything: DirectX 9 and older, and what the others can't run",
+            BackendRole.dx8to12: 'DirectX 8 to 12 (DXVK and vkd3d-proton)',
+            BackendRole.everythingSlower: 'Everything, slower than dxvk',
+          },
+        );
+      });
+
+      test('in Spanish, each role has words of its own, translated', () {
+        final spanish = [
+          for (final role in BackendRole.values) backendRoleText(es, role),
+        ];
+        expect(spanish.toSet(), hasLength(BackendRole.values.length));
+        for (final role in BackendRole.values) {
+          expect(
+            backendRoleText(es, role),
+            isNot(backendRoleText(en, role)),
+            reason: '$role',
+          );
+        }
+      });
+
+      group('on the card', () {
+        late _MockBackends bloc;
+
+        setUp(() => bloc = _MockBackends());
+
+        Future<void> pumpCard(
+          WidgetTester tester,
+          BackendInfo backend,
+          Locale locale,
+        ) async {
+          const state = BackendsState(isLoading: false);
+          whenListen(
+            bloc,
+            const Stream<BackendsState>.empty(),
+            initialState: state,
+          );
+          await tester.pumpWidget(
+            BlocProvider<BackendsBloc>.value(
+              value: bloc,
+              child: wrapApp(
+                Scaffold(
+                  body: SingleChildScrollView(
+                    child: BackendCard(backend: backend, state: state),
+                  ),
+                ),
+                locale: locale,
+              ),
+            ),
+          );
+        }
+
+        const dxvk = BackendInfo(
+          name: 'dxvk',
+          installed: true,
+          downloadable: false,
+          role: BackendRole.dx8to12,
+        );
+
+        for (final locale in _locales) {
+          testWidgets('says what the backend is for, in the active language '
+              '(${locale.languageCode})', (tester) async {
+            final l10n = lookupAppL10n(locale);
+            await pumpCard(tester, dxvk, locale);
+            expect(
+              find.text(l10n.backendUsedFor(l10n.backendRoleDx8to12)),
+              findsOneWidget,
+            );
+          });
+        }
+
+        testWidgets('says nothing of it without a role', (tester) async {
+          await pumpCard(tester, dxvk.copyWith(role: null), const Locale('en'));
+          expect(find.textContaining('Used for'), findsNothing);
+        });
+      });
+    });
+
+    group('what an exe draws with', () {
+      test(
+        'the label names the DirectX and the bits, or only the bits (G2)',
+        () {
+          const noDirectX = ExeGraphics(bits: 64, directx: '');
+          expect(graphicsLabelText(en, _blurGraphics), 'DX9 · 32 bits');
+          expect(graphicsLabelText(en, noDirectX), '64 bits');
+          expect(
+            graphicsLabelText(es, _blurGraphics),
+            es.graphicsLabel('DX9', 32),
+          );
+          expect(graphicsLabelText(es, noDirectX), es.graphicsBits(64));
+          expect(
+            graphicsLabelText(es, _blurGraphics),
+            allOf(contains('DX9'), contains('32')),
+          );
+        },
+      );
+
+      test('a backend that does not suit the exe is named, with the Automatic '
+          'option of each language (G4, L12)', () {
+        expect(
+          graphicsMisfitText(
+            en,
+            _blurGraphics,
+            program: 'Blur',
+            backend: 'd3dmetal',
+          ),
+          "Blur is 32-bit, with DirectX 9: d3dmetal won't work for it. "
+          'Use Automatic.',
+        );
+        final spanish = graphicsMisfitText(
+          es,
+          _blurGraphics,
+          program: 'Blur',
+          backend: 'd3dmetal',
+        );
+        expect(
+          spanish,
+          es.graphicsMisfitWarning(
+            'Blur',
+            32,
+            '9',
+            'd3dmetal',
+            es.bottleGraphicsAuto,
+          ),
+        );
+        expect(spanish, contains(es.bottleGraphicsAuto));
+        expect(spanish, isNot(contains(en.bottleGraphicsAuto)));
+      });
+
+      test('a backend that suits the exe gives no warning', () {
+        for (final l10n in [en, es]) {
+          expect(
+            graphicsMisfitText(
+              l10n,
+              _blurGraphics,
+              program: 'Blur',
+              backend: 'wine',
+            ),
+            isNull,
+          );
+        }
+      });
+
+      group('in the run-with-options dialog', () {
+        const exe = r'C:\Blur\Blur.exe';
+        late _MockRunOptions options;
+        late _MockGraphics graphics;
+        late _MockSetup setup;
+        late _MockLibrary library;
+
+        setUp(() {
+          options = _MockRunOptions();
+          graphics = _MockGraphics();
+          setup = _MockSetup();
+          library = _MockLibrary();
+          when(() => setup.state)
+              .thenReturn(const SetupState(isChecking: false));
+          when(() => graphics.state).thenReturn(
+            GraphicsState(
+              byKey: {GraphicsState.keyOf('steam', exe): _blurGraphics},
+            ),
+          );
+        });
+
+        Future<void> pumpDialog(
+          WidgetTester tester,
+          String? backend,
+          Locale locale,
+        ) async {
+          whenListen(
+            options,
+            const Stream<RunOptionsState>.empty(),
+            initialState: RunOptionsState(
+              bottle: 'steam',
+              program: exe,
+              title: 'Blur',
+              backend: backend,
+            ),
+          );
+          tester.view.devicePixelRatio = 1;
+          tester.view.physicalSize = const Size(1150, 1200);
+          addTearDown(tester.view.reset);
+          await tester.pumpWidget(
+            wrapApp(
+              MultiBlocProvider(
+                providers: [
+                  BlocProvider<RunOptionsBloc>.value(value: options),
+                  BlocProvider<GraphicsBloc>.value(value: graphics),
+                  BlocProvider<SetupBloc>.value(value: setup),
+                  BlocProvider<LibraryBloc>.value(value: library),
+                ],
+                child: const RunOptionsDialog(backends: ['wine', 'd3dmetal']),
+              ),
+              locale: locale,
+            ),
+          );
+        }
+
+        for (final locale in _locales) {
+          testWidgets('warns of a backend that does not suit the program, in '
+              'the active language (${locale.languageCode})', (tester) async {
+            final l10n = lookupAppL10n(locale);
+            await pumpDialog(tester, 'd3dmetal', locale);
+            expect(
+              find.text(
+                l10n.graphicsMisfitWarning(
+                  'Blur',
+                  32,
+                  '9',
+                  'd3dmetal',
+                  l10n.bottleGraphicsAuto,
+                ),
+              ),
+              findsOneWidget,
+            );
+          });
+        }
+
+        testWidgets('says nothing for one that suits it', (tester) async {
+          await pumpDialog(tester, 'wine', const Locale('en'));
+          expect(find.textContaining("won't work"), findsNothing);
+        });
       });
     });
   });

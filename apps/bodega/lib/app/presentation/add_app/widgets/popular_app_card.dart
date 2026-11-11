@@ -52,13 +52,15 @@ class PopularAppCard extends StatelessWidget {
                       label: catalogStatusText(l10n, app.status),
                       color: color,
                     ),
-                    const SizedBox(height: AppSpacing.xs),
-                    Text(
-                      app.statusNote,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: styles.caption,
-                    ),
+                    if (catalogProse(app.id, l10n) case final prose?) ...[
+                      const SizedBox(height: AppSpacing.xs),
+                      Text(
+                        prose.statusNote,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: styles.caption,
+                      ),
+                    ],
                   ],
                 ),
               ),

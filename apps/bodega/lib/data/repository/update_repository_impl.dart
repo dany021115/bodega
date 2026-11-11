@@ -129,7 +129,7 @@ class UpdateRepositoryImpl implements UpdateRepository {
   ) => repositoryCall(() async {
     final installer = update.installer, sums = update.sums;
     if (installer == null || sums == null) {
-      throw 'esta versión no se instala desde la app';
+      throw const AppError.updateNotInstallable();
     }
     final name = Uri.parse(installer).pathSegments.last;
     final listing = (await _dio.get<String>(
@@ -143,7 +143,7 @@ class UpdateRepositoryImpl implements UpdateRepository {
             when file.replaceFirst('*', '') == name)
           hash.toLowerCase(),
     ].firstOrNull;
-    if (want == null) throw 'la versión no trae el SHA256 de $name';
+    if (want == null) throw AppError.updateNoChecksum(name);
     final file = await _downloader.fetch(
       installer,
       '$downloads/$name',
@@ -153,7 +153,7 @@ class UpdateRepositoryImpl implements UpdateRepository {
     if (file == null) return null;
     if (await engine.sha256Of(file) != want) {
       File(file).deleteSync();
-      throw 'la descarga de $name no coincide con su SHA256: no se instala';
+      throw AppError.checksumMismatch(name);
     }
     return file;
   });
@@ -185,16 +185,16 @@ class UpdateRepositoryImpl implements UpdateRepository {
       File(file).deleteSync();
       return (appImage, <String>[]);
     }
-    if (os != 'macos') throw 'esta versión no se instala desde la app';
-    if (!appPath.endsWith('.app')) throw 'Bodega no está en un .app: $appPath';
+    if (os != 'macos' || !appPath.endsWith('.app')) {
+      throw const AppError.updateNotInstallable();
+    }
     final parent = Directory(appPath).parent.path;
     try {
       File('$parent/.bodega-write-test')
         ..writeAsStringSync('')
         ..deleteSync();
     } on FileSystemException {
-      throw 'no puedo escribir en $parent: actualiza a mano desde la página '
-          'de la versión';
+      throw AppError.updateNotWritable(parent);
     }
     final staged = '$parent/.Bodega-update.app';
     final mount = Directory.systemTemp.createTempSync('bodega-update').path;
@@ -212,7 +212,7 @@ class UpdateRepositoryImpl implements UpdateRepository {
           .whereType<Directory>()
           .where((dir) => dir.path.endsWith('.app'))
           .firstOrNull;
-      if (app == null) throw 'el dmg no trae Bodega.app';
+      if (app == null) throw AppError.incompleteArchive(file, 'Bodega.app');
       if (Directory(staged).existsSync()) {
         Directory(staged).deleteSync(recursive: true);
       }
@@ -248,9 +248,16 @@ int _compare(List<int> a, List<int> b) {
   return 0;
 }
 
+/// Runs [exe]; a failure is [AppError.processFailed] for [exe], with what it
+/// printed to stderr as the detail (E13).
 Future<void> _run(String exe, List<String> args) async {
   final result = await Process.run(exe, args);
   if (result.exitCode != 0) {
-    throw '$exe salió con ${result.exitCode}: ${result.stderr}'.trim();
+    final said = '${result.stderr}'.trim();
+    throw AppError.processFailed(
+      exe,
+      result.exitCode,
+      detail: said.isEmpty ? null : said,
+    );
   }
 }

@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:bodega/data/repository/add_app_repository_impl.dart';
+import 'package:bodega/domain/entities/path_problem.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '_home.dart';
@@ -62,15 +63,18 @@ void main() {
       expect(second.isRight(), isTrue);
     });
 
-    test('pathProblem catches what Wine would not open', () {
+    test('pathProblem catches what Wine would not open (E11)', () {
       final good = File('${home.path}/a.exe')..createSync();
-      final bad = File('${home.path}/raro:/a.exe')..createSync(recursive: true);
+      final bad = File('${home.path}/odd:/a.exe')..createSync(recursive: true);
 
       expect(repository.pathProblem(good.path), isNull);
-      expect(repository.pathProblem(bad.path), contains('raro:'));
+      expect(
+        repository.pathProblem(bad.path),
+        PathProblem.windowsName(part: 'odd:', path: bad.path),
+      );
       expect(
         repository.pathProblem('${home.path}/no.exe'),
-        contains('No existe'),
+        PathProblem.missing('${home.path}/no.exe'),
       );
     });
   });

@@ -4,6 +4,8 @@ import 'package:bodega/app/bloc/library/library_bloc.dart';
 import 'package:bodega/app/bloc/new_bottle/new_bottle_bloc.dart';
 import 'package:bodega/app/presentation/bottles/widgets/bottle_column.dart';
 import 'package:bodega/app/router.dart';
+import 'package:bodega/app/shared/text/error_text.dart';
+import 'package:bodega/app/shared/widgets/copy_details_button.dart';
 import 'package:bodega/app/shared/widgets/custom_loading.dart';
 import 'package:bodega/app/shared/widgets/gradient_button.dart';
 import 'package:bodega/device/router/manager.dart';
@@ -224,9 +226,26 @@ class NewBottleDialog extends StatelessWidget {
                       ),
                       if (state.error case final error?) ...[
                         const SizedBox(height: AppSpacing.md),
-                        SelectableText(
-                          error.message,
-                          style: styles.body?.copyWith(color: colors.error),
+                        // It scrolls: a long one, with its log, must not
+                        // push the buttons out of a small window.
+                        Flexible(
+                          child: SingleChildScrollView(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                SelectableText(
+                                  error.localized(l10n),
+                                  style: styles.body?.copyWith(
+                                    color: colors.error,
+                                  ),
+                                ),
+                                // In the scroll, under the text: outside it,
+                                // the button would take the text's little
+                                // room in a small window.
+                                CopyDetailsButton(error: error),
+                              ],
+                            ),
+                          ),
                         ),
                       ],
                       const SizedBox(height: AppSpacing.lg),

@@ -20,8 +20,8 @@ Map<String, Object?> env(
 
 Map<String, Object?> registry(String data, [List<String>? platforms]) => {
   'type': 'registry',
-  'key': r'HKCU\Software\Juego',
-  'name': 'Valor',
+  'key': r'HKCU\Software\Game',
+  'name': 'Value',
   'valueType': 'REG_SZ',
   'data': data,
   'platforms': platforms ?? ['mac'],
@@ -37,14 +37,14 @@ Map<String, Object?> override(String value) => {
 String fixes(List<Map<String, Object?>> steps, {bool optIn = false}) =>
     jsonEncode([
       {
-        'id': 'juego',
-        'title': 'Juego',
+        'id': 'game',
+        'title': 'Game',
         'steam': 9,
         'optIn': optIn,
         'steps': steps,
         'notes': <String>[],
         'knownIssues': <Object?>[],
-        'source': 'recipes/games/juego.json',
+        'source': 'recipes/games/game.json',
         'verified': null,
       },
     ]);
@@ -88,8 +88,15 @@ void main() {
         expect(gameFix(first.id).steam, first.steam);
         expect(gameFix('${first.steam}').id, first.id);
         expect(fixForApp('steam:0'), isNull);
-        expect(fixForApp('otra-cosa'), isNull);
-        expect(() => gameFix('no-existe'), throwsA(contains('no hay arreglo')));
+        expect(fixForApp('something-else'), isNull);
+        expect(
+          () => gameFix('nope'),
+          throwsA(
+            isA<BadChoice>()
+                .having((f) => f.kind, 'kind', ChoiceKind.fix)
+                .having((f) => f.value, 'value', 'nope'),
+          ),
+        );
       },
     );
 
@@ -100,7 +107,14 @@ void main() {
           'platforms': ['mac'],
         },
       ]);
-      expect(gameFixes, throwsFormatException);
+      expect(
+        gameFixes,
+        throwsA(
+          isA<CorruptData>()
+              .having((f) => f.source, 'source', 'fixes_data.dart')
+              .having((f) => f.detail, 'detail', contains('rm')),
+        ),
+      );
     });
   });
 
@@ -111,16 +125,16 @@ void main() {
         env('B', '1', ['linux']),
         env('C', '1', ['mac', 'linux']),
       ]);
-      expect([for (final s in gameFix('juego').active) s.name], ['A', 'C']);
+      expect([for (final s in gameFix('game').active) s.name], ['A', 'C']);
 
       hostPlatform = const LinuxPlatform();
-      expect([for (final s in gameFix('juego').active) s.name], ['B', 'C']);
+      expect([for (final s in gameFix('game').active) s.name], ['B', 'C']);
 
       fixesSource = fixes([
         env('A', '1', ['linux']),
       ], optIn: true);
-      expect(gameFix('juego').active, isEmpty);
-      expect(gameFix('juego').steps, hasLength(1));
+      expect(gameFix('game').active, isEmpty);
+      expect(gameFix('game').steps, hasLength(1));
     });
   });
 
@@ -136,7 +150,7 @@ void main() {
       File('$steam/steam.exe').createSync(recursive: true);
       File('$steam/steamapps/appmanifest_9.acf')
         ..createSync(recursive: true)
-        ..writeAsStringSync('"appid" "9"\n"name" "Juego"\n"StateFlags" "4"');
+        ..writeAsStringSync('"appid" "9"\n"name" "Game"\n"StateFlags" "4"');
     });
 
     Map<String, String> lastEnv() => {
@@ -151,7 +165,7 @@ void main() {
           ? []
           : [
               for (final line in file.readAsLinesSync())
-                if (line.contains(r'HKCU\Software\Juego')) line,
+                if (line.contains(r'HKCU\Software\Game')) line,
             ];
     }
 
@@ -163,22 +177,17 @@ void main() {
       () async {
         fixesSource = fixes([
           env('FIX_ONLY', 'fix'),
-          env('BOTELLA', 'fix'),
-          env('LANZAMIENTO', 'fix'),
+          env('BOTTLE', 'fix'),
+          env('LAUNCH', 'fix'),
         ]);
-        setBottleOptions(home, 'b', env: {'BOTELLA': 'botella'});
+        setBottleOptions(home, 'b', env: {'BOTTLE': 'bottle'});
         await exitOf(
-          await openApp(
-            home,
-            'b',
-            key: 'steam:9',
-            env: {'LANZAMIENTO': 'lanzamiento'},
-          ),
+          await openApp(home, 'b', key: 'steam:9', env: {'LAUNCH': 'launch'}),
         );
         final seen = lastEnv();
         expect(seen['FIX_ONLY'], 'fix');
-        expect(seen['BOTELLA'], 'botella');
-        expect(seen['LANZAMIENTO'], 'lanzamiento');
+        expect(seen['BOTTLE'], 'bottle');
+        expect(seen['LAUNCH'], 'launch');
       },
     );
 
@@ -202,14 +211,14 @@ void main() {
     test('a value sized to the memory is worked out for this host', () async {
       fixesSource = fixes([
         env('DXVK_CONFIG', r'dxgi.maxVideoMemoryBudget=${memoryMB*0.375}'),
-        env('RARO', r'${otraCosa}'),
+        env('ODD_VALUE', r'${somethingElse}'),
       ]);
       await open();
       final budget = (hostPlatform.memoryMB * 0.375).round();
       expect(hostPlatform.memoryMB, greaterThan(0));
       expect(lastEnv()['DXVK_CONFIG'], 'dxgi.maxVideoMemoryBudget=$budget');
       // A placeholder Bodega does not know is left out, not passed as text.
-      expect(lastEnv(), isNot(contains('RARO')));
+      expect(lastEnv(), isNot(contains('ODD_VALUE')));
     });
 
     group('with Steam already open', () {
@@ -232,9 +241,9 @@ void main() {
         await exitOf(log);
         expect(
           File(log).readAsStringSync(),
-          contains('# aviso $fixNotApplied'),
+          contains('# note fix not applied: Steam was already open\n'),
         );
-        expect(await hintsIn(log), [contains('Steam ya estaba abierto')]);
+        expect(await hintsIn(log), [LogHint.fixNotApplied]);
         expect(tasklistLogs(), hasLength(1));
       });
 
@@ -247,7 +256,7 @@ void main() {
       });
 
       test('a fix that only writes the registry does not ask', () async {
-        fixesSource = fixes([registry('uno')]);
+        fixesSource = fixes([registry('one')]);
         final log = await openApp(home, 'b', key: 'steam:9');
         await exitOf(log);
         expect(tasklistLogs(), isEmpty);
@@ -269,11 +278,11 @@ void main() {
     });
 
     test('its registry values are written before the game starts', () async {
-      fixesSource = fixes([registry('uno'), registry('dos')]);
+      fixesSource = fixes([registry('one'), registry('two')]);
       await open();
       expect(regLog(), [
-        r'reg add HKCU\Software\Juego /v Valor /t REG_SZ /d uno /f',
-        r'reg add HKCU\Software\Juego /v Valor /t REG_SZ /d dos /f',
+        r'reg add HKCU\Software\Game /v Value /t REG_SZ /d one /f',
+        r'reg add HKCU\Software\Game /v Value /t REG_SZ /d two /f',
       ]);
     });
 
@@ -281,7 +290,12 @@ void main() {
       fixesSource = fixes([registry('FAIL')]);
       await expectLater(
         openApp(home, 'b', key: 'steam:9'),
-        throwsA(contains('reg add de Juego salió con 3')),
+        throwsA(
+          isA<WineToolFailed>()
+              .having((f) => f.tool, 'tool', WineTool.reg)
+              .having((f) => f.exitCode, 'exitCode', 3)
+              .having((f) => f.log, 'log', endsWith('-reg.log')),
+        ),
       );
       expect(File('$prefix/last-env').existsSync(), isFalse);
     });
@@ -289,14 +303,14 @@ void main() {
     test(
       'an opt-in fix, a fix of another host and another game do nothing',
       () async {
-        fixesSource = fixes([env('X', '1'), registry('uno')], optIn: true);
+        fixesSource = fixes([env('X', '1'), registry('one')], optIn: true);
         await open();
         expect(lastEnv(), isNot(contains('X')));
         expect(regLog(), isEmpty);
 
         fixesSource = fixes([
           env('X', '1', ['linux']),
-          registry('uno', ['linux']),
+          registry('one', ['linux']),
         ]);
         await open();
         expect(lastEnv(), isNot(contains('X')));

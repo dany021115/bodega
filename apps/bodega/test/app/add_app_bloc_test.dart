@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:bloc_test/bloc_test.dart';
 import 'package:bodega/app/bloc/add_app/add_app_bloc.dart';
 import 'package:bodega/domain/entities/app_error.dart';
+import 'package:bodega/domain/entities/path_problem.dart';
 import 'package:bodega/domain/repository/add_app_repository.dart';
 import 'package:bodega/domain/repository/bottle_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -76,8 +77,9 @@ void main() {
   blocTest<AddAppBloc, AddAppState>(
     'a failure hiding the app shows the error and does not finish',
     build: () {
-      when(() => bottles.setInLibrary(any(), any(), any()))
-          .thenAnswer((_) async => left(const AppError.engine('no')));
+      when(
+        () => bottles.setInLibrary(any(), any(), any()),
+      ).thenAnswer((_) async => left(const AppError.bottleNotFound('prueba')));
       return build();
     },
     act: (bloc) => bloc
@@ -87,7 +89,7 @@ void main() {
       ..add(const AddAppEvent.submit()),
     verify: (bloc) {
       expect(bloc.state.step, AddAppStep.form);
-      expect(bloc.state.error, const AppError.engine('no'));
+      expect(bloc.state.error, const AppError.bottleNotFound('prueba'));
     },
   );
 
@@ -163,7 +165,7 @@ void main() {
     bloc.add(const AddAppEvent.installedChosen('/b/x.exe'));
     await bloc.stream.firstWhere((s) => s.step == AddAppStep.done);
 
-    installer.complete(left(const AppError.engine('tarde')));
+    installer.complete(left(const AppError.unknown()));
     await Future<void>.delayed(Duration.zero);
 
     expect(bloc.state.step, AddAppStep.done);
@@ -174,7 +176,8 @@ void main() {
   blocTest<AddAppBloc, AddAppState>(
     'an invalid path registers nothing',
     build: () {
-      when(() => repository.pathProblem(exe)).thenReturn('nombre no válido');
+      when(() => repository.pathProblem(exe))
+          .thenReturn(const PathProblem.missing(exe));
       return build();
     },
     act: (bloc) => bloc
@@ -183,7 +186,10 @@ void main() {
       ..add(const AddAppEvent.submit()),
     verify: (bloc) {
       expect(bloc.state.step, AddAppStep.form);
-      expect(bloc.state.error, const AppError.engine('nombre no válido'));
+      expect(
+        bloc.state.error,
+        const AppError.badPath(PathProblem.missing(exe)),
+      );
       verifyNever(() => repository.addApp(any(), any(), any()));
     },
   );
@@ -193,8 +199,9 @@ void main() {
     build: () {
       var attempt = 0;
       when(() => repository.addApp('blur', 'Blur', exe)).thenAnswer(
-        (_) async =>
-            attempt++ == 0 ? left(const AppError.engine('falló')) : right('k'),
+        (_) async => attempt++ == 0
+            ? left(const AppError.appAlreadyAdded('blur'))
+            : right('k'),
       );
       return build();
     },

@@ -1,9 +1,10 @@
 import 'package:bodega/domain/entities/app_error.dart';
+import 'package:bodega/domain/entities/path_problem.dart';
 import 'package:fpdart/fpdart.dart';
 
 abstract class AddAppRepository {
   /// What makes [path] unusable, or null if it can be used.
-  String? pathProblem(String path);
+  PathProblem? pathProblem(String path);
 
   /// Registers [exe], an absolute path, as the bottle's app, and returns its key.
   Future<Either<AppError, String>> addApp(

@@ -29,8 +29,7 @@ void main() {
         isChecking: false,
         issues: [
           HostIssue(
-            title: 'Rosetta is missing',
-            detail: 'Wine x86_64 needs it.',
+            kind: HostIssueKind.noRosetta,
             command: 'softwareupdate --install-rosetta',
           ),
         ],
@@ -60,6 +59,8 @@ void main() {
   testWidgets('says what is missing and asks for the engine', (tester) async {
     await pumpSetup(tester);
     expect(find.text('Set up Bodega'), findsOneWidget);
+    expect(find.text('Rosetta is missing'), findsOneWidget);
+    expect(find.text('Windows games run on Rosetta 2.'), findsOneWidget);
     expect(find.text('Copy command'), findsOneWidget);
     expect(find.text('The engine is missing'), findsOneWidget);
     expect(find.text('Engine'), findsOneWidget);
@@ -74,6 +75,8 @@ void main() {
     await pumpSetup(tester, locale: const Locale('es'));
     for (final text in <String Function(AppL10n)>[
       (l10n) => l10n.setupTitle,
+      (l10n) => l10n.issueNoRosettaTitle,
+      (l10n) => l10n.issueNoRosettaDetail,
       (l10n) => l10n.setupCopyCommand,
       (l10n) => l10n.setupEngineMissing,
       (l10n) => l10n.setupEngineFiles,

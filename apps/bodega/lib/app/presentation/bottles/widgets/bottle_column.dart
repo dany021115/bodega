@@ -7,6 +7,8 @@ import 'package:bodega/app/presentation/bottles/widgets/rename_bottle_dialog.dar
 import 'package:bodega/app/presentation/bottles/widgets/run_options_dialog.dart';
 import 'package:bodega/app/presentation/bottles/widgets/windows_user_dialog.dart';
 import 'package:bodega/app/shared/graphics_of.dart';
+import 'package:bodega/app/shared/text/backend_text.dart';
+import 'package:bodega/app/shared/text/hint_text.dart';
 import 'package:bodega/app/shared/widgets/collapsible_section.dart';
 import 'package:bodega/app/shared/widgets/confirm_dialog.dart';
 import 'package:bodega/app/shared/widgets/status_chip.dart';
@@ -17,6 +19,7 @@ import 'package:bodega/device/theme/radius.dart';
 import 'package:bodega/device/theme/spacing.dart';
 import 'package:bodega/device/theme/typography.dart';
 import 'package:bodega/domain/entities/bottle_detail.dart';
+import 'package:bodega/domain/entities/run_hint.dart';
 import 'package:bodega/l10n/l10n.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
@@ -29,7 +32,7 @@ class BottleColumn extends StatelessWidget {
   final BottleDetail detail;
   final bool isBusy;
   final bool isOpen;
-  final List<String> hints;
+  final List<RunHint> hints;
 
   const BottleColumn({
     super.key,
@@ -202,7 +205,12 @@ class BottleColumn extends StatelessWidget {
             children: [
               Icon(Icons.warning_amber_rounded, size: 18, color: colors.error),
               const SizedBox(width: AppSpacing.sm),
-              Expanded(child: Text(hint, style: styles.bodySecondary)),
+              Expanded(
+                child: Text(
+                  hint.localized(context.l10n),
+                  style: styles.bodySecondary,
+                ),
+              ),
             ],
           ),
         ],
@@ -252,14 +260,14 @@ class BottleColumn extends StatelessWidget {
   String? _misfits(BuildContext context) {
     final backend = detail.backend;
     if (backend == 'auto') return null;
+    final l10n = context.l10n;
     final apps = [
       for (final app in detail.apps)
         if (graphicsOf(context, detail.name, app.exe) case final graphics?
             when graphics.misfits.contains(backend))
-          '${app.title} (${graphics.label})',
+          '${app.title} (${graphicsLabelText(l10n, graphics)})',
     ];
     if (apps.isEmpty) return null;
-    final l10n = context.l10n;
     // The option it points to comes in by its own text, as the dropdown says.
     return l10n.bottleMisfitWarning(
       backend,

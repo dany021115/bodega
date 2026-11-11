@@ -5,6 +5,8 @@ import 'package:bodega/app/bloc/library/library_bloc.dart';
 import 'package:bodega/app/presentation/add_app/widgets/installer_choice.dart';
 import 'package:bodega/app/presentation/add_app/widgets/popular_app_card.dart';
 import 'package:bodega/app/router.dart';
+import 'package:bodega/app/shared/text/error_text.dart';
+import 'package:bodega/app/shared/widgets/copy_details_button.dart';
 import 'package:bodega/app/shared/widgets/custom_loading.dart';
 import 'package:bodega/app/shared/widgets/gradient_button.dart';
 import 'package:bodega/device/helpers/app_toast.dart';
@@ -143,11 +145,12 @@ class _AddAppDialogState extends State<AddAppDialog> {
                           if (state.error case final error?) ...[
                             const SizedBox(height: AppSpacing.md),
                             SelectableText(
-                              error.message,
+                              error.localized(context.l10n),
                               style: styles.body?.copyWith(
                                 color: Theme.of(context).colorScheme.error,
                               ),
                             ),
+                            CopyDetailsButton(error: error),
                           ],
                         ],
                       ),
@@ -237,9 +240,19 @@ class _AddAppDialogState extends State<AddAppDialog> {
         if (state.isLoading) return const CustomLoading();
         final apps = state.apps;
         if (apps.isEmpty) {
-          return SelectableText(
-            state.error?.message ?? context.l10n.addAppCatalogEmpty,
-            style: AppTextStyle(context).body,
+          // The catalog's own error, when it could not load: copied as on
+          // the catalog page.
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              SelectableText(
+                state.error?.localized(context.l10n) ??
+                    context.l10n.addAppCatalogEmpty,
+                style: AppTextStyle(context).body,
+              ),
+              if (state.error case final error?)
+                CopyDetailsButton(error: error),
+            ],
           );
         }
         return Column(

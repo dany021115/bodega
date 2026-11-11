@@ -1,4 +1,5 @@
 import 'package:bodega/domain/entities/app_error.dart';
+import 'package:bodega/domain/entities/install_step.dart';
 import 'package:fpdart/fpdart.dart';
 
 abstract class InstallRepository {
@@ -13,10 +14,11 @@ abstract class InstallRepository {
   void cancelDownload();
 
   /// In a bottle of its own, or in [bottle] if given, which must be ready.
+  /// [onStep] hears each step as it starts.
   Future<Either<AppError, Unit>> install(
     String id,
     String setup,
-    void Function(String step) onStep, {
+    void Function(InstallStep step) onStep, {
     String? bottle,
   });
 

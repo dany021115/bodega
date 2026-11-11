@@ -6,6 +6,7 @@ import 'package:bodega/app/shared/widgets/gradient_button.dart';
 import 'package:bodega/device/theme/theme.dart';
 import 'package:bodega/domain/entities/app_error.dart';
 import 'package:bodega/domain/entities/backend_info.dart';
+import 'package:bodega/domain/entities/wine_tool.dart';
 import 'package:bodega/l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -23,6 +24,7 @@ Future<void> _pump(
   WidgetTester tester, {
   required NewBottleState state,
   BackendsState backends = const BackendsState(isLoading: false),
+  Locale locale = const Locale('en'),
 }) async {
   // The smallest window the app goes down to.
   tester.view.physicalSize = const Size(720, 480);
@@ -48,6 +50,7 @@ Future<void> _pump(
         ],
         child: const Scaffold(body: NewBottleDialog()),
       ),
+      locale: locale,
       theme: AppTheme.getDarkTheme(),
     ),
   );
@@ -111,18 +114,51 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('an error from the engine is selectable text', (tester) async {
-    await _pump(
-      tester,
-      state: const NewBottleState(
-        name: 'games',
-        error: AppError.engine('the bottle could not be created'),
-      ),
-    );
+  testWidgets('an error from the engine is selectable text, and a long one '
+      'fits at 720 px with its Copy details button', (tester) async {
+    const log =
+        '/Users/someone/Library/Application Support/Bodega/bottles/games/'
+        'logs/wineboot-2026-11-10-14-52-07.log';
+    for (final locale in AppL10n.supportedLocales) {
+      await _pump(
+        tester,
+        state: const NewBottleState(
+          name: 'games',
+          // With a detail, as data/ sets it: Copy details shows too (L9).
+          error: AppError.wineToolFailed(
+            WineTool.wineboot,
+            1,
+            log,
+            detail: 'stderr: boom',
+          ),
+        ),
+        locale: locale,
+      );
 
-    expect(
-      find.widgetWithText(SelectableText, 'the bottle could not be created'),
-      findsOneWidget,
-    );
+      expect(
+        find.widgetWithText(
+          SelectableText,
+          lookupAppL10n(locale).errWinebootFailed(1, log),
+        ),
+        findsOneWidget,
+        reason: '$locale',
+      );
+      // The button scrolls with the text, under it: outside the scroll it
+      // would take the little room the text has here.
+      final scroll = find.ancestor(
+        of: find.byType(SelectableText),
+        matching: find.byType(SingleChildScrollView),
+      );
+      expect(scroll, findsOneWidget, reason: '$locale');
+      expect(
+        find.descendant(
+          of: scroll,
+          matching: find.text(lookupAppL10n(locale).commonCopyDetails),
+        ),
+        findsOneWidget,
+        reason: '$locale',
+      );
+      expect(tester.takeException(), isNull, reason: '$locale');
+    }
   });
 }

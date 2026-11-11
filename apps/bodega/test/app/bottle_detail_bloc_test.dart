@@ -2,6 +2,7 @@ import 'package:bloc_test/bloc_test.dart';
 import 'package:bodega/app/bloc/bottle_detail/bottle_detail_bloc.dart';
 import 'package:bodega/domain/entities/app_error.dart';
 import 'package:bodega/domain/entities/bottle_detail.dart';
+import 'package:bodega/domain/entities/wine_tool.dart';
 import 'package:bodega/domain/repository/bottle_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fpdart/fpdart.dart';
@@ -163,7 +164,9 @@ void main() {
     'a failed setting is shown and the bottle stays',
     build: () {
       when(() => repository.setWindowsVersion('steam', 'win7')).thenAnswer(
-        (_) async => left(const AppError.engine('winecfg salió con 1')),
+        (_) async => left(
+          const AppError.wineToolFailed(WineTool.winecfg, 1, '/l/windows.log'),
+        ),
       );
       return build();
     },
@@ -174,7 +177,10 @@ void main() {
     },
     wait: const Duration(milliseconds: 10),
     verify: (bloc) {
-      expect(bloc.state.error, const AppError.engine('winecfg salió con 1'));
+      expect(
+        bloc.state.error,
+        const AppError.wineToolFailed(WineTool.winecfg, 1, '/l/windows.log'),
+      );
       expect(bloc.state.detail, _detail);
     },
   );
@@ -198,8 +204,9 @@ void main() {
   blocTest<BottleDetailBloc, BottleDetailState>(
     'an engine error stays in the state, with the bottle still shown',
     build: () {
-      when(() => repository.delete('steam'))
-          .thenAnswer((_) async => left(const AppError.engine('no se pudo')));
+      when(
+        () => repository.delete('steam'),
+      ).thenAnswer((_) async => left(const AppError.bottleNotFound('steam')));
       return build();
     },
     act: (bloc) async {
@@ -209,7 +216,7 @@ void main() {
     },
     wait: const Duration(milliseconds: 10),
     verify: (bloc) {
-      expect(bloc.state.error, const AppError.engine('no se pudo'));
+      expect(bloc.state.error, const AppError.bottleNotFound('steam'));
       expect(bloc.state.deleted, isFalse);
       expect(bloc.state.isBusy, isFalse);
       expect(bloc.state.detail, _detail);
@@ -257,7 +264,7 @@ void main() {
     'a failed rename keeps the name and says why',
     build: () {
       when(() => repository.renameBottle('steam', 'juegos'))
-          .thenAnswer((_) async => left(const AppError.engine('ya existe')));
+          .thenAnswer((_) async => left(const AppError.bottleExists('juegos')));
       return build();
     },
     act: (bloc) async {
@@ -267,7 +274,7 @@ void main() {
     },
     wait: const Duration(milliseconds: 10),
     verify: (bloc) {
-      expect(bloc.state.error, const AppError.engine('ya existe'));
+      expect(bloc.state.error, const AppError.bottleExists('juegos'));
       expect(bloc.state.renamedTo, isNull);
       expect(bloc.state.detail, _detail);
     },

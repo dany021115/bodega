@@ -52,7 +52,22 @@ void main() {
       await createBottle(home, 'b');
       File('$home/bottles/b/settings.json')
           .writeAsStringSync('{"windows": "win95"}');
-      expect(() => bottleSettings(home, 'b'), throwsA(contains('win95')));
+      expect(
+        () => bottleSettings(home, 'b'),
+        throwsA(
+          isA<CorruptData>()
+              .having(
+                (f) => f.source,
+                'source',
+                '$home/bottles/b/settings.json',
+              )
+              .having(
+                (f) => f.detail,
+                'detail',
+                '${const BadChoice(ChoiceKind.windows, 'win95')}',
+              ),
+        ),
+      );
     });
 
     test('backend, then bottle, then program, then the launch', () async {
@@ -62,21 +77,15 @@ void main() {
         home,
         'b',
         dlss: true,
-        env: {'A': 'botella', 'B': 'botella', 'C': 'botella'},
+        env: {'A': 'bottle', 'B': 'bottle', 'C': 'bottle'},
       );
-      addApp(
-        home,
-        'b',
-        'A',
-        'P/a.exe',
-        env: {'B': 'programa', 'C': 'programa'},
-      );
+      addApp(home, 'b', 'A', 'P/a.exe', env: {'B': 'program', 'C': 'program'});
 
-      await exitOf(await openApp(home, 'b', env: {'C': 'lanzamiento'}));
+      await exitOf(await openApp(home, 'b', env: {'C': 'launch'}));
       final env = lastEnv('b');
-      expect(env['A'], 'botella');
-      expect(env['B'], 'programa');
-      expect(env['C'], 'lanzamiento');
+      expect(env['A'], 'bottle');
+      expect(env['B'], 'program');
+      expect(env['C'], 'launch');
       expect(env['D3DM_ENABLE_METALFX'], '1');
       expect(env['DXMT_ENABLE_NVEXT'], '1');
       expect(env['ROSETTA_ADVERTISE_AVX'], '1');
@@ -102,11 +111,11 @@ void main() {
     test('a launcher keeps its arguments', () async {
       await createBottle(home, 'b');
       await program('b');
-      addApp(home, 'b', 'A', 'P/a.exe', args: ['-uno', 'dos tres']);
-      expect(bottleApps(home, 'b').single.args, ['-uno', 'dos tres']);
+      addApp(home, 'b', 'A', 'P/a.exe', args: ['-one', 'two three']);
+      expect(bottleApps(home, 'b').single.args, ['-one', 'two three']);
       final log = await openApp(home, 'b');
       await exitOf(log);
-      expect(File(log).readAsStringSync(), contains('-uno dos tres'));
+      expect(File(log).readAsStringSync(), contains('-one two three'));
     });
   });
 
@@ -140,6 +149,11 @@ void main() {
           r'/d %USERPROFILE%\AppData\Local\Temp /f',
         ),
       );
+      // Its runs log under an English label (E5).
+      expect(
+        bottleLogs(home, 'b').map((log) => log.name),
+        contains(endsWith('-user.log')),
+      );
       expect(await setBottleUser(home, 'b', 'Dany'), isFalse);
 
       expect(await setBottleUser(home, 'b', null), isTrue);
@@ -152,23 +166,42 @@ void main() {
       expect(await launchedAs(), mac);
     });
 
+    test('badUser says why a name cannot be the Windows user (U3)', () {
+      expect(badUser(''), UserNameProblem.empty);
+      expect(badUser('x' * 21), UserNameProblem.tooLong);
+      expect(badUser('a/b'), UserNameProblem.badCharacter);
+      expect(badUser('...'), UserNameProblem.onlyDots);
+      expect(badUser('x' * 20), isNull);
+      expect(badUser('Daniel Medina'), isNull);
+    });
+
     test('a name taken, or a bad one, changes nothing', () async {
       await createBottle(home, 'b');
       Directory('${users('b')}/$hostUser').createSync(recursive: true);
       Directory('${users('b')}/Dany').createSync();
+      Matcher refused(String user, UserNameProblem problem) => throwsA(
+        isA<BadUserName>()
+            .having((f) => f.user, 'user', user)
+            .having((f) => f.problem, 'problem', problem),
+      );
       await expectLater(
         setBottleUser(home, 'b', 'Dany'),
-        throwsA(contains('ya existe')),
+        refused('Dany', UserNameProblem.taken),
       );
-      for (final bad in ['a/b', 'x' * 21, '...', 'a*b', 'a\tb']) {
+      for (final (bad, problem) in [
+        ('a/b', UserNameProblem.badCharacter),
+        ('x' * 21, UserNameProblem.tooLong),
+        ('...', UserNameProblem.onlyDots),
+        ('a*b', UserNameProblem.badCharacter),
+        ('a\tb', UserNameProblem.badCharacter),
+      ]) {
         await expectLater(
           setBottleUser(home, 'b', bad),
-          throwsA(contains('nombre')),
+          refused(bad, problem),
           reason: bad,
         );
       }
       expect(bottleSettings(home, 'b').user, '');
-      expect(badUser('Daniel Medina'), isNull);
     });
   });
 
@@ -188,6 +221,11 @@ void main() {
         r'reg add HKCU\Software\Wine\Mac Driver /v RetinaMode /t REG_SZ /d y /f',
         r'reg add HKCU\Control Panel\Desktop /v LogPixels /t REG_DWORD /d 192 /f',
       ]);
+      // Its runs log under an English label (E5).
+      expect(
+        bottleLogs(home, 'b').map((log) => log.name),
+        contains(endsWith('-resolution.log')),
+      );
       expect(
         File('${prefix('b')}/server.log').readAsStringSync(),
         contains('k'),
@@ -231,7 +269,11 @@ void main() {
       await createBottle(home, 'b');
       await expectLater(
         setWindowsVersion(home, 'b', 'foo'),
-        throwsA(contains('foo')),
+        throwsA(
+          isA<BadChoice>()
+              .having((f) => f.kind, 'kind', ChoiceKind.windows)
+              .having((f) => f.value, 'value', 'foo'),
+        ),
       );
       expect(File('${prefix('b')}/winecfg.log').existsSync(), isFalse);
       expect(bottleSettings(home, 'b').windows, 'win10');
@@ -246,7 +288,7 @@ void main() {
           'status': 'reported',
           'statusNote': '',
           'installer': {
-            'url': 'http://no-se-usa/x.exe',
+            'url': 'http://unused/x.exe',
             'sha256': null,
             'args': <String>[],
             'msi': false,
@@ -271,7 +313,7 @@ void main() {
     test('two entries end up in one bottle, which keeps its sync', () async {
       await installEntry(home, entry('a'), bottle: 'b', setup: setup('a').path);
       setBackend(home, 'b', 'dxvk');
-      final steps = <String>[];
+      final steps = <InstallStep>[];
       await installEntry(
         home,
         entry('c', sync: 'msync'),
@@ -286,41 +328,51 @@ void main() {
       expect(settings.sync, 'none');
       expect(settings.backend, 'dxvk');
       expect(settings.programs.keys, containsAll(['a.exe', 'c.exe']));
-      expect(steps.first, contains('pide msync'));
-      expect(steps, isNot(contains(startsWith('Creando'))));
+      // The step names the sync the bottle keeps (E2).
+      expect(steps.first, (
+        kind: InstallStepKind.syncMismatch,
+        subject: 'none',
+      ));
+      expect(
+        steps.map((step) => step.kind),
+        isNot(contains(InstallStepKind.creatingBottle)),
+      );
     });
 
     test('without intoExisting it still refuses one that exists', () async {
       await createBottle(home, 'b');
       await expectLater(
         installEntry(home, entry('a'), bottle: 'b', setup: setup('a').path),
-        throwsA(contains('ya existe')),
+        throwsA(isA<BottleExists>().having((f) => f.bottle, 'bottle', 'b')),
       );
     });
 
     test(
       'a bottle that does not exist, or is not ready, is an error',
       () async {
-        await expectLater(
-          installEntry(
-            home,
-            entry('a'),
-            bottle: 'nada',
-            intoExisting: true,
-            setup: setup('a').path,
-          ),
-          throwsA(contains('no existe o no está lista')),
+        Matcher notReady(String bottle) => throwsA(
+          isA<BottleNotReady>().having((f) => f.bottle, 'bottle', bottle),
         );
-        Directory('$home/bottles/rota').createSync();
         await expectLater(
           installEntry(
             home,
             entry('a'),
-            bottle: 'rota',
+            bottle: 'missing',
             intoExisting: true,
             setup: setup('a').path,
           ),
-          throwsA(contains('no existe o no está lista')),
+          notReady('missing'),
+        );
+        Directory('$home/bottles/broken').createSync();
+        await expectLater(
+          installEntry(
+            home,
+            entry('a'),
+            bottle: 'broken',
+            intoExisting: true,
+            setup: setup('a').path,
+          ),
+          notReady('broken'),
         );
       },
     );

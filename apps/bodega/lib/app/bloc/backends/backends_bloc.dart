@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:bloc/bloc.dart';
 import 'package:bodega/domain/entities/app_error.dart';
 import 'package:bodega/domain/entities/backend_info.dart';
+import 'package:bodega/domain/entities/gptk_step.dart';
 import 'package:bodega/domain/repository/backend_repository.dart';
 import 'package:fpdart/fpdart.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
@@ -124,7 +125,16 @@ class BackendsBloc extends Bloc<BackendsEvent, BackendsState> {
       onStep: (step) => emit(state.copyWith(gptkStep: step)),
       cancelled: () => _cancelled,
     );
-    emit(state.copyWith(gptkStep: null, gptkInstalled: result.toNullable()));
+    emit(
+      state.copyWith(
+        gptkStep: null,
+        // Installed, even when its version is unknown (E3).
+        gptkInstalled: result.match(
+          (_) => null,
+          (version) => (version: version),
+        ),
+      ),
+    );
     await _finish(result.map((_) => unit), emit);
     if (result.isRight() && state.bottles.isNotEmpty) {
       add(BackendsEvent.check(state.bottles.first, 'd3dmetal'));

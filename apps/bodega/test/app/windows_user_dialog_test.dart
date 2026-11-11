@@ -1,4 +1,5 @@
 import 'package:bodega/app/presentation/bottles/widgets/windows_user_dialog.dart';
+import 'package:bodega/domain/entities/user_name_problem.dart';
 import 'package:bodega/l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -19,7 +20,8 @@ void main() {
                 context,
                 current: current,
                 macUser: 'quasar',
-                problem: (user) => user.contains('/') ? 'no slashes' : null,
+                problem: (user) =>
+                    user.contains('/') ? UserNameProblem.badCharacter : null,
               ),
             ),
             child: const Text('show'),
@@ -45,7 +47,7 @@ void main() {
 
     await tester.enterText(find.byType(TextField), 'a/b');
     await tester.pump();
-    expect(find.text('no slashes'), findsOneWidget);
+    expect(find.text(en.problemUserNameBadCharacter), findsOneWidget);
     expect(save(tester).onPressed, isNull);
 
     await tester.enterText(find.byType(TextField), ' Dany ');

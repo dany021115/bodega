@@ -204,26 +204,30 @@ void main() {
     test('adding another keeps both, and app.json goes', () {
       final drive = bottle('steam');
       legacy('steam', steamApp);
-      touch('$drive/Juego/j.exe');
-      addApp(home, 'steam', 'Juego', 'Juego/j.exe');
-      expect(bottleApps(home, 'steam').map((a) => a.title), ['Steam', 'Juego']);
+      touch('$drive/Game/g.exe');
+      addApp(home, 'steam', 'Game', 'Game/g.exe');
+      expect(bottleApps(home, 'steam').map((a) => a.title), ['Steam', 'Game']);
       expect(File('$home/bottles/steam/app.json').existsSync(), isFalse);
       expect(File('$home/bottles/steam/apps.json').existsSync(), isTrue);
     });
 
     test('a broken one is an error with its path', () {
       bottle('a');
-      File('$home/bottles/a/apps.json').writeAsStringSync('{roto');
-      expect(() => bottleApps(home, 'a'), throwsA(contains('apps.json')));
-      File('$home/bottles/a/apps.json').writeAsStringSync('{"apps": [{}]}');
-      expect(() => bottleApps(home, 'a'), throwsA(contains('no es válido')));
+      final store = '$home/bottles/a/apps.json';
+      final corrupt = throwsA(
+        isA<CorruptData>().having((f) => f.source, 'source', store),
+      );
+      File(store).writeAsStringSync('{broken');
+      expect(() => bottleApps(home, 'a'), corrupt);
+      File(store).writeAsStringSync('{"apps": [{}]}');
+      expect(() => bottleApps(home, 'a'), corrupt);
     });
   });
 
   test('appKey', () {
     expect(appKey(r'C:\Program Files\X\A.EXE'), 'program files/x/a.exe');
     expect(appKey('Program Files/X/a.exe'), 'program files/x/a.exe');
-    expect(appKey('/Users/q/Juegos/A.exe'), '/users/q/juegos/a.exe');
+    expect(appKey('/Users/q/Games/A.exe'), '/users/q/games/a.exe');
   });
 
   group('readLnk', () {
@@ -247,27 +251,27 @@ void main() {
 
     test('arguments, in UTF-16 and in ANSI', () {
       expect(
-        read(lnk(r'C:\a.exe', args: '-uno "dos tres"'))!.args,
-        '-uno "dos tres"',
+        read(lnk(r'C:\a.exe', args: '-one "two three"'))!.args,
+        '-one "two three"',
       );
       expect(
-        read(lnk(r'C:\a.exe', args: '-uno', unicode: false))!.args,
-        '-uno',
+        read(lnk(r'C:\a.exe', args: '-one', unicode: false))!.args,
+        '-one',
       );
     });
 
     test('anything else is null, not an error', () {
-      final good = lnk(r'C:\a.exe', args: '-uno');
+      final good = lnk(r'C:\a.exe', args: '-one');
       expect(read(Uint8List(0)), isNull);
       expect(
         read(
-          Uint8List.fromList(utf8.encode('no soy un acceso directo, y largo')),
+          Uint8List.fromList(utf8.encode('not a shortcut, and long enough')),
         ),
         isNull,
       );
       expect(read(good.sublist(0, 40)), isNull);
       expect(read(good.sublist(0, good.length - 3)), isNull);
-      expect(readLnk('$tmp/no-existe.lnk'), isNull);
+      expect(readLnk('$tmp/missing.lnk'), isNull);
     });
   });
 
@@ -297,9 +301,9 @@ void main() {
     test('one to a registered exe does not repeat it, and that one wins', () {
       final drive = bottle('b');
       touch('$drive/Prog/a.exe');
-      addApp(home, 'b', 'Mi nombre', 'Prog/a.exe');
-      shortcut('$drive/users/Public/Desktop/Otro nombre.lnk', r'C:\PROG\A.EXE');
-      expect(bottleApps(home, 'b').single.title, 'Mi nombre');
+      addApp(home, 'b', 'My name', 'Prog/a.exe');
+      shortcut('$drive/users/Public/Desktop/Other name.lnk', r'C:\PROG\A.EXE');
+      expect(bottleApps(home, 'b').single.title, 'My name');
     });
 
     test('registered first, then detected by title, with their arguments', () {
@@ -311,12 +315,12 @@ void main() {
       shortcut(
         '$drive/users/Public/Desktop/Beta.lnk',
         r'C:\Prog\y.exe',
-        args: '-uno "dos tres"',
+        args: '-one "two three"',
       );
-      shortcut('$drive/users/Public/Desktop/alfa.lnk', r'C:\Prog\x.exe');
+      shortcut('$drive/users/Public/Desktop/alpha.lnk', r'C:\Prog\x.exe');
       final apps = bottleApps(home, 'b');
-      expect(apps.map((a) => a.title), ['Zeta', 'alfa', 'Beta']);
-      expect(apps.last.args, ['-uno', 'dos tres']);
+      expect(apps.map((a) => a.title), ['Zeta', 'alpha', 'Beta']);
+      expect(apps.last.args, ['-one', 'two three']);
     });
 
     test('what is not an application stays out', () {
@@ -325,13 +329,13 @@ void main() {
       touch('$drive/Prog/Uninstall.exe');
       touch('$drive/Prog/manual.pdf');
       const desktop = 'users/Public/Desktop';
-      shortcut('$drive/$desktop/Quitar.lnk', r'C:\Prog\unins000.exe');
-      shortcut('$drive/$desktop/Quitar2.lnk', r'C:\Prog\Uninstall.exe');
+      shortcut('$drive/$desktop/Remove.lnk', r'C:\Prog\unins000.exe');
+      shortcut('$drive/$desktop/Remove2.lnk', r'C:\Prog\Uninstall.exe');
       shortcut('$drive/$desktop/Manual.lnk', r'C:\Prog\manual.pdf');
-      shortcut('$drive/$desktop/Ya no.lnk', r'C:\Prog\borrado.exe');
-      shortcut('$drive/$desktop/Fuera.lnk', r'Z:\Users\q\a.exe');
-      touch('$drive/$desktop/roto.lnk').writeAsStringSync('nada');
-      touch('$drive/$desktop/notas.txt');
+      shortcut('$drive/$desktop/Gone.lnk', r'C:\Prog\deleted.exe');
+      shortcut('$drive/$desktop/Outside.lnk', r'Z:\Users\q\a.exe');
+      touch('$drive/$desktop/broken.lnk').writeAsStringSync('nothing');
+      touch('$drive/$desktop/notes.txt');
       expect(bottleApps(home, 'b'), isEmpty);
     });
 
@@ -340,19 +344,19 @@ void main() {
       touch('$drive/Prog/a.exe');
       // users/<user>/Documents and such point to the Mac's own folders.
       final mac = Directory('$tmp/mac')..createSync();
-      shortcut('${mac.path}/Trampa.lnk', r'C:\Prog\a.exe');
+      shortcut('${mac.path}/Trap.lnk', r'C:\Prog\a.exe');
       Directory('$drive/users/q').createSync(recursive: true);
       Link('$drive/users/q/Desktop').createSync(mac.path);
       const programs = 'ProgramData/Microsoft/Windows/Start Menu/Programs';
       Directory('$drive/$programs').createSync(recursive: true);
-      Link('$drive/$programs/enlace').createSync(mac.path);
-      Link('$drive/users/otro').createSync(mac.path);
+      Link('$drive/$programs/link').createSync(mac.path);
+      Link('$drive/users/other').createSync(mac.path);
       expect(bottleApps(home, 'b'), isEmpty);
     });
 
     test('a bottle without a prefix has none', () {
-      Directory('$home/bottles/rota').createSync();
-      expect(bottleApps(home, 'rota'), isEmpty);
+      Directory('$home/bottles/broken').createSync();
+      expect(bottleApps(home, 'broken'), isEmpty);
     });
   });
 
@@ -385,11 +389,11 @@ void main() {
     test('one half installed does not show', () {
       final apps = steam('s');
       touch('$apps/appmanifest_1.acf')
-          .writeAsStringSync(manifest('1', 'A medias', 2));
+          .writeAsStringSync(manifest('1', 'Halfway', 2));
       touch('$apps/appmanifest_2.acf')
-          .writeAsStringSync(manifest('2', 'Actualizando', 6));
-      touch('$apps/appmanifest_3.acf').writeAsStringSync('basura');
-      expect(bottleApps(home, 's').single.title, 'Actualizando');
+          .writeAsStringSync(manifest('2', 'Updating', 6));
+      touch('$apps/appmanifest_3.acf').writeAsStringSync('garbage');
+      expect(bottleApps(home, 's').single.title, 'Updating');
     });
 
     test('without Steam there are none', () {
@@ -415,12 +419,14 @@ void main() {
       addApp(home, 'b', 'B', 'P/b.exe');
       expect(bottleApps(home, 'b').map((a) => a.title), ['A', 'B']);
       expect(
-        () => addApp(home, 'b', 'Otra', 'p/A.EXE'),
-        throwsA(contains('ya tiene')),
+        () => addApp(home, 'b', 'Another', 'p/A.EXE'),
+        throwsA(isA<AppAlreadyAdded>().having((f) => f.bottle, 'bottle', 'b')),
       );
       expect(
-        () => addApp(home, 'b', 'Nada', 'P/c.exe'),
-        throwsA(contains('no existe')),
+        () => addApp(home, 'b', 'Nothing', 'P/c.exe'),
+        throwsA(
+          isA<MissingFile>().having((f) => f.path, 'path', '$drive/P/c.exe'),
+        ),
       );
     });
 
@@ -442,7 +448,11 @@ void main() {
 
       await expectLater(
         openApp(home, 'b', key: 'p/c.exe'),
-        throwsA(contains('p/c.exe')),
+        throwsA(
+          isA<AppNotFound>()
+              .having((f) => f.bottle, 'bottle', 'b')
+              .having((f) => f.key, 'key', 'p/c.exe'),
+        ),
       );
     });
 
@@ -451,7 +461,7 @@ void main() {
       final drive = '$home/bottles/b/prefix/drive_c';
       touch('$drive/Program Files (x86)/Steam/steam.exe');
       touch('$drive/Program Files (x86)/Steam/steamapps/appmanifest_9.acf')
-          .writeAsStringSync('"appid" "9"\n"name" "Juego"\n"StateFlags" "4"');
+          .writeAsStringSync('"appid" "9"\n"name" "Game"\n"StateFlags" "4"');
       final log = await openApp(home, 'b', key: 'steam:9');
       await exitOf(log);
       final text = File(log).readAsStringSync();
@@ -474,7 +484,7 @@ void main() {
     group('gamepads', () {
       List<String> regLogs(String name) => [
         for (final log in bottleLogs(home, name))
-          if (log.name.endsWith('-mandos.log')) log.path,
+          if (log.name.endsWith('-pads.log')) log.path,
       ];
 
       test('a new bottle takes them straight from macOS', () async {
@@ -547,7 +557,11 @@ void main() {
       await createBottle(home, 'b');
       await expectLater(
         openApp(home, 'b'),
-        throwsA(contains('no tiene una aplicación')),
+        throwsA(
+          isA<AppNotFound>()
+              .having((f) => f.bottle, 'bottle', 'b')
+              .having((f) => f.key, 'key', isNull),
+        ),
       );
     });
   });
@@ -640,8 +654,8 @@ void main() {
     test('an app the bottle does not have is an error', () {
       bottle('b');
       expect(
-        () => setInLibrary(home, 'b', 'p/nada.exe', false),
-        throwsA(contains('no tiene la aplicación')),
+        () => setInLibrary(home, 'b', 'p/none.exe', false),
+        throwsA(isA<AppNotFound>().having((f) => f.key, 'key', 'p/none.exe')),
       );
     });
 
@@ -699,8 +713,8 @@ void main() {
     test('an app the bottle does not have is an error', () {
       bottle('b');
       expect(
-        () => setAppHud(home, 'b', 'p/nada.exe', true),
-        throwsA(contains('no tiene la aplicación')),
+        () => setAppHud(home, 'b', 'p/none.exe', true),
+        throwsA(isA<AppNotFound>().having((f) => f.key, 'key', 'p/none.exe')),
       );
     });
 
@@ -755,15 +769,17 @@ void main() {
         await createBottle(home, 'c');
         await expectLater(
           renameBottle(home, 'b', 'c'),
-          throwsA(contains('ya existe la botella c')),
+          throwsA(isA<BottleExists>().having((f) => f.bottle, 'bottle', 'c')),
         );
         await expectLater(
           renameBottle(home, 'b', 'a b'),
-          throwsA(isA<FormatException>()),
+          throwsA(isA<BadBottleName>().having((f) => f.name, 'name', 'a b')),
         );
         await expectLater(
-          renameBottle(home, 'nada', 'x'),
-          throwsA(contains('no existe la botella nada')),
+          renameBottle(home, 'none', 'x'),
+          throwsA(
+            isA<BottleNotFound>().having((f) => f.bottle, 'bottle', 'none'),
+          ),
         );
         expect(Directory('$home/bottles/b').existsSync(), isTrue);
       },
@@ -773,7 +789,7 @@ void main() {
       final hang = File('$home/bottles/b/prefix/hang')..writeAsStringSync('');
       await expectLater(
         renameBottle(home, 'b', 'c'),
-        throwsA(contains('está abierta')),
+        throwsA(isA<BottleOpen>().having((f) => f.bottle, 'bottle', 'b')),
       );
       hang.deleteSync();
       expect(Directory('$home/bottles/b').existsSync(), isTrue);
@@ -828,7 +844,7 @@ void main() {
         ),
         isNull,
       );
-      touch('$drive/P/n.exe').writeAsStringSync('no soy un exe');
+      touch('$drive/P/n.exe').writeAsStringSync('not an exe');
       addApp(home, 'b', 'N', 'P/n.exe');
       expect(appIcon(home, bottleApps(home, 'b').last), isNull);
       File('$drive/P/n.exe').deleteSync();
@@ -861,13 +877,13 @@ void main() {
       final item = app(drive, pe([(32, dib)]));
       final exe = File('$drive/P/a.exe')..setLastModifiedSync(DateTime(2020));
       final path = appIcon(home, item)!;
-      File(path).writeAsStringSync('marca');
+      File(path).writeAsStringSync('mark');
       expect(appIcon(home, item), path);
-      expect(File(path).readAsStringSync(), 'marca');
+      expect(File(path).readAsStringSync(), 'mark');
 
       exe.setLastModifiedSync(DateTime.now().add(const Duration(hours: 1)));
       appIcon(home, item);
-      expect(File(path).readAsStringSync(), isNot('marca'));
+      expect(File(path).readAsStringSync(), isNot('mark'));
     });
 
     test('an exe without an icon is remembered', () {

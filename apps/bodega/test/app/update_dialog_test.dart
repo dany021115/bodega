@@ -5,6 +5,7 @@ import 'package:bodega/domain/entities/app_error.dart';
 import 'package:bodega/domain/entities/app_update.dart';
 import 'package:bodega/l10n/l10n.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
@@ -125,12 +126,90 @@ void main() {
       tester,
       const UpdateState(
         update: mac,
-        error: AppError.engine(
-          'the download of Bodega.dmg does not match its SHA256',
-        ),
+        error: AppError.checksumMismatch('Bodega-1.4.0-macos-arm64.dmg'),
       ),
     );
-    expect(find.textContaining('does not match its SHA256'), findsOneWidget);
+    expect(
+      find.text(en.errChecksumMismatch('Bodega-1.4.0-macos-arm64.dmg')),
+      findsOneWidget,
+    );
     expect(find.text('Update'), findsOneWidget);
+  });
+
+  // The detail is copied, never shown (L9): here hdiutil's stderr, which
+  // data/ sets when the dmg does not mount (E13).
+  group('an error with details', () {
+    const detail = 'stderr: boom';
+    const failed = AppError.processFailed('/usr/bin/hdiutil', 1);
+    const withDetail = AppError.processFailed(
+      '/usr/bin/hdiutil',
+      1,
+      detail: detail,
+    );
+
+    testWidgets('offers them to copy, and never shows them (L9)', (
+      tester,
+    ) async {
+      final copied = <Object?>[];
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        (call) async {
+          if (call.method == 'Clipboard.setData') {
+            copied.add((call.arguments as Map)['text']);
+          }
+          return null;
+        },
+      );
+      addTearDown(
+        () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          SystemChannels.platform,
+          null,
+        ),
+      );
+
+      await show(tester, const UpdateState(update: mac, error: withDetail));
+      expect(
+        find.text(en.errProcessFailed('/usr/bin/hdiutil', 1)),
+        findsOneWidget,
+      );
+      expect(find.textContaining('boom', findRichText: true), findsNothing);
+
+      await tester.tap(find.text('Copy details'));
+      // The copy, then the toast, which slides in.
+      await tester.pumpAndSettle();
+      expect(copied, [detail]);
+      expect(find.text('Copied'), findsOneWidget);
+      // The toast closes by itself.
+      await tester.pump(const Duration(seconds: 6));
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('without them, there is nothing to copy (L9)', (tester) async {
+      await show(tester, const UpdateState(update: mac, error: failed));
+      expect(
+        find.text(en.errProcessFailed('/usr/bin/hdiutil', 1)),
+        findsOneWidget,
+      );
+      expect(find.text(en.commonCopyDetails), findsNothing);
+    });
+
+    testWidgets('with long notes, the text scrolls in the smallest window and '
+        'the buttons stay', (tester) async {
+      tester.view.physicalSize = const Size(720, 480);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await show(
+        tester,
+        UpdateState(
+          update: mac.copyWith(
+            notes: List.filled(30, 'Fixes for Blur').join('\n'),
+          ),
+          error: withDetail,
+        ),
+      );
+      expect(tester.takeException(), isNull);
+      expect(find.text('Update').hitTestable(), findsOneWidget);
+      expect(find.text('Copy details'), findsOneWidget);
+    });
   });
 }

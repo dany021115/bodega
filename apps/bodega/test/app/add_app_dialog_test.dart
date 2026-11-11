@@ -5,6 +5,7 @@ import 'package:bodega/app/presentation/add_app/add_app_dialog.dart';
 import 'package:bodega/device/theme/theme.dart';
 import 'package:bodega/domain/entities/app_error.dart';
 import 'package:bodega/domain/entities/catalog_app.dart';
+import 'package:bodega/domain/entities/path_problem.dart';
 import 'package:bodega/l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -18,15 +19,12 @@ class _MockAddApp extends MockBloc<AddAppEvent, AddAppState>
 class _MockCatalog extends MockBloc<CatalogEvent, CatalogState>
     implements CatalogBloc {}
 
-const _longNote =
-    'A very long note, to check that the text of the card is cut short '
-    'without overflowing, even in the narrowest window there is.';
-
+/// The card shows the status note of [id] from the ARBs: Steam's is long
+/// enough to be cut short, even in the narrowest window there is.
 CatalogApp _app(String id, String title, CatalogStatus status) => CatalogApp(
   id: id,
   title: '$title, with a title that is rather long for the card',
   status: status,
-  statusNote: _longNote,
   backend: 'dxmt',
   backendInstalled: true,
   sync: 'none',
@@ -93,6 +91,7 @@ void main() {
     await tester.pump();
 
     expect(find.textContaining('Steam'), findsOneWidget);
+    expect(find.text(en.catalogSteamStatusNote), findsOneWidget);
     expect(find.text('Not supported'), findsOneWidget);
     expect(find.text('Not available'), findsOneWidget);
     expect(find.text('Install'), findsNWidgets(2));
@@ -125,7 +124,11 @@ void main() {
       add: const AddAppState(
         bottle: longBottle,
         step: AddAppStep.installing,
-        error: AppError.engine('a very long error that can be copied'),
+        error: AppError.badPath(
+          PathProblem.missing(
+            '/Users/me/Downloads/a/very/long/path/to/an/installer/setup.exe',
+          ),
+        ),
       ),
     );
 

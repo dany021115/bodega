@@ -31,19 +31,17 @@ Future<String> installBackend(
 }) async {
   if (name == 'd3dmetal') {
     if (!hostPlatform.capabilities.d3dmetal) {
-      throw 'd3dmetal no disponible en ${hostPlatform.displayName}';
+      throw NotAvailable('d3dmetal', hostPlatform.displayName);
     }
-    throw 'd3dmetal no se descarga: bodega backend import d3dmetal <carpeta>';
+    throw const NotDownloadable('d3dmetal');
   }
   final pin = hostPlatform.pinnedBackends[name];
-  if (pin == null) throw 'backend sin instalador: $name';
+  if (pin == null) throw NotDownloadable(name);
   final dest = _backendSlot(home, name);
   final want = sha256 ?? pin.sha256;
   final file = tarball ?? await _download(home, url ?? pin.url, want);
   final got = await sha256Of(file);
-  if (got != want) {
-    throw 'checksum incorrecto en $file: $got, se esperaba $want';
-  }
+  if (got != want) throw ChecksumMismatch(file);
   return _intoSlot(home, name, dest, (tmp) async {
     await _run(hostPlatform.tool('tar'), ['-xzf', file, '-C', tmp.path]);
     final check = hostPlatform.layerCheck;
@@ -53,7 +51,7 @@ Future<String> installBackend(
         .where((dir) => Directory('${dir.path}/${check.dir}').existsSync())
         .firstOrNull;
     if (root == null || !File('${root.path}/${check.file}').existsSync()) {
-      throw 'tarball sin ${check.file}: $file';
+      throw IncompleteArchive(file, check.file);
     }
     root.renameSync('${tmp.path}/wine');
   });
@@ -106,20 +104,36 @@ Future<String?> d3dmetalVersion(String home) async {
   return result.exitCode == 0 ? (result.stdout as String).trim() : null;
 }
 
+/// What [installD3DMetalDmg] is doing, for a UI to word in its own language
+/// (E2).
+enum GptkStep {
+  opening('Opening the dmg'),
+
+  /// Waits for the user to accept Apple's license in the window macOS opened.
+  acceptLicense("Accept Apple's license in the window that opened"),
+  importing('Importing D3DMetal');
+
+  const GptkStep(this.english);
+
+  /// For the CLI and logs.
+  final String english;
+}
+
 /// I3: installs D3DMetal from the Game Porting Toolkit dmg the user got from
 /// Apple. It sits in `redist/lib`, usually in a dmg inside that dmg which
 /// shows Apple's license: macOS opens that one so the user accepts it
 /// themselves (design §1), and Bodega waits for its volume. What it mounted is
-/// detached at the end, whatever happens. Returns the version installed.
-Future<String> installD3DMetalDmg(
+/// detached at the end, whatever happens. Returns the version installed, or
+/// null when its framework does not say (E3).
+Future<String?> installD3DMetalDmg(
   String home,
   String dmg, {
-  void Function(String step)? onStep,
+  void Function(GptkStep step)? onStep,
   bool Function()? cancelled,
   Duration wait = const Duration(minutes: 5),
 }) async {
   if (!hostPlatform.capabilities.d3dmetal) {
-    throw 'd3dmetal no disponible en ${hostPlatform.displayName}';
+    throw NotAvailable('d3dmetal', hostPlatform.displayName);
   }
   final mounted = <String>[];
   Future<String> attach(String image) async {
@@ -142,7 +156,7 @@ Future<String> installD3DMetalDmg(
         continue;
       }
       Directory(mount).deleteSync();
-      throw 'no se pudo abrir ${image.split('/').last}: $why';
+      throw MountFailed(image, why);
     }
     mounted.add(mount);
     return mount;
@@ -151,7 +165,7 @@ Future<String> installD3DMetalDmg(
   String? redist(String root) =>
       Directory('$root/redist/lib').existsSync() ? '$root/redist' : null;
 
-  onStep?.call('Abriendo ${dmg.split('/').last}');
+  onStep?.call(GptkStep.opening);
   try {
     final outer = await attach(dmg);
     var found = redist(outer);
@@ -163,7 +177,7 @@ Future<String> installD3DMetalDmg(
         return name.startsWith('evaluation environment') &&
             name.endsWith('.dmg');
       }).firstOrNull;
-      if (inner == null) throw 'no hay D3DMetal en $dmg: falta redist/lib';
+      if (inner == null) throw NoD3DMetal(dmg, 'redist/lib');
       final info = await Process.run('/usr/bin/hdiutil', [
         'imageinfo',
         inner.path,
@@ -171,13 +185,13 @@ Future<String> installD3DMetalDmg(
       if (!'${info.stdout}'.contains('Software License Agreement: true')) {
         found = redist(await attach(inner.path));
       } else {
-        onStep?.call('Acepta la licencia de Apple en la ventana que se abrió');
+        onStep?.call(GptkStep.acceptLicense);
         await _run('/usr/bin/open', [inner.path]);
         final deadline = DateTime.now().add(wait);
         while (found == null) {
-          if (cancelled?.call() ?? false) throw 'instalación cancelada';
+          if (cancelled?.call() ?? false) throw const Cancelled();
           if (DateTime.now().isAfter(deadline)) {
-            throw 'no se aceptó la licencia de Apple';
+            throw const LicenseNotAccepted();
           }
           await Future<void>.delayed(const Duration(seconds: 1));
           for (final volume in Directory('/Volumes').listSync()) {
@@ -191,9 +205,9 @@ Future<String> installD3DMetalDmg(
           }
         }
       }
-      if (found == null) throw 'no hay D3DMetal en $dmg: falta redist/lib';
+      if (found == null) throw NoD3DMetal(dmg, 'redist/lib');
     }
-    onStep?.call('Importando D3DMetal');
+    onStep?.call(GptkStep.importing);
     // Replaces the one there was, and puts it back if the new one fails.
     final dest = Directory('$home/backends/d3dmetal');
     final old = Directory('${dest.path}.old');
@@ -217,7 +231,7 @@ Future<String> installD3DMetalDmg(
       }
     }
   }
-  return await d3dmetalVersion(home) ?? 'desconocida';
+  return d3dmetalVersion(home);
 }
 
 /// Copies D3DMetal from a folder the user provides (B2). Its unix modules are
@@ -226,14 +240,12 @@ Future<String> installD3DMetalDmg(
 /// Returns its folder.
 Future<String> importD3DMetal(String home, String folder) async {
   if (!hostPlatform.capabilities.d3dmetal) {
-    throw 'd3dmetal no disponible en ${hostPlatform.displayName}';
+    throw NotAvailable('d3dmetal', hostPlatform.displayName);
   }
   final real = Directory(folder).resolveSymbolicLinksSync();
   // ponytail: a guard against an easy mistake, not security; a manual copy of
   // the files gets past it (design §6).
-  if ('$real/'.contains('/CrossOver.app/')) {
-    throw 'no se importa desde CrossOver.app: usa tu propia copia de D3DMetal';
-  }
+  if ('$real/'.contains('/CrossOver.app/')) throw const CrossOverCopy();
   final src = Directory('$real/wine').existsSync() ? real : '$real/lib';
   const pe = 'wine/x86_64-windows', unix = 'wine/x86_64-unix';
   const lib = 'external/libd3dshared.dylib';
@@ -246,17 +258,18 @@ Future<String> importD3DMetal(String home, String folder) async {
     lib,
   ];
   for (final file in required) {
-    if (!File('$src/$file').existsSync()) throw 'falta $file en $src';
+    if (!File('$src/$file').existsSync()) throw NoD3DMetal(src, file);
   }
   if (!Directory('$src/$framework').existsSync()) {
-    throw 'falta $framework en $src';
+    throw NoD3DMetal(src, framework);
   }
   const modules = ['d3d11', 'd3d12', 'dxgi', 'atidxx64', 'nvapi64', 'nvngx'];
   final size = File('$src/$lib').lengthSync();
   for (final module in modules) {
     final so = File('$src/$unix/$module.so');
+    // A copy of its own counts as missing: the module must be [lib] itself.
     if (so.existsSync() && so.lengthSync() != size) {
-      throw '${so.path} no es la misma biblioteca que $lib';
+      throw NoD3DMetal(src, '$unix/$module.so');
     }
   }
   final dest = _backendSlot(home, 'd3dmetal');
@@ -284,9 +297,7 @@ Future<String> importD3DMetal(String home, String folder) async {
 /// `backends/<name>`, refusing to overwrite an installed backend.
 String _backendSlot(String home, String name) {
   final dest = '$home/backends/$name';
-  if (Directory(dest).existsSync()) {
-    throw 'ya instalado: $dest. Para cambiarlo: rm -rf "$dest"';
-  }
+  if (Directory(dest).existsSync()) throw AlreadyInstalled(dest);
   Directory('$home/backends').createSync(recursive: true);
   return dest;
 }
@@ -349,7 +360,7 @@ Future<String> _download(
     final got = await sha256Of(file.path);
     if (got != sha256) {
       file.deleteSync();
-      throw 'checksum incorrecto en ${file.path}: $got, se esperaba $sha256';
+      throw ChecksumMismatch(file.path);
     }
   }
   return file.path;
@@ -369,20 +380,19 @@ String _exeKey(String program) {
 
 void _checkChoice(String backend) {
   if (backend != 'auto' && !backendNames.contains(backend)) {
-    throw 'backend desconocido: $backend (auto, ${backendNames.join(', ')})';
+    throw BadChoice(ChoiceKind.backend, backend);
   }
 }
 
 void _checkGpu(String gpu) {
   if (gpu != 'auto' && gpu != 'discrete') {
-    throw 'gpu desconocida: $gpu (auto, discrete)';
+    throw BadChoice(ChoiceKind.gpu, gpu);
   }
 }
 
 void _checkSync(String sync) {
-  final modes = hostPlatform.capabilities.syncModes;
-  if (!modes.contains(sync)) {
-    throw 'sync desconocido: $sync (${modes.join(', ')})';
+  if (!hostPlatform.capabilities.syncModes.contains(sync)) {
+    throw BadChoice(ChoiceKind.sync, sync);
   }
 }
 
@@ -498,14 +508,13 @@ BottleSettings _settings(String dir) {
     }
     return settings;
   } on Object catch (e) {
-    throw '${file.path} no es válido: $e';
+    throw CorruptData(file.path, '$e');
   }
 }
 
 void _checkWindows(String version) {
   if (!windowsVersions.contains(version)) {
-    throw 'versión de Windows desconocida: $version '
-        '(${windowsVersions.join(', ')})';
+    throw BadChoice(ChoiceKind.windows, version);
   }
 }
 
@@ -613,16 +622,15 @@ void setBottleOptions(
 /// The user name Wine takes when Bodega sets none: the host's (design §4).
 String get hostUser => hostPlatform.baseEnv(Platform.environment)['USER'] ?? '';
 
-/// U3: why [user] cannot be a Windows user name, or null if it can.
-String? badUser(String user) {
-  if (user.isEmpty) return 'el nombre está vacío';
-  if (user.length > 20) return 'el nombre tiene más de 20 caracteres';
+/// U3: why [user] cannot be a Windows user name, or null if it can. Only
+/// [setBottleUser] knows whether it is [UserNameProblem.taken].
+UserNameProblem? badUser(String user) {
+  if (user.isEmpty) return UserNameProblem.empty;
+  if (user.length > 20) return UserNameProblem.tooLong;
   if (RegExp(r'["/\\\[\]:;|=,+*?<>\x00-\x1f]').hasMatch(user)) {
-    return r'el nombre no puede llevar " / \ [ ] : ; | = , + * ? < >';
+    return UserNameProblem.badCharacter;
   }
-  if (RegExp(r'^[. ]+$').hasMatch(user)) {
-    return 'el nombre no puede ser solo puntos o espacios';
-  }
+  if (RegExp(r'^[. ]+$').hasMatch(user)) return UserNameProblem.onlyDots;
   return null;
 }
 
@@ -634,7 +642,7 @@ Future<bool> setBottleUser(String home, String name, String? user) async {
   final dir = _existing(home, name);
   final wanted = (user ?? '').trim();
   if (wanted.isNotEmpty) {
-    if (badUser(wanted) case final why?) throw why;
+    if (badUser(wanted) case final problem?) throw BadUserName(wanted, problem);
   }
   final settings = _settings(dir);
   final saved = wanted == hostUser ? '' : wanted;
@@ -652,7 +660,7 @@ Future<bool> setBottleUser(String home, String name, String? user) async {
       from.toLowerCase() != to.toLowerCase() &&
       FileSystemEntity.typeSync('$users/$to', followLinks: false) !=
           FileSystemEntityType.notFound) {
-    throw 'ya existe C:\\users\\$to en la botella: bórrala o elige otro nombre';
+    throw BadUserName(to, UserNameProblem.taken);
   }
   await stopBottle(home, name);
   // `rename` moves the links inside as links: nothing they point to is touched.
@@ -675,10 +683,10 @@ Future<bool> setBottleUser(String home, String name, String? user) async {
         '/f',
       ],
       backend: 'wine',
-      label: 'usuario',
+      label: 'user',
     );
     final code = await exitOf(log);
-    if (code != 0) throw 'reg add salió con $code; log: $log';
+    if (code != 0) throw WineToolFailed(WineTool.reg, code, log);
   }
   return true;
 }
@@ -697,10 +705,10 @@ Future<bool> setHighRes(String home, String name, bool value) async {
       'reg',
       ['add', args[0], '/v', args[1], '/t', args[2], '/d', args[3], '/f'],
       backend: 'wine',
-      label: 'resolucion',
+      label: 'resolution',
     );
     final code = await exitOf(log);
-    if (code != 0) throw 'reg add salió con $code; log: $log';
+    if (code != 0) throw WineToolFailed(WineTool.reg, code, log);
   }
   _saveSettings(dir, _with(_settings(dir), highRes: value));
   return true;
@@ -719,7 +727,7 @@ Future<void> setWindowsVersion(String home, String name, String version) async {
     label: 'windows',
   );
   final code = await exitOf(log);
-  if (code != 0) throw 'winecfg salió con $code; log: $log';
+  if (code != 0) throw WineToolFailed(WineTool.winecfg, code, log);
   _saveSettings(dir, _with(_settings(dir), windows: version));
 }
 
@@ -740,11 +748,11 @@ Future<({String name, String origin})> resolveBackend(
   final (name, origin) = option == 'auto'
       ? (null, 'auto')
       : option != null
-      ? (option, 'opcion')
+      ? (option, 'option')
       : exception != null
       ? (exception, 'exe')
       : bottle != null
-      ? (bottle, 'botella')
+      ? (bottle, 'bottle')
       : (null, 'auto');
   if (name == null) {
     return (
@@ -752,13 +760,9 @@ Future<({String name, String origin})> resolveBackend(
       origin: origin,
     );
   }
-  if (!_installed(home, name)) throw _notInstalled(name);
+  if (!_installed(home, name)) throw BackendNotInstalled(name);
   return (name: name, origin: origin);
 }
-
-String _notInstalled(String name) =>
-    '$name no está instalado: bodega backend '
-    '${name == 'd3dmetal' ? 'import d3dmetal <carpeta>' : 'install $name'}';
 
 /// What an exe draws with (G1): its bits, and the newest DirectX it names
 /// (`DX12`, `DX11`, `DX10`, `DX9`, or empty when it names none).
@@ -895,7 +899,7 @@ Future<List<({int bits, String d3d, bool ok, String log})>> backendTest(
 ) async {
   _existing(home, name);
   if (!backendNames.contains(backend)) {
-    throw 'indica un backend: ${backendNames.join(', ')}';
+    throw BadChoice(ChoiceKind.testBackend, backend);
   }
   // Throws with the install order if it is missing (S5).
   await resolveBackend(home, bottleDir(home, name), 'x', null, option: backend);

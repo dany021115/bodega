@@ -1,5 +1,6 @@
 import 'package:bodega/domain/entities/app_error.dart';
 import 'package:bodega/domain/entities/library_app.dart';
+import 'package:bodega/domain/entities/run_hint.dart';
 import 'package:fpdart/fpdart.dart';
 
 abstract class LibraryRepository {
@@ -48,7 +49,11 @@ abstract class LibraryRepository {
   /// Ends when the bottle's last process exits, or at once if nothing runs.
   Future<void> waitBottle(String bottle);
 
-  List<String> antiCheatHints(String bottle, DateTime since);
+  /// Easy Anti-Cheat's failures in the bottle since [since], one per game, as
+  /// [RunHint.antiCheat]; none when they cannot be read.
+  List<RunHint> antiCheatHints(String bottle, DateTime since);
 
-  Future<List<String>> hintsIn(String log);
+  /// What the run's [log] shows, as [RunHint.log]; none when it cannot be
+  /// read.
+  Future<List<RunHint>> hintsIn(String log);
 }

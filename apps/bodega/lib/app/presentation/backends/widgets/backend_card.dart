@@ -3,6 +3,7 @@ import 'package:bodega/app/presentation/backends/widgets/gptk_section.dart';
 import 'package:bodega/app/presentation/backends/widgets/probe_dialog.dart';
 import 'package:bodega/app/shared/text/backend_text.dart';
 import 'package:bodega/app/shared/text/progress_text.dart';
+import 'package:bodega/app/shared/text/step_text.dart';
 import 'package:bodega/app/shared/widgets/status_chip.dart';
 import 'package:bodega/device/theme/color.dart';
 import 'package:bodega/device/theme/spacing.dart';
@@ -45,7 +46,7 @@ class BackendCard extends StatelessWidget {
   /// install, in that order.
   String _progress(AppL10n l10n, {required bool isChecking}) {
     if (isChecking) return l10n.backendChecking;
-    if (state.gptkStep case final step?) return step;
+    if (state.gptkStep case final step?) return gptkStepText(l10n, step);
     if (state.isDownloading && state.fraction != 1) {
       return downloadProgressText(
         l10n,
@@ -93,9 +94,12 @@ class BackendCard extends StatelessWidget {
               const SizedBox(height: AppSpacing.xs),
               Text(description, style: styles.bodySecondary),
             ],
-            if (backend.use.isNotEmpty) ...[
+            if (backend.role case final role?) ...[
               const SizedBox(height: AppSpacing.xs),
-              Text(l10n.backendUsedFor(backend.use), style: styles.caption),
+              Text(
+                l10n.backendUsedFor(backendRoleText(l10n, role)),
+                style: styles.caption,
+              ),
             ],
             if (name == 'd3dmetal') ...[
               const SizedBox(height: AppSpacing.md),

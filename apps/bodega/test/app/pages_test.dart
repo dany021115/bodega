@@ -10,6 +10,7 @@ import 'package:bodega/app/bloc/catalog/catalog_bloc.dart';
 import 'package:bodega/app/bloc/gamepads/gamepads_bloc.dart';
 import 'package:bodega/app/bloc/install/install_bloc.dart';
 import 'package:bodega/app/bloc/library/library_bloc.dart';
+import 'package:bodega/app/bloc/new_bottle/new_bottle_bloc.dart';
 import 'package:bodega/app/bloc/run_options/run_options_bloc.dart';
 import 'package:bodega/app/bloc/sections/sections_bloc.dart';
 import 'package:bodega/app/bloc/setup/setup_bloc.dart';
@@ -18,13 +19,19 @@ import 'package:bodega/app/bloc/view_mode/view_mode_bloc.dart';
 import 'package:bodega/app/presentation/add_app/add_app_dialog.dart';
 import 'package:bodega/app/presentation/backends/backends_page.dart';
 import 'package:bodega/app/presentation/bottles/bottle_detail_page.dart';
+import 'package:bodega/app/presentation/bottles/new_bottle_dialog.dart';
 import 'package:bodega/app/presentation/bottles/widgets/bottle_column.dart';
 import 'package:bodega/app/presentation/bottles/widgets/bottle_empty_apps.dart';
 import 'package:bodega/app/presentation/bottles/widgets/run_options_dialog.dart';
 import 'package:bodega/app/presentation/catalog/catalog_detail_page.dart';
 import 'package:bodega/app/presentation/catalog/catalog_page.dart';
 import 'package:bodega/app/presentation/library/library_page.dart';
+import 'package:bodega/app/presentation/library/widgets/bottle_tag.dart';
+import 'package:bodega/app/presentation/setup/setup_page.dart';
 import 'package:bodega/app/router.dart';
+import 'package:bodega/app/shared/text/catalog_text.dart';
+import 'package:bodega/app/shared/text/error_text.dart';
+import 'package:bodega/app/shared/text/hint_text.dart';
 import 'package:bodega/app/shared/widgets/empty_state.dart';
 import 'package:bodega/app/shared/widgets/gradient_button.dart';
 import 'package:bodega/app/shared/widgets/install_panel.dart';
@@ -34,13 +41,21 @@ import 'package:bodega/di.dart';
 import 'package:bodega/domain/entities/anti_cheat_game.dart';
 import 'package:bodega/domain/entities/app_error.dart';
 import 'package:bodega/domain/entities/backend_info.dart';
+import 'package:bodega/domain/entities/backend_role.dart';
 import 'package:bodega/domain/entities/bottle.dart';
 import 'package:bodega/domain/entities/bottle_detail.dart';
 import 'package:bodega/domain/entities/catalog_app.dart';
+import 'package:bodega/domain/entities/gamepad.dart';
+import 'package:bodega/domain/entities/gptk_step.dart';
 import 'package:bodega/domain/entities/host_capabilities.dart';
+import 'package:bodega/domain/entities/host_issue.dart';
+import 'package:bodega/domain/entities/install_step.dart';
 import 'package:bodega/domain/entities/library_app.dart';
+import 'package:bodega/domain/entities/log_hint.dart';
+import 'package:bodega/domain/entities/run_hint.dart';
 import 'package:bodega/l10n/l10n.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
@@ -81,6 +96,9 @@ class _MockViewMode extends MockBloc<ViewModeEvent, ViewModeState>
 class _MockRunOptions extends MockBloc<RunOptionsEvent, RunOptionsState>
     implements RunOptionsBloc {}
 
+class _MockNewBottle extends MockBloc<NewBottleEvent, NewBottleState>
+    implements NewBottleBloc {}
+
 class _MockGamepads extends MockBloc<GamepadsEvent, GamepadsState>
     implements GamepadsBloc {}
 
@@ -89,21 +107,32 @@ class _MockSetup extends MockBloc<SetupEvent, SetupState>
 
 // The longest texts and every chip at once: what would overflow first.
 final _long = 'A long note that takes up several lines on the screen. ' * 6;
+
+/// An error whose text holds [_long], with a detail: its panel also shows
+/// Copy details (L9).
+final _error = AppError.corruptData(_long, detail: 'stderr: boom');
 final _longName = 'a-bottle-with-a-very-very-long-name-${'x' * 28}';
-final _app = CatalogApp(
+
+/// Every hint a bottle can get at once, the anti-cheat one for a game with a
+/// long title: the most a bottle's card and page show.
+final _hints = [
+  for (final hint in LogHint.values) RunHint.log(hint),
+  RunHint.antiCheat(game: _long),
+];
+
+/// Every chip at once. Its prose comes from the ARBs by id (L16): a copy as
+/// Steam, the catalog's longest, and one as `custom`, which has none.
+const _app = CatalogApp(
   id: 'ea-app',
   title: 'Rockstar Games Launcher with a name that would not fit the card',
   status: CatalogStatus.reported,
-  statusNote: _long,
-  flaky: _long,
+  flaky: true,
   backend: 'dxmt',
   backendInstalled: true,
   sync: 'none',
   host: 'example.com',
   hasChecksum: false,
-  notes: [_long, _long],
-  knownIssues: [KnownIssue(symptom: _long, fix: _long)],
-  source: const {'repo': 'a/b', 'license': 'CC0-1.0'},
+  source: {'repo': 'a/b', 'license': 'CC0-1.0', 'verified': null},
   bottle: 'ea-app',
 );
 
@@ -120,8 +149,8 @@ final _catalog = CatalogState(
       verdict: AntiCheatVerdict.blocked,
     ),
   ],
-  antiCheatError: const AppError.network('no network'),
-  error: AppError.engine(_long),
+  antiCheatError: const AppError.network(detail: 'no network'),
+  error: _error,
 );
 
 List<LibraryApp> _apps(String bottle) => [
@@ -212,15 +241,42 @@ BottleDetailState _bottle({bool ready = true, List<LibraryApp>? apps}) =>
       ),
     );
 
+/// A pad Bodega cannot open, by a long name, and no SDL2: the two issue cards
+/// of a bottle's controllers section.
+final _padIssues = GamepadsState(
+  isLoading: false,
+  report: GamepadReport(
+    pads: [Gamepad(name: _longName, vid: '045e', pid: '028e', readable: false)],
+    sdl: false,
+    issues: [
+      HostIssue(
+        kind: HostIssueKind.padNoAccess,
+        subject: _longName,
+        command: 'sudo apt install steam-devices',
+      ),
+      const HostIssue(
+        kind: HostIssueKind.noSdl,
+        command: 'sudo apt install libsdl2-2.0-0',
+      ),
+    ],
+  ),
+);
+
 final _backends = BackendsState(
   isLoading: false,
   backends: const [
-    BackendInfo(name: 'wine', installed: true, downloadable: false),
+    // Wine's is the longest role.
+    BackendInfo(
+      name: 'wine',
+      installed: true,
+      downloadable: false,
+      role: BackendRole.everythingElse,
+    ),
     BackendInfo(
       name: 'dxmt',
       installed: false,
       downloadable: true,
-      use: 'DirectX 10 and 11, 32 and 64 bits',
+      role: BackendRole.dx10to11,
     ),
     BackendInfo(name: 'dxvk', installed: true, downloadable: true),
     BackendInfo(name: 'd3dmetal', installed: false, downloadable: false),
@@ -241,7 +297,7 @@ final _backends = BackendsState(
       ProbeResult(bits: 32, d3d: '11', ok: false, log: '/l/$_longName.log'),
     ],
   },
-  error: AppError.engine(_long),
+  error: _error,
 );
 
 void main() {
@@ -344,10 +400,7 @@ void main() {
           ),
         ],
         open: {'steam', _longName},
-        hints: {
-          'steam': [_long],
-          _longName: [_long],
-        },
+        hints: {'steam': _hints, _longName: _hints},
       ),
     );
   });
@@ -460,6 +513,28 @@ void main() {
         await pumpAt(tester, bottleView());
       });
 
+      testWidgets("a bottle's controller issues fit at $width px $lang", (
+        tester,
+      ) async {
+        showBottle(_bottle(apps: const []));
+        when(() => gamepads.state).thenReturn(_padIssues);
+        await pumpAt(tester, bottleView());
+        // Narrow, the panel goes under the apps, in a list that builds it
+        // only once it scrolls near.
+        final title = find.text(
+          lookupAppL10n(locale).issuePadNoAccessTitle(_longName),
+        );
+        await tester.scrollUntilVisible(
+          title,
+          300,
+          scrollable: find.byType(Scrollable).first,
+        );
+        // The pad is named, in the active language (E15), and its cards show
+        // no English message (L1).
+        expect(title, findsOneWidget);
+        if (locale.languageCode == 'es') _expectNoEnglishLiterals(tester);
+      });
+
       testWidgets('running with options fits at $width px $lang', (
         tester,
       ) async {
@@ -472,7 +547,7 @@ void main() {
             program: '/g/$_longName$_longName.exe',
             env: 'A=1',
             save: true,
-            error: AppError.engine(_long),
+            error: _error,
           ),
         );
         await pumpAt(
@@ -500,7 +575,7 @@ void main() {
               bottle: 'games',
               exe: '/g/$_longName$_longName.exe',
               title: 'Blur',
-              error: AppError.engine(_long),
+              error: _error,
             ),
           );
           await pumpAt(tester, const AddAppDialog());
@@ -524,8 +599,9 @@ void main() {
               app: _app,
               received: 150 << 20,
               total: 300 << 20,
-              step: _long,
-              error: AppError.engine(_long),
+              // The longest step: it names the app and two syncs.
+              step: InstallStep.syncMismatch(_long),
+              error: _error,
               bottleLeft: phase == InstallPhase.failed,
             ),
           );
@@ -555,8 +631,214 @@ void main() {
           }
         });
       }
+
+      testWidgets('a D3DMetal import fits at $width px $lang', (tester) async {
+        whenListen(
+          backends,
+          const Stream<BackendsState>.empty(),
+          initialState: _backends.copyWith(
+            busy: 'd3dmetal',
+            isDownloading: false,
+            // The longest step.
+            gptkStep: GptkStep.acceptLicense,
+          ),
+        );
+        // Tall enough for the list to build D3DMetal's card, the last one.
+        await pump(
+          tester,
+          width,
+          const BackendsPage(),
+          height: 3000,
+          locale: locale,
+        );
+        expect(
+          find.text(lookupAppL10n(locale).stepGptkAcceptLicense),
+          findsOneWidget,
+        );
+      });
     }
   }
+
+  // An error's detail is copied, never shown (L9): each error panel of design
+  // §6 shows one failure, with a tool's stderr as its detail and without.
+  group('copy details (L9)', () {
+    const detail = 'stderr: boom';
+    const failed = AppError.processFailed('/usr/bin/hdiutil', 1);
+    const withDetail = AppError.processFailed(
+      '/usr/bin/hdiutil',
+      1,
+      detail: detail,
+    );
+
+    /// Pumps [page] in the narrowest window, tall enough for each panel.
+    Future<void> pumpPanel(WidgetTester tester, Widget page, Locale locale) =>
+        pump(tester, 720, page, height: 1200, locale: locale);
+
+    /// Each error panel, showing an error where the user sees it.
+    final panels =
+        <String, Future<void> Function(WidgetTester, AppError, Locale)>{
+          'the install panel': (tester, error, locale) {
+            whenListen(
+              install,
+              const Stream<InstallState>.empty(),
+              initialState: InstallState(
+                phase: InstallPhase.failed,
+                app: _app,
+                error: error,
+              ),
+            );
+            return pumpPanel(
+              tester,
+              const Scaffold(
+                body: Column(
+                  children: [
+                    Expanded(child: SizedBox.expand()),
+                    InstallPanel(),
+                  ],
+                ),
+              ),
+              locale,
+            );
+          },
+          'the Backends page': (tester, error, locale) {
+            whenListen(
+              backends,
+              const Stream<BackendsState>.empty(),
+              initialState: BackendsState(isLoading: false, error: error),
+            );
+            return pumpPanel(tester, const BackendsPage(), locale);
+          },
+          'the catalog': (tester, error, locale) {
+            whenListen(
+              catalog,
+              const Stream<CatalogState>.empty(),
+              initialState: CatalogState(isLoading: false, error: error),
+            );
+            return pumpPanel(tester, const CatalogPage(), locale);
+          },
+          'the setup page': (tester, error, locale) {
+            showSetup(
+              SetupState(isChecking: false, runtime: true, error: error),
+            );
+            return pumpPanel(tester, const SetupPage(), locale);
+          },
+          'the new-bottle dialog': (tester, error, locale) {
+            final newBottle = _MockNewBottle();
+            whenListen(
+              newBottle,
+              const Stream<NewBottleState>.empty(),
+              initialState: NewBottleState(name: 'games', error: error),
+            );
+            return pumpPanel(
+              tester,
+              BlocProvider<NewBottleBloc>.value(
+                value: newBottle,
+                child: const NewBottleDialog(),
+              ),
+              locale,
+            );
+          },
+          'running with options': (tester, error, locale) {
+            final options = _MockRunOptions();
+            whenListen(
+              options,
+              const Stream<RunOptionsState>.empty(),
+              initialState: RunOptionsState(
+                bottle: 'steam',
+                program: '/g/Blur.exe',
+                error: error,
+              ),
+            );
+            return pumpPanel(
+              tester,
+              BlocProvider<RunOptionsBloc>.value(
+                value: options,
+                child: const RunOptionsDialog(backends: ['dxvk']),
+              ),
+              locale,
+            );
+          },
+          'the add-app dialog': (tester, error, locale) {
+            whenListen(
+              addApp,
+              const Stream<AddAppState>.empty(),
+              initialState: AddAppState(bottle: 'games', error: error),
+            );
+            return pumpPanel(tester, const AddAppDialog(), locale);
+          },
+          // The catalog's own error, on the tab that lists it when it could
+          // not load.
+          "the add-app dialog's catalog tab": (tester, error, locale) async {
+            whenListen(
+              catalog,
+              const Stream<CatalogState>.empty(),
+              initialState: CatalogState(isLoading: false, error: error),
+            );
+            whenListen(
+              addApp,
+              const Stream<AddAppState>.empty(),
+              initialState: const AddAppState(bottle: 'games'),
+            );
+            await pumpPanel(tester, const AddAppDialog(), locale);
+            await tester.tap(find.text(lookupAppL10n(locale).addAppTabOthers));
+            await tester.pump();
+          },
+        };
+
+    /// What the app puts on the clipboard while the test runs.
+    List<Object?> clipboard(WidgetTester tester) {
+      final copied = <Object?>[];
+      final messenger = tester.binding.defaultBinaryMessenger;
+      messenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
+        if (call.method == 'Clipboard.setData') {
+          copied.add((call.arguments as Map)['text']);
+        }
+        return null;
+      });
+      addTearDown(
+        () => messenger.setMockMethodCallHandler(SystemChannels.platform, null),
+      );
+      return copied;
+    }
+
+    for (final locale in const [Locale('en'), Locale('es')]) {
+      final l10n = lookupAppL10n(locale);
+      final lang = '(${locale.languageCode})';
+      final message = l10n.errProcessFailed('/usr/bin/hdiutil', 1);
+
+      for (final MapEntry(key: panel, value: show) in panels.entries) {
+        testWidgets('$panel copies the detail, and never shows it $lang', (
+          tester,
+        ) async {
+          final copied = clipboard(tester);
+          await show(tester, withDetail, locale);
+          expect(find.text(message), findsOneWidget);
+          expect(find.textContaining('boom', findRichText: true), findsNothing);
+
+          final button = find.text(l10n.commonCopyDetails);
+          await tester.ensureVisible(button);
+          await tester.tap(button);
+          // The copy, then the toast, which slides in.
+          await tester.pumpAndSettle();
+          expect(copied, [detail]);
+          expect(find.text(l10n.commonCopied), findsOneWidget);
+          // The toast says only that: the detail stays off the screen.
+          expect(find.textContaining('boom', findRichText: true), findsNothing);
+          // It closes by itself.
+          await tester.pump(const Duration(seconds: 6));
+          await tester.pumpAndSettle();
+        });
+
+        testWidgets('$panel has nothing to copy without a detail $lang', (
+          tester,
+        ) async {
+          await show(tester, failed, locale);
+          expect(find.text(message), findsOneWidget);
+          expect(find.text(l10n.commonCopyDetails), findsNothing);
+        });
+      }
+    }
+  });
 
   group('the bottle screen', () {
     // The panel is the box of its width: it is only there when it is beside.
@@ -617,11 +899,11 @@ void main() {
       showBottle(
         const BottleDetailState(
           isLoading: false,
-          error: AppError.engine('the bottle nope does not exist'),
+          error: AppError.bottleNotFound('nope'),
         ),
       );
       await pump(tester, 1150, const BottleDetailView(name: 'nope'));
-      expect(find.text('the bottle nope does not exist'), findsOneWidget);
+      expect(find.text(en.errBottleNotFound('nope')), findsOneWidget);
       expect(find.text('Back to Library'), findsOneWidget);
     });
 
@@ -777,8 +1059,9 @@ void main() {
 
     testWidgets('shows a hint once per bottle', (tester) async {
       await pump(tester, 1150, const LibraryPage(), height: 1200);
-      // The hint is the warning's tooltip: one per bottle, on its first app.
-      expect(find.byTooltip(_long), findsOneWidget);
+      // The hints are the warning's tooltip: one per bottle, on its first app.
+      final words = [for (final hint in _hints) hint.localized(en)];
+      expect(find.byTooltip(words.join('\n')), findsOneWidget);
     });
 
     testWidgets('opens the application asked', (tester) async {
@@ -805,6 +1088,94 @@ void main() {
     expect(inCard('Install'), findsNWidgets(2));
     expect(inCard('I already have it: choose the dmg…'), findsOneWidget);
     expect(find.textContaining('you accept its license'), findsOneWidget);
+  });
+
+  // The states keep codes, so a language switch rewords what is already on
+  // screen: the same state, pumped in English and then in Spanish (L6).
+  testWidgets('a language switch rewords a step, an error and a hint (L6)', (
+    tester,
+  ) async {
+    final es = lookupAppL10n(const Locale('es'));
+
+    /// Pumps [page] in English, then in Spanish over the same tree. Each of
+    /// [words] is an (English, Spanish) pair of finders: each finds one
+    /// widget in its own language, and the English one none in Spanish.
+    Future<void> switches(Widget page, List<(Finder, Finder)> words) async {
+      await pump(tester, 1150, page, height: 3000);
+      for (final (english, _) in words) {
+        expect(english, findsOneWidget);
+      }
+      await pump(tester, 1150, page, height: 3000, locale: const Locale('es'));
+      for (final (english, spanish) in words) {
+        expect(spanish, findsOneWidget);
+        expect(english, findsNothing);
+      }
+    }
+
+    /// A text on screen, in English and in Spanish.
+    (Finder, Finder) texts(String english, String spanish) =>
+        (find.text(english), find.text(spanish));
+
+    /// The tooltip of a bottle tag's warning, holding [text] among its lines.
+    Finder tagTooltip(String text) => find.descendant(
+      of: find.byType(BottleTag),
+      matching: find.byWidgetPredicate(
+        (widget) => widget is Tooltip && (widget.message ?? '').contains(text),
+        description: 'tooltip holding "$text"',
+      ),
+    );
+
+    // An install panel with its step.
+    whenListen(
+      install,
+      const Stream<InstallState>.empty(),
+      initialState: const InstallState(
+        phase: InstallPhase.installing,
+        app: _app,
+        step: InstallStep.creatingBottle('ea-app'),
+      ),
+    );
+    await switches(
+      const Scaffold(
+        body: Column(
+          children: [
+            Expanded(child: SizedBox.expand()),
+            InstallPanel(),
+          ],
+        ),
+      ),
+      [texts(en.stepCreatingBottle('ea-app'), es.stepCreatingBottle('ea-app'))],
+    );
+
+    // The library: the tag of a bottle with hints has a warning whose
+    // tooltip holds them, one per line.
+    await tester.pumpWidget(const SizedBox());
+    await switches(const LibraryPage(), [
+      for (final hint in _hints)
+        (tagTooltip(hint.localized(en)), tagTooltip(hint.localized(es))),
+    ]);
+
+    // The Backends page with its error, and D3DMetal's card with its step.
+    whenListen(
+      backends,
+      const Stream<BackendsState>.empty(),
+      initialState: _backends.copyWith(
+        busy: 'd3dmetal',
+        isDownloading: false,
+        gptkStep: GptkStep.importing,
+      ),
+    );
+    await tester.pumpWidget(const SizedBox());
+    await switches(const BackendsPage(), [
+      texts(en.stepGptkImporting, es.stepGptkImporting),
+      texts(_error.localized(en), _error.localized(es)),
+    ]);
+
+    // A bottle's page with the hints of its last run.
+    await tester.pumpWidget(const SizedBox());
+    await switches(bottleView(), [
+      for (final hint in _hints) texts(hint.localized(en), hint.localized(es)),
+    ]);
   });
 
   testWidgets('a backend download shows the shared progress text (L15)', (
@@ -889,6 +1260,76 @@ void main() {
       () => library.add(const LibraryEvent.open('ea-app', 'program/x.exe')),
     ).called(1);
     expect(router.state.matchedLocation, '/library');
+  });
+
+  // A catalog page words its prose by app id, in the active language (L16).
+  for (final locale in const [Locale('en'), Locale('es')]) {
+    final lang = '(${locale.languageCode})';
+
+    testWidgets('the Steam page shows its prose $lang', (tester) async {
+      final l10n = lookupAppL10n(locale);
+      List<String> texts(CatalogProse prose) => [
+        prose.statusNote,
+        ...prose.notes,
+        for (final (symptom, fix) in prose.issues) ...[symptom, fix],
+      ];
+
+      await pump(
+        tester,
+        1150,
+        const CatalogDetailPage(id: 'steam'),
+        height: 3000,
+        locale: locale,
+      );
+      for (final text in texts(catalogProse('steam', l10n)!)) {
+        expect(find.text(text), findsOneWidget, reason: text);
+      }
+      if (locale.languageCode != 'en') {
+        for (final text in texts(catalogProse('steam', en)!)) {
+          expect(find.text(text), findsNothing, reason: text);
+        }
+      }
+      // A source field with no data says so, in words of the ARBs.
+      expect(
+        find.text(
+          l10n.catalogSourceLine(
+            l10n.catalogSourceVerified,
+            l10n.catalogSourceNoData,
+          ),
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('an unstable app says why on its page $lang', (tester) async {
+      final l10n = lookupAppL10n(locale);
+      whenListen(
+        catalog,
+        const Stream<CatalogState>.empty(),
+        initialState: const CatalogState(isLoading: false, apps: [_app]),
+      );
+      await pump(
+        tester,
+        1150,
+        CatalogDetailPage(id: _app.id),
+        height: 3000,
+        locale: locale,
+      );
+      expect(find.text(l10n.catalogFlaky), findsOneWidget);
+      expect(find.text(catalogProse(_app.id, l10n)!.flaky!), findsOneWidget);
+    });
+  }
+
+  testWidgets('an app with no prose shows its page without it', (tester) async {
+    await pump(
+      tester,
+      1150,
+      const CatalogDetailPage(id: 'custom'),
+      height: 3000,
+    );
+    expect(find.text(en.catalogConfigSection), findsOneWidget);
+    expect(find.text(en.catalogNotesSection), findsNothing);
+    expect(find.text(en.catalogKnownIssuesSection), findsNothing);
   });
 
   testWidgets('a blocked app reads alike in the catalog and in the add-app '

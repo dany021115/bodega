@@ -2,6 +2,9 @@ import 'package:bodega/app/bloc/library/library_bloc.dart';
 import 'package:bodega/app/bloc/run_options/run_options_bloc.dart';
 import 'package:bodega/app/bloc/setup/setup_bloc.dart';
 import 'package:bodega/app/shared/graphics_of.dart';
+import 'package:bodega/app/shared/text/backend_text.dart';
+import 'package:bodega/app/shared/text/error_text.dart';
+import 'package:bodega/app/shared/widgets/copy_details_button.dart';
 import 'package:bodega/app/shared/widgets/custom_loading.dart';
 import 'package:bodega/device/theme/color.dart';
 import 'package:bodega/device/theme/spacing.dart';
@@ -80,12 +83,15 @@ class _RunOptionsDialogState extends State<RunOptionsDialog> {
   String? _misfit(BuildContext context, RunOptionsState state) {
     final backend = state.backend;
     if (backend == null || backend == 'auto') return null;
+    final graphics = graphicsOf(context, state.bottle, state.program);
+    if (graphics == null) return null;
     final name = state.program.split(RegExp(r'[\\/]')).last;
-    return graphicsOf(
-      context,
-      state.bottle,
-      state.program,
-    )?.warning(state.title.isEmpty ? name : state.title, backend);
+    return graphicsMisfitText(
+      context.l10n,
+      graphics,
+      program: state.title.isEmpty ? name : state.title,
+      backend: backend,
+    );
   }
 
   @override
@@ -218,11 +224,12 @@ class _RunOptionsDialogState extends State<RunOptionsDialog> {
                   if (state.error case final error?) ...[
                     const SizedBox(height: AppSpacing.md),
                     SelectableText(
-                      error.message,
+                      error.localized(l10n),
                       style: styles.body?.copyWith(
                         color: Theme.of(context).colorScheme.error,
                       ),
                     ),
+                    CopyDetailsButton(error: error),
                   ],
                 ],
               ),

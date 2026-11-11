@@ -10,6 +10,8 @@ import 'package:bodega/app/presentation/bottles/widgets/library_toggle.dart';
 import 'package:bodega/app/presentation/bottles/widgets/run_options_dialog.dart';
 import 'package:bodega/app/router.dart';
 import 'package:bodega/app/shared/graphics_of.dart';
+import 'package:bodega/app/shared/text/backend_text.dart';
+import 'package:bodega/app/shared/text/error_text.dart';
 import 'package:bodega/app/shared/widgets/app_card.dart';
 import 'package:bodega/app/shared/widgets/app_menu.dart';
 import 'package:bodega/app/shared/widgets/app_row.dart';
@@ -26,6 +28,7 @@ import 'package:bodega/device/theme/typography.dart';
 import 'package:bodega/di.dart';
 import 'package:bodega/domain/entities/bottle_detail.dart';
 import 'package:bodega/domain/entities/library_app.dart';
+import 'package:bodega/domain/entities/run_hint.dart';
 import 'package:bodega/l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -128,7 +131,10 @@ class BottleDetailView extends StatelessWidget {
       builder: (itemContext) {
         void menu(BuildContext button) => _menu(button, detail, app);
         void stop() => confirmStopBottle(itemContext, detail.name);
-        final graphics = graphicsOf(itemContext, detail.name, app.exe)?.label;
+        final found = graphicsOf(itemContext, detail.name, app.exe);
+        final graphics = found == null
+            ? null
+            : graphicsLabelText(itemContext.l10n, found);
         return isGrid
             ? AppCard(
                 key: ValueKey(app.key),
@@ -289,7 +295,7 @@ class BottleDetailView extends StatelessWidget {
       (LibraryBloc bloc) => bloc.state.open.contains(name),
     );
     final hints = context.select(
-      (LibraryBloc bloc) => bloc.state.hints[name] ?? const <String>[],
+      (LibraryBloc bloc) => bloc.state.hints[name] ?? const <RunHint>[],
     );
 
     // Whatever changes the apps (an install, the add-app dialog, a program that
@@ -318,7 +324,7 @@ class BottleDetailView extends StatelessWidget {
                 context: context,
               );
             } else if (state.error case final error?) {
-              AppToast.error(context, error.message);
+              AppToast.error(context, error.localized(context.l10n));
             }
           },
           builder: (context, state) {
@@ -328,7 +334,7 @@ class BottleDetailView extends StatelessWidget {
               return EmptyState(
                 icon: Icons.wine_bar_rounded,
                 title: context.l10n.bottleDetailOpenFailed,
-                message: state.error?.message ?? name,
+                message: state.error?.localized(context.l10n) ?? name,
                 actionLabel: context.l10n.navBackToLibrary,
                 onAction: () =>
                     RouterManager.go(AppRoute.library, context: context),

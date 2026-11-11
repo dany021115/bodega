@@ -1,6 +1,8 @@
 import 'package:bodega/app/bloc/catalog/catalog_bloc.dart';
 import 'package:bodega/app/presentation/catalog/widgets/anti_cheat_section.dart';
 import 'package:bodega/app/presentation/catalog/widgets/catalog_card.dart';
+import 'package:bodega/app/shared/text/error_text.dart';
+import 'package:bodega/app/shared/widgets/copy_details_button.dart';
 import 'package:bodega/app/shared/widgets/custom_loading.dart';
 import 'package:bodega/device/theme/spacing.dart';
 import 'package:bodega/device/theme/typography.dart';
@@ -77,11 +79,17 @@ class _CatalogPageState extends State<CatalogPage> {
                       horizontal: AppSpacing.xxl,
                     ),
                     sliver: SliverToBoxAdapter(
-                      child: SelectableText(
-                        error.message,
-                        style: styles.body?.copyWith(
-                          color: Theme.of(context).colorScheme.error,
-                        ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          SelectableText(
+                            error.localized(l10n),
+                            style: styles.body?.copyWith(
+                              color: Theme.of(context).colorScheme.error,
+                            ),
+                          ),
+                          CopyDetailsButton(error: error),
+                        ],
                       ),
                     ),
                   ),

@@ -1,8 +1,10 @@
 import 'dart:io';
 
+import 'package:bodega/data/service/code_mapper.dart';
 import 'package:bodega/data/service/engine_home.dart';
 import 'package:bodega/data/service/repository_call.dart';
 import 'package:bodega/domain/entities/app_error.dart';
+import 'package:bodega/domain/entities/path_problem.dart';
 import 'package:bodega/domain/repository/add_app_repository.dart';
 import 'package:engine/engine.dart' as engine;
 import 'package:fpdart/fpdart.dart';
@@ -15,9 +17,10 @@ class AddAppRepositoryImpl implements AddAppRepository {
   AddAppRepositoryImpl(this._home);
 
   @override
-  String? pathProblem(String path) {
-    if (!File(path).existsSync()) return 'No existe $path';
-    return engine.winPathProblem(path);
+  PathProblem? pathProblem(String path) {
+    if (!File(path).existsSync()) return PathProblem.missing(path);
+    final problem = engine.winPathProblem(path);
+    return problem == null ? null : pathProblemOf(problem);
   }
 
   @override

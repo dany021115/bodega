@@ -1,5 +1,7 @@
 import 'package:bodega/app/bloc/update/update_bloc.dart';
+import 'package:bodega/app/shared/text/error_text.dart';
 import 'package:bodega/app/shared/text/progress_text.dart';
+import 'package:bodega/app/shared/widgets/copy_details_button.dart';
 import 'package:bodega/device/theme/spacing.dart';
 import 'package:bodega/device/theme/typography.dart';
 import 'package:bodega/l10n/l10n.dart';
@@ -24,6 +26,9 @@ class UpdateDialog extends StatelessWidget {
         final l10n = context.l10n;
 
         return AlertDialog(
+          // Long notes, an error and its Copy details button fill a small
+          // window: the text scrolls, and the buttons stay.
+          scrollable: true,
           title: Text(l10n.updateTitle),
           content: SizedBox(
             width: 460,
@@ -77,9 +82,10 @@ class UpdateDialog extends StatelessWidget {
                 if (state.error case final error?) ...[
                   const SizedBox(height: AppSpacing.md),
                   Text(
-                    error.message,
+                    error.localized(l10n),
                     style: styles.body?.copyWith(color: colors.error),
                   ),
+                  CopyDetailsButton(error: error),
                 ],
                 const SizedBox(height: AppSpacing.md),
                 // A5, said where the user decides.

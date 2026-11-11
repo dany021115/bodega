@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:bodega/data/repository/update_repository_impl.dart';
 import 'package:bodega/data/service/downloader.dart';
 import 'package:bodega/data/service/preference.dart';
+import 'package:bodega/domain/entities/app_error.dart';
 import 'package:bodega/domain/entities/app_update.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -97,7 +98,7 @@ void main() {
   });
 
   Future<AppUpdate?> check() async =>
-      (await repository.check()).getOrElse((error) => fail(error.message));
+      (await repository.check()).getOrElse((error) => fail('$error'));
 
   test('a newer release is an update for this Mac (A1, A2)', () async {
     final update = await check();
@@ -149,15 +150,109 @@ void main() {
     final file = (await repository.download(
       update,
       (_, _) {},
-    )).getOrElse((error) => fail(error.message));
+    )).getOrElse((error) => fail('$error'));
     expect(File(file!).readAsStringSync(), 'dmg nuevo');
 
     sums = '${'0' * 64}  Bodega-1.4.0-macos-arm64.dmg\n';
     File(file).deleteSync();
     final bad = await repository.download(update, (_, _) {});
-    expect(bad.getLeft().toNullable()?.message, contains('no coincide'));
+    expect(
+      bad.getLeft().toNullable(),
+      const AppError.checksumMismatch('Bodega-1.4.0-macos-arm64.dmg'),
+    );
     expect(File(file).existsSync(), isFalse);
   });
+
+  test('a release that lists no SHA-256 for its installer downloads nothing '
+      '(A4)', () async {
+    sums = '${sha(dmg)}  Bodega-1.4.0-linux-x86_64.AppImage\n';
+    final update = (await check())!;
+    final none = await repository.download(update, (_, _) {});
+    expect(
+      none.getLeft().toNullable(),
+      const AppError.updateNoChecksum('Bodega-1.4.0-macos-arm64.dmg'),
+    );
+    expect(Directory(repository.downloads).existsSync(), isFalse);
+  });
+
+  test('what this copy cannot install by itself is not installable (A2, '
+      'A4)', () async {
+    repository.os = 'linux';
+    final update = (await check())!;
+    final download = await repository.download(update, (_, _) {});
+    expect(
+      download.getLeft().toNullable(),
+      const AppError.updateNotInstallable(),
+    );
+
+    final image = _write('${tmp.path}/Bodega.dmg', utf8.encode('dmg'));
+    Future<AppError?> install() async =>
+        (await repository.install(image)).getLeft().toNullable();
+    // Linux without an AppImage, then a Mac that does not run a .app.
+    expect(await install(), const AppError.updateNotInstallable());
+    repository
+      ..os = 'macos'
+      ..appPath = '${tmp.path}/bodega';
+    expect(await install(), const AppError.updateNotInstallable());
+  });
+
+  test('a folder Bodega cannot write to is not writable (A4)', () async {
+    final locked = Directory('${tmp.path}/Locked')..createSync();
+    await Process.run('chmod', ['555', locked.path]);
+    addTearDown(() => Process.run('chmod', ['755', locked.path]));
+    repository.appPath = '${locked.path}/Bodega.app';
+    final image = _write('${tmp.path}/Bodega.dmg', utf8.encode('dmg'));
+
+    final install = await repository.install(image);
+    expect(
+      install.getLeft().toNullable(),
+      AppError.updateNotWritable(locked.path),
+    );
+  });
+
+  test('a file that is not a dmg is hdiutil failing, with what it said as '
+      'the detail (E13)', () async {
+    final apps = Directory('${tmp.path}/Apps')..createSync();
+    repository.appPath = '${apps.path}/Bodega.app';
+    final file = _write('${tmp.path}/Bodega.dmg', utf8.encode('not a dmg'));
+
+    final install = await repository.install(file);
+    expect(
+      install.getLeft().toNullable(),
+      isA<ProcessFailedError>()
+          .having((e) => e.command, 'command', '/usr/bin/hdiutil')
+          .having((e) => e.exitCode, 'exitCode', allOf(isNotNull, isNonZero))
+          .having(
+            (e) => e.detail,
+            'detail',
+            contains('hdiutil: attach failed'),
+          ),
+    );
+    expect(apps.listSync(), isEmpty);
+  }, skip: File('/usr/bin/hdiutil').existsSync() ? false : 'needs hdiutil');
+
+  test('a dmg without the app is incomplete (A4)', () async {
+    final apps = Directory('${tmp.path}/Apps')..createSync();
+    repository.appPath = '${apps.path}/Bodega.app';
+    _write('${tmp.path}/other/README', utf8.encode('no app here'));
+    final image = '${tmp.path}/Bodega.dmg';
+    final created = await Process.run('/usr/bin/hdiutil', [
+      'create',
+      '-quiet',
+      '-srcfolder',
+      '${tmp.path}/other',
+      '-ov',
+      image,
+    ]);
+    expect(created.exitCode, 0, reason: '${created.stderr}');
+
+    final install = await repository.install(image);
+    expect(
+      install.getLeft().toNullable(),
+      AppError.incompleteArchive(image, 'Bodega.app'),
+    );
+    expect(apps.listSync(), isEmpty);
+  }, skip: File('/usr/bin/hdiutil').existsSync() ? false : 'needs hdiutil');
 
   test('macOS: the new app waits beside the old one, and the swap keeps the '
       'data (A4, A5)', () async {

@@ -59,6 +59,7 @@ const _sameInBothLanguages = {
   'apps',
   'backend',
   'backends',
+  'bits',
   'commit',
   'GPU',
   'HUD',

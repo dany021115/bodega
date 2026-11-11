@@ -60,14 +60,16 @@ class GptkSection extends StatelessWidget {
             final done = now.gptkInstalled;
             if (done == null) return;
             final words = context.l10n;
-            // Two sentences, one message each.
+            // Two sentences, one message each. A version it cannot read still
+            // says it installed (E3).
+            final installed = switch (done.version) {
+              final version? => words.gptkInstalledToast(version),
+              null => words.gptkInstalledToastNoVersion,
+            };
             final next = now.bottles.isEmpty
                 ? words.gptkToastNeedsBottle
                 : words.gptkToastChecking;
-            AppToast.success(
-              context,
-              '${words.gptkInstalledToast(done)} $next',
-            );
+            AppToast.success(context, '$installed $next');
           },
         ),
       ],

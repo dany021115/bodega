@@ -1,6 +1,8 @@
 import 'package:bodega/app/bloc/setup/setup_bloc.dart';
 import 'package:bodega/app/presentation/setup/widgets/requirement_card.dart';
 import 'package:bodega/app/presentation/setup/widgets/runtime_card.dart';
+import 'package:bodega/app/shared/text/error_text.dart';
+import 'package:bodega/app/shared/widgets/copy_details_button.dart';
 import 'package:bodega/app/shared/widgets/custom_loading.dart';
 import 'package:bodega/device/theme/spacing.dart';
 import 'package:bodega/device/theme/typography.dart';
@@ -42,11 +44,12 @@ class SetupPage extends StatelessWidget {
                       ],
                       if (state.error case final error?) ...[
                         SelectableText(
-                          error.message,
+                          error.localized(l10n),
                           style: styles.body?.copyWith(
                             color: Theme.of(context).colorScheme.error,
                           ),
                         ),
+                        CopyDetailsButton(error: error),
                         const SizedBox(height: AppSpacing.lg),
                       ],
                       TextButton.icon(

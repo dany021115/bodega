@@ -39,6 +39,7 @@ class CatalogDetailPage extends StatelessWidget {
                   RouterManager.go(AppRoute.catalog, context: context),
             );
           }
+          final prose = catalogProse(app.id, l10n);
 
           return ListView(
             padding: const EdgeInsets.all(AppSpacing.xxl),
@@ -49,7 +50,7 @@ class CatalogDetailPage extends StatelessWidget {
                   onPressed: () =>
                       RouterManager.go(AppRoute.catalog, context: context),
                   icon: const Icon(Icons.arrow_back_rounded, size: 18),
-                  label: Text(l10n.catalogBack),
+                  label: Text(l10n.catalogTitle),
                 ),
               ),
               const SizedBox(height: AppSpacing.md),
@@ -69,11 +70,13 @@ class CatalogDetailPage extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: AppSpacing.lg),
-              Text(app.statusNote, style: styles.body),
-              if (app.flaky case final flaky?) ...[
-                const SizedBox(height: AppSpacing.sm),
-                Text(flaky, style: styles.bodySecondary),
+              if (prose != null) ...[
+                const SizedBox(height: AppSpacing.lg),
+                Text(prose.statusNote, style: styles.body),
+                if (prose.flaky case final flaky?) ...[
+                  const SizedBox(height: AppSpacing.sm),
+                  Text(flaky, style: styles.bodySecondary),
+                ],
               ],
               const SizedBox(height: AppSpacing.lg),
               DetailAction(app: app),
@@ -84,29 +87,29 @@ class CatalogDetailPage extends StatelessWidget {
                   Text(l10n.catalogSync(app.sync), style: styles.body),
                 ],
               ),
-              if (app.notes.isNotEmpty)
+              if (prose != null && prose.notes.isNotEmpty)
                 DetailSection(
                   title: l10n.catalogNotesSection,
                   children: [
-                    for (final note in app.notes)
+                    for (final note in prose.notes)
                       Padding(
                         padding: const EdgeInsets.only(bottom: AppSpacing.sm),
                         child: Text(note, style: styles.body),
                       ),
                   ],
                 ),
-              if (app.knownIssues.isNotEmpty)
+              if (prose != null && prose.issues.isNotEmpty)
                 DetailSection(
                   title: l10n.catalogKnownIssuesSection,
                   children: [
-                    for (final issue in app.knownIssues)
+                    for (final (symptom, fix) in prose.issues)
                       Padding(
                         padding: const EdgeInsets.only(bottom: AppSpacing.md),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(issue.symptom, style: styles.cardTitle),
-                            Text(issue.fix, style: styles.bodySecondary),
+                            Text(symptom, style: styles.cardTitle),
+                            Text(fix, style: styles.bodySecondary),
                           ],
                         ),
                       ),
@@ -119,7 +122,7 @@ class CatalogDetailPage extends StatelessWidget {
                     SelectableText(
                       l10n.catalogSourceLine(
                         catalogSourceText(l10n, key),
-                        value,
+                        value ?? l10n.catalogSourceNoData,
                       ),
                       style: styles.caption,
                     ),

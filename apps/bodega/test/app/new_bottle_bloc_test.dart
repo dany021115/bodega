@@ -2,6 +2,7 @@ import 'package:bloc_test/bloc_test.dart';
 import 'package:bodega/app/bloc/new_bottle/new_bottle_bloc.dart';
 import 'package:bodega/domain/entities/app_error.dart';
 import 'package:bodega/domain/entities/bottle.dart';
+import 'package:bodega/domain/entities/wine_tool.dart';
 import 'package:bodega/domain/repository/bottle_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fpdart/fpdart.dart';
@@ -83,9 +84,16 @@ void main() {
   blocTest<NewBottleBloc, NewBottleState>(
     'a failed creation keeps the error and creates nothing',
     build: () {
-      when(
-        () => repository.create('juegos', windows: 'win11', backend: 'auto'),
-      ).thenAnswer((_) async => left(const AppError.engine('wineboot falló')));
+      when(() => repository.create('juegos', windows: 'win11', backend: 'auto'))
+          .thenAnswer(
+            (_) async => left(
+              const AppError.wineToolFailed(
+                WineTool.wineboot,
+                1,
+                '/l/wineboot.log',
+              ),
+            ),
+          );
       return build();
     },
     act: (bloc) async {
@@ -96,7 +104,10 @@ void main() {
     },
     wait: const Duration(milliseconds: 10),
     verify: (bloc) {
-      expect(bloc.state.error, const AppError.engine('wineboot falló'));
+      expect(
+        bloc.state.error,
+        const AppError.wineToolFailed(WineTool.wineboot, 1, '/l/wineboot.log'),
+      );
       expect(bloc.state.createdName, isNull);
       expect(bloc.state.isCreating, isFalse);
     },

@@ -47,25 +47,31 @@ void main() {
     expect(parseInputDevices(''), isEmpty);
   });
 
-  test('a pad that cannot be opened is reported, with the udev rules', () {
+  test('a pad that cannot be opened is reported by name, with the udev rules, '
+      'and missing SDL2 too (E3)', () {
     final pads = parseInputDevices(
       _proc,
       readable: (node) => node != '/dev/input/event27',
     );
-    final issues = gamepadIssues(pads, sdl: true, install: _install);
-    expect(issues, hasLength(1));
-    expect(issues.single.title, contains('8BitDo Ultimate 2'));
-    expect(issues.single.detail, contains('/dev/input/event27'));
-    // Fedora has no package for it: the command is left for the distro to fill.
-    expect(
-      issues.single.command,
-      'apt: steam-devices dnf: null pacman: steam-devices',
-    );
+    expect(gamepadIssues(pads, sdl: false, install: _install), [
+      // Fedora has no package for the rules: the command is left for the
+      // distro to fill.
+      (
+        kind: HostIssueKind.padNoAccess,
+        subject: '8BitDo Ultimate 2 Wireless Controller',
+        command: 'apt: steam-devices dnf: null pacman: steam-devices',
+      ),
+      (
+        kind: HostIssueKind.noSdl,
+        subject: null,
+        command: 'apt: libsdl2-2.0-0 dnf: SDL2 pacman: sdl2-compat',
+      ),
+    ]);
   });
 
   test('missing SDL2 is reported with or without pads', () {
     final issues = gamepadIssues(const [], sdl: false, install: _install);
-    expect(issues.single.title, 'Falta SDL2');
+    expect(issues.single.kind, HostIssueKind.noSdl);
     expect(issues.single.command, contains('sdl2-compat'));
   });
 

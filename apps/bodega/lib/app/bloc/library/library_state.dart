@@ -8,10 +8,12 @@ abstract class LibraryState with _$LibraryState {
     @Default(true) bool isLoading,
     @Default([]) List<LibraryApp> apps,
     @Default({}) Set<String> open,
-    @Default({}) Map<String, List<String>> hints,
 
-    /// The latest hint; [toastId] tells apart two with the same text.
-    String? toast,
+    /// Each bottle's hints, as codes the page words (L6).
+    @Default({}) Map<String, List<RunHint>> hints,
+
+    /// The latest hint; [toastId] tells apart two equal ones.
+    RunHint? toast,
     @Default(0) int toastId,
     AppError? error,
   }) = _LibraryState;

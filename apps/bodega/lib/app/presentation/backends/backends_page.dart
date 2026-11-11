@@ -1,6 +1,8 @@
 import 'package:bodega/app/bloc/backends/backends_bloc.dart';
 import 'package:bodega/app/bloc/setup/setup_bloc.dart';
 import 'package:bodega/app/presentation/backends/widgets/backend_card.dart';
+import 'package:bodega/app/shared/text/error_text.dart';
+import 'package:bodega/app/shared/widgets/copy_details_button.dart';
 import 'package:bodega/app/shared/widgets/custom_loading.dart';
 import 'package:bodega/device/theme/spacing.dart';
 import 'package:bodega/device/theme/typography.dart';
@@ -39,11 +41,12 @@ class _BackendsPageState extends State<BackendsPage> {
               if (state.error case final error?) ...[
                 const SizedBox(height: AppSpacing.md),
                 SelectableText(
-                  error.message,
+                  error.localized(context.l10n),
                   style: styles.body?.copyWith(
                     color: Theme.of(context).colorScheme.error,
                   ),
                 ),
+                CopyDetailsButton(error: error),
               ],
               for (final backend in state.backends)
                 if (backend.name != 'd3dmetal' || caps.d3dmetal) ...[

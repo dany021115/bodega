@@ -4,6 +4,8 @@ import 'package:bodega/app/presentation/bottles/new_bottle_dialog.dart';
 import 'package:bodega/app/presentation/bottles/widgets/run_options_dialog.dart';
 import 'package:bodega/app/presentation/library/widgets/bottle_tag.dart';
 import 'package:bodega/app/shared/graphics_of.dart';
+import 'package:bodega/app/shared/text/backend_text.dart';
+import 'package:bodega/app/shared/text/error_text.dart';
 import 'package:bodega/app/shared/widgets/app_card.dart';
 import 'package:bodega/app/shared/widgets/app_menu.dart';
 import 'package:bodega/app/shared/widgets/app_row.dart';
@@ -16,7 +18,9 @@ import 'package:bodega/device/theme/radius.dart';
 import 'package:bodega/device/theme/spacing.dart';
 import 'package:bodega/device/theme/typography.dart';
 import 'package:bodega/di.dart';
+import 'package:bodega/domain/entities/app_error.dart';
 import 'package:bodega/domain/entities/library_app.dart';
+import 'package:bodega/domain/entities/run_hint.dart';
 import 'package:bodega/domain/repository/bottle_repository.dart';
 import 'package:bodega/l10n/l10n.dart';
 import 'package:flutter/material.dart';
@@ -50,24 +54,28 @@ class _LibraryPageState extends State<LibraryPage> {
       hud: app.hud,
     );
     if (action == null || !anchor.mounted) return;
+    // Read now: the menu's awaits below may outlive the item.
+    final l10n = anchor.l10n;
+    void failed(AppError error) {
+      if (anchor.mounted) AppToast.error(anchor, error.localized(l10n));
+    }
 
     switch (action) {
       case AppMenuAction.open:
         bloc.add(LibraryEvent.open(app.bottle, app.key));
       case AppMenuAction.options:
         // The graphics layers installed are a bottle's, not the library's.
-        (await bottles.detail(app.bottle))
-            .match((error) => AppToast.error(anchor, error.message), (detail) {
-              if (!anchor.mounted) return;
-              showRunOptions(
-                anchor,
-                bottle: app.bottle,
-                backends: detail.installedBackends,
-                program: app.exe,
-                args: app.args,
-                title: app.title,
-              );
-            });
+        (await bottles.detail(app.bottle)).match(failed, (detail) {
+          if (!anchor.mounted) return;
+          showRunOptions(
+            anchor,
+            bottle: app.bottle,
+            backends: detail.installedBackends,
+            program: app.exe,
+            args: app.args,
+            title: app.title,
+          );
+        });
       case AppMenuAction.hud:
         bloc.add(LibraryEvent.setHud(app.bottle, app.key, !app.hud));
       case AppMenuAction.library:
@@ -75,10 +83,8 @@ class _LibraryPageState extends State<LibraryPage> {
           LibraryEvent.setInLibrary(app.bottle, app.key, !app.inLibrary),
         );
       case AppMenuAction.hide:
-        (await bottles.hideApp(app.bottle, app.key)).match(
-          (error) => AppToast.error(anchor, error.message),
-          (_) => bloc.add(const LibraryEvent.load()),
-        );
+        final hidden = await bottles.hideApp(app.bottle, app.key);
+        hidden.match(failed, (_) => bloc.add(const LibraryEvent.load()));
     }
   }
 
@@ -92,8 +98,8 @@ class _LibraryPageState extends State<LibraryPage> {
     final running = state.open.contains(app.bottle);
     // The hints are of the bottle: they show on its first application.
     final hints = first
-        ? state.hints[app.bottle] ?? const <String>[]
-        : const <String>[];
+        ? state.hints[app.bottle] ?? const <RunHint>[]
+        : const <RunHint>[];
     final tag = BottleTag(bottle: app.bottle, hints: hints);
     final bloc = context.read<LibraryBloc>();
 
@@ -102,7 +108,10 @@ class _LibraryPageState extends State<LibraryPage> {
         void play() => bloc.add(LibraryEvent.open(app.bottle, app.key));
         void stop() => confirmStopBottle(anchor, app.bottle);
         void menu(BuildContext button) => _menu(button, app);
-        final graphics = graphicsOf(anchor, app.bottle, app.exe)?.label;
+        final found = graphicsOf(anchor, app.bottle, app.exe);
+        final graphics = found == null
+            ? null
+            : graphicsLabelText(anchor.l10n, found);
 
         return asRow
             ? AppRow(

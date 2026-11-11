@@ -1,5 +1,7 @@
+import 'package:bodega/app/shared/text/problem_text.dart';
 import 'package:bodega/device/theme/spacing.dart';
 import 'package:bodega/device/theme/typography.dart';
+import 'package:bodega/domain/entities/user_name_problem.dart';
 import 'package:bodega/l10n/l10n.dart';
 import 'package:flutter/material.dart';
 
@@ -8,7 +10,7 @@ Future<String?> showWindowsUserDialog(
   BuildContext context, {
   required String current,
   required String macUser,
-  required String? Function(String user) problem,
+  required UserNameProblem? Function(String user) problem,
 }) => showDialog<String>(
   context: context,
   builder: (_) =>
@@ -21,7 +23,7 @@ class WindowsUserDialog extends StatefulWidget {
   final String macUser;
 
   /// Why a name cannot be used (U3), or null.
-  final String? Function(String user) problem;
+  final UserNameProblem? Function(String user) problem;
 
   const WindowsUserDialog({
     super.key,
@@ -70,7 +72,7 @@ class _WindowsUserDialogState extends State<WindowsUserDialog> {
               autofocus: true,
               decoration: InputDecoration(
                 labelText: l10n.commonName,
-                errorText: why,
+                errorText: why == null ? null : userNameProblemText(l10n, why),
               ),
               onChanged: (_) => setState(() {}),
               onSubmitted: canSave

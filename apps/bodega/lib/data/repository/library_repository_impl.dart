@@ -5,6 +5,8 @@ import 'package:bodega/data/service/engine_home.dart';
 import 'package:bodega/data/service/repository_call.dart';
 import 'package:bodega/domain/entities/app_error.dart';
 import 'package:bodega/domain/entities/library_app.dart';
+import 'package:bodega/domain/entities/log_hint.dart';
+import 'package:bodega/domain/entities/run_hint.dart';
 import 'package:bodega/domain/repository/library_repository.dart';
 import 'package:engine/engine.dart' as engine;
 import 'package:fpdart/fpdart.dart';
@@ -102,23 +104,38 @@ class LibraryRepositoryImpl implements LibraryRepository {
       repositoryCall(() => engine.waitBottle(_home.path, bottle));
 
   @override
-  List<String> antiCheatHints(String bottle, DateTime since) {
+  List<RunHint> antiCheatHints(String bottle, DateTime since) {
     try {
-      return engine.antiCheatHints(_home.path, bottle, since: since);
+      final found = engine.antiCheatHints(_home.path, bottle, since: since);
+      return [for (final hint in found) RunHint.antiCheat(game: hint.game)];
     } on Object {
       return const [];
     }
   }
 
   @override
-  Future<List<String>> hintsIn(String log) async {
+  Future<List<RunHint>> hintsIn(String log) async {
     try {
-      return await engine.hintsIn(log);
+      return [
+        for (final hint in await engine.hintsIn(log))
+          RunHint.log(logHintOf(hint)),
+      ];
     } on Object {
       return const [];
     }
   }
 }
+
+/// The engine's [hint] as its domain twin. One case per hint and no default,
+/// so a hint the engine adds fails the build here until the domain has it
+/// (E12).
+LogHint logHintOf(engine.LogHint hint) => switch (hint) {
+  engine.LogHint.freeType => LogHint.freeType,
+  engine.LogHint.gnuTls => LogHint.gnuTls,
+  engine.LogHint.otherServer => LogHint.otherServer,
+  engine.LogHint.cannotOpen => LogHint.cannotOpen,
+  engine.LogHint.fixNotApplied => LogHint.fixNotApplied,
+};
 
 /// How the engine keeps [program]: `C:\\X\\a.exe` and a path inside the
 /// bottle's `drive_c` go relative to it; anything else stays absolute.

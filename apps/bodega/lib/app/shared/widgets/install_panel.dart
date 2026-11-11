@@ -1,8 +1,12 @@
 import 'package:bodega/app/bloc/install/install_bloc.dart';
 import 'package:bodega/app/bloc/library/library_bloc.dart';
 import 'package:bodega/app/router.dart';
+import 'package:bodega/app/shared/text/catalog_text.dart';
+import 'package:bodega/app/shared/text/error_text.dart';
 import 'package:bodega/app/shared/text/progress_text.dart';
+import 'package:bodega/app/shared/text/step_text.dart';
 import 'package:bodega/app/shared/widgets/app_icon.dart';
+import 'package:bodega/app/shared/widgets/copy_details_button.dart';
 import 'package:bodega/device/router/manager.dart';
 import 'package:bodega/device/theme/spacing.dart';
 import 'package:bodega/device/theme/typography.dart';
@@ -39,19 +43,26 @@ class InstallPanel extends StatelessWidget {
                 : Text(l10n.installNoChecksum(app.host), style: styles.caption),
           ),
           InstallPhase.installing => (
-            state.step ?? l10n.commonInstalling,
+            switch (state.step) {
+              final step? => installStepText(l10n, step, app),
+              null => l10n.commonInstalling,
+            },
             null,
           ),
           InstallPhase.done => (
             l10n.catalogAppInstalled,
-            app.notes.isEmpty
-                ? null
-                : Text(app.notes.join('\n\n'), style: styles.bodySecondary),
+            switch (catalogProse(app.id, l10n)?.notes) {
+              final notes? when notes.isNotEmpty => Text(
+                notes.join('\n\n'),
+                style: styles.bodySecondary,
+              ),
+              _ => null,
+            },
           ),
           InstallPhase.failed => (
             l10n.installFailed,
             SelectableText(
-              state.error?.message ?? '',
+              state.error?.localized(l10n) ?? '',
               style: styles.body?.copyWith(color: colors.error),
             ),
           ),
@@ -104,6 +115,11 @@ class InstallPanel extends StatelessWidget {
                                 child: SingleChildScrollView(child: detail),
                               ),
                             ],
+                            // Below the error's box: a long error never hides
+                            // it.
+                            if (state.error case final error?
+                                when state.phase == InstallPhase.failed)
+                              CopyDetailsButton(error: error),
                           ],
                         ),
                       ),

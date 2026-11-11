@@ -91,8 +91,8 @@ void main() {
           sdl: true,
           issues: [
             HostIssue(
-              title: 'No access to the controller Microsoft X-Box 360 pad',
-              detail: 'Bodega cannot open /dev/input/event26.',
+              kind: HostIssueKind.padNoAccess,
+              subject: 'Microsoft X-Box 360 pad',
               command: 'sudo pacman -S steam-devices',
             ),
           ],
@@ -101,6 +101,10 @@ void main() {
     );
     expect(find.text('Ready'), findsOneWidget);
     expect(find.text('No access'), findsOneWidget);
+    expect(
+      find.text('No access to the controller Microsoft X-Box 360 pad'),
+      findsOneWidget,
+    );
     expect(find.text('sudo pacman -S steam-devices'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });

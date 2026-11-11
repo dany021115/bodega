@@ -51,7 +51,7 @@ Every code that reaches `app/` (each `AppError` code, host issue, backend role, 
 - **Check:** `flutter test test/app/text_test.dart`; `flutter analyze` after deleting one case in a scratch copy.
 
 ## L9 · Details are copied, never shown
-An error's `detail` (the engine's English message, a tool's stderr, Dio's text) shall never be rendered, and each error panel (design §6) shall offer "Copy details" when it is set, while toasts show the message only.
+An error's `detail` (the engine's English message, a tool's stderr, Dio's text) shall never be rendered, and each error panel (design §6, the catalog's error on the add-app dialog's Others tab included) shall offer "Copy details" when it is set, while toasts show the message only.
 - **Given** an `AppError` with `detail: 'stderr: boom'` on each error panel and in the update dialog, **then** `boom` is not on screen and "Copy details" is; **when** it is clicked, **then** the clipboard holds the detail and a "Copied" toast shows; with no detail, there is no button.
 - **Check:** `flutter test test/app/pages_test.dart test/app/update_dialog_test.dart`.
 

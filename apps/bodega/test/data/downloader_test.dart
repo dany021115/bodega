@@ -189,12 +189,25 @@ void main() {
     expect(File('$dest.part').lengthSync(), 1000);
   });
 
+  test('a body shorter than its length is a downloadCut, and keeps the '
+      '.part to resume', () async {
+    final short = Downloader(Dio()..httpClientAdapter = _ShortAdapter());
+
+    await expectLater(
+      short.fetch('https://a.example/setup', dest, cancel: CancelToken()),
+      throwsA(const AppError.downloadCut(1000, 2000)),
+    );
+
+    expect(File(dest).existsSync(), isFalse);
+    expect(File('$dest.part').lengthSync(), 1000);
+  });
+
   test('refuses what is not HTTPS, without asking', () async {
     downloader.httpsOnly = true;
 
     await expectLater(
       downloader.fetch(url, dest, cancel: CancelToken()),
-      throwsA(isA<NetworkError>()),
+      throwsA(isA<UnknownError>()),
     );
 
     expect(lastRange, isNull);
@@ -211,7 +224,7 @@ void main() {
 
     await expectLater(
       strict.fetch('https://a.example/setup', dest, cancel: CancelToken()),
-      throwsA(isA<NetworkError>()),
+      throwsA(isA<UnknownError>()),
     );
 
     expect(File('$dest.part').existsSync(), isFalse);
@@ -229,6 +242,25 @@ void main() {
 
     expect(File(dest).readAsStringSync(), 'exe');
   });
+}
+
+/// Says 2,000 bytes are coming, then ends after 1,000.
+class _ShortAdapter implements HttpClientAdapter {
+  @override
+  Future<ResponseBody> fetch(
+    RequestOptions options,
+    Stream<Uint8List>? requestStream,
+    Future<void>? cancelFuture,
+  ) async => ResponseBody(
+    Stream.value(Uint8List(1000)),
+    200,
+    headers: {
+      Headers.contentLengthHeader: ['2000'],
+    },
+  );
+
+  @override
+  void close({bool force = false}) {}
 }
 
 class _FakeAdapter implements HttpClientAdapter {

@@ -31,6 +31,8 @@ void main() {
       )
       ..add(const GraphicsEvent.load('juegos', [r'C:\Blur\Blur.exe'])),
     verify: (bloc) {
+      // What the exe draws with and its misfits, never text:
+      // app/shared/text/backend_text.dart words them.
       expect(bloc.state.of('juegos', r'C:\Blur\Blur.exe'), blur);
       expect(bloc.state.of('juegos', r'C:\roto.exe'), isNull);
       expect(bloc.state.byKey, hasLength(2));
@@ -40,13 +42,6 @@ void main() {
           r'C:\roto.exe',
         ]),
       ).called(1);
-      expect(blur.label, 'DX9 · 32 bits');
-      expect(
-        blur.warning('Blur', 'd3dmetal'),
-        'Blur es de 32 bits con DirectX 9: d3dmetal no le sirve. '
-        'Usa Automático.',
-      );
-      expect(blur.warning('Blur', 'wine'), isNull);
     },
   );
 }

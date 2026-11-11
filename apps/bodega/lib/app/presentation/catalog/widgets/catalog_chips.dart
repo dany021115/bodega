@@ -26,7 +26,7 @@ class CatalogChips extends StatelessWidget {
       runSpacing: AppSpacing.xs,
       children: [
         StatusChip(label: catalogStatusText(l10n, app.status), color: color),
-        if (app.flaky != null)
+        if (app.flaky)
           StatusChip(label: l10n.catalogFlaky, color: AppColor.statusFlaky),
         if (app.isInstalled)
           StatusChip(

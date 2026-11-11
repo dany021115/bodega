@@ -14,7 +14,9 @@ abstract class InstallState with _$InstallState {
     String? bottle,
     @Default(0) int received,
     int? total,
-    String? step,
+
+    /// What the install is doing, as a code: the panel words it (L6).
+    InstallStep? step,
     AppError? error,
     @Default(false) bool bottleLeft,
   }) = _InstallState;
