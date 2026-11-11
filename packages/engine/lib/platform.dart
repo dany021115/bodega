@@ -63,6 +63,7 @@ typedef HostCapabilities = ({
   bool gpu,
   bool gameMode,
   List<String> syncModes,
+  bool switchGames,
 });
 
 /// What differs between hosts. The rest of the engine is shared.
@@ -98,6 +99,10 @@ abstract class HostPlatform {
   /// The gamepads and what is wrong with them, or null where Bodega sets them
   /// up itself and there is nothing to check (the Mac, design §10).
   Future<GamepadReport?> gamepads();
+
+  /// Switch emulators on this host: found and started on the Mac, not yet on
+  /// Linux.
+  EmulatorHost get emulators;
   HostCapabilities get capabilities;
   String get defaultSync;
   Map<String, String> syncEnv(String mode);

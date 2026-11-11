@@ -156,6 +156,9 @@ class LinuxPlatform extends HostPlatform {
   }
 
   @override
+  EmulatorHost get emulators => const LinuxEmulators();
+
+  @override
   HostCapabilities get capabilities => (
     highRes: true,
     avx: false,
@@ -165,6 +168,7 @@ class LinuxPlatform extends HostPlatform {
     gpu: true,
     gameMode: _onPath('gamemoderun'),
     syncModes: const ['none'],
+    switchGames: emulators.supported,
   );
 
   // The bundled Wine has no esync or fsync variable, so nothing is set per

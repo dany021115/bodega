@@ -120,6 +120,9 @@ class MacPlatform extends HostPlatform {
   Future<GamepadReport?> gamepads() async => null;
 
   @override
+  EmulatorHost get emulators => const MacEmulators();
+
+  @override
   Future<List<HostIssue>> checkHost() async => [
     if (!(await rosettaInstalled()))
       (
@@ -139,6 +142,7 @@ class MacPlatform extends HostPlatform {
     gpu: false,
     gameMode: false,
     syncModes: const ['msync', 'none'],
+    switchGames: emulators.supported,
   );
 
   @override
