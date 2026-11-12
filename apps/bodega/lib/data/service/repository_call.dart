@@ -155,5 +155,9 @@ AppError appErrorOf(engine.EngineFailure failure) {
       path,
       detail: detail,
     ),
+    engine.NoSwitchKeys(:final source) => AppError.noSwitchKeys(
+      source,
+      detail: detail,
+    ),
   };
 }

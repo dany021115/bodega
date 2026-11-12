@@ -3,20 +3,17 @@ import 'dart:io';
 
 import 'package:bodega/data/repository/update_repository_impl.dart';
 import 'package:bodega/data/service/downloader.dart';
-import 'package:bodega/data/service/preference.dart';
 import 'package:bodega/domain/entities/app_error.dart';
 import 'package:bodega/domain/entities/app_update.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   late Directory tmp;
   late HttpServer server;
   late String base;
   late UpdateRepositoryImpl repository;
-  late DateTime clock;
   var tag = 'v1.4.0';
   var requests = 0;
   var dmg = utf8.encode('new dmg');
@@ -70,7 +67,6 @@ void main() {
       response.close();
     });
 
-    SharedPreferences.setMockInitialValues({});
     PackageInfo.setMockInitialValues(
       appName: 'Bodega',
       packageName: 'com.dany021115.bodega',
@@ -78,17 +74,11 @@ void main() {
       buildNumber: '1',
       buildSignature: '',
     );
-    clock = DateTime(2026, 11, 9, 12);
     repository =
-        UpdateRepositoryImpl(
-            Dio(),
-            Downloader(Dio())..httpsOnly = false,
-            Preferences(await SharedPreferences.getInstance()),
-          )
+        UpdateRepositoryImpl(Dio(), Downloader(Dio())..httpsOnly = false)
           ..latestUrl = '$base/latest'
           ..os = 'macos'
           ..environment = const {}
-          ..now = (() => clock)
           ..downloads = '${tmp.path}/downloads';
   });
 
@@ -112,29 +102,19 @@ void main() {
   test('the same or an older release is not, nor a bad tag (A1)', () async {
     for (final old in ['v1.3.0', 'v1.2.9', '1.3', 'latest']) {
       tag = old;
-      clock = clock.add(const Duration(days: 1));
       expect(await check(), isNull, reason: old);
     }
   });
 
-  test('once a day at most, and no answer is no notice (A1)', () async {
+  test('every check asks, so a start right after another still sees the '
+      'version, and no answer is no notice (A1, issue #19)', () async {
     expect(await check(), isNotNull);
-    clock = clock.add(const Duration(hours: 23));
-    expect(await check(), isNull);
-    expect(requests, 1);
-    clock = clock.add(const Duration(hours: 2));
+    expect((await check())?.version, '1.4.0');
+    expect(requests, 2);
     repository.latestUrl = '$base/missing';
     expect(await check(), isNull);
     await server.close(force: true);
     expect(await check(), isNull);
-  });
-
-  test('"Not now" silences that version, not the next (A1)', () async {
-    await repository.skip('1.4.0');
-    expect(await check(), isNull);
-    tag = 'v1.4.1';
-    clock = clock.add(const Duration(days: 1));
-    expect((await check())?.version, '1.4.1');
   });
 
   test('a Linux package only gets the command and the page (A2)', () async {

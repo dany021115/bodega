@@ -1620,6 +1620,16 @@
       }
     }
   },
+  "errNoSwitchKeys": "{source} has no keys: pick a .keys file, or a folder that holds one.",
+  "@errNoSwitchKeys": {
+    "description": "Error on the Switch page when what the user picked as keys is no .keys file and holds none. source is the path, kept as it is; .keys is a file type, kept as it is.",
+    "placeholders": {
+      "source": {
+        "type": "String",
+        "example": "/Users/ana/Desktop/notes.txt"
+      }
+    }
+  },
   "errDownloadCut": "The download stopped at {received} MB of {total} MB. Try again: it goes on from there.",
   "@errDownloadCut": {
     "description": "Error, in the error panel of the screen that failed or in a toast: the server stopped sending a file before its end. received and total are MB of 10^6 bytes, as downloadProgress counts them; the next try goes on from where it stopped.",
@@ -2318,6 +2328,66 @@
       "state": {
         "type": "String",
         "example": "found"
+      }
+    }
+  },
+  "switchAddKeys": "Add keys…",
+  "@switchAddKeys": {
+    "description": "Button in the status panel on the Switch page, shown while the emulator has no keys: it opens a file picker for the user's own keys files (.keys), which Bodega copies where the emulator reads them. 'keys' is the word Switch users use; keep it as it is if the language has no better one. Never say where or how to get them."
+  },
+  "switchKeysHelp": "{name} needs the keys of your own Switch (prod.keys). Click Add keys… and pick them: Bodega puts them where {name} reads them.",
+  "@switchKeysHelp": {
+    "description": "Line under the buttons of the status panel on the Switch page, shown while the emulator has no keys. name is the emulator, a brand kept as it is; prod.keys is the file's name, kept as it is; Add keys… is the button beside it (switchAddKeys): use its translation. Say only that they come from the user's own console and what Bodega does, never where or how to get them.",
+    "placeholders": {
+      "name": {
+        "type": "String",
+        "example": "Ryubing"
+      }
+    }
+  },
+  "switchInstallFirmware": "Install firmware…",
+  "@switchInstallFirmware": {
+    "description": "Button in the status panel on the Switch page, shown while the emulator is found and has its keys but no firmware: it opens a short menu to pick the user's own firmware, a file (switchFirmwareFile) or a folder (switchFirmwareFolder). The emulator then opens its own installer."
+  },
+  "switchFirmwareFile": "A file (.zip or .xci)…",
+  "@switchFirmwareFile": {
+    "description": "Item of the menu of switchInstallFirmware on the Switch page: it opens a file picker for a firmware file. .zip and .xci are file types, kept as they are."
+  },
+  "switchFirmwareFolder": "A folder…",
+  "@switchFirmwareFolder": {
+    "description": "Item of the menu of switchInstallFirmware on the Switch page: it opens a folder picker for a firmware folder."
+  },
+  "switchFirmwareHelp": "{name} also needs the firmware of your own Switch. Click Install firmware… and pick it: {name} opens to install it. Confirm there, and Bodega checks again when you come back.",
+  "@switchFirmwareHelp": {
+    "description": "Line under the buttons of the status panel on the Switch page, shown while the emulator is found and has its keys but no firmware. name is the emulator, a brand kept as it is; Install firmware… is the button beside it (switchInstallFirmware): use its translation. Say only that it comes from the user's own console and what happens, never where or how to get it.",
+    "placeholders": {
+      "name": {
+        "type": "String",
+        "example": "Ryubing"
+      }
+    }
+  },
+  "switchKeysAdded": "{count, plural, =1{1 keys file added for {name}} other{{count} keys files added for {name}}}",
+  "@switchKeysAdded": {
+    "description": "Toast, on whatever page shows, when the keys the user picked on the Switch page were copied where the emulator reads them. count is how many files; name is the emulator, a brand kept as it is.",
+    "placeholders": {
+      "name": {
+        "type": "String",
+        "example": "Ryubing"
+      },
+      "count": {
+        "type": "int",
+        "example": "1"
+      }
+    }
+  },
+  "switchFirmwareOpened": "{name} opened to install the firmware: confirm there.",
+  "@switchFirmwareOpened": {
+    "description": "Toast, on whatever page shows, when the emulator opened its own firmware installer for the firmware the user picked on the Switch page. name is the emulator, a brand kept as it is.",
+    "placeholders": {
+      "name": {
+        "type": "String",
+        "example": "Ryubing"
       }
     }
   },

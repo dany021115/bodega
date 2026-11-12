@@ -30,11 +30,13 @@ typedef Emulator = ({
 
 /// What an emulator takes on its command line, in this order: [headless] and
 /// [fullscreen] when the settings say so, then [game], where `{game}` is the
-/// game's path.
+/// game's path. [installFirmware] opens its own firmware installer instead,
+/// where `{firmware}` is the file or folder the user picked.
 typedef EmulatorArgs = ({
   List<String> headless,
   List<String> fullscreen,
   List<String> game,
+  List<String> installFirmware,
 });
 
 /// An emulator's Mac app: the bundle id and the executable its `Info.plist`
@@ -117,7 +119,9 @@ typedef SwitchStatus = ({
 /// - mac: `distribution/macos/Info.plist` and
 ///   `distribution/macos/create_app_bundle.sh`;
 /// - data folders: `src/Ryujinx.Common/Configuration/AppDataManager.cs`;
-/// - keys: `src/Ryujinx.HLE/FileSystem/VirtualFileSystem.cs`;
+/// - keys: `src/Ryujinx.HLE/FileSystem/VirtualFileSystem.cs`, and
+///   `ContentManager.InstallKeys`, which copies `.keys` files into the data
+///   folder's `system`;
 /// - firmware: `ContentManager.cs` and `ContentPath.cs`.
 ///
 /// `page` is Ryubing's official download page, and this row is the only
@@ -133,6 +137,7 @@ const switchEmulators = <Emulator>[
       headless: ['--no-gui', '--use-main-config'],
       fullscreen: ['--fullscreen'],
       game: ['{game}'],
+      installFirmware: ['--install-firmware', '{firmware}'],
     ),
     mac: (
       bundleId: 'org.ryujinx.Ryujinx',
@@ -350,6 +355,49 @@ Future<SwitchStatus> checkSwitch(
   String home, [
   Map<String, String>? env,
 ]) async {
+  final emulator = _switchEmulator;
+  final (:install, :files, :place, :folders, :at) = await _switchPlaces(
+    home,
+    env,
+  );
+  if (files == null) {
+    return (emulator: emulator, install: install, keys: false, firmware: false);
+  }
+  final data = at < 0 ? null : folders[at];
+  final userKeys = files.userKeys;
+  final keys =
+      (data != null && _isFile(place(files.keys, data))) ||
+      ((at < 0 || at == folders.length - 1) &&
+          userKeys != null &&
+          _isFile(place(userKeys)));
+  final registered = data == null ? null : place(files.firmware, data);
+  return (
+    emulator: emulator,
+    install: install,
+    keys: keys,
+    firmware:
+        registered != null &&
+        _isFolder(registered) &&
+        await _holdsAny(registered),
+  );
+}
+
+/// Where the emulator's files are on this host (SE5–SE8): its install, the
+/// files of the host's sub-record, [place], which turns one of their
+/// templates into a path, the data folders in order, and [at], the index of
+/// the first that exists, the one in use, or -1 for none. The last one is the
+/// default. Where the host has no emulators it throws [NotAvailable], before
+/// it reads anything.
+Future<
+  ({
+    EmulatorInstall? install,
+    EmulatorFiles? files,
+    String? Function(String template, [String? data]) place,
+    List<String?> folders,
+    int at,
+  })
+>
+_switchPlaces(String home, Map<String, String>? env) async {
   final emulators = _switchHost();
   final environment = env ?? Platform.environment;
   final emulator = _switchEmulator;
@@ -358,10 +406,6 @@ Future<SwitchStatus> checkSwitch(
     environment,
     picked: switchSettings(home).picked,
   );
-  final files = emulators.files(emulator);
-  if (files == null) {
-    return (emulator: emulator, install: install, keys: false, firmware: false);
-  }
   // `<bin>` and `<dir>` are known only with an install: else the entries that
   // name them are passed over.
   String? place(String template, [String? data]) {
@@ -378,34 +422,119 @@ Future<SwitchStatus> checkSwitch(
     return template;
   }
 
-  bool isFolder(String? path) =>
-      path != null &&
-      FileSystemEntity.typeSync(path) == FileSystemEntityType.directory;
-  bool isFile(String? path) =>
-      path != null &&
-      FileSystemEntity.typeSync(path) == FileSystemEntityType.file;
-
-  // The data folder in use is the first that exists; the last is the
-  // default, the only one with which the user's own keys count.
-  final folders = [for (final entry in files.data) place(entry)];
-  final at = folders.indexWhere(isFolder);
-  final data = at < 0 ? null : folders[at];
-  final userKeys = files.userKeys;
-  final keys =
-      (data != null && isFile(place(files.keys, data))) ||
-      ((at < 0 || at == folders.length - 1) &&
-          userKeys != null &&
-          isFile(place(userKeys)));
-  final registered = data == null ? null : place(files.firmware, data);
+  final files = emulators.files(emulator);
+  final folders = [for (final entry in files?.data ?? <String>[]) place(entry)];
   return (
-    emulator: emulator,
     install: install,
-    keys: keys,
-    firmware:
-        registered != null &&
-        isFolder(registered) &&
-        await _holdsAny(registered),
+    files: files,
+    place: place,
+    folders: folders,
+    at: folders.indexWhere(_isFolder),
   );
+}
+
+bool _isFolder(String? path) =>
+    path != null &&
+    FileSystemEntity.typeSync(path) == FileSystemEntityType.directory;
+
+bool _isFile(String? path) =>
+    path != null &&
+    FileSystemEntity.typeSync(path) == FileSystemEntityType.file;
+
+/// Copies the user's own keys where the emulator reads them, as its own
+/// "Install keys" does: each of [sources] is a `.keys` file, or a folder whose
+/// `.keys` files are taken, without going into its subfolders. They go into
+/// the folder of the row's `keys`, in the data folder in use, or in the
+/// default one while none exists, which it makes. Bodega copies them as they
+/// are: it never opens, checks or decrypts them, and the emulator tells
+/// whether they work. It returns the names it copied, a file already there
+/// being replaced. Every source is checked before anything is copied: one
+/// missing is [MissingFile], one that gives no `.keys` file [NoSwitchKeys].
+/// Where the host has no emulators it throws [NotAvailable], before it reads
+/// anything.
+Future<List<String>> installSwitchKeys(
+  String home,
+  List<String> sources, [
+  Map<String, String>? env,
+]) async {
+  final (:install, :files, :place, :folders, :at) = await _switchPlaces(
+    home,
+    env,
+  );
+  final target = files == null
+      ? null
+      : place(files.keys, folders[at < 0 ? folders.length - 1 : at]);
+  if (target == null) throw NotAvailable('switch', hostPlatform.displayName);
+  final keys = <String>[];
+  for (final source in sources.map(_switchPath)) {
+    final found = switch (FileSystemEntity.typeSync(source)) {
+      FileSystemEntityType.notFound => throw MissingFile(source),
+      FileSystemEntityType.directory => [
+        for (final entry in Directory(source).listSync(followLinks: false))
+          if (entry is File && _isKeys(entry.path)) entry.path,
+      ]..sort(),
+      _ => [if (_isKeys(source)) source],
+    };
+    if (found.isEmpty) throw NoSwitchKeys(source);
+    keys.addAll(found);
+  }
+  final folder = Directory(File(target).parent.path)
+    ..createSync(recursive: true);
+  return [
+    for (final key in keys)
+      File(key)
+          .copySync('${folder.path}/${key.split('/').last}')
+          .path
+          .split('/')
+          .last,
+  ];
+}
+
+/// Whether [path] names a keys file: it ends in `.keys`, without case.
+bool _isKeys(String path) => path.toLowerCase().endsWith('.keys');
+
+/// Opens the emulator's own firmware installer on [source], the file or the
+/// folder of firmware the user picked: the emulator reads it, asks in its
+/// window and installs it, and Bodega never opens it. The emulator starts
+/// detached in `$HOME`, with the host's environment, as a game does, and
+/// nothing follows it: the status tells once the firmware is in. It throws,
+/// in this order, [NotAvailable] where the host has no emulators,
+/// [MissingFile] when nothing is at [source], and [NoEmulator] when no
+/// emulator is found.
+Future<void> installSwitchFirmware(
+  String home,
+  String source, [
+  Map<String, String>? env,
+]) async {
+  final emulators = _switchHost();
+  final firmware = _switchPath(source);
+  if (FileSystemEntity.typeSync(firmware) == FileSystemEntityType.notFound) {
+    throw MissingFile(firmware);
+  }
+  final environment = env ?? Platform.environment;
+  final emulator = _switchEmulator;
+  final install = await emulators.find(
+    emulator,
+    environment,
+    picked: switchSettings(home).picked,
+  );
+  if (install == null) throw _noEmulator(emulator);
+  final cwd = environment['HOME'] ?? '/';
+  try {
+    await Process.start(
+      install.exe,
+      [
+        for (final arg in emulator.args.installFirmware)
+          arg.replaceAll('{firmware}', firmware),
+      ],
+      workingDirectory: cwd,
+      environment: emulators.env(environment),
+      includeParentEnvironment: false,
+      mode: ProcessStartMode.detached,
+    );
+  } on ProcessException {
+    throw ProcessFailed(install.exe, null, 'could not start it in $cwd');
+  }
 }
 
 /// Saves [app] as the emulator to use while the fixed places hold none, or
@@ -854,12 +983,28 @@ Future<int> Function(String home)? switchVerb(
     await stopSwitchGame(home, game);
     return 0;
   },
+  ['keys', _, ...] => (home) async {
+    for (final name in await installSwitchKeys(home, args.sublist(1), env)) {
+      out.writeln('copied: $name');
+    }
+    return 0;
+  },
+  ['firmware', final firmware] => (home) async {
+    await installSwitchFirmware(home, firmware, env);
+    out.writeln(
+      '${_switchEmulator.name} opened its firmware installer: confirm there, '
+      'then run bodega switch status again',
+    );
+    return 0;
+  },
   _ => null,
 };
 
 /// `bodega switch status` (SE21): the emulator, the keys and the firmware,
 /// then, for a missing emulator, a note on where Bodega looks and one with
-/// its download page and what to do next, and a note for each app macOS
+/// its download page and what to do next, a note on the verb that puts in
+/// place what the user brings, the keys or else the firmware, and a note for
+/// each app macOS
 /// keeps in quarantine, the emulator's and each listed native app's. It
 /// gives 0 only when the emulator, the keys and the firmware are all there,
 /// as `bodega pads` does, whatever the native apps. Everything is found
@@ -897,6 +1042,20 @@ Future<int> _switchStatus(
         'note: download ${emulator.name} from ${emulator.page}, put '
         '${missing.app} in /Applications, then run bodega switch status again',
       );
+  }
+  // The keys and the firmware come from the user's own console: the notes
+  // say only how Bodega puts them in place.
+  if (!keys) {
+    out.writeln(
+      'note: add the keys of your own Switch with bodega switch keys '
+      '<file.keys|folder>',
+    );
+  }
+  if (install != null && keys && !firmware) {
+    out.writeln(
+      'note: install the firmware of your own Switch with bodega switch '
+      'firmware <file|folder>: ${emulator.name} opens to install it',
+    );
   }
   if (install != null && install.quarantined) {
     out.writeln(_quarantineNote(install.app, emulator.name));
@@ -1280,4 +1439,15 @@ final class SwitchGameRunning extends EngineFailure {
   /// shell splits or globs.
   @override
   String get message => '$path is already running: bodega switch stop "$path"';
+}
+
+/// A keys source with no `.keys` file: a file named otherwise, or a folder
+/// that holds none.
+final class NoSwitchKeys extends EngineFailure {
+  const NoSwitchKeys(this.source);
+
+  final String source;
+
+  @override
+  String get message => 'no .keys file at $source';
 }

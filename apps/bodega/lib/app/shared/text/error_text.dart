@@ -80,6 +80,7 @@ extension AppErrorText on AppError {
     NotASwitchGameError(:final path) => l10n.errNotASwitchGame(path),
     SwitchGameNotFoundError(:final path) => l10n.errSwitchGameNotFound(path),
     SwitchGameRunningError(:final path) => l10n.errSwitchGameRunning(path),
+    NoSwitchKeysError(:final source) => l10n.errNoSwitchKeys(source),
     DownloadCutError(:final received, :final total) => l10n.errDownloadCut(
       megabytes(received),
       megabytes(total),

@@ -162,6 +162,10 @@ sealed class AppError with _$AppError implements Exception {
   const factory AppError.switchGameRunning(String path, {String? detail}) =
       SwitchGameRunningError;
 
+  /// [source], picked as keys, is no `.keys` file and holds none.
+  const factory AppError.noSwitchKeys(String source, {String? detail}) =
+      NoSwitchKeysError;
+
   // Downloads and updates.
 
   /// The server stopped sending at [received] of [total] bytes. The next try

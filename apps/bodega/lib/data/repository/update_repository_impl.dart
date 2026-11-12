@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:bodega/data/service/downloader.dart';
-import 'package:bodega/data/service/preference.dart';
 import 'package:bodega/data/service/repository_call.dart';
 import 'package:bodega/domain/entities/app_error.dart';
 import 'package:bodega/domain/entities/app_update.dart';
@@ -36,10 +35,9 @@ open "$2"
 class UpdateRepositoryImpl implements UpdateRepository {
   final Dio _dio;
   final Downloader _downloader;
-  final Preferences _preferences;
   CancelToken? _cancel;
 
-  UpdateRepositoryImpl(this._dio, this._downloader, this._preferences);
+  UpdateRepositoryImpl(this._dio, this._downloader);
 
   @visibleForTesting
   String latestUrl = _latest;
@@ -49,9 +47,6 @@ class UpdateRepositoryImpl implements UpdateRepository {
 
   @visibleForTesting
   Map<String, String> environment = Platform.environment;
-
-  @visibleForTesting
-  DateTime Function() now = DateTime.now;
 
   /// The running `.app` on macOS.
   @visibleForTesting
@@ -68,19 +63,15 @@ class UpdateRepositoryImpl implements UpdateRepository {
   @override
   Future<Either<AppError, AppUpdate?>> check() => repositoryCall(() async {
     try {
-      final last = _preferences.getUpdateCheckedAt();
-      if (last != null && now().difference(last) < const Duration(hours: 24)) {
-        return null;
-      }
+      // Every start asks: "Not now" saves nothing, so a newer version shows
+      // again at the next start until it is installed (issue #19).
       final release = (await _dio.get<Map<String, dynamic>>(latestUrl)).data!;
-      await _preferences.saveUpdateCheckedAt(now());
       final latest = _semver('${release['tag_name']}');
       final current = (await PackageInfo.fromPlatform()).version;
       final running = _semver(current);
       if (latest == null || running == null) return null;
       if (_compare(latest, running) <= 0) return null;
       final version = latest.join('.');
-      if (_preferences.getUpdateSkipped() == version) return null;
 
       final assets = {
         for (final asset in release['assets'] as List)
@@ -114,13 +105,6 @@ class UpdateRepositoryImpl implements UpdateRepository {
       return null;
     }
   });
-
-  @override
-  Future<Either<AppError, Unit>> skip(String version) =>
-      repositoryCall(() async {
-        await _preferences.saveUpdateSkipped(version);
-        return unit;
-      });
 
   @override
   Future<Either<AppError, String?>> download(

@@ -11,6 +11,14 @@ sealed class SwitchNotice with _$SwitchNotice {
   /// end with normally.
   const factory SwitchNotice.exited(String title, int code) =
       SwitchExitedNotice;
+
+  /// [count] keys files were copied where [emulator] reads them.
+  const factory SwitchNotice.keysAdded(String emulator, int count) =
+      SwitchKeysAddedNotice;
+
+  /// [emulator] opened its own firmware installer: the user confirms there.
+  const factory SwitchNotice.firmwareOpened(String emulator) =
+      SwitchFirmwareOpenedNotice;
 }
 
 @freezed

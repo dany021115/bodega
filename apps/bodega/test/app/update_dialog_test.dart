@@ -1,5 +1,9 @@
 import 'package:bloc_test/bloc_test.dart';
+import 'package:bodega/app/bloc/install/install_bloc.dart';
+import 'package:bodega/app/bloc/library/library_bloc.dart';
+import 'package:bodega/app/bloc/switch/switch_bloc.dart';
 import 'package:bodega/app/bloc/update/update_bloc.dart';
+import 'package:bodega/app/shared/widgets/shell_body.dart';
 import 'package:bodega/app/shared/widgets/update_dialog.dart';
 import 'package:bodega/domain/entities/app_error.dart';
 import 'package:bodega/domain/entities/app_update.dart';
@@ -14,6 +18,15 @@ import '../support/pump.dart';
 
 class _MockUpdate extends MockBloc<UpdateEvent, UpdateState>
     implements UpdateBloc {}
+
+class _MockLibrary extends MockBloc<LibraryEvent, LibraryState>
+    implements LibraryBloc {}
+
+class _MockInstall extends MockBloc<InstallEvent, InstallState>
+    implements InstallBloc {}
+
+class _MockSwitch extends MockBloc<SwitchEvent, SwitchState>
+    implements SwitchBloc {}
 
 void main() {
   final en = lookupAppL10n(const Locale('en'));
@@ -53,6 +66,49 @@ void main() {
       ),
     );
   }
+
+  testWidgets('an update found before the shell showed, as on the setup '
+      'page, opens its dialog once the shell does (A3, issue #19)', (
+    tester,
+  ) async {
+    final library = _MockLibrary();
+    final install = _MockInstall();
+    final switchGames = _MockSwitch();
+    whenListen(
+      bloc,
+      const Stream<UpdateState>.empty(),
+      initialState: const UpdateState(update: mac),
+    );
+    whenListen(
+      library,
+      const Stream<LibraryState>.empty(),
+      initialState: const LibraryState(),
+    );
+    whenListen(
+      install,
+      const Stream<InstallState>.empty(),
+      initialState: const InstallState(),
+    );
+    whenListen(
+      switchGames,
+      const Stream<SwitchState>.empty(),
+      initialState: const SwitchState(),
+    );
+    await tester.pumpWidget(
+      MultiBlocProvider(
+        providers: [
+          BlocProvider<LibraryBloc>.value(value: library),
+          BlocProvider<UpdateBloc>.value(value: bloc),
+          BlocProvider<InstallBloc>.value(value: install),
+          BlocProvider<SwitchBloc>.value(value: switchGames),
+        ],
+        child: wrapApp(const ShellBody(child: SizedBox.expand())),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byType(UpdateDialog), findsOneWidget);
+    expect(find.text(en.updateTitle), findsOneWidget);
+  });
 
   testWidgets('an update this Mac can install (A3)', (tester) async {
     await show(tester, const UpdateState(update: mac));

@@ -20,7 +20,7 @@ Input: `exploration.md`, approved by the user on 2026-11-10 together with all tw
 
 **Out**
 - Eden, Linux and Flatpak (the second phase); Hydra, Kenji-NX, Citron and the other forks; Windows hosts and arm64 Linux.
-- Any download, bundle or install command for an emulator, keys, firmware or games; any link to them but the emulator's official download page; and any text on how to get keys, firmware or games or how to make an nxnative app. Installing keys or firmware stays in the emulator's own menus; Bodega never runs `--install-firmware`.
+- Any download, bundle or install command for an emulator, keys, firmware or games; any link to them but the emulator's official download page; and any text on how to get keys, firmware or games or how to make an nxnative app. Installing keys or firmware stays in the emulator's own menus; Bodega never runs `--install-firmware`. (Changed by the user's decision of 2026-11-12, after `v1.6.0`: at the user's pick, Bodega copies their own `.keys` files where the emulator reads them and hands their firmware to the emulator's own installer; see SN21.)
 - Titles or art from inside the files, online metadata (IGDB, ScreenScraper), titledb data, eShop images, `.nro` icons, emulator caches, covers the user picks, play time.
 - Input profiles, the emulator per game, docked or handheld mode, the emulator's data folder (`-r`).
 - Switch games in the Library (exploration C3), Switch without the Wine runtime (the setup gate stays, exploration Q3), a log viewer for Switch runs.

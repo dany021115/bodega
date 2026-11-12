@@ -16,4 +16,11 @@ String switchNoticeText(AppL10n l10n, SwitchNotice notice) => switch (notice) {
     title,
     code,
   ),
+  SwitchKeysAddedNotice(:final emulator, :final count) => l10n.switchKeysAdded(
+    emulator,
+    count,
+  ),
+  SwitchFirmwareOpenedNotice(:final emulator) => l10n.switchFirmwareOpened(
+    emulator,
+  ),
 };

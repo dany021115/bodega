@@ -109,6 +109,19 @@ class SwitchRepositoryImpl implements SwitchRepository {
   );
 
   @override
+  Future<Either<AppError, List<String>>> installKeys(List<String> sources) =>
+      repositoryCall(
+        () => engine.installSwitchKeys(_home.path, sources, environment),
+      );
+
+  @override
+  Future<Either<AppError, Unit>> installFirmware(String source) =>
+      repositoryCall(() async {
+        await engine.installSwitchFirmware(_home.path, source, environment);
+        return unit;
+      });
+
+  @override
   Future<Either<AppError, Unit>> stop(String path) => repositoryCall(() async {
     await engine.stopSwitchGame(_home.path, path);
     return unit;

@@ -1,14 +1,7 @@
 import 'package:injectable/injectable.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-enum PreferenceKey {
-  darkTheme,
-  collapsedSections,
-  libraryViewGrid,
-  updateCheckedAt,
-  updateSkipped,
-  language,
-}
+enum PreferenceKey { darkTheme, collapsedSections, libraryViewGrid, language }
 
 @lazySingleton
 class Preferences {
@@ -32,23 +25,6 @@ class Preferences {
 
   Future<void> saveCollapsedSections(List<String> value) =>
       _prefs.setStringList(PreferenceKey.collapsedSections.name, value);
-
-  DateTime? getUpdateCheckedAt() =>
-      switch (_prefs.getInt(PreferenceKey.updateCheckedAt.name)) {
-        final ms? => DateTime.fromMillisecondsSinceEpoch(ms),
-        null => null,
-      };
-
-  Future<void> saveUpdateCheckedAt(DateTime value) => _prefs.setInt(
-    PreferenceKey.updateCheckedAt.name,
-    value.millisecondsSinceEpoch,
-  );
-
-  String? getUpdateSkipped() =>
-      _prefs.getString(PreferenceKey.updateSkipped.name);
-
-  Future<void> saveUpdateSkipped(String version) =>
-      _prefs.setString(PreferenceKey.updateSkipped.name, version);
 
   /// The language chosen in Settings, as a language code, or null when the
   /// app follows the system's.

@@ -121,6 +121,44 @@ class SwitchBloc extends Bloc<SwitchEvent, SwitchState> {
       );
     });
 
+    on<SwitchInstallKeysEvent>((event, emit) async {
+      _clearError(emit);
+      switch (await _repository.installKeys(event.paths)) {
+        case Left(value: final error):
+          emit(state.copyWith(error: error));
+        case Right(value: final copied):
+          final status = await _repository.status();
+          final next = status.toNullable() ?? state.status;
+          emit(
+            state.copyWith(
+              status: next,
+              notice: SwitchNotice.keysAdded(
+                next?.emulator ?? '',
+                copied.length,
+              ),
+              noticeId: state.noticeId + 1,
+              error: status.getLeft().toNullable() ?? state.error,
+            ),
+          );
+      }
+    });
+
+    // The status changes once the user confirms in the emulator's window:
+    // the page reads it again when Bodega comes back to the front.
+    on<SwitchInstallFirmwareEvent>((event, emit) async {
+      _clearError(emit);
+      final result = await _repository.installFirmware(event.path);
+      result.match(
+        (error) => emit(state.copyWith(error: error)),
+        (_) => emit(
+          state.copyWith(
+            notice: SwitchNotice.firmwareOpened(state.status?.emulator ?? ''),
+            noticeId: state.noticeId + 1,
+          ),
+        ),
+      );
+    });
+
     on<SwitchOpenEvent>((event, emit) async {
       final path = event.path;
       // A launch takes milliseconds, so a double click would get past the

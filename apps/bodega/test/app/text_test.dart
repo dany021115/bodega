@@ -237,17 +237,20 @@ const _blurGraphics = ExeGraphics(
 /// An ARB file as JSON: messages, their `@key` metadata, `@@` attributes.
 typedef _Arb = Map<String, Object?>;
 
-/// The Switch section's five errors (SA1).
+/// The Switch section's six errors (SA1), the last one for keys the user
+/// picked that hold none.
 const _switchErrorKeys = [
   'errNoEmulator',
   'errNotAnEmulator',
   'errNotASwitchGame',
   'errSwitchGameNotFound',
   'errSwitchGameRunning',
+  'errNoSwitchKeys',
 ];
 
-/// SA19's 27 keys, in its table's order: the sidebar item, which also titles
-/// the page, the switch… keys and the five errors.
+/// SA19's 36 keys, in its table's order: the sidebar item, which also titles
+/// the page, the switch… keys, with those that put the user's own keys and
+/// firmware in place, and the six errors.
 const _switchKeys = [
   'navSwitch',
   'switchAddGames',
@@ -263,6 +266,14 @@ const _switchKeys = [
   'switchAfterDownload',
   'switchKeys',
   'switchFirmware',
+  'switchAddKeys',
+  'switchKeysHelp',
+  'switchInstallFirmware',
+  'switchFirmwareFile',
+  'switchFirmwareFolder',
+  'switchFirmwareHelp',
+  'switchKeysAdded',
+  'switchFirmwareOpened',
   'switchQuarantineNote',
   'switchFullScreen',
   'switchNative',
@@ -275,7 +286,7 @@ const _switchKeys = [
 ];
 
 /// Whether [key] names a Switch text, by the rule T27's count follows:
-/// navSwitch, a switch… key, or one of the five errors.
+/// navSwitch, a switch… key, or one of the six errors.
 bool _isSwitchKey(String key) =>
     key == 'navSwitch' ||
     key.startsWith(RegExp('switch[A-Z]')) ||
@@ -3285,8 +3296,8 @@ void main() {
       _ => '',
     };
 
-    test("both files hold SA19's 27 keys, and no other Switch key", () {
-      expect(_switchKeys.toSet(), hasLength(27));
+    test("both files hold SA19's 36 keys, and no other Switch key", () {
+      expect(_switchKeys.toSet(), hasLength(36));
       for (final (file, arb) in arbs) {
         expect(
           arb.keys.where(_isSwitchKey).toSet(),
