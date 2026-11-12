@@ -229,6 +229,15 @@ void main() {
     return const LineSplitter().convert('$out');
   }
 
+  /// The status's notes on the verbs that put the keys and the firmware in
+  /// place.
+  const keysNote =
+      'note: add the keys of your own Switch with bodega switch keys '
+      '<file.keys|folder>';
+  const firmwareNote =
+      'note: install the firmware of your own Switch with bodega switch '
+      'firmware <file|folder>: Ryubing opens to install it';
+
   /// SE21's quarantine note for [app]; [who] is what may not start: the
   /// emulator's name, or `it` for a native app.
   String quarantineNote(String app, String who) =>
@@ -246,6 +255,7 @@ void main() {
     expect(row.args.headless, ['--no-gui', '--use-main-config']);
     expect(row.args.fullscreen, ['--fullscreen']);
     expect(row.args.game, ['{game}']);
+    expect(row.args.installFirmware, ['--install-firmware', '{firmware}']);
     final mac = row.mac!;
     expect(mac.bundleId, 'org.ryujinx.Ryujinx');
     expect(mac.app, 'Ryujinx.app');
@@ -1730,6 +1740,144 @@ void main() {
     );
   });
 
+  group('the keys and the firmware', () {
+    /// The default data folder, under the test's HOME.
+    late String data;
+    setUp(() => data = '$tmp/home/Library/Application Support/Ryujinx');
+
+    test('a keys file is copied as it is into the default data folder, '
+        'which it makes, and the status then finds it', () async {
+      final keys = touch('$tmp/dump/prod.keys')..writeAsStringSync('made up');
+      expect((await checkSwitch(home, env)).keys, isFalse);
+      expect(await installSwitchKeys(home, [keys.path], env), ['prod.keys']);
+      expect(File('$data/system/prod.keys').readAsStringSync(), 'made up');
+      expect(keys.existsSync(), isTrue);
+      expect((await checkSwitch(home, env)).keys, isTrue);
+    });
+
+    test('a folder gives its .keys files alone, without its subfolders, and '
+        'one already there is replaced', () async {
+      touch('$tmp/dump/prod.keys').writeAsStringSync('new');
+      touch('$tmp/dump/title.KEYS');
+      touch('$tmp/dump/readme.txt');
+      touch('$tmp/dump/old/dev.keys');
+      touch('$data/system/prod.keys').writeAsStringSync('old');
+      expect(await installSwitchKeys(home, ['$tmp/dump/'], env), [
+        'prod.keys',
+        'title.KEYS',
+      ]);
+      expect(names('$data/system')..sort(), ['prod.keys', 'title.KEYS']);
+      expect(File('$data/system/prod.keys').readAsStringSync(), 'new');
+    });
+
+    test('the keys go into the data folder in use, a portable one beside '
+        'the app', () async {
+      final app = fakeRyujinx('$tmp/Applications/Ryujinx.app');
+      final portable = '$app/Contents/MacOS/portable';
+      Directory(portable).createSync();
+      final keys = touch('$tmp/dump/prod.keys').path;
+      await installSwitchKeys(home, [keys], env);
+      expect(names('$portable/system'), ['prod.keys']);
+      expect(Directory(data).existsSync(), isFalse);
+    });
+
+    test('every source is checked before anything is copied: one missing is '
+        'MissingFile, and one with no .keys file NoSwitchKeys', () async {
+      final keys = touch('$tmp/dump/prod.keys').path;
+      final notes = touch('$tmp/dump/notes.txt').path;
+      Directory('$tmp/empty').createSync();
+      await expectLater(
+        installSwitchKeys(home, [keys, '$tmp/nope.keys'], env),
+        throwsA(
+          isA<MissingFile>().having((f) => f.path, 'path', '$tmp/nope.keys'),
+        ),
+      );
+      for (final source in [notes, '$tmp/empty']) {
+        await expectLater(
+          installSwitchKeys(home, [keys, source], env),
+          throwsA(
+            isA<NoSwitchKeys>().having((f) => f.source, 'source', source),
+          ),
+          reason: source,
+        );
+      }
+      expect(Directory(data).existsSync(), isFalse);
+    });
+
+    test("the firmware opens Ryubing's own installer on the source, detached "
+        'in HOME, with what a game gets of the environment', () async {
+      final app = fakeRyujinx('$tmp/Applications/Ryujinx.app');
+      final firmware = touch('$tmp/dump/Firmware 19.0.1.zip').path;
+      await installSwitchFirmware(home, firmware, env);
+      // The fixture writes its pid after its arguments and its environment.
+      final pid = File('$tmp/home/pid');
+      for (var i = 0; i < 300 && !pid.existsSync(); i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+      }
+      expect(File('$tmp/home/argv').readAsLinesSync(), [
+        '--install-firmware',
+        firmware,
+      ]);
+      expect(File('$tmp/home/cwd').readAsStringSync().trim(), '$tmp/home');
+      final lines = File('$tmp/home/env').readAsLinesSync();
+      expect(
+        lines,
+        containsAll(['PATH=/usr/bin:/bin:/usr/sbin:/sbin', 'HOME=$tmp/home']),
+      );
+      for (final out in [
+        'WINE',
+        'DOTNET_',
+        'DYLD_',
+        'BODEGA_',
+        'DM_',
+        'LANG=',
+      ]) {
+        expect(
+          lines.where((line) => line.startsWith(out)),
+          isEmpty,
+          reason: out,
+        );
+      }
+      expect(app, endsWith('Ryujinx.app'));
+    });
+
+    test('the firmware needs a source, then the emulator: MissingFile, then '
+        'NoEmulator', () async {
+      await expectLater(
+        installSwitchFirmware(home, '$tmp/nope.zip', env),
+        throwsA(
+          isA<MissingFile>().having((f) => f.path, 'path', '$tmp/nope.zip'),
+        ),
+      );
+      final firmware = touch('$tmp/dump/fw.zip').path;
+      await expectLater(
+        installSwitchFirmware(home, firmware, env),
+        throwsA(isA<NoEmulator>()),
+      );
+    });
+
+    test('on Linux, both are NotAvailable before they read anything', () async {
+      final keys = touch('$tmp/dump/prod.keys').path;
+      hostPlatform = const LinuxPlatform(mangoHud: false);
+      final notHere = throwsA(isA<NotAvailable>());
+      await expectLater(installSwitchKeys(home, [keys], env), notHere);
+      await expectLater(installSwitchFirmware(home, keys, env), notHere);
+      expect(Directory(data).existsSync(), isFalse);
+    });
+
+    test('the CLI names the keys it copied, and tells that Ryubing opened '
+        'its firmware installer', () async {
+      final keys = touch('$tmp/dump/prod.keys').path;
+      expect(await cli(['keys', keys]), ['copied: prod.keys']);
+      fakeRyujinx('$tmp/Applications/Ryujinx.app');
+      final firmware = touch('$tmp/dump/fw.zip').path;
+      expect(await cli(['firmware', firmware]), [
+        'Ryubing opened its firmware installer: confirm there, then run '
+            'bodega switch status again',
+      ]);
+    });
+  });
+
   group('the CLI', () {
     /// The keys and a firmware entry, in the default data folder.
     void keysAndFirmware() {
@@ -1760,6 +1908,9 @@ void main() {
         ['option', 'volume', 'on'],
         ['emulator'],
         ['list', 'all'],
+        ['keys'],
+        ['firmware'],
+        ['firmware', 'a', 'b'],
       ]) {
         expect(switchVerb(args, StringBuffer(), env), isNull, reason: '$args');
       }
@@ -1788,6 +1939,7 @@ void main() {
         found,
         'keys: missing (prod.keys)',
         'firmware: found',
+        keysNote,
       ]);
       touch(keys.path);
       firmware.deleteSync();
@@ -1795,6 +1947,7 @@ void main() {
         found,
         'keys: found',
         'firmware: missing',
+        firmwareNote,
       ]);
       Directory(app).deleteSync(recursive: true);
       expect(await cli(['status'], code: 1), [

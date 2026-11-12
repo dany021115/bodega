@@ -408,6 +408,43 @@ void main() {
 
   // Each run here ends before its test does: no test rewrites a program or
   // deletes an app while a run of it may still be starting.
+  group('the keys and the firmware', () {
+    test("the keys the user picked are copied where Ryubing reads them, and "
+        'the status then finds them', () async {
+      final keys = File('$tmp/dump/prod.keys')..createSync(recursive: true);
+      expect((await status()).keys, isFalse);
+      expect(await _right(repository.installKeys([keys.path])), ['prod.keys']);
+      expect(
+        File('$tmp/home/Library/Application Support/Ryujinx/system/prod.keys')
+            .existsSync(),
+        isTrue,
+      );
+      expect((await status()).keys, isTrue);
+    });
+
+    test('a pick with no .keys file, or none at all, is a code', () async {
+      final notes = game('$tmp/dump/notes.txt');
+      expect(
+        await _code(repository.installKeys([notes])),
+        AppError.noSwitchKeys(notes),
+      );
+      expect(
+        await _code(repository.installKeys(['$tmp/nope.keys'])),
+        AppError.badPath(PathProblem.missing('$tmp/nope.keys')),
+      );
+    });
+
+    test("the firmware opens Ryubing's installer, and needs Ryubing", () async {
+      final firmware = game('$tmp/dump/fw.zip');
+      expect(
+        await _code(repository.installFirmware(firmware)),
+        const AppError.noEmulator('Ryubing', 'Ryujinx.app'),
+      );
+      _ryujinx('$tmp/Applications/Ryujinx.app');
+      expect(await _right(repository.installFirmware(firmware)), unit);
+    });
+  });
+
   group('runs (SA7)', () {
     test('a game runs until Stop, which ends it with 143, and a run that ends '
         'by itself gives its code', () async {

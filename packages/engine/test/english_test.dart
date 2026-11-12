@@ -92,7 +92,7 @@ final failures = <EngineFailure>[
   ...switchFailures.keys,
 ];
 
-/// The five Switch failures, each with its message as SE20 gives it.
+/// The six Switch failures, each with its message as SE20 gives it.
 final switchFailures = <EngineFailure, String>{
   const NoEmulator('Ryubing', 'Ryujinx.app'):
       'Ryubing not found: Bodega looks for Ryujinx.app in /Applications and '
@@ -113,6 +113,8 @@ final switchFailures = <EngineFailure, String>{
   const SwitchGameRunning('/Users/q/a b.nsp'):
       '/Users/q/a b.nsp is already running: bodega switch stop '
       '"/Users/q/a b.nsp"',
+  const NoSwitchKeys('/Users/q/Downloads'):
+      'no .keys file at /Users/q/Downloads',
 };
 
 /// The command a message keeps from today's text (E4), or null. Exhaustive,
@@ -158,7 +160,8 @@ String? hintOf(EngineFailure failure) => switch (failure) {
   InstallerNoExe() ||
   ProcessFailed() ||
   NotAnEmulator() ||
-  NotASwitchGame() => null,
+  NotASwitchGame() ||
+  NoSwitchKeys() => null,
 };
 
 void main() {
@@ -194,15 +197,15 @@ void main() {
     }
   });
 
-  test('the list holds each of the 36 failures', () {
+  test('the list holds each of the 37 failures', () {
     expect(
       failures.map((failure) => failure.runtimeType).toSet(),
-      hasLength(36),
+      hasLength(37),
     );
   });
 
   test('each Switch failure reads as SE20 says, with no link', () {
-    expect(switchFailures, hasLength(5));
+    expect(switchFailures, hasLength(6));
     for (final MapEntry(key: failure, value: text) in switchFailures.entries) {
       final name = '${failure.runtimeType}';
       expect(failure.message, text, reason: name);

@@ -3,12 +3,9 @@ import 'package:bodega/domain/entities/app_update.dart';
 import 'package:fpdart/fpdart.dart';
 
 abstract class UpdateRepository {
-  /// A1: a newer release, or null: none, asked less than a day ago, skipped,
-  /// or no answer. No answer is null too: an update is not worth an error.
+  /// A1: a newer release, or null: none, or no answer. No answer is null
+  /// too: an update is not worth an error. It asks every time.
   Future<Either<AppError, AppUpdate?>> check();
-
-  /// "Not now": no more notices of [version].
-  Future<Either<AppError, Unit>> skip(String version);
 
   /// A4: the installer, checked against its SHA-256. Null if it was cancelled
   /// with [cancel].

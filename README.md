@@ -19,8 +19,9 @@ It is young and moves fast: it runs the games we play, and you should expect rou
   around anti-cheat.
 - **Nintendo Switch games on the Mac.** Bodega works with Ryubing, an emulator you install yourself;
   if it is missing, Bodega links to Ryubing's official download page. You bring your own keys,
-  firmware and games: Bodega only checks that they are there, and launches the games with Ryubing.
-  It also opens Switch games you made into Mac apps with nxnative.
+  firmware and games, from your own console: Bodega puts the keys and the firmware where Ryubing
+  needs them, and launches the games with Ryubing. It also opens Switch games you made into Mac
+  apps with nxnative.
 - **Gamepads** through SDL2.
 - **Updates.** On macOS, and with the Linux AppImage, the app finds new releases and installs them
   after checking their SHA-256. Your bottles and settings stay.

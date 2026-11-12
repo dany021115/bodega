@@ -148,6 +148,17 @@ const _afterDownload =
     'After you download Ryubing, put Ryujinx.app in Applications, then click '
     'Check again.';
 
+/// What the panel says while the keys are missing.
+const _keysHelp =
+    'Ryubing needs the keys of your own Switch (prod.keys). Click Add keys… '
+    'and pick them: Bodega puts them where Ryubing reads them.';
+
+/// What the panel says while the keys are there and the firmware is not.
+const _firmwareHelp =
+    'Ryubing also needs the firmware of your own Switch. Click Install '
+    'firmware… and pick it: Ryubing opens to install it. Confirm there, and '
+    'Bodega checks again when you come back.';
+
 /// A game file, with its title and id from its name.
 const _gamePath = '/g/Bodega Test [0100F00DBA5E0000][v0] (EU).nsp';
 const _game = SwitchGame(
@@ -301,9 +312,81 @@ void main() {
       expect(find.text(_note('Ryubing')), findsNothing);
       expect(find.text('Download Ryubing'), findsNothing);
       expect(find.text(_afterDownload), findsNothing);
+      expect(find.text('Add keys…'), findsNothing);
+      expect(find.text('Install firmware…'), findsNothing);
+      expect(find.text(_keysHelp), findsNothing);
+      expect(find.text(_firmwareHelp), findsNothing);
       expect(find.text('Check again'), findsOneWidget);
       expect(find.text('Full screen'), findsOneWidget);
       expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('no keys: Add keys… and what it does, and no firmware step '
+        'yet, with or without Ryubing', (tester) async {
+      for (final status in [_missing, _found.copyWith(keys: false)]) {
+        await pumpPanel(tester, status);
+        expect(find.text('Add keys…'), findsOneWidget);
+        expect(find.text(_keysHelp), findsOneWidget);
+        expect(find.text('Install firmware…'), findsNothing);
+        expect(find.text(_firmwareHelp), findsNothing);
+        expect(tester.takeException(), isNull);
+      }
+    });
+
+    testWidgets('Add keys… picks .keys files, and the bloc copies them', (
+      tester,
+    ) async {
+      picker.answer = ['/k/prod.keys', '/k/title.keys'];
+      await pumpPanel(tester, _missing);
+      await tester.tap(find.text('Add keys…'));
+      await tester.pump();
+
+      final call = picker.calls.single;
+      expect(call.picker, 'openFiles');
+      expect(call.groups.single.extensions, ['keys']);
+      verify(
+        () => bloc.add(
+          const SwitchEvent.installKeys(['/k/prod.keys', '/k/title.keys']),
+        ),
+      ).called(1);
+    });
+
+    testWidgets('keys but no firmware: Install firmware… and what happens; '
+        'without Ryubing, no firmware step', (tester) async {
+      await pumpPanel(tester, _found.copyWith(firmware: false));
+      expect(find.text('Install firmware…'), findsOneWidget);
+      expect(find.text(_firmwareHelp), findsOneWidget);
+      expect(find.text('Add keys…'), findsNothing);
+      expect(tester.takeException(), isNull);
+
+      await pumpPanel(tester, _missing.copyWith(keys: true));
+      expect(find.text('Install firmware…'), findsNothing);
+      expect(find.text(_firmwareHelp), findsNothing);
+    });
+
+    testWidgets("Install firmware… takes a file or a folder for Ryubing's "
+        'installer', (tester) async {
+      await pumpPanel(tester, _found.copyWith(firmware: false));
+      picker.answer = ['/f/Firmware.zip'];
+      await tester.tap(find.text('Install firmware…'));
+      await tester.pumpAndSettle();
+      expect(find.text('A folder…'), findsOneWidget);
+      await tester.tap(find.text('A file (.zip or .xci)…'));
+      await tester.pumpAndSettle();
+      expect(picker.calls.last.picker, 'openFile');
+      expect(picker.calls.last.groups.single.extensions, ['zip', 'xci']);
+      verify(
+        () => bloc.add(const SwitchEvent.installFirmware('/f/Firmware.zip')),
+      ).called(1);
+
+      picker.answer = ['/f/Firmware'];
+      await tester.tap(find.text('Install firmware…'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('A folder…'));
+      await tester.pumpAndSettle();
+      expect(picker.calls.last.picker, 'getDirectoryPath');
+      verify(() => bloc.add(const SwitchEvent.installFirmware('/f/Firmware')))
+          .called(1);
     });
 
     testWidgets('nothing found: three amber rows, Download Ryubing, what to '

@@ -15,24 +15,46 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 /// The section, the installation panel, and what the global blocs announce.
-class ShellBody extends StatelessWidget {
+class ShellBody extends StatefulWidget {
   final Widget child;
 
   const ShellBody({super.key, required this.child});
 
   @override
+  State<ShellBody> createState() => _ShellBodyState();
+}
+
+class _ShellBodyState extends State<ShellBody> {
+  @override
+  void initState() {
+    super.initState();
+    // A3: a check that ended before the shell showed, as on the setup page,
+    // opens its dialog now: the listener below sees only what comes after.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final state = context.read<UpdateBloc>().state;
+      if (state.update != null && state.phase == UpdatePhase.available) {
+        _showUpdate(context);
+      }
+    });
+  }
+
+  static Future<void> _showUpdate(BuildContext context) => showDialog<void>(
+    context: context,
+    barrierDismissible: false,
+    builder: (_) => const UpdateDialog(),
+  );
+
+  @override
   Widget build(BuildContext context) {
+    final child = widget.child;
     return MultiBlocListener(
       listeners: [
-        // A3: a newer version opens its dialog once.
+        // A3: a newer version opens its dialog once per start.
         BlocListener<UpdateBloc, UpdateState>(
           listenWhen: (previous, current) =>
               previous.update == null && current.update != null,
-          listener: (context, state) => showDialog<void>(
-            context: context,
-            barrierDismissible: false,
-            builder: (_) => const UpdateDialog(),
-          ),
+          listener: (context, state) => _showUpdate(context),
         ),
         BlocListener<LibraryBloc, LibraryState>(
           listenWhen: (previous, current) =>
@@ -58,7 +80,9 @@ class ShellBody extends StatelessWidget {
             if (state.notice case final notice?) {
               final text = switchNoticeText(context.l10n, notice);
               switch (notice) {
-                case SwitchAddedNotice():
+                case SwitchAddedNotice() ||
+                    SwitchKeysAddedNotice() ||
+                    SwitchFirmwareOpenedNotice():
                   AppToast.success(context, text);
                 case SwitchExitedNotice():
                   AppToast.warning(context, text);

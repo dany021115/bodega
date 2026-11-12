@@ -36,7 +36,9 @@ usage: bodega install <engine.tar.gz> <hostlibs.tar.gz>
        bodega switch list
        bodega switch remove <game>
        bodega switch open <game>
-       bodega switch stop <game>''';
+       bodega switch stop <game>
+       bodega switch keys <file.keys|folder>…
+       bodega switch firmware <file|folder>''';
 
 Future<void> main(List<String> args) async {
   final Future<int> Function(String home)? verb = switch (args) {

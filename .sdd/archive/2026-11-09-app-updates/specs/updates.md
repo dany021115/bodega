@@ -7,10 +7,13 @@
 - Without the `RELEASES_TOKEN` secret: a warning (`::warning::`), and the step does not fail.
 
 ## A1 · Check
-- When the release app starts, if 24 h have passed since the last check, it requests
+- When the release app starts, it requests (every start since 1.7.0, issue #19; until then,
+  only if 24 h had passed since the last check)
   `https://api.github.com/repos/dany021115/bodega-releases/releases/latest`.
 - It compares `tag_name` (`vX.Y.Z`) with the installed version (SemVer, number by number).
-- There is a notice if it is greater and is not the version the user dismissed with "Ahora no" ("Not now").
+- There is a notice if it is greater. "Ahora no" ("Not now") closes it for that session only
+  and saves nothing, so the next start shows it again (since 1.7.0, issue #19; until then, it hid
+  that version for good).
 - Network error, odd response or a non-SemVer tag: no notice, no error on screen.
 - Development builds check nothing.
 
@@ -54,8 +57,10 @@
   changed. (test)
 - **Given** the `v1.4.0` release and the `1.3.0` app, **when** it starts, **then** the
   modal shows `1.4.0`. With `v1.3.0` or `v1.2.9`: nothing. (bloc + data with a fake server)
-- **Given** "Ahora no" on `1.4.0`, **then** it does not show again for `1.4.0`, but it does for
-  `1.4.1`. (test)
+- **Given** "Ahora no" on `1.4.0`, **then** the next start shows `1.4.0` again (since 1.7.0,
+  issue #19). (test)
+- **Given** a check that ends before the shell shows, as on the setup page, **then** the modal
+  opens once the shell does (since 1.7.0, issue #19). (test)
 - **Given** less than 24 h since the last check, **then** it requests nothing. (test)
 - **Given** no network or a 404, **then** nothing on screen. (test)
 - **Given** a SHA256 that does not match, **then** it does not install and says so. (test)
