@@ -7,6 +7,7 @@ import 'package:bodega/app/presentation/catalog/catalog_detail_page.dart';
 import 'package:bodega/app/presentation/catalog/catalog_page.dart';
 import 'package:bodega/app/presentation/library/library_page.dart';
 import 'package:bodega/app/presentation/setup/setup_page.dart';
+import 'package:bodega/app/presentation/switch/switch_page.dart';
 import 'package:bodega/app/shared/widgets/custom_loading.dart';
 import 'package:bodega/app/shared/widgets/empty_state.dart';
 import 'package:bodega/app/shared/widgets/main_shell.dart';
@@ -29,6 +30,9 @@ enum AppRoute {
   splash,
   setup,
   library,
+
+  /// The Switch games, at `/switch`: `switch` is a Dart keyword.
+  switchGames,
   catalog,
   catalogDetail,
   bottles,
@@ -80,6 +84,7 @@ GoRouter createRouter(SetupBloc setup) {
         ),
         routes: [
           _section(AppRoute.library, const LibraryPage()),
+          _section(AppRoute.switchGames, const SwitchPage()),
           _section(
             AppRoute.catalog,
             const CatalogPage(),

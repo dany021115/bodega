@@ -72,6 +72,14 @@ extension AppErrorText on AppError {
       l10n.errProcessNoAnswer(command),
     ProcessFailedError(:final command, :final exitCode?) =>
       l10n.errProcessFailed(command, exitCode),
+    NoEmulatorError(:final name, :final app) => l10n.errNoEmulator(name, app),
+    NotAnEmulatorError(:final path, :final name) => l10n.errNotAnEmulator(
+      path,
+      name,
+    ),
+    NotASwitchGameError(:final path) => l10n.errNotASwitchGame(path),
+    SwitchGameNotFoundError(:final path) => l10n.errSwitchGameNotFound(path),
+    SwitchGameRunningError(:final path) => l10n.errSwitchGameRunning(path),
     DownloadCutError(:final received, :final total) => l10n.errDownloadCut(
       megabytes(received),
       megabytes(total),

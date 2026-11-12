@@ -28,7 +28,15 @@ usage: bodega install <engine.tar.gz> <hostlibs.tar.gz>
        bodega fix list [text]
        bodega fix show <id|steam-appid>
        bodega apps
-       bodega open [--backend <b>] [--hud] <bottle> [key]''';
+       bodega open [--backend <b>] [--hud] <bottle> [key]
+       bodega switch status
+       bodega switch emulator <Ryujinx.app>|auto
+       bodega switch option fullscreen|headless on|off
+       bodega switch add <file|app|folder>…
+       bodega switch list
+       bodega switch remove <game>
+       bodega switch open <game>
+       bodega switch stop <game>''';
 
 Future<void> main(List<String> args) async {
   final Future<int> Function(String home)? verb = switch (args) {
@@ -236,6 +244,7 @@ Future<void> main(List<String> args) async {
       }
       return results.every((r) => r.ok) ? 0 : 1;
     },
+    ['switch', ...final rest] => switchVerb(rest, stdout),
     _ => null,
   };
   if (verb == null) {
@@ -244,7 +253,7 @@ Future<void> main(List<String> args) async {
     return;
   }
   try {
-    final issues = await checkHost();
+    final issues = needsHost(args) ? await checkHost() : const <HostIssue>[];
     if (issues.isNotEmpty) {
       // Each issue is a failure of its own: every line carries the prefix
       // (E6).

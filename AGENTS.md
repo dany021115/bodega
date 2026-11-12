@@ -1,6 +1,6 @@
 # Agent notes
 
-Bodega is an open-source launcher for Windows games on Apple Silicon and Linux. For the full project guide (layers, commands, lines not to cross), read `.claude/CLAUDE.md`. Everything in git is in English: code, docs, specs, commit messages, branch names and pull requests (see "Language" there).
+Bodega is an open-source launcher for Windows games on Apple Silicon and Linux, and for Nintendo Switch games on the Mac through an emulator the user installs. For the full project guide (layers, commands, lines not to cross), read `.claude/CLAUDE.md`. Everything in git is in English: code, docs, specs, commit messages, branch names and pull requests (see "Language" there).
 
 ## Versioning
 

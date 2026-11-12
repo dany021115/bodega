@@ -34,7 +34,12 @@ class AppCard extends StatelessWidget {
   static double extent(BuildContext context) =>
       coverHeight + MediaQuery.textScalerOf(context).scale(100);
 
-  final LibraryApp app;
+  /// Picks its cover pair, and its logo when it is a catalog id.
+  final String id;
+  final String title;
+
+  /// A picture of it on disk, if it has one.
+  final String? iconPath;
   final String? bottleLabel;
   final bool running;
 
@@ -49,9 +54,28 @@ class AppCard extends StatelessWidget {
   /// Gets the context of the menu button: the menu always opens beside it.
   final ValueChanged<BuildContext>? onMenu;
 
-  const AppCard({
+  /// The card of [app]: its id, title and picture.
+  AppCard({
     super.key,
-    required this.app,
+    required LibraryApp app,
+    required this.running,
+    required this.onPlay,
+    required this.onStop,
+    this.bottleLabel,
+    this.footerChip,
+    this.graphics,
+    this.onMenu,
+  }) : id = app.id,
+       title = app.title,
+       iconPath = app.iconPath;
+
+  /// The card of anything else that has an [id] and a [title], such as a
+  /// Switch game.
+  const AppCard.item({
+    super.key,
+    required this.id,
+    required this.title,
+    this.iconPath,
     required this.running,
     required this.onPlay,
     required this.onStop,
@@ -66,7 +90,7 @@ class AppCard extends StatelessWidget {
     final colors = Theme.of(context).colorScheme;
     final styles = AppTextStyle(context);
     final l10n = context.l10n;
-    final (from, to) = _covers[app.id.hashCode % _covers.length];
+    final (from, to) = _covers[id.hashCode % _covers.length];
     final menu = onMenu;
     // Set by the button's Builder, so a right click opens the menu in the same
     // place as the button does.
@@ -109,7 +133,7 @@ class AppCard extends StatelessWidget {
                   : (_) => menu(anchor ?? context),
               child: Semantics(
                 button: true,
-                label: app.title,
+                label: title,
                 hint: l10n.appOpenHint,
                 onTap: running ? null : onPlay,
                 child: Column(
@@ -127,9 +151,9 @@ class AppCard extends StatelessWidget {
                             ),
                           ),
                           AppIcon(
-                            id: app.id,
-                            title: app.title,
-                            iconPath: app.iconPath,
+                            id: id,
+                            title: title,
+                            iconPath: iconPath,
                             size: 64,
                           ),
                           if (graphics case final graphics?)
@@ -168,7 +192,7 @@ class AppCard extends StatelessWidget {
                         0,
                       ),
                       child: Text(
-                        app.title,
+                        title,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: styles.cardTitle,
@@ -216,7 +240,7 @@ class AppCard extends StatelessWidget {
                     builder: (button) {
                       anchor = button;
                       return IconButton(
-                        tooltip: l10n.appOptions(app.title),
+                        tooltip: l10n.appOptions(title),
                         // As small as the play button, so the chip has room.
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints.tightFor(

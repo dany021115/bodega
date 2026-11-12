@@ -14,6 +14,7 @@ import 'package:bodega/app/bloc/library/library_bloc.dart';
 import 'package:bodega/app/bloc/locale/locale_bloc.dart';
 import 'package:bodega/app/bloc/sections/sections_bloc.dart';
 import 'package:bodega/app/bloc/setup/setup_bloc.dart';
+import 'package:bodega/app/bloc/switch/switch_bloc.dart';
 import 'package:bodega/app/bloc/theme/theme_bloc.dart';
 import 'package:bodega/app/bloc/update/update_bloc.dart';
 import 'package:bodega/app/bloc/view_mode/view_mode_bloc.dart';
@@ -54,6 +55,9 @@ class _MockInstall extends MockBloc<InstallEvent, InstallState>
 
 class _MockLibrary extends MockBloc<LibraryEvent, LibraryState>
     implements LibraryBloc {}
+
+class _MockSwitch extends MockBloc<SwitchEvent, SwitchState>
+    implements SwitchBloc {}
 
 class _MockViewMode extends MockBloc<ViewModeEvent, ViewModeState>
     implements ViewModeBloc {}
@@ -97,6 +101,7 @@ void main() {
       ..registerSingleton<GraphicsBloc>(_MockGraphics())
       ..registerSingleton<InstallBloc>(_MockInstall())
       ..registerSingleton<LibraryBloc>(_MockLibrary())
+      ..registerSingleton<SwitchBloc>(_MockSwitch())
       ..registerSingleton<ViewModeBloc>(_MockViewMode())
       ..registerSingleton<SectionsBloc>(_MockSections())
       // The real bloc, built when the app asks for it: it reads the saved

@@ -21,6 +21,7 @@ part 'platform.dart';
 part 'platform_linux.dart';
 part 'platform_mac.dart';
 part 'gamepads.dart';
+part 'switch.dart';
 
 /// The data root (R1): `BODEGA_HOME`, or else the host's default, created and
 /// canonical.

@@ -89,7 +89,31 @@ final failures = <EngineFailure>[
   const InstallerNoExe('Program Files (x86)/Steam/steam.exe', _log),
   const ProcessFailed('/usr/bin/tar -xzf x.tar.gz', 2, 'tar: bad archive\n'),
   const ProcessFailed('wine --version', null, ''),
+  ...switchFailures.keys,
 ];
+
+/// The five Switch failures, each with its message as SE20 gives it.
+final switchFailures = <EngineFailure, String>{
+  const NoEmulator('Ryubing', 'Ryujinx.app'):
+      'Ryubing not found: Bodega looks for Ryujinx.app in /Applications and '
+      '~/Applications, or takes one from bodega switch emulator <path>',
+  const NotAnEmulator('/Users/q/Other.app', 'Ryubing'):
+      '/Users/q/Other.app is not Ryubing: its Info.plist names another app',
+  const NotASwitchGame('/Users/q/readme.txt', [
+    'xci',
+    'nsp',
+    'pfs0',
+    'nca',
+    'nro',
+    'nso',
+  ]): '/Users/q/readme.txt is not a Switch game: .xci .nsp .pfs0 .nca .nro '
+      '.nso, or an nxnative app',
+  const SwitchGameNotFound('/Users/q/g.nsp'):
+      '/Users/q/g.nsp is not among the Switch games: bodega switch list',
+  const SwitchGameRunning('/Users/q/a b.nsp'):
+      '/Users/q/a b.nsp is already running: bodega switch stop '
+      '"/Users/q/a b.nsp"',
+};
 
 /// The command a message keeps from today's text (E4), or null. Exhaustive,
 /// so that a new failure does not compile here until it has a case.
@@ -106,6 +130,9 @@ String? hintOf(EngineFailure failure) => switch (failure) {
   BadChoice(kind: ChoiceKind.fix) => 'bodega fix list',
   AppNotFound(:final bottle, key: null) => 'bodega run $bottle',
   AlreadyInstalled(:final path) => 'rm -rf "$path"',
+  NoEmulator() => 'bodega switch emulator <path>',
+  SwitchGameNotFound() => 'bodega switch list',
+  SwitchGameRunning(:final path) => 'bodega switch stop "$path"',
   BottleNotFound() ||
   BottleSetupFailed() ||
   BadBottleName() ||
@@ -129,7 +156,9 @@ String? hintOf(EngineFailure failure) => switch (failure) {
   NotHttps() ||
   WineToolFailed() ||
   InstallerNoExe() ||
-  ProcessFailed() => null,
+  ProcessFailed() ||
+  NotAnEmulator() ||
+  NotASwitchGame() => null,
 };
 
 void main() {
@@ -165,11 +194,22 @@ void main() {
     }
   });
 
-  test('the list holds each of the 31 failures', () {
+  test('the list holds each of the 36 failures', () {
     expect(
       failures.map((failure) => failure.runtimeType).toSet(),
-      hasLength(31),
+      hasLength(36),
     );
+  });
+
+  test('each Switch failure reads as SE20 says, with no link', () {
+    expect(switchFailures, hasLength(5));
+    for (final MapEntry(key: failure, value: text) in switchFailures.entries) {
+      final name = '${failure.runtimeType}';
+      expect(failure.message, text, reason: name);
+      expect('$failure', text, reason: name);
+      expect(text, isNot(matches(spanish)), reason: name);
+      expect(text, isNot(matches(RegExp(r'://|www\.'))), reason: name);
+    }
   });
 
   test('each failure is in English and keeps its hint', () {

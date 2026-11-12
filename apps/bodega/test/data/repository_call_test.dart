@@ -34,6 +34,71 @@ void main() {
       );
     });
 
+    test('a Switch failure gives the code of its name, with its message as '
+        'detail (SA1)', () async {
+      const other = '/Applications/Other.app';
+      const game = '/g/a.nsp';
+      const extensions = ['xci', 'nsp', 'pfs0', 'nca', 'nro', 'nso'];
+      final cases = <(engine.EngineFailure, AppError)>[
+        (
+          const engine.NoEmulator('Ryubing', 'Ryujinx.app'),
+          const AppError.noEmulator('Ryubing', 'Ryujinx.app'),
+        ),
+        (
+          const engine.NotAnEmulator(other, 'Ryubing'),
+          const AppError.notAnEmulator(other, 'Ryubing'),
+        ),
+        (
+          const engine.SwitchGameNotFound(game),
+          const AppError.switchGameNotFound(game),
+        ),
+        (
+          const engine.SwitchGameRunning(game),
+          const AppError.switchGameRunning(game),
+        ),
+        // Any app bundle can be picked, so one that is not a native app gets
+        // here; the extensions stay in the message.
+        (
+          const engine.NotASwitchGame(other, extensions),
+          const AppError.notASwitchGame(other),
+        ),
+      ];
+      for (final (failure, code) in cases) {
+        expect(
+          await throwing(failure),
+          left<AppError, Object?>(code.copyWith(detail: failure.message)),
+          reason: '$failure',
+        );
+      }
+      expect(
+        (await throwing(const engine.NotASwitchGame(other, extensions)))
+            .getLeft()
+            .toNullable()
+            ?.detail,
+        contains('.xci .nsp .pfs0 .nca .nro .nso'),
+      );
+    });
+
+    test('a game that is gone and Switch where it is not available keep the '
+        'codes Wine has (SA1)', () async {
+      const gone = '/g/gone.nsp';
+      const missing = engine.MissingFile(gone);
+      expect(
+        await throwing(missing),
+        left<AppError, Object?>(
+          AppError.badPath(
+            const PathProblem.missing(gone),
+            detail: missing.message,
+          ),
+        ),
+      );
+      const linux = engine.NotAvailable('switch', 'Linux');
+      expect(
+        await throwing(linux),
+        left<AppError, Object?>(AppError.unknown(detail: linux.message)),
+      );
+    });
+
     test('a failure the app never triggers is unknown, with its message as '
         'detail', () async {
       const url = 'http://example.com/setup.exe';
@@ -184,6 +249,27 @@ void main() {
         const engine.ProcessFailed('wine --version', null, ''),
         const AppError.processFailed('wine --version', null),
       ),
+      // Switch games (switch-support SA1).
+      (
+        const engine.NoEmulator('Ryubing', 'Ryujinx.app'),
+        const AppError.noEmulator('Ryubing', 'Ryujinx.app'),
+      ),
+      (
+        const engine.NotAnEmulator('/Applications/Other.app', 'Ryubing'),
+        const AppError.notAnEmulator('/Applications/Other.app', 'Ryubing'),
+      ),
+      (
+        const engine.NotASwitchGame('/g/notes.txt', ['xci', 'nsp']),
+        const AppError.notASwitchGame('/g/notes.txt'),
+      ),
+      (
+        const engine.SwitchGameNotFound('/g/a.nsp'),
+        const AppError.switchGameNotFound('/g/a.nsp'),
+      ),
+      (
+        const engine.SwitchGameRunning('/g/a.nsp'),
+        const AppError.switchGameRunning('/g/a.nsp'),
+      ),
       // What the app never triggers (design §5).
       (const engine.NotAvailable('SDL', 'Linux'), const AppError.unknown()),
       (const engine.NotDownloadable('d3dmetal'), const AppError.unknown()),
@@ -211,7 +297,7 @@ void main() {
     test('the cases hold every failure of the engine', () {
       expect({
         for (final (failure, _) in cases) failure.runtimeType,
-      }, hasLength(31));
+      }, hasLength(36));
     });
   });
 

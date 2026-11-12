@@ -14,11 +14,11 @@
   },
   "commonStop": "Stop",
   "@commonStop": {
-    "description": "Button or tooltip that stops a bottle, so everything open in it closes: on an app's card or row while the app runs, in the bottle's panel, and as the button of the confirmation."
+    "description": "Button or tooltip that stops a bottle, so everything open in it closes: on an app's card or row while the app runs, in the bottle's panel, and as the button of the confirmation. On the Switch page it stops a game, on its card while it runs and as the button of the confirmation."
   },
   "commonOpen": "Open",
   "@commonOpen": {
-    "description": "Opens an app: an item of the app's menu, and the button of an installed catalog app, on its page and in the install panel once the install ends."
+    "description": "Opens an app: an item of the app's menu, and the button of an installed catalog app, on its page and in the install panel once the install ends. Also the item of a game's menu on the Switch page that plays the game."
   },
   "commonClose": "Close",
   "@commonClose": {
@@ -26,7 +26,7 @@
   },
   "commonPlay": "Play",
   "@commonPlay": {
-    "description": "Button or tooltip that starts an app, on its card or row."
+    "description": "Button or tooltip that starts an app, on its card or row, or a game, on its card on the Switch page."
   },
   "commonRename": "Rename",
   "@commonRename": {
@@ -58,7 +58,7 @@
   },
   "commonCheckAgain": "Check again",
   "@commonCheckAgain": {
-    "description": "Button that runs a system check again: the requirements, on the setup page, and the controllers, on a bottle's page."
+    "description": "Button that runs a system check again: the requirements, on the setup page, the controllers, on a bottle's page, and the emulator, its keys and its firmware, in the status panel of the Switch page."
   },
   "commonProgramsFileType": "Programs",
   "@commonProgramsFileType": {
@@ -295,11 +295,11 @@
   },
   "appOpenHint": "Double-click to open",
   "@appOpenHint": {
-    "description": "Screen-reader hint of an app's card or row: a double-click opens the app."
+    "description": "Screen-reader hint of an app's card or row, or of a game's card on the Switch page: a double-click opens the app or plays the game."
   },
   "appRunning": "Running",
   "@appRunning": {
-    "description": "State of an app whose bottle is open: a chip on its card, a word on its row."
+    "description": "State of an app whose bottle is open: a chip on its card, a word on its row. Also the chip on the card of a game that runs, on the Switch page."
   },
   "appClosed": "Closed",
   "@appClosed": {
@@ -307,7 +307,7 @@
   },
   "appOptions": "{title} options",
   "@appOptions": {
-    "description": "Tooltip of the button that opens an app's menu, on its card or row.",
+    "description": "Tooltip of the button that opens an app's menu, on its card or row, or a game's menu, on its card on the Switch page. title is the app's or the game's title.",
     "placeholders": {
       "title": {
         "type": "String",
@@ -1562,6 +1562,64 @@
       }
     }
   },
+  "errNoEmulator": "Bodega didn't find {name}: it looks for {app} in Applications. If yours is somewhere else, choose it on the Switch page.",
+  "@errNoEmulator": {
+    "description": "Error, in a toast, when a Switch game file is played: the emulator that opens it is in neither Applications folder, and none was chosen on the Switch page. name is the emulator, a brand kept as it is; app is the file name of its app, kept as it is. It points to the Switch page's button that chooses the app, never to a command. Name only what is missing, never where or how to get it.",
+    "placeholders": {
+      "name": {
+        "type": "String",
+        "example": "Ryubing"
+      },
+      "app": {
+        "type": "String",
+        "example": "Ryujinx.app"
+      }
+    }
+  },
+  "errNotAnEmulator": "{path} isn't {name}. Choose the {name} app.",
+  "@errNotAnEmulator": {
+    "description": "Error, in a toast, after an app is chosen as the emulator on the Switch page: that app is another one. path is the app chosen; name is the emulator, a brand kept as it is.",
+    "placeholders": {
+      "path": {
+        "type": "String",
+        "example": "/Applications/Other.app"
+      },
+      "name": {
+        "type": "String",
+        "example": "Ryubing"
+      }
+    }
+  },
+  "errNotASwitchGame": "{path} isn't a Switch game file or an nxnative app.",
+  "@errNotASwitchGame": {
+    "description": "Error, in a toast, after games are added on the Switch page or one is played: what was picked is neither a game file the emulator opens nor a Mac app made of a game with nxnative, a name kept as it is. path is what was picked. Name only what it is not, never where or how to get or make a game or an app.",
+    "placeholders": {
+      "path": {
+        "type": "String",
+        "example": "/Users/me/Games/notes.txt"
+      }
+    }
+  },
+  "errSwitchGameNotFound": "{path} isn't among your Switch games. Add it again.",
+  "@errSwitchGameNotFound": {
+    "description": "Error, in a toast, when a Switch game is played, stopped or removed: it is no longer in the list of the Switch page, for instance removed from it meanwhile. path is the game's file or app. It points to the page's Add games, never to a command.",
+    "placeholders": {
+      "path": {
+        "type": "String",
+        "example": "/Users/me/Games/Bodega Test.nsp"
+      }
+    }
+  },
+  "errSwitchGameRunning": "{path} is already running. Stop it first.",
+  "@errSwitchGameRunning": {
+    "description": "Error, in a toast, when a Switch game is played: it is already running. path is the game's file or app. It points to the Stop button of the game's card, never to a command.",
+    "placeholders": {
+      "path": {
+        "type": "String",
+        "example": "/Users/me/Games/Bodega Test.nsp"
+      }
+    }
+  },
   "errDownloadCut": "The download stopped at {received} MB of {total} MB. Try again: it goes on from there.",
   "@errDownloadCut": {
     "description": "Error, in the error panel of the screen that failed or in a toast: the server stopped sending a file before its end. received and total are MB of 10^6 bytes, as downloadProgress counts them; the next try goes on from where it stopped.",
@@ -2130,5 +2188,203 @@
   "languageSystem": "System",
   "@languageSystem": {
     "description": "First choice in the sidebar's language menu (navLanguage): the app follows the system's language (Spanish when the system prefers it to English; otherwise English). The other two choices are the languages' own names."
+  },
+  "switchAdded": "{added, plural, =0{No games added} =1{1 game added} other{{added} games added}} · {known, plural, =1{1 already in the list} other{{known} already in the list}}",
+  "@switchAdded": {
+    "description": "Toast, on whatever page shows, when games picked or a folder chosen on the Switch page have been added to its list: how many Switch games (game files and nxnative apps) were new, and how many of them were in the list already. Each count agrees with its own number.",
+    "placeholders": {
+      "added": {
+        "type": "int",
+        "example": "3"
+      },
+      "known": {
+        "type": "int",
+        "example": "2"
+      }
+    }
+  },
+  "switchExited": "{title} closed with error {code}",
+  "@switchExited": {
+    "description": "Toast, on whatever page shows, when a Switch game played from Bodega ends with an exit code that means it failed; not after the user stopped it from Bodega. title is the game's title, or its file name once it is no longer in the list; code is the exit code.",
+    "placeholders": {
+      "title": {
+        "type": "String",
+        "example": "Bodega Test"
+      },
+      "code": {
+        "type": "int",
+        "example": "1"
+      }
+    }
+  },
+  "switchEmulatorFound": "{name} {version} at {path}",
+  "@switchEmulatorFound": {
+    "description": "Row of the status panel on the Switch page, in a green chip: Bodega found the emulator that opens Switch game files. name is the emulator, a brand kept as it is; version is the emulator's own version; path is its app.",
+    "placeholders": {
+      "name": {
+        "type": "String",
+        "example": "Ryubing"
+      },
+      "version": {
+        "type": "String",
+        "example": "1.3.3"
+      },
+      "path": {
+        "type": "String",
+        "example": "/Applications/Ryujinx.app"
+      }
+    }
+  },
+  "switchEmulatorFoundNoVersion": "{name} at {path}",
+  "@switchEmulatorFoundNoVersion": {
+    "description": "Row of the status panel on the Switch page, in a green chip, in place of switchEmulatorFound when the emulator's app gives no version: Bodega found the emulator that opens Switch game files. name is the emulator, a brand kept as it is; path is its app.",
+    "placeholders": {
+      "name": {
+        "type": "String",
+        "example": "Ryubing"
+      },
+      "path": {
+        "type": "String",
+        "example": "/Users/me/Emulators/Ryujinx.app"
+      }
+    }
+  },
+  "switchEmulatorMissing": "{name} is missing: Bodega needs it to play Switch game files",
+  "@switchEmulatorMissing": {
+    "description": "Row of the status panel on the Switch page, in an amber chip: the emulator that opens Switch game files is in neither Applications folder, and none was chosen with switchChooseEmulator. The buttons and the line below the rows say what to do next. name is the emulator, a brand kept as it is. Name only what is missing and why Bodega needs it, never where or how to get it.",
+    "placeholders": {
+      "name": {
+        "type": "String",
+        "example": "Ryubing"
+      }
+    }
+  },
+  "switchChooseEmulator": "Choose {name}…",
+  "@switchChooseEmulator": {
+    "description": "Button in the status panel on the Switch page, shown while the emulator is not found or the one in use was chosen with it: it opens a file picker in Applications to choose the emulator's app. name is the emulator, a brand kept as it is.",
+    "placeholders": {
+      "name": {
+        "type": "String",
+        "example": "Ryubing"
+      }
+    }
+  },
+  "switchDownloadEmulator": "Download {name}",
+  "@switchDownloadEmulator": {
+    "description": "Button in the status panel on the Switch page, shown while the emulator is not found: it opens the emulator's official download page in the browser. Bodega never downloads the emulator itself. name is the emulator, a brand kept as it is.",
+    "placeholders": {
+      "name": {
+        "type": "String",
+        "example": "Ryubing"
+      }
+    }
+  },
+  "switchAfterDownload": "After you download {name}, put {app} in Applications, then click Check again.",
+  "@switchAfterDownload": {
+    "description": "Line under the buttons of the status panel on the Switch page, shown with switchDownloadEmulator while the emulator is not found: what to do once it is downloaded. name is the emulator, a brand kept as it is; app is the file name of its app, kept as it is; Applications is the Mac's folder, named as the Finder names it; Check again is the button beside it (commonCheckAgain): use its translation.",
+    "placeholders": {
+      "name": {
+        "type": "String",
+        "example": "Ryubing"
+      },
+      "app": {
+        "type": "String",
+        "example": "Ryujinx.app"
+      }
+    }
+  },
+  "switchKeys": "{state, select, found{{name} has keys (prod.keys)} other{{name} has no keys (prod.keys)}}",
+  "@switchKeys": {
+    "description": "Row of the status panel on the Switch page: whether the emulator has its keys, in a green chip when they are there and an amber one when they are not. name is the emulator, a brand kept as it is; state is found, or another value when they are missing; prod.keys is the file's name, kept as it is. Name only what is missing, never where or how to get it.",
+    "placeholders": {
+      "name": {
+        "type": "String",
+        "example": "Ryubing"
+      },
+      "state": {
+        "type": "String",
+        "example": "found"
+      }
+    }
+  },
+  "switchFirmware": "{state, select, found{{name} has firmware} other{{name} has no firmware}}",
+  "@switchFirmware": {
+    "description": "Row of the status panel on the Switch page: whether the emulator has its firmware, in a green chip when it is there and an amber one when it is not. name is the emulator, a brand kept as it is; state is found, or another value when it is missing. Name only what is missing, never where or how to get it.",
+    "placeholders": {
+      "name": {
+        "type": "String",
+        "example": "Ryubing"
+      },
+      "state": {
+        "type": "String",
+        "example": "found"
+      }
+    }
+  },
+  "switchQuarantineNote": "If {name} doesn't start, open it once from the Finder. If macOS blocks it, allow it in System Settings > Privacy & Security.",
+  "@switchQuarantineNote": {
+    "description": "Note in the status panel on the Switch page, for an app that macOS keeps in quarantine since it was never opened: the emulator, or a Switch game made into a Mac app. name is that app's name: the emulator, a brand kept as it is, or the game's title. Finder, System Settings and Privacy & Security are macOS's own names: use the ones macOS shows in the translation's language.",
+    "placeholders": {
+      "name": {
+        "type": "String",
+        "example": "Ryubing"
+      }
+    }
+  },
+  "switchFullScreen": "Full screen",
+  "@switchFullScreen": {
+    "description": "Switch in the status panel on the Switch page: whether the emulator opens Switch game files full screen, from their next launch."
+  },
+  "navSwitch": "Switch",
+  "@navSwitch": {
+    "description": "The sidebar item under Library that opens the page of Nintendo Switch games, and that page's title. Also the item's tooltip when the sidebar shows only icons. Switch is the console's name, kept as it is."
+  },
+  "switchAddGames": "Add games",
+  "@switchAddGames": {
+    "description": "Button in the header of the Switch page, and in its empty state: it opens a short menu to add Switch games, by picking files (switchAddFiles) or a folder (switchAddFolder)."
+  },
+  "switchAddFiles": "Files…",
+  "@switchAddFiles": {
+    "description": "First item of the Add games menu on the Switch page: it opens a file picker for Switch game files and nxnative apps."
+  },
+  "switchAddFolder": "A folder…",
+  "@switchAddFolder": {
+    "description": "Second item of the Add games menu on the Switch page: it opens a folder picker, and Bodega adds the Switch games it finds in that folder and two levels below it."
+  },
+  "switchEmptyTitle": "No Switch games yet",
+  "@switchEmptyTitle": {
+    "description": "Title of the empty state that the Switch page shows in place of its games while its list holds none."
+  },
+  "switchEmptyMessage": "Add Nintendo Switch game files or nxnative apps, or a folder that holds them. Bodega remembers where they are and never copies them.",
+  "@switchEmptyMessage": {
+    "description": "Message of the Switch page's empty state, under switchEmptyTitle and above the Add games button. Nintendo Switch and nxnative are names, kept as they are; an nxnative app is a Mac app that the user made of one of their Switch games. Name only what a thing is, never where or how to get or make it."
+  },
+  "switchNative": "Native",
+  "@switchNative": {
+    "description": "Chip in the footer of a game's card on the Switch page: the game is a Mac app that the user made of one of their Switch games with nxnative, so it plays without the emulator. It describes the game. Name only what the game is, never where or how to get or make it."
+  },
+  "switchRemove": "Remove from list",
+  "@switchRemove": {
+    "description": "Item of a game's menu on the Switch page: it takes the game out of the page's list, and its file or app stays where it is. Disabled while the game runs."
+  },
+  "switchStopTitle": "Stop {title}",
+  "@switchStopTitle": {
+    "description": "Title of the dialog that asks before a Switch game that runs is stopped from its card on the Switch page. title is the game's title.",
+    "placeholders": {
+      "title": {
+        "type": "String",
+        "example": "Bodega Test"
+      }
+    }
+  },
+  "switchStopConfirm": "{title} will close. Anything you haven't saved will be lost.",
+  "@switchStopConfirm": {
+    "description": "Message of the dialog titled switchStopTitle: stopping the game closes it, and what it has not saved is lost. title is the game's title.",
+    "placeholders": {
+      "title": {
+        "type": "String",
+        "example": "Bodega Test"
+      }
+    }
   }
 }

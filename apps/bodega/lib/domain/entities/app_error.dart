@@ -135,6 +135,33 @@ sealed class AppError with _$AppError implements Exception {
     String? detail,
   }) = ProcessFailedError;
 
+  // Switch games.
+
+  /// No [name] where Bodega looks for [app], its file name, and no pick that
+  /// is one.
+  const factory AppError.noEmulator(String name, String app, {String? detail}) =
+      NoEmulatorError;
+
+  /// [path], picked as the emulator [name], is another app.
+  const factory AppError.notAnEmulator(
+    String path,
+    String name, {
+    String? detail,
+  }) = NotAnEmulatorError;
+
+  /// [path] is neither a game file the emulator opens nor an nxnative app.
+  /// The extensions it opens are in [detail].
+  const factory AppError.notASwitchGame(String path, {String? detail}) =
+      NotASwitchGameError;
+
+  /// [path] is not in the list of Switch games, and has no run.
+  const factory AppError.switchGameNotFound(String path, {String? detail}) =
+      SwitchGameNotFoundError;
+
+  /// [path] already runs.
+  const factory AppError.switchGameRunning(String path, {String? detail}) =
+      SwitchGameRunningError;
+
   // Downloads and updates.
 
   /// The server stopped sending at [received] of [total] bytes. The next try

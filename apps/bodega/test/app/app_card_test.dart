@@ -15,6 +15,21 @@ const _long = LibraryApp(
       'An extremely long application title, long enough to check the clipping',
 );
 
+void _none() {}
+
+void _noMenu(BuildContext _) {}
+
+/// The gradient behind the card's picture: its cover pair.
+LinearGradient _cover(WidgetTester tester) => [
+  for (final box in tester.widgetList<DecoratedBox>(find.byType(DecoratedBox)))
+    if (box.decoration case BoxDecoration(gradient: final LinearGradient cover))
+      cover,
+].single;
+
+/// The label of the card's node, the one with its open hint.
+String _label(WidgetTester tester) =>
+    find.semantics.byHint('Double-click to open').evaluate().single.label;
+
 void main() {
   Future<void> pump(
     WidgetTester tester,
@@ -95,5 +110,42 @@ void main() {
     final es = lookupAppL10n(const Locale('es'));
     await pump(tester, card, locale: const Locale('es'));
     expect(find.semantics.byHint(es.appOpenHint), findsOne);
+  });
+
+  testWidgets('an item shows as the app with its id and title does (SA17)', (
+    tester,
+  ) async {
+    const item = AppCard.item(
+      id: 'x',
+      title: 'Bodega Test',
+      running: false,
+      onPlay: _none,
+      onStop: _none,
+      onMenu: _noMenu,
+    );
+    final app = AppCard(
+      app: const LibraryApp(
+        bottle: 'b',
+        key: 'k',
+        id: 'x',
+        title: 'Bodega Test',
+      ),
+      running: false,
+      onPlay: _none,
+      onStop: _none,
+      onMenu: _noMenu,
+    );
+
+    final shown = <(LinearGradient, String)>[];
+    for (final card in [item, app]) {
+      await pump(tester, card);
+      // No picture and no catalog logo: the initial of the title.
+      expect(find.text('B'), findsOneWidget);
+      expect(find.text('Bodega Test'), findsOneWidget);
+      expect(find.byTooltip('Bodega Test options'), findsOneWidget);
+      shown.add((_cover(tester), _label(tester)));
+    }
+    expect(shown.first.$2, contains('Bodega Test'));
+    expect(shown.last, shown.first);
   });
 }

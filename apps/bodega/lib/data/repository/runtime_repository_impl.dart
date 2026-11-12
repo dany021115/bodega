@@ -32,6 +32,7 @@ class RuntimeRepositoryImpl implements RuntimeRepository {
         gpu: caps.gpu,
         gameMode: caps.gameMode,
         syncModes: caps.syncModes,
+        switchGames: caps.switchGames,
       ),
     );
   });

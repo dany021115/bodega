@@ -2,7 +2,12 @@
 // forms of the ARB messages (plurals, selects, placeholders), the tables of
 // lib/app/shared/text/, and the widgets that show them. English is read as
 // written; Spanish only through lookupAppL10n, with the same arguments as
-// English (design §9, L19).
+// English (design §9, L19). The group "Switch text in the ARBs" also reads
+// both ARB files as data, as the parity test does, to check their forms and
+// scan what a translator reads (SA19, SA20).
+
+import 'dart:convert';
+import 'dart:io';
 
 import 'package:bloc_test/bloc_test.dart';
 import 'package:bodega/app/bloc/backends/backends_bloc.dart';
@@ -16,6 +21,7 @@ import 'package:bodega/app/bloc/new_bottle/new_bottle_bloc.dart';
 import 'package:bodega/app/bloc/run_options/run_options_bloc.dart';
 import 'package:bodega/app/bloc/sections/sections_bloc.dart';
 import 'package:bodega/app/bloc/setup/setup_bloc.dart';
+import 'package:bodega/app/bloc/switch/switch_bloc.dart';
 import 'package:bodega/app/bloc/update/update_bloc.dart';
 import 'package:bodega/app/bloc/view_mode/view_mode_bloc.dart';
 import 'package:bodega/app/presentation/backends/widgets/backend_card.dart';
@@ -39,6 +45,7 @@ import 'package:bodega/app/shared/text/issue_text.dart';
 import 'package:bodega/app/shared/text/problem_text.dart';
 import 'package:bodega/app/shared/text/progress_text.dart';
 import 'package:bodega/app/shared/text/step_text.dart';
+import 'package:bodega/app/shared/text/switch_text.dart';
 import 'package:bodega/app/shared/widgets/copy_details_button.dart';
 import 'package:bodega/app/shared/widgets/install_panel.dart';
 import 'package:bodega/app/shared/widgets/shell_body.dart';
@@ -100,6 +107,9 @@ class _MockSections extends MockBloc<SectionsEvent, SectionsState>
 
 class _MockSetup extends MockBloc<SetupEvent, SetupState>
     implements SetupBloc {}
+
+class _MockSwitch extends MockBloc<SwitchEvent, SwitchState>
+    implements SwitchBloc {}
 
 class _MockUpdate extends MockBloc<UpdateEvent, UpdateState>
     implements UpdateBloc {}
@@ -221,6 +231,112 @@ const _blurGraphics = ExeGraphics(
   directx: 'DX9',
   misfits: ['d3dmetal'],
 );
+
+// The Switch section's ARB text (SA19, SA20).
+
+/// An ARB file as JSON: messages, their `@key` metadata, `@@` attributes.
+typedef _Arb = Map<String, Object?>;
+
+/// The Switch section's five errors (SA1).
+const _switchErrorKeys = [
+  'errNoEmulator',
+  'errNotAnEmulator',
+  'errNotASwitchGame',
+  'errSwitchGameNotFound',
+  'errSwitchGameRunning',
+];
+
+/// SA19's 27 keys, in its table's order: the sidebar item, which also titles
+/// the page, the switch… keys and the five errors.
+const _switchKeys = [
+  'navSwitch',
+  'switchAddGames',
+  'switchAddFiles',
+  'switchAddFolder',
+  'switchEmptyTitle',
+  'switchEmptyMessage',
+  'switchEmulatorFound',
+  'switchEmulatorFoundNoVersion',
+  'switchEmulatorMissing',
+  'switchChooseEmulator',
+  'switchDownloadEmulator',
+  'switchAfterDownload',
+  'switchKeys',
+  'switchFirmware',
+  'switchQuarantineNote',
+  'switchFullScreen',
+  'switchNative',
+  'switchRemove',
+  'switchStopTitle',
+  'switchStopConfirm',
+  'switchAdded',
+  'switchExited',
+  ..._switchErrorKeys,
+];
+
+/// Whether [key] names a Switch text, by the rule T27's count follows:
+/// navSwitch, a switch… key, or one of the five errors.
+bool _isSwitchKey(String key) =>
+    key == 'navSwitch' ||
+    key.startsWith(RegExp('switch[A-Z]')) ||
+    _switchErrorKeys.contains(key);
+
+/// A link, or the CLI's Switch verbs where the app gives advice in its own
+/// UI (SA2, SA20).
+final _linkOrCommand = RegExp(r'://|www\.|bodega switch', caseSensitive: false);
+
+/// The words of a guide to getting keys, firmware, games or an emulator,
+/// which no English text of the section holds (SA20, SN7), but for
+/// [_emulatorDownloadKeys].
+final _howTo = RegExp('download|dump|decrypt|obtain', caseSensitive: false);
+
+/// The keys of the emulator's official download page, the one download the
+/// section names (SA14): its button, and the line on what to do after. They
+/// may say download, and none of the other words of a guide.
+const _emulatorDownloadKeys = ['switchDownloadEmulator', 'switchAfterDownload'];
+final _howToButDownload = RegExp('dump|decrypt|obtain', caseSensitive: false);
+
+_Arb _readArb(String file) =>
+    jsonDecode(File('lib/l10n/$file').readAsStringSync()) as _Arb;
+
+/// What a translator reads of [key] in [arb], each part with its name: the
+/// message and, from the `@key` that only app_en.arb holds, the description
+/// and each placeholder's example.
+Iterable<(String, String)> _arbTexts(_Arb arb, String key) sync* {
+  if (arb[key] case final String message) yield ('message', message);
+  final metadata = arb['@$key'];
+  if (metadata case {'description': final String description}) {
+    yield ('description', description);
+  }
+  if (metadata case {'placeholders': final Map<String, Object?> placeholders}) {
+    for (final MapEntry(key: name, :value) in placeholders.entries) {
+      if (value case {'example': final String example}) {
+        yield ('example of {$name}', example);
+      }
+    }
+  }
+}
+
+/// SA20's scan of [keys]: a link or the CLI's Switch verbs in a message,
+/// description or example of either file, and the words of a guide in
+/// app_en.arb, whose text the translations follow, download allowed only in
+/// [_emulatorDownloadKeys]. Each problem names the file, the key and the
+/// part.
+List<String> _switchTextProblems(_Arb en, _Arb es, List<String> keys) => [
+  for (final (file, arb, guide) in [
+    ('app_en.arb', en, true),
+    ('app_es.arb', es, false),
+  ])
+    for (final key in keys)
+      for (final (part, text) in _arbTexts(arb, key))
+        for (final pattern in [
+          _linkOrCommand,
+          if (guide)
+            _emulatorDownloadKeys.contains(key) ? _howToButDownload : _howTo,
+        ])
+          if (pattern.firstMatch(text) case final match?)
+            '$file: $key: its $part holds "${match[0]}"',
+];
 
 void main() {
   final en = lookupAppL10n(const Locale('en'));
@@ -1754,6 +1870,30 @@ void main() {
         ['wine --version'],
       ),
       (
+        const AppError.noEmulator('Ryubing', 'Ryujinx.app', detail: detail),
+        ['Ryubing', 'Ryujinx.app'],
+      ),
+      (
+        const AppError.notAnEmulator(
+          '/Applications/Other.app',
+          'Ryubing',
+          detail: detail,
+        ),
+        ['/Applications/Other.app', 'Ryubing'],
+      ),
+      (
+        const AppError.notASwitchGame('/g/notes.txt', detail: detail),
+        ['/g/notes.txt'],
+      ),
+      (
+        const AppError.switchGameNotFound('/g/a.nsp', detail: detail),
+        ['/g/a.nsp'],
+      ),
+      (
+        const AppError.switchGameRunning('/g/a.nsp', detail: detail),
+        ['/g/a.nsp'],
+      ),
+      (
         const AppError.downloadCut(1234000000, 2468000000, detail: detail),
         ['234', '468'],
       ),
@@ -1776,7 +1916,7 @@ void main() {
     test('the cases hold every code', () {
       expect({
         for (final (error, _) in codes) error.runtimeType,
-      }, hasLength(31));
+      }, hasLength(36));
     });
 
     for (final (language, l10n) in [('en', en), ('es', es)]) {
@@ -1847,6 +1987,56 @@ void main() {
           ).localized(l10n),
           contains(l10n.problemUserNameTooLong),
         );
+      }
+    });
+
+    test('a Switch code gives advice in Bodega, where the engine gives a '
+        'command, and never a link or its detail (SA2, SA19)', () {
+      const other = '/Applications/Other.app';
+      const game = '/g/a.nsp';
+      // Each code, its English as SA19's table has it, and the values it
+      // carries.
+      final switchCodes = <(AppError, String, List<String>)>[
+        (
+          const AppError.noEmulator('Ryubing', 'Ryujinx.app', detail: detail),
+          "Bodega didn't find Ryubing: it looks for Ryujinx.app in "
+              'Applications. If yours is somewhere else, choose it on the '
+              'Switch page.',
+          ['Ryubing', 'Ryujinx.app'],
+        ),
+        (
+          const AppError.notAnEmulator(other, 'Ryubing', detail: detail),
+          "$other isn't Ryubing. Choose the Ryubing app.",
+          [other, 'Ryubing'],
+        ),
+        (
+          const AppError.notASwitchGame(other, detail: detail),
+          "$other isn't a Switch game file or an nxnative app.",
+          [other],
+        ),
+        (
+          const AppError.switchGameNotFound(game, detail: detail),
+          "$game isn't among your Switch games. Add it again.",
+          [game],
+        ),
+        (
+          const AppError.switchGameRunning(game, detail: detail),
+          '$game is already running. Stop it first.',
+          [game],
+        ),
+      ];
+      for (final (error, english, values) in switchCodes) {
+        expect(error.localized(en), english);
+        final spanish = error.localized(es);
+        expect(spanish.trim(), isNotEmpty, reason: '$error');
+        for (final value in values) {
+          expect(spanish, contains(value), reason: '$error');
+        }
+        for (final text in [english, spanish]) {
+          for (final banned in [detail, 'bodega switch', '://', 'www.']) {
+            expect(text, isNot(contains(banned)), reason: '$error');
+          }
+        }
       }
     });
 
@@ -2226,10 +2416,16 @@ void main() {
           final library = _MockLibrary();
           final updates = _MockUpdate();
           final install = _MockInstall();
+          final switchGames = _MockSwitch();
           whenListen(
             library,
             Stream.value(const LibraryState(toast: hint, toastId: 1)),
             initialState: const LibraryState(),
+          );
+          whenListen(
+            switchGames,
+            const Stream<SwitchState>.empty(),
+            initialState: const SwitchState(),
           );
           whenListen(
             updates,
@@ -2249,6 +2445,7 @@ void main() {
                 BlocProvider<LibraryBloc>.value(value: library),
                 BlocProvider<UpdateBloc>.value(value: updates),
                 BlocProvider<InstallBloc>.value(value: install),
+                BlocProvider<SwitchBloc>.value(value: switchGames),
               ],
               child: wrapApp(
                 const ShellBody(child: SizedBox.expand()),
@@ -2969,6 +3166,371 @@ void main() {
           expect(find.textContaining("won't work"), findsNothing);
         });
       });
+    });
+  });
+
+  // switch-support T19: the toasts of the Switch section, from codes the
+  // bloc keeps, worded by switchNoticeText (SA2, SA19).
+  group('Switch notices (SA2)', () {
+    final number = RegExp(r'\d+');
+
+    /// One of each notice, and what its text has to name.
+    const notices = <(SwitchNotice, List<String>)>[
+      (SwitchNotice.added(3, 2), ['3', '2']),
+      (SwitchNotice.exited('Bodega Test', 134), ['Bodega Test', '134']),
+    ];
+
+    String added(AppL10n l10n, int added, int known) =>
+        switchNoticeText(l10n, SwitchNotice.added(added, known));
+
+    test('the cases hold every notice', () {
+      expect(
+        {for (final (notice, _) in notices) notice.runtimeType},
+        {SwitchAddedNotice, SwitchExitedNotice},
+      );
+    });
+
+    test('in English, an add counts the games it added and those listed '
+        'already', () {
+      expect(added(en, 1, 0), '1 game added · 0 already in the list');
+      expect(added(en, 3, 2), '3 games added · 2 already in the list');
+      expect(added(en, 0, 2), 'No games added · 2 already in the list');
+      expect(added(en, 0, 1), 'No games added · 1 already in the list');
+    });
+
+    test('in English, a run that ended badly names the game and its code', () {
+      expect(
+        switchNoticeText(en, const SwitchNotice.exited('Bodega Test', 1)),
+        'Bodega Test closed with error 1',
+      );
+    });
+
+    test('in es, either count of an add going from 2 to 1 changes more than '
+        'its digit (L10)', () {
+      final both = _words(added(es, 2, 2));
+      final oneAdded = _words(added(es, 1, 2));
+      final oneKnown = _words(added(es, 2, 1));
+      expect(oneAdded, isNot(both));
+      expect(oneKnown, isNot(both));
+      // Each plural is its own: the added games' does not follow the
+      // listed ones'.
+      expect(oneAdded, isNot(oneKnown));
+      // None added has words of its own, not the digit.
+      expect(added(es, 0, 2), isNot(contains('0')));
+    });
+
+    for (final (language, l10n) in [('en', en), ('es', es)]) {
+      test('in $language, each notice is worded, names what it carries, and '
+          'gives no command or link', () {
+        for (final (notice, names) in notices) {
+          final text = switchNoticeText(l10n, notice);
+          final reason = '$language: $notice';
+          expect(text.trim(), isNotEmpty, reason: reason);
+          for (final name in names) {
+            expect(text, contains(name), reason: reason);
+          }
+          expect(text, isNot(contains(_command)), reason: reason);
+          for (final banned in ['bodega switch', '://', 'www.']) {
+            expect(text, isNot(contains(banned)), reason: reason);
+          }
+        }
+      });
+
+      test('in $language, an add carries both counts, the added first', () {
+        expect(
+          [for (final match in number.allMatches(added(l10n, 12, 3))) match[0]],
+          ['12', '3'],
+        );
+      });
+
+      test('in $language, a run that ended names the game and the code', () {
+        final text = switchNoticeText(
+          l10n,
+          const SwitchNotice.exited('Bodega Test', 1),
+        );
+        expect(text, contains('Bodega Test'));
+        expect(number.allMatches(text).map((match) => match[0]), ['1']);
+      });
+    }
+
+    test('each notice has Spanish words of its own', () {
+      for (final (notice, _) in notices) {
+        expect(
+          switchNoticeText(es, notice),
+          isNot(switchNoticeText(en, notice)),
+          reason: '$notice',
+        );
+      }
+      expect(added(es, 0, 2), isNot(added(en, 0, 2)));
+    });
+  });
+
+  // switch-support T27: the Switch section's ARB text, read as data: SA19's
+  // 27 keys, their forms and descriptions, and SA20's scan of what a
+  // translator reads of them. Its notices are worded in the group above, and
+  // its errors in "errors and problems".
+  group('Switch text in the ARBs (SA19, SA20)', () {
+    late _Arb enArb;
+    late _Arb esArb;
+    late List<(String, _Arb)> arbs;
+
+    setUpAll(() {
+      enArb = _readArb('app_en.arb');
+      esArb = _readArb('app_es.arb');
+      arbs = [('app_en.arb', enArb), ('app_es.arb', esArb)];
+    });
+
+    String description(String key) => switch (enArb['@$key']) {
+      {'description': final String description} => description,
+      _ => '',
+    };
+
+    test("both files hold SA19's 27 keys, and no other Switch key", () {
+      expect(_switchKeys.toSet(), hasLength(27));
+      for (final (file, arb) in arbs) {
+        expect(
+          arb.keys.where(_isSwitchKey).toSet(),
+          _switchKeys.toSet(),
+          reason: file,
+        );
+      }
+    });
+
+    test("in English, each text reads as SA19's table has it", () {
+      // navSwitch is checked below, in both languages; the notices' English
+      // in "Switch notices (SA2)", and the errors' in "a Switch code gives
+      // advice in Bodega".
+      const app = '/Applications/Ryujinx.app';
+      expect(en.switchAddGames, 'Add games');
+      expect(en.switchAddFiles, 'Files…');
+      expect(en.switchAddFolder, 'A folder…');
+      expect(en.switchEmptyTitle, 'No Switch games yet');
+      expect(
+        en.switchEmptyMessage,
+        'Add Nintendo Switch game files or nxnative apps, or a folder that '
+        'holds them. Bodega remembers where they are and never copies them.',
+      );
+      expect(
+        en.switchEmulatorFound('Ryubing', '1.3.3', app),
+        'Ryubing 1.3.3 at $app',
+      );
+      expect(
+        en.switchEmulatorFoundNoVersion('Ryubing', app),
+        'Ryubing at $app',
+      );
+      expect(
+        en.switchEmulatorMissing('Ryubing'),
+        'Ryubing is missing: Bodega needs it to play Switch game files',
+      );
+      expect(en.switchChooseEmulator('Ryubing'), 'Choose Ryubing…');
+      expect(en.switchDownloadEmulator('Ryubing'), 'Download Ryubing');
+      expect(
+        en.switchAfterDownload('Ryubing', 'Ryujinx.app'),
+        'After you download Ryubing, put Ryujinx.app in Applications, then '
+        'click Check again.',
+      );
+      expect(en.switchKeys('Ryubing', 'found'), 'Ryubing has keys (prod.keys)');
+      expect(
+        en.switchKeys('Ryubing', 'missing'),
+        'Ryubing has no keys (prod.keys)',
+      );
+      expect(en.switchFirmware('Ryubing', 'found'), 'Ryubing has firmware');
+      expect(
+        en.switchFirmware('Ryubing', 'missing'),
+        'Ryubing has no firmware',
+      );
+      expect(
+        en.switchQuarantineNote('Ryubing'),
+        "If Ryubing doesn't start, open it once from the Finder. If macOS "
+        'blocks it, allow it in System Settings > Privacy & Security.',
+      );
+      expect(en.switchFullScreen, 'Full screen');
+      expect(en.switchNative, 'Native');
+      expect(en.switchRemove, 'Remove from list');
+      expect(en.switchStopTitle('Bodega Test'), 'Stop Bodega Test');
+      expect(
+        en.switchStopConfirm('Bodega Test'),
+        "Bodega Test will close. Anything you haven't saved will be lost.",
+      );
+    });
+
+    test('the item and the page read Switch in both languages, a name the '
+        'parity test allows (SA19)', () {
+      expect(en.navSwitch, 'Switch');
+      expect(es.navSwitch, en.navSwitch);
+    });
+
+    test('keys and firmware are selects with found and other, and an add '
+        'holds two plurals, the added games first, in both files (SA19, '
+        'L10)', () {
+      final select = RegExp(r'^\{\s*state\s*,\s*select\s*,');
+      final branch = RegExp(r'(\w+)\s*\{');
+      final plural = RegExp(r'\{\s*(\w+)\s*,\s*plural\s*,');
+      List<String?> all(RegExp pattern, Object? message) => [
+        for (final match in pattern.allMatches('$message')) match[1],
+      ];
+      for (final (file, arb) in arbs) {
+        for (final key in ['switchKeys', 'switchFirmware']) {
+          expect(arb[key], matches(select), reason: '$file: $key');
+          expect(all(branch, arb[key]), [
+            'found',
+            'other',
+          ], reason: '$file: $key');
+        }
+        expect(all(plural, arb['switchAdded']), [
+          'added',
+          'known',
+        ], reason: '$file: switchAdded');
+      }
+    });
+
+    for (final (language, l10n) in [('en', en), ('es', es)]) {
+      test('in $language, keys and firmware read one way when found and '
+          'another for any other state, each naming the emulator', () {
+        for (final (key, text) in [
+          ('switchKeys', l10n.switchKeys),
+          ('switchFirmware', l10n.switchFirmware),
+        ]) {
+          final found = text('Ryubing', 'found');
+          final missing = text('Ryubing', 'missing');
+          expect(found, isNot(missing), reason: key);
+          // Its other branch: the panel says missing, and any state but
+          // found reads the same.
+          expect(text('Ryubing', 'unknown'), missing, reason: key);
+          expect(found, contains('Ryubing'), reason: key);
+          expect(missing, contains('Ryubing'), reason: key);
+        }
+        // The key file keeps its name in every language.
+        for (final state in ['found', 'missing']) {
+          expect(l10n.switchKeys('Ryubing', state), contains('prod.keys'));
+        }
+      });
+    }
+
+    test('each description says where its text shows (SA19)', () {
+      final place = RegExp(
+        'Switch page|sidebar|toast|dialog',
+        caseSensitive: false,
+      );
+      for (final key in _switchKeys) {
+        expect(description(key), matches(place), reason: key);
+      }
+    });
+
+    test('the texts that name what is missing, or what a thing is, end their '
+        'descriptions by holding the translator to just that (SA19)', () {
+      final rule = RegExp(
+        r'Name only what [^.]+, never where or how to get( or make)? [^.]+\.$',
+      );
+      for (final key in [
+        'switchEmptyMessage',
+        'switchEmulatorMissing',
+        'switchKeys',
+        'switchFirmware',
+        'switchNative',
+        'errNoEmulator',
+        'errNotASwitchGame',
+      ]) {
+        expect(description(key), matches(rule), reason: key);
+      }
+    });
+
+    test("SA20's scan names the file, the key and the part of each fault, in "
+        'any case', () {
+      // A clean pair, and copies of it with one fault each. No Spanish in
+      // test/ (L19): the "translation" is the English text in brackets.
+      _Arb cleanEn() => {
+        'switchRemove': 'Remove from list',
+        '@switchRemove': {'description': 'Item of a game menu.'},
+        'switchStopTitle': 'Stop {title}',
+        '@switchStopTitle': {
+          'description': 'Title of the dialog that stops a game.',
+          'placeholders': {
+            'title': {'type': 'String', 'example': 'Bodega Test'},
+          },
+        },
+      };
+      _Arb cleanEs() => {
+        'switchRemove': '[Remove from list]',
+        'switchStopTitle': '[Stop {title}]',
+      };
+      const keys = ['switchRemove', 'switchStopTitle'];
+      expect(_switchTextProblems(cleanEn(), cleanEs(), keys), isEmpty);
+
+      final faults = <(_Arb, _Arb, String)>[
+        (
+          cleanEn(),
+          cleanEs()..['switchRemove'] = '[Remove from list] ://',
+          'app_es.arb: switchRemove: its message holds "://"',
+        ),
+        (
+          cleanEn()
+            ..['@switchRemove'] = {'description': 'Item of a menu, WWW.'},
+          cleanEs(),
+          'app_en.arb: switchRemove: its description holds "WWW."',
+        ),
+        (
+          cleanEn()
+            ..['@switchStopTitle'] = {
+              'description': 'Title of the dialog that stops a game.',
+              'placeholders': {
+                'title': {'type': 'String', 'example': 'Bodega Switch stop'},
+              },
+            },
+          cleanEs(),
+          'app_en.arb: switchStopTitle: its example of {title} holds '
+              '"Bodega Switch"',
+        ),
+        for (final word in ['Download', 'DUMP', 'decrypt', 'Obtain'])
+          (
+            cleanEn()..['switchRemove'] = 'Remove from list $word',
+            cleanEs(),
+            'app_en.arb: switchRemove: its message holds "$word"',
+          ),
+      ];
+      for (final (faultEn, faultEs, problem) in faults) {
+        expect(_switchTextProblems(faultEn, faultEs, keys), [problem]);
+      }
+
+      // The download page's button may say download, and nothing else of a
+      // guide, nor a link.
+      const download = ['switchDownloadEmulator'];
+      _Arb downloadEn(String message) => {
+        'switchDownloadEmulator': message,
+        '@switchDownloadEmulator': {
+          'description': 'Button that opens the download page.',
+        },
+      };
+      final downloadEs = {'switchDownloadEmulator': '[Download {name}]'};
+      expect(
+        _switchTextProblems(
+          downloadEn('Download {name}'),
+          downloadEs,
+          download,
+        ),
+        isEmpty,
+      );
+      expect(
+        _switchTextProblems(
+          downloadEn('Download {name}, dump'),
+          downloadEs,
+          download,
+        ),
+        ['app_en.arb: switchDownloadEmulator: its message holds "dump"'],
+      );
+      expect(
+        _switchTextProblems(
+          downloadEn('Download {name} at www.'),
+          downloadEs,
+          download,
+        ),
+        ['app_en.arb: switchDownloadEmulator: its message holds "www."'],
+      );
+    });
+
+    test('in the real files, no Switch message, description or example holds '
+        "a link, the CLI's Switch verbs or the words of a guide (SA20)", () {
+      expect(_switchTextProblems(enArb, esArb, _switchKeys), isEmpty);
     });
   });
 
