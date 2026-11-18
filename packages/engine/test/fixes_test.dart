@@ -49,9 +49,34 @@ String fixes(List<Map<String, Object?>> steps, {bool optIn = false}) =>
       },
     ]);
 
+/// Bodega's fixes file with [entries], each completed with the fields every
+/// fix has.
+String bodegas(List<Map<String, Object?>> entries) => jsonEncode([
+  for (final entry in entries)
+    {
+      'title': 'Game',
+      'steam': null,
+      'exes': <String>[],
+      'optIn': false,
+      'requires': <String>[],
+      'steps': <Object?>[],
+      'notes': <String>[],
+      'knownIssues': <Object?>[],
+      'source': 'bodega',
+      'verified': null,
+      ...entry,
+    },
+]);
+
+/// NFS13's settings file, as the game writes it: CRLF, and its key in [Sound].
+const nfsConfig =
+    '[Display]\r\nWidth=2048\r\nHeight=1330\r\n[Sound]\r\nMusicVolume=8\r\n'
+    'Reverb=1\r\n[Gameplay]\r\nEnableVibration=true\r\n';
+
 void main() {
   late String tmp, home;
   final shipped = fixesSource;
+  final shippedBodegas = bodegaFixesSource;
 
   setUp(() {
     tmp = Directory.systemTemp
@@ -63,6 +88,7 @@ void main() {
 
   tearDown(() {
     fixesSource = shipped;
+    bodegaFixesSource = shippedBodegas;
     hostPlatform = HostPlatform.detect();
     Directory(tmp).deleteSync(recursive: true);
   });
@@ -72,18 +98,28 @@ void main() {
       final all = gameFixes();
       expect(all, isNotEmpty);
       expect({for (final fix in all) fix.id}.length, all.length);
-      expect({for (final fix in all) fix.steam}.length, all.length);
-      for (final fix in all) {
+      // highball-db's are Steam games with steps; Bodega's follow them (D7).
+      final generated = [
+        for (final fix in all)
+          if (fix.source != 'bodega') fix,
+      ];
+      expect({for (final fix in generated) fix.steam}.length, generated.length);
+      for (final fix in generated) {
+        expect(fix.steam, isNotNull, reason: fix.id);
         expect(fix.steps, isNotEmpty, reason: fix.id);
         expect(fix.source, startsWith('recipes/games/'), reason: fix.id);
       }
+      expect(all.skip(generated.length).map((fix) => fix.id), [
+        'blur',
+        'need-for-speed-most-wanted-2012',
+      ]);
     });
 
     test(
       'finds a fix by Steam app and by id, and an unknown one is an error',
       () {
         final first = gameFixes().first;
-        expect(fixForSteamApp(first.steam)?.id, first.id);
+        expect(fixForSteamApp(first.steam!)?.id, first.id);
         expect(fixForApp('steam:${first.steam}')?.id, first.id);
         expect(gameFix(first.id).steam, first.steam);
         expect(gameFix('${first.steam}').id, first.id);
@@ -322,5 +358,205 @@ void main() {
         expect(lastEnv(), isNot(contains('X')));
       },
     );
+  });
+
+  group("Bodega's own fixes (DE7)", () {
+    test('follow the generated ones, and match by exe', () {
+      final ids = [for (final fix in gameFixes()) fix.id];
+      expect(ids.sublist(ids.length - 2), [
+        'blur',
+        'need-for-speed-most-wanted-2012',
+      ]);
+      final blur = fixForApp('/users/x/games/blur/blur.exe')!;
+      expect(blur.id, 'blur');
+      expect(blur.steam, isNull);
+      expect(blur.requires, ['vcrun2008']);
+      expect(fixForApp('program files/blur/Blur.exe')?.id, 'blur');
+      expect(fixForApp('steam:19680')?.id, 'alice-madness-returns');
+      expect(fixForApp('/users/x/games/other.exe'), isNull);
+      // `fix show null` must not find a fix that has no Steam app.
+      expect(() => gameFix('null'), throwsA(isA<BadChoice>()));
+    });
+
+    test('an ini step is never applied at launch', () {
+      final nfs = gameFix('need-for-speed-most-wanted-2012');
+      expect(nfs.steps.single.type, 'ini');
+      expect(nfs.steps.single.applies, isTrue);
+      expect(nfs.active, isEmpty);
+      expect(nfs.needsLaunchEnv, isFalse);
+    });
+
+    test('a repeated id, an unknown runtime or a bad ini step is refused', () {
+      for (final (entry, detail) in [
+        (<String, Object?>{'id': 'alice-madness-returns'}, 'twice'),
+        (
+          <String, Object?>{
+            'id': 'x',
+            'requires': ['vcrun1999'],
+          },
+          'vcrun1999',
+        ),
+        (
+          <String, Object?>{
+            'id': 'y',
+            'steps': [
+              {
+                'type': 'ini',
+                'file': r'C:\\game.ini',
+                'section': 'S',
+                'name': 'N',
+                'data': '1',
+                'platforms': ['mac'],
+              },
+            ],
+          },
+          'USERPROFILE',
+        ),
+      ]) {
+        bodegaFixesSource = bodegas([entry]);
+        expect(
+          gameFixes,
+          throwsA(
+            isA<CorruptData>()
+                .having((f) => f.source, 'source', 'bodega_fixes_data.dart')
+                .having((f) => f.detail, 'detail', contains(detail)),
+          ),
+          reason: detail,
+        );
+      }
+    });
+  });
+
+  group('the ini edit (DE8)', () {
+    test('changes one value and keeps everything else', () {
+      expect(
+        setIniValue(nfsConfig, 'Sound', 'Reverb', '0'),
+        nfsConfig.replaceFirst('Reverb=1', 'Reverb=0'),
+      );
+      expect(
+        setIniValue('[sound]\nreverb = 1\n', 'Sound', 'Reverb', '0'),
+        '[sound]\nreverb =0\n',
+      );
+      expect(
+        setIniValue('[Sound]\nMusic=8\n[Other]\nA=1\n', 'Sound', 'Reverb', '0'),
+        '[Sound]\nMusic=8\nReverb=0\n[Other]\nA=1\n',
+      );
+      expect(
+        setIniValue('[Sound]\r\nMusic=8', 'Sound', 'Reverb', '0'),
+        '[Sound]\r\nMusic=8\r\nReverb=0',
+      );
+      expect(
+        setIniValue('[A]\r\nB=1\r\n', 'Sound', 'Reverb', '0'),
+        '[A]\r\nB=1\r\n[Sound]\r\nReverb=0\r\n',
+      );
+      expect(setIniValue('', 'Sound', 'Reverb', '0'), '[Sound]\nReverb=0\n');
+      // A key of the same name in another section is left alone.
+      expect(
+        setIniValue(
+          '[Video]\nReverb=1\n[Sound]\nReverb=1\n',
+          'Sound',
+          'Reverb',
+          '0',
+        ),
+        '[Video]\nReverb=1\n[Sound]\nReverb=0\n',
+      );
+    });
+
+    test('bytes above 127 come back as they were', () {
+      final text = latin1.decode([
+        ...latin1.encode('[Sound]\nName=Caf'),
+        0xE9,
+        10,
+        ...latin1.encode('Reverb=1\n'),
+      ]);
+      final out = latin1.encode(setIniValue(text, 'Sound', 'Reverb', '0'));
+      expect(out, contains(0xE9));
+      expect(latin1.decode(out), endsWith('Reverb=0\n'));
+    });
+  });
+
+  group("applying a fix's settings (DE9)", () {
+    late String profile, documents, file;
+    const nfs = 'need-for-speed-most-wanted-2012';
+    final env = <String, String>{};
+
+    setUp(() async {
+      final (engine, hostlibs) = await fakeRuntime(tmp, 'engine');
+      await installRuntime(home, engine, hostlibs);
+      await createBottle(home, 'b');
+      env['HOME'] = '$tmp/host';
+      documents = '$tmp/host/Documents';
+      Directory(documents).createSync(recursive: true);
+      profile = '$home/bottles/b/prefix/drive_c/users/$hostUser';
+      Directory(profile).createSync(recursive: true);
+      // As Wine makes it on the Mac: the profile's Documents is the host's.
+      Link('$profile/Documents').createSync(documents);
+      file =
+          '$documents/Criterion Games/Need For Speed(TM) Most Wanted/config.NFS13Save';
+    });
+
+    FixStep step() => gameFix(nfs).steps.single;
+
+    test('reads where it stands, and applies it once', () async {
+      expect(fixStepState(home, 'b', step(), env), SettingState.noFile);
+      await expectLater(
+        applyFixSettings(home, 'b', nfs, env),
+        throwsA(
+          isA<MissingFile>().having(
+            (f) => f.path,
+            'path',
+            contains('config.NFS13Save'),
+          ),
+        ),
+      );
+      File(file)
+        ..createSync(recursive: true)
+        ..writeAsStringSync(nfsConfig);
+      expect(fixStepState(home, 'b', step(), env), SettingState.notApplied);
+      await applyFixSettings(home, 'b', nfs, env);
+      expect(
+        File(file).readAsStringSync(),
+        nfsConfig.replaceFirst('Reverb=1', 'Reverb=0'),
+      );
+      expect(fixStepState(home, 'b', step(), env), SettingState.applied);
+      expect(File(file).parent.listSync().map((e) => e.path.split('/').last), [
+        'config.NFS13Save',
+      ]);
+    });
+
+    test('a link that leads elsewhere is refused', () async {
+      Directory('$tmp/elsewhere/Criterion Games/Need For Speed(TM) Most Wanted')
+          .createSync(recursive: true);
+      final outside =
+          '$tmp/elsewhere/Criterion Games/Need For Speed(TM) Most Wanted/config.NFS13Save';
+      File(outside).writeAsStringSync(nfsConfig);
+      Link('$profile/Documents')
+        ..deleteSync()
+        ..createSync('$tmp/elsewhere');
+      expect(
+        () => fixStepState(home, 'b', step(), env),
+        throwsA(isA<UnexpectedLink>()),
+      );
+      await expectLater(
+        applyFixSettings(home, 'b', nfs, env),
+        throwsA(isA<UnexpectedLink>()),
+      );
+      expect(File(outside).readAsStringSync(), nfsConfig);
+    });
+
+    test('an open bottle is refused; another host does nothing', () async {
+      File(file)
+        ..createSync(recursive: true)
+        ..writeAsStringSync(nfsConfig);
+      File('$home/bottles/b/prefix/hang').createSync();
+      await expectLater(
+        applyFixSettings(home, 'b', nfs, env),
+        throwsA(isA<BottleOpen>()),
+      );
+      File('$home/bottles/b/prefix/hang').deleteSync();
+      hostPlatform = const LinuxPlatform();
+      await applyFixSettings(home, 'b', nfs, env);
+      expect(File(file).readAsStringSync(), nfsConfig);
+    });
   });
 }

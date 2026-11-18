@@ -68,6 +68,7 @@ final failures = <EngineFailure>[
   const MissingFile('/games/game.exe'),
   const ChecksumMissing('/downloads/engine-11.0.tar.gz.sha256'),
   const ChecksumMismatch('/downloads/engine-11.0.tar.gz'),
+  ...dependencyFailures.keys,
   const IncompleteArchive('engine-11.0.tar.gz', 'engine/bin/wine'),
   const CorruptData('/h/bottles/steam/apps.json', 'Unexpected end of input'),
   const NoRuntime(),
@@ -91,6 +92,18 @@ final failures = <EngineFailure>[
   const ProcessFailed('wine --version', null, ''),
   ...switchFailures.keys,
 ];
+
+/// The two failures of the dependencies, each with its message as DE10 gives
+/// it.
+final dependencyFailures = <EngineFailure, String>{
+  const DependencyNotInstalled('vcrun2008', 'x86', _log):
+      "the installer of vcrun2008 (x86) finished, but Microsoft's files are "
+      'not in the bottle: see $_log',
+  const UnexpectedLink(
+    '/h/bottles/steam/prefix/drive_c/users/q/Documents/x.ini',
+  ): 'a link in /h/bottles/steam/prefix/drive_c/users/q/Documents/x.ini '
+      'leads outside the bottle and the home folder',
+};
 
 /// The six Switch failures, each with its message as SE20 gives it.
 final switchFailures = <EngineFailure, String>{
@@ -130,6 +143,7 @@ String? hintOf(EngineFailure failure) => switch (failure) {
   BackendNotInstalled(:final backend) => 'bodega backend install $backend',
   BadChoice(kind: ChoiceKind.catalogApp) => 'bodega catalog list',
   BadChoice(kind: ChoiceKind.fix) => 'bodega fix list',
+  BadChoice(kind: ChoiceKind.dependency) => 'bodega deps list <bottle>',
   AppNotFound(:final bottle, key: null) => 'bodega run $bottle',
   AlreadyInstalled(:final path) => 'rm -rf "$path"',
   NoEmulator() => 'bodega switch emulator <path>',
@@ -144,6 +158,8 @@ String? hintOf(EngineFailure failure) => switch (failure) {
   AppAlreadyAdded() ||
   MissingFile() ||
   ChecksumMismatch() ||
+  DependencyNotInstalled() ||
+  UnexpectedLink() ||
   IncompleteArchive() ||
   CorruptData() ||
   NotAvailable() ||
@@ -197,11 +213,21 @@ void main() {
     }
   });
 
-  test('the list holds each of the 37 failures', () {
+  test('the list holds each of the 39 failures', () {
     expect(
       failures.map((failure) => failure.runtimeType).toSet(),
-      hasLength(37),
+      hasLength(39),
     );
+  });
+
+  test('each failure of the dependencies reads as DE10 says', () {
+    for (final MapEntry(key: failure, value: text)
+        in dependencyFailures.entries) {
+      final name = '${failure.runtimeType}';
+      expect(failure.message, text, reason: name);
+      expect('$failure', text, reason: name);
+    }
+    expect(ChoiceKind.dependency.english, 'dependency');
   });
 
   test('each Switch failure reads as SE20 says, with no link', () {

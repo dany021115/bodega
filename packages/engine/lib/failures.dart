@@ -46,7 +46,8 @@ final class BottleNotReady extends EngineFailure {
       'folder (bottles/$bottle) and bodega create $bottle';
 }
 
-/// The bottle runs, so it cannot be renamed.
+/// The bottle runs, so it cannot be renamed, nor take a runtime or a change to
+/// a game's settings file.
 final class BottleOpen extends EngineFailure {
   const BottleOpen(this.bottle);
 
@@ -180,6 +181,35 @@ final class ChecksumMismatch extends EngineFailure {
   String get message => 'wrong checksum for $file';
 }
 
+/// A runtime's installer exited well, but Microsoft's DLL is not in the
+/// bottle (D6).
+final class DependencyNotInstalled extends EngineFailure {
+  const DependencyNotInstalled(this.id, this.arch, this.log);
+
+  final String id;
+
+  /// `x86` or `x64`.
+  final String arch;
+  final String log;
+
+  @override
+  String get message =>
+      "the installer of $id ($arch) finished, but Microsoft's files are not "
+      'in the bottle: see $log';
+}
+
+/// A link on the way to a game's settings file leads outside the bottle and
+/// the home folder, so Bodega does not write there (D9).
+final class UnexpectedLink extends EngineFailure {
+  const UnexpectedLink(this.path);
+
+  final String path;
+
+  @override
+  String get message =>
+      'a link in $path leads outside the bottle and the home folder';
+}
+
 /// An archive or image without a file it must hold.
 final class IncompleteArchive extends EngineFailure {
   const IncompleteArchive(this.archive, this.missing);
@@ -289,6 +319,7 @@ final class BadChoice extends EngineFailure {
     ChoiceKind.windows => windowsVersions.join(', '),
     ChoiceKind.catalogApp => 'bodega catalog list',
     ChoiceKind.fix => 'bodega fix list',
+    ChoiceKind.dependency => 'bodega deps list <bottle>',
   };
 }
 
@@ -462,7 +493,10 @@ enum ChoiceKind {
   catalogApp('catalog app'),
 
   /// A fix's id or its Steam app id.
-  fix('fix');
+  fix('fix'),
+
+  /// A runtime of [dependencyTable] and an arch, `x86` or `x64`.
+  dependency('dependency');
 
   const ChoiceKind(this.english);
 

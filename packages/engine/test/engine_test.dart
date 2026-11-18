@@ -16,10 +16,18 @@ wineboot)
   mkdir -p "$d" && touch "$d/kernel32.dll" "$WINEPREFIX/system.reg" ;;
 reg)
   case "$*" in *FAIL*) exit 3 ;; esac
-  echo "$@" >>"$WINEPREFIX/reg.log" ;;
+  # printf, not echo: sh's echo reads \v in AppDefaults\vcrun… as a tab.
+  printf '%s\n' "$*" >>"$WINEPREFIX/reg.log"
+  # As Wine's server does, it outlives the last program for a while.
+  if [ -e "$WINEPREFIX/linger" ]; then
+    touch "$WINEPREFIX/hang"
+    (sleep 2; rm -f "$WINEPREFIX/hang") >/dev/null 2>&1 &
+  fi ;;
 msiexec) echo "$@" >"$WINEPREFIX/msi-args"; . "$3" ;;
 tasklist) cat "$WINEPREFIX/tasks" 2>/dev/null ;;
 winecfg) echo "$@" >>"$WINEPREFIX/winecfg.log" ;;
+*/vcrun20*-x86.exe|*/vcrun20*-x64.exe)
+  echo "$@" >"$WINEPREFIX/installer-args"; . "$1" ;;
 *-setup.exe) echo "$@" >"$WINEPREFIX/setup-args"; . "$1" ;;
 *) env >"$WINEPREFIX/last-env"; echo "$@"; sleep 5 & exit 7 ;;
 esac

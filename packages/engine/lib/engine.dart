@@ -7,6 +7,7 @@ import 'dart:io';
 import 'dart:isolate';
 import 'dart:typed_data';
 
+import 'bodega_fixes_data.dart';
 import 'catalog_data.dart';
 import 'fixes_data.dart';
 import 'probe_data.dart';
@@ -14,6 +15,7 @@ import 'probe_data.dart';
 part 'apps.dart';
 part 'backends.dart';
 part 'catalog.dart';
+part 'dependencies.dart';
 part 'english.dart';
 part 'failures.dart';
 part 'fixes.dart';
