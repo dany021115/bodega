@@ -1,3 +1,4 @@
+import 'package:bodega/domain/entities/dependency.dart';
 import 'package:bodega/domain/entities/path_problem.dart';
 import 'package:bodega/domain/entities/user_name_problem.dart';
 import 'package:bodega/domain/entities/wine_tool.dart';
@@ -126,6 +127,22 @@ sealed class AppError with _$AppError implements Exception {
     String log, {
     String? detail,
   }) = InstallerNoExeError;
+
+  // Dependencies.
+
+  /// The installer of runtime [name] for [arch] ended well, but Microsoft's
+  /// files are not in the bottle; [log] is the installer's log.
+  const factory AppError.dependencyNotInstalled(
+    String name,
+    Arch arch,
+    String log, {
+    String? detail,
+  }) = DependencyNotInstalledError;
+
+  /// A link on the way to a game's settings file at [path] leads outside the
+  /// bottle and the home folder, so Bodega did not write there.
+  const factory AppError.unexpectedLink(String path, {String? detail}) =
+      UnexpectedLinkError;
 
   /// A host program failed: [exitCode] is null when it ran but did not answer
   /// as expected. What it printed is in [detail].

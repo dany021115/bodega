@@ -25,10 +25,11 @@ paths:
 - `EngineHome` holds the data root; never call `bodegaHome` elsewhere
 - Name clashes with the engine's functions: `import 'package:engine/engine.dart' as engine;`
 - Downloads go through `Downloader`: HTTPS only, resumable, with progress. Don't use `dio.download`
+- A runtime's installer goes to `downloads/<id>-<arch>.exe` (`engine.dependencyDownload`) and the engine checks it: `engine.installDependency(..., file:)`, as backends go to `engine.installBackend(..., tarball:)`
 
 ## BLoCs
 - All in `app/bloc/{name}/`, with Freezed events and one state with `@Default` fields and `copyWith`
-- What must outlive a page (an install, what's open) is `@lazySingleton` and provided in `main.dart`
+- What must outlive a page (an install, what's open) is `@lazySingleton` and provided in `main.dart`: `InstallBloc`, `DependenciesBloc` (a runtime's install) and the others
 - What belongs to one page is `@injectable` and provided by that page
 - Errors, steps and hints go in the state as codes (`AppError?`, `InstallStep`, `RunHint`); the page words them
 

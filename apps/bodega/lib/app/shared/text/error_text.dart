@@ -1,3 +1,4 @@
+import 'package:bodega/app/shared/text/dependency_text.dart';
 import 'package:bodega/app/shared/text/problem_text.dart';
 import 'package:bodega/app/shared/text/progress_text.dart';
 import 'package:bodega/domain/entities/app_error.dart';
@@ -64,6 +65,9 @@ extension AppErrorText on AppError {
         WineTool.installer => l10n.errInstallerFailed(exitCode, log),
         WineTool.winecfg => l10n.errWinecfgFailed(exitCode, log),
       },
+    DependencyNotInstalledError(:final name, :final arch, :final log) =>
+      l10n.errDependencyNotInstalled(name, l10n.archOf(arch), log),
+    UnexpectedLinkError(:final path) => l10n.errUnexpectedLink(path),
     InstallerNoExeError(:final exe, :final log) => l10n.errInstallerNoExe(
       exe,
       log,

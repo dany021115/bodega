@@ -27,6 +27,10 @@ usage: bodega install <engine.tar.gz> <hostlibs.tar.gz>
        bodega catalog install <id> [bottle]
        bodega fix list [text]
        bodega fix show <id|steam-appid>
+       bodega fix apply <bottle> <id>
+       bodega deps list <bottle>
+       bodega deps check <bottle> <key>
+       bodega deps install <bottle> <id> <x86|x64> [installer.exe]
        bodega apps
        bodega open [--backend <b>] [--hud] <bottle> [key]
        bodega switch status
@@ -174,6 +178,12 @@ Future<void> main(List<String> args) async {
       _showFix(gameFix(id));
       return 0;
     },
+    ['fix', 'apply', final bottle, final id] => (home) async {
+      await applyFixSettings(home, bottle, id);
+      stdout.writeln('applied: ${gameFix(id).title}');
+      return 0;
+    },
+    ['deps', ...final rest] => depsVerb(rest, stdout),
     ['catalog', 'install', final id, ...final rest] when rest.length < 2 =>
       (home) async {
         final entry = catalogEntry(id);
@@ -346,7 +356,7 @@ String _stepsHere(GameFix fix) {
 void _listFixes(List<GameFix> fixes) {
   for (final fix in fixes) {
     stdout.writeln(
-      '${fix.id.padRight(34)}  ${fix.steam.toString().padRight(8)}  '
+      '${fix.id.padRight(34)}  ${(fix.steam?.toString() ?? '-').padRight(8)}  '
       '${fix.title.padRight(34)}  '
       '${fix.steps.where((step) => step.applies).length}/${fix.steps.length}'
       '${fix.optIn ? '  opt-in' : ''}',
@@ -356,13 +366,22 @@ void _listFixes(List<GameFix> fixes) {
 
 void _showFix(GameFix fix) {
   stdout
-    ..writeln('${fix.title} (${fix.id}), Steam ${fix.steam}')
+    ..writeln(
+      '${fix.title} (${fix.id}), '
+      '${fix.steam == null ? 'exe ${fix.exes.join(', ')}' : 'Steam ${fix.steam}'}',
+    )
     ..writeln(_stepsHere(fix) + (fix.optIn ? '; $_optIn' : ''));
+  if (fix.requires.isNotEmpty) {
+    stdout.writeln('needs: ${fix.requires.join(', ')}');
+  }
   for (final step in fix.steps) {
     final what = switch (step.type) {
       'env' => 'variable ${step.name}=${step.value}',
       'registry' =>
         'registry ${step.key} ${step.name} (${step.valueType}) = ${step.data}',
+      'ini' =>
+        'setting [${step.section}] ${step.name}=${step.data} in ${step.file} '
+            '(bodega fix apply <bottle> ${fix.id})',
       _ => 'dlloverride ${step.value}',
     };
     stdout.writeln(
@@ -376,9 +395,12 @@ void _showFix(GameFix fix) {
     stdout.writeln('issue: ${issue.symptom} -> ${issue.fix}');
   }
   final verified = fix.verified;
+  final source = fix.source == 'bodega'
+      ? "Bodega's own fixes (bodega_fixes_data.dart)"
+      : 'gauthierpiarrette/highball-db ${fixesSourceCommit.substring(0, 7)}, '
+            '${fix.source} (CC0-1.0)';
   stdout.writeln(
-    'source: gauthierpiarrette/highball-db ${fixesSourceCommit.substring(0, 7)}, '
-    '${fix.source} (CC0-1.0); '
+    'source: $source; '
     'verified: ${verified == null ? 'no' : '${verified['date']} on ${verified['chip']}'}',
   );
 }

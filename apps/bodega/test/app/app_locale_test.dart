@@ -23,6 +23,7 @@ import 'package:bodega/data/service/preference.dart';
 import 'package:bodega/di.dart';
 import 'package:bodega/l10n/l10n.dart';
 import 'package:bodega/main.dart';
+import 'package:bodega/app/bloc/dependencies/dependencies_bloc.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -58,6 +59,9 @@ class _MockLibrary extends MockBloc<LibraryEvent, LibraryState>
 
 class _MockSwitch extends MockBloc<SwitchEvent, SwitchState>
     implements SwitchBloc {}
+
+class _MockDependencies extends MockBloc<DependenciesEvent, DependenciesState>
+    implements DependenciesBloc {}
 
 class _MockViewMode extends MockBloc<ViewModeEvent, ViewModeState>
     implements ViewModeBloc {}
@@ -102,6 +106,7 @@ void main() {
       ..registerSingleton<InstallBloc>(_MockInstall())
       ..registerSingleton<LibraryBloc>(_MockLibrary())
       ..registerSingleton<SwitchBloc>(_MockSwitch())
+      ..registerSingleton<DependenciesBloc>(_MockDependencies())
       ..registerSingleton<ViewModeBloc>(_MockViewMode())
       ..registerSingleton<SectionsBloc>(_MockSections())
       // The real bloc, built when the app asks for it: it reads the saved

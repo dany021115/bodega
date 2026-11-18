@@ -53,6 +53,8 @@ void main() {
       ..add(const AddAppEvent.submit()),
     verify: (bloc) {
       expect(bloc.state.step, AddAppStep.done);
+      // The key the app got, for the proposal that follows (DA6).
+      expect(bloc.state.addedKey, 'blur/blur.exe');
       verify(() => repository.addApp('sample', 'Blur', exe)).called(1);
       verifyNever(() => bottles.setInLibrary(any(), any(), any()));
       verifyNever(() => repository.runInstaller(any(), any()));

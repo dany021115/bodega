@@ -67,6 +67,9 @@ import 'package:bodega/domain/entities/run_hint.dart';
 import 'package:bodega/domain/entities/user_name_problem.dart';
 import 'package:bodega/domain/entities/wine_tool.dart';
 import 'package:bodega/l10n/l10n.dart';
+import 'package:bodega/app/bloc/dependencies/dependencies_bloc.dart';
+import 'package:bodega/app/shared/text/dependency_text.dart';
+import 'package:bodega/domain/entities/dependency.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -348,6 +351,20 @@ List<String> _switchTextProblems(_Arb en, _Arb es, List<String> keys) => [
           if (pattern.firstMatch(text) case final match?)
             '$file: $key: its $part holds "${match[0]}"',
 ];
+
+class _MockDependencies extends MockBloc<DependenciesEvent, DependenciesState>
+    implements DependenciesBloc {}
+
+/// No runtimes read and no job: the dependencies stay quiet.
+_MockDependencies _quietDependencies() {
+  final bloc = _MockDependencies();
+  whenListen(
+    bloc,
+    const Stream<DependenciesState>.empty(),
+    initialState: const DependenciesState(),
+  );
+  return bloc;
+}
 
 void main() {
   final en = lookupAppL10n(const Locale('en'));
@@ -1189,6 +1206,7 @@ void main() {
               BlocProvider<SectionsBloc>.value(value: sections),
               BlocProvider<GraphicsBloc>.value(value: graphics),
               BlocProvider<GamepadsBloc>.value(value: gamepads),
+              BlocProvider<DependenciesBloc>.value(value: _quietDependencies()),
             ],
             child: Scaffold(
               body: SingleChildScrollView(
@@ -1488,6 +1506,7 @@ void main() {
               BlocProvider<LibraryBloc>.value(value: library),
               BlocProvider<BottlesBloc>.value(value: bottles),
               BlocProvider<GamepadsBloc>.value(value: gamepads),
+              BlocProvider<DependenciesBloc>.value(value: _quietDependencies()),
               BlocProvider<SectionsBloc>.value(value: sections),
               BlocProvider<SetupBloc>.value(value: setup),
               BlocProvider<ViewModeBloc>.value(value: viewMode),
@@ -1708,6 +1727,9 @@ void main() {
               MultiBlocProvider(
                 providers: [
                   BlocProvider<GamepadsBloc>.value(value: gamepads),
+                  BlocProvider<DependenciesBloc>.value(
+                    value: _quietDependencies(),
+                  ),
                   BlocProvider<SectionsBloc>.value(value: sections),
                 ],
                 child: const Scaffold(
@@ -1869,6 +1891,22 @@ void main() {
         ['Steam/steam.exe', log],
       ),
       (
+        const AppError.dependencyNotInstalled(
+          'Visual C++ 2008',
+          Arch.x86,
+          log,
+          detail: detail,
+        ),
+        ['Visual C++ 2008', log],
+      ),
+      (
+        const AppError.unexpectedLink(
+          '/b/prefix/drive_c/users/me/Documents/x.ini',
+          detail: detail,
+        ),
+        ['/b/prefix/drive_c/users/me/Documents/x.ini'],
+      ),
+      (
         const AppError.processFailed(
           '/usr/bin/hdiutil attach',
           2,
@@ -1927,7 +1965,7 @@ void main() {
     test('the cases hold every code', () {
       expect({
         for (final (error, _) in codes) error.runtimeType,
-      }, hasLength(36));
+      }, hasLength(38));
     });
 
     for (final (language, l10n) in [('en', en), ('es', es)]) {
@@ -2394,6 +2432,9 @@ void main() {
                   BlocProvider<SectionsBloc>.value(value: sections),
                   BlocProvider<GraphicsBloc>.value(value: graphics),
                   BlocProvider<GamepadsBloc>.value(value: gamepads),
+                  BlocProvider<DependenciesBloc>.value(
+                    value: _quietDependencies(),
+                  ),
                 ],
                 child: const Scaffold(
                   body: SingleChildScrollView(
@@ -2457,6 +2498,9 @@ void main() {
                 BlocProvider<UpdateBloc>.value(value: updates),
                 BlocProvider<InstallBloc>.value(value: install),
                 BlocProvider<SwitchBloc>.value(value: switchGames),
+                BlocProvider<DependenciesBloc>.value(
+                  value: _quietDependencies(),
+                ),
               ],
               child: wrapApp(
                 const ShellBody(child: SizedBox.expand()),
@@ -3551,5 +3595,72 @@ void main() {
     expect(en.catalogAppInstalled, 'Installed');
     expect(en.backendInstalled, en.catalogAppInstalled);
     expect(es.backendInstalled, isNot(es.catalogAppInstalled));
+  });
+
+  group('the words of the dependencies (DA8)', () {
+    final en = lookupAppL10n(const Locale('en'));
+    final es = lookupAppL10n(const Locale('es'));
+    const vc = Dependency(
+      id: 'vcrun2008',
+      name: 'Visual C++ 2008',
+      arch: Arch.x86,
+      bytes: 4483040,
+      installed: false,
+    );
+
+    test(
+      'each code has words, distinct within its kind, in both languages',
+      () {
+        for (final l10n in [en, es]) {
+          for (final words in [
+            [for (final arch in Arch.values) l10n.archOf(arch)],
+            [for (final need in Need.values) l10n.needOf(need)],
+            [
+              for (final state in SettingState.values)
+                l10n.settingStateOf(state),
+            ],
+            [
+              for (final reason in NeedReason.values)
+                l10n.reasonOf(
+                  DependencyNeed(
+                    dependency: vc,
+                    need: Need.optional,
+                    reason: reason,
+                    dll: 'msvcr90.dll',
+                    fix: 'blur',
+                  ),
+                ),
+            ],
+            [
+              for (final fix in [
+                'blur',
+                'need-for-speed-most-wanted-2012',
+                'x',
+              ])
+                l10n.fixReason(fix),
+            ],
+          ]) {
+            expect(words, everyElement(isNotEmpty), reason: l10n.localeName);
+            expect(words.toSet(), hasLength(words.length), reason: '$words');
+          }
+        }
+        expect(en.archOf(Arch.x86), isNot(es.archOf(Arch.x86)));
+      },
+    );
+
+    test('a runtime shows its name as is, and its size in each language', () {
+      expect(en.dependencyLine(vc), 'Visual C++ 2008 · 32-bit · 4.5 MB');
+      expect(es.dependencyLine(vc), 'Visual C++ 2008 · 32 bits · 4,5 MB');
+      const setting = SettingNeed(
+        fix: 'need-for-speed-most-wanted-2012',
+        game: 'Need for Speed: Most Wanted (2012)',
+        section: 'Sound',
+        name: 'Reverb',
+        value: '0',
+        state: SettingState.notApplied,
+      );
+      expect(en.settingLine(setting), 'Game setting: [Sound] Reverb = 0');
+      expect(es.settingLine(setting), 'Ajuste del juego: [Sound] Reverb = 0');
+    });
   });
 }

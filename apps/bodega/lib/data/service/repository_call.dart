@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:bodega/data/service/code_mapper.dart';
 import 'package:bodega/domain/entities/app_error.dart';
+import 'package:bodega/domain/entities/dependency.dart';
 import 'package:bodega/domain/entities/path_problem.dart';
 import 'package:dio/dio.dart';
 import 'package:engine/engine.dart' as engine;
@@ -124,6 +125,18 @@ AppError appErrorOf(engine.EngineFailure failure) {
     engine.LicenseNotAccepted() => AppError.licenseNotAccepted(detail: detail),
     engine.WineToolFailed(:final tool, :final exitCode, :final log) =>
       AppError.wineToolFailed(wineToolOf(tool), exitCode, log, detail: detail),
+    engine.DependencyNotInstalled(:final id, :final arch, :final log) =>
+      AppError.dependencyNotInstalled(
+        engine.dependencyTable.where((row) => row.id == id).firstOrNull?.name ??
+            id,
+        arch == 'x64' ? Arch.x64 : Arch.x86,
+        log,
+        detail: detail,
+      ),
+    engine.UnexpectedLink(:final path) => AppError.unexpectedLink(
+      path,
+      detail: detail,
+    ),
     engine.InstallerNoExe(:final exe, :final log) => AppError.installerNoExe(
       exe,
       log,

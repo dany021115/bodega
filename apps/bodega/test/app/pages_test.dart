@@ -62,6 +62,9 @@ import 'package:bodega/domain/entities/run_hint.dart';
 import 'package:bodega/domain/entities/switch_game.dart';
 import 'package:bodega/domain/entities/switch_status.dart';
 import 'package:bodega/l10n/l10n.dart';
+import 'package:bodega/app/bloc/dependencies/dependencies_bloc.dart';
+import 'package:bodega/domain/entities/dependency.dart';
+import 'package:bodega/app/shared/widgets/needs_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -119,6 +122,9 @@ class _MockLocale extends MockBloc<LocaleEvent, LocaleState>
 
 class _MockSwitch extends MockBloc<SwitchEvent, SwitchState>
     implements SwitchBloc {}
+
+class _MockDependencies extends MockBloc<DependenciesEvent, DependenciesState>
+    implements DependenciesBloc {}
 
 // The longest texts and every chip at once: what would overflow first.
 final _long = 'A long note that takes up several lines on the screen. ' * 6;
@@ -231,6 +237,76 @@ void _expectNoEnglishLiterals(WidgetTester tester) {
     reason: 'English messages of app_en.arb on a Spanish screen (L1)',
   );
 }
+
+/// Every kind of line of the Dependencies section, with long names.
+final _dependencies = BottleDependencies(
+  all: [
+    const Dependency(
+      id: 'vcrun2008',
+      name: 'Visual C++ 2008',
+      arch: Arch.x86,
+      bytes: 4483040,
+      installed: true,
+    ),
+    const Dependency(
+      id: 'vcrun2022',
+      name: 'Visual C++ 2015–2026',
+      arch: Arch.x64,
+      bytes: 18731856,
+      installed: false,
+    ),
+  ],
+  apps: [
+    AppNeeds(
+      key: 'b',
+      title: _longName,
+      dependencies: [
+        const DependencyNeed(
+          dependency: Dependency(
+            id: 'vcrun2022',
+            name: 'Visual C++ 2015–2026',
+            arch: Arch.x64,
+            bytes: 18731856,
+            installed: false,
+          ),
+          need: Need.optional,
+          reason: NeedReason.imported,
+          dll: 'vcruntime140_1.dll',
+        ),
+        const DependencyNeed(
+          dependency: Dependency(
+            id: 'vcrun2008',
+            name: 'Visual C++ 2008',
+            arch: Arch.x86,
+            bytes: 4483040,
+            installed: true,
+          ),
+          need: Need.recommended,
+          reason: NeedReason.knownFix,
+          fix: 'blur',
+        ),
+      ],
+      settings: [
+        const SettingNeed(
+          fix: 'need-for-speed-most-wanted-2012',
+          game: 'Need for Speed: Most Wanted (2012)',
+          section: 'Sound',
+          name: 'Reverb',
+          value: '0',
+          state: SettingState.notApplied,
+        ),
+        const SettingNeed(
+          fix: 'other',
+          game: 'Other',
+          section: 'Video',
+          name: 'Quality',
+          value: '1',
+          state: SettingState.noFile,
+        ),
+      ],
+    ),
+  ],
+);
 
 BottleDetailState _bottle({bool ready = true, List<LibraryApp>? apps}) =>
     BottleDetailState(
@@ -370,6 +446,7 @@ void main() {
   late _MockLocale language;
   late _MockSetup setup;
   late _MockSwitch switchGames;
+  late _MockDependencies dependencies;
 
   void showBottle(BottleDetailState state) => whenListen(
     bottle,
@@ -448,6 +525,21 @@ void main() {
       const Stream<InstallState>.empty(),
       initialState: const InstallState(),
     );
+    // The bottle's runtimes and needs, with the longest names and a job in
+    // progress: what would overflow first in its section (DA7).
+    dependencies = _MockDependencies();
+    whenListen(
+      dependencies,
+      const Stream<DependenciesState>.empty(),
+      initialState: DependenciesState(
+        bottles: {_longName: _dependencies},
+        phase: DependencyPhase.downloading,
+        bottle: _longName,
+        item: const NeedItem.runtime('vcrun2022', Arch.x64),
+        received: 9000000,
+        total: 18731856,
+      ),
+    );
     // Loaded, with nothing in it: no spinner keeps a frame waiting.
     switchGames = _MockSwitch();
     showSwitch(const SwitchState(isLoading: false));
@@ -494,6 +586,7 @@ void main() {
     BlocProvider<LocaleBloc>.value(value: language),
     BlocProvider<SetupBloc>.value(value: setup),
     BlocProvider<SwitchBloc>.value(value: switchGames),
+    BlocProvider<DependenciesBloc>.value(value: dependencies),
   ];
 
   // [width] is the window's: the sidebar takes its part, as in the app. In
@@ -589,6 +682,50 @@ void main() {
           ),
         );
         await pumpAt(tester, bottleView());
+      });
+
+      testWidgets("a bottle's dependencies fit at $width px $lang", (
+        tester,
+      ) async {
+        await pumpAt(tester, bottleView());
+        final title = find.text(lookupAppL10n(locale).depsTitle);
+        // The page's own width, beside the side bar, decides its layout.
+        if (width - (width > 800 ? 220 : 68) < BottleDetailView.wideFrom) {
+          // Narrow, the panel goes under the apps, built once it scrolls near.
+          await tester.scrollUntilVisible(
+            title,
+            300,
+            scrollable: find.byType(Scrollable).first,
+          );
+        } else {
+          await tester.ensureVisible(title);
+        }
+        await tester.pump();
+        expect(
+          find.text(lookupAppL10n(locale).depsInstallOther),
+          findsOneWidget,
+        );
+      });
+
+      testWidgets('the dialog of what an app needs fits at $width px $lang', (
+        tester,
+      ) async {
+        await pumpAt(
+          tester,
+          Builder(
+            builder: (context) => IconButton(
+              icon: const Icon(Icons.add_rounded),
+              onPressed: () => showNeedsDialog(
+                context,
+                bottle: _longName,
+                needs: _dependencies.apps.single,
+              ),
+            ),
+          ),
+        );
+        await tester.tap(find.byIcon(Icons.add_rounded));
+        await tester.pumpAndSettle();
+        expect(find.byType(NeedsDialog), findsOneWidget);
       });
 
       testWidgets("a bottle's controller issues fit at $width px $lang", (
@@ -1055,9 +1192,15 @@ void main() {
 
     testWidgets('each control panel runs its program', (tester) async {
       await pump(tester, 1150, bottleView(), height: 2400);
-      await tester.tap(find.text('Game controllers'));
-      await tester.tap(find.text('Wine configuration'));
-      await tester.tap(find.text('Terminal'));
+      // Tools sit below the Dependencies section: scroll each into view.
+      for (final label in [
+        'Game controllers',
+        'Wine configuration',
+        'Terminal',
+      ]) {
+        await tester.ensureVisible(find.text(label));
+        await tester.tap(find.text(label));
+      }
       await tester.pump();
       verify(
         () => library.add(LibraryEvent.run(_longName, 'control', ['joy.cpl'])),
