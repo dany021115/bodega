@@ -93,10 +93,12 @@ class AddAppBloc extends Bloc<AddAppEvent, AddAppState> {
     Emitter<AddAppState> emit, {
     required AddAppStep onFailure,
   }) async {
+    final String key;
     switch (await _repository.addApp(bottle, state.title.trim(), exe)) {
       case Left(value: final error):
         return emit(state.copyWith(step: onFailure, error: error));
-      case Right(value: final key):
+      case Right(value: final added):
+        key = added;
         if (!state.addToLibrary) {
           switch (await _bottles.setInLibrary(bottle, key, false)) {
             case Left(value: final error):
@@ -106,6 +108,6 @@ class AddAppBloc extends Bloc<AddAppEvent, AddAppState> {
           }
         }
     }
-    emit(state.copyWith(step: AddAppStep.done, error: null));
+    emit(state.copyWith(step: AddAppStep.done, error: null, addedKey: key));
   }
 }

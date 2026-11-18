@@ -8,6 +8,7 @@ import 'package:bodega/app/shared/widgets/update_dialog.dart';
 import 'package:bodega/domain/entities/app_error.dart';
 import 'package:bodega/domain/entities/app_update.dart';
 import 'package:bodega/l10n/l10n.dart';
+import 'package:bodega/app/bloc/dependencies/dependencies_bloc.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -27,6 +28,20 @@ class _MockInstall extends MockBloc<InstallEvent, InstallState>
 
 class _MockSwitch extends MockBloc<SwitchEvent, SwitchState>
     implements SwitchBloc {}
+
+class _MockDependencies extends MockBloc<DependenciesEvent, DependenciesState>
+    implements DependenciesBloc {}
+
+/// No runtimes read and no job: the dependencies stay quiet.
+_MockDependencies _quietDependencies() {
+  final bloc = _MockDependencies();
+  whenListen(
+    bloc,
+    const Stream<DependenciesState>.empty(),
+    initialState: const DependenciesState(),
+  );
+  return bloc;
+}
 
 void main() {
   final en = lookupAppL10n(const Locale('en'));
@@ -101,6 +116,7 @@ void main() {
           BlocProvider<UpdateBloc>.value(value: bloc),
           BlocProvider<InstallBloc>.value(value: install),
           BlocProvider<SwitchBloc>.value(value: switchGames),
+          BlocProvider<DependenciesBloc>.value(value: _quietDependencies()),
         ],
         child: wrapApp(const ShellBody(child: SizedBox.expand())),
       ),
