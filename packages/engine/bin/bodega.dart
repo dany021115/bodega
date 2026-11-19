@@ -3,41 +3,6 @@ import 'dart:io';
 
 import 'package:engine/engine.dart';
 
-const _usage = '''
-usage: bodega install <engine.tar.gz> <hostlibs.tar.gz>
-       bodega create <bottle>
-       bodega run [--backend <b>] [--hud] <bottle> <program> [args…]
-       bodega wait <bottle>
-       bodega stop <bottle>
-       bodega rename <bottle> <new-name>
-       bodega library <bottle> <key> on|off
-       bodega hud <bottle> <key> on|off
-       bodega backend list
-       bodega backend install <dxmt|dxvk> [tarball]
-       bodega backend import d3dmetal <folder>
-       bodega backend set <bottle> <backend> [--exe <name.exe>]
-       bodega backend test <bottle> <backend>
-       bodega sync <bottle> <msync|none>
-       bodega option <bottle> gpu auto|discrete
-       bodega option <bottle> gamemode on|off
-       bodega sdl install [file.dmg]
-       bodega pads
-       bodega catalog list [text]
-       bodega catalog show <id>
-       bodega catalog install <id> [bottle]
-       bodega fix list [text]
-       bodega fix show <id|steam-appid>
-       bodega apps
-       bodega open [--backend <b>] [--hud] <bottle> [key]
-       bodega switch status
-       bodega switch emulator <Ryujinx.app>|auto
-       bodega switch option fullscreen|headless on|off
-       bodega switch add <file|app|folder>…
-       bodega switch list
-       bodega switch remove <game>
-       bodega switch open <game>
-       bodega switch stop <game>''';
-
 Future<void> main(List<String> args) async {
   final Future<int> Function(String home)? verb = switch (args) {
     ['install', final engine, final hostlibs] => (home) async {
@@ -73,11 +38,20 @@ Future<void> main(List<String> args) async {
       }
       return report.issues.isEmpty ? 0 : 1;
     },
-    ['create', final bottle] => (home) async {
+    ['create', ...final rest] when parseCreate(rest) != null => (home) async {
+      final (:runtime, :bottle) = parseCreate(rest)!;
       final logs = Directory('${bottleDir(home, bottle)}/logs');
       final fresh = !logs.existsSync();
       try {
-        stdout.writeln('log: ${await createBottle(home, bottle)}');
+        final log = await createBottle(
+          home,
+          bottle,
+          runtime: runtime,
+          onStep: runtime == RuntimeKind.mach9
+              ? (step) => stdout.writeln(step.english)
+              : null,
+        );
+        stdout.writeln('log: $log');
         return 0;
       } finally {
         // Also when create fails: a new bottle has just its wineboot log.
@@ -172,12 +146,14 @@ Future<void> main(List<String> args) async {
       _showFix(gameFix(id));
       return 0;
     },
-    ['catalog', 'install', final id, ...final rest] when rest.length < 2 =>
+    ['catalog', 'install', final id, ...final rest]
+        when parseCatalogInstall(rest) != null =>
       (home) async {
+        final options = parseCatalogInstall(rest)!;
         final entry = catalogEntry(id);
-        final bottle = rest.firstOrNull ?? id;
+        final bottle = options.bottle ?? id;
         stdout.writeln(
-          'installed in: ${await installEntry(home, entry, bottle: bottle, onStep: (step) => stdout.writeln(describeInstallStep(step)))}',
+          'installed in: ${await installEntry(home, entry, bottle: bottle, runtime: options.runtime, onStep: (step) => stdout.writeln(describeInstallStep(step)))}',
         );
         entry.notes.forEach((note) => stdout.writeln('note: $note'));
         stdout.writeln('open it with: bodega open $bottle');
@@ -245,10 +221,10 @@ Future<void> main(List<String> args) async {
       return results.every((r) => r.ok) ? 0 : 1;
     },
     ['switch', ...final rest] => switchVerb(rest, stdout),
-    _ => null,
+    _ => runtimeVerb(args, stdout),
   };
   if (verb == null) {
-    stderr.writeln(_usage);
+    stderr.writeln(bodegaUsage);
     exitCode = 64;
     return;
   }

@@ -81,7 +81,29 @@ void main() {
           '$layer/d3dmetal/external/libd3dshared.dylib',
     };
     expect(backendEnv(home, 'd3dmetal'), d3dmetal);
+    const dxvk9 = {
+      'CX_ACTIVE_GRAPHICS_BACKEND': 'dxvk',
+      'DXVK_RELAX_FEATURES': '1',
+      'DXVK_LOG_PATH': 'none',
+    };
+    expect(backendEnv(home, 'dxvk9'), {
+      ...dxvk9,
+      'WINEDLLPATH_PREPEND': '$layer/dxvk9/wine',
+    });
+    expect(hostPlatform.probeCases(home, 'dxvk9'), [(32, '9'), (64, '9')]);
+    expect(pinnedBackend('dxvk9'), isNull);
     install(home, 'dxmt');
+    // DXMT, once installed, serves dxvk9's D3D10/11 behind DXVK's d3d9.
+    expect(backendEnv(home, 'dxvk9'), {
+      ...dxvk9,
+      'WINEDLLPATH_PREPEND': '$layer/dxvk9/wine:$layer/dxmt/wine',
+      'DXMT_ALLOW_CROSS_PROCESS_SWAPCHAIN': '1',
+    });
+    expect(hostPlatform.probeCases(home, 'dxvk9'), [
+      (32, '9'),
+      (64, '9'),
+      (32, '11'),
+    ]);
     expect(backendEnv(home, 'd3dmetal'), {
       ...d3dmetal,
       'WINEDLLPATH_PREPEND': '$layer/d3dmetal/wine:$layer/dxmt/wine',
@@ -430,6 +452,11 @@ void main() {
     expect(fits('dxmt', 64, 'DX12'), isFalse);
     expect(fits('dxvk', 32, 'DX9'), isFalse);
     expect(fits('dxvk', 32, 'DX10'), isTrue);
+    expect(fits('dxvk9', 32, 'DX9'), isTrue);
+    expect(fits('dxvk9', 64, 'DX9'), isTrue);
+    // A launcher that draws with D3D11 before its D3D9 game, through DXMT.
+    expect(fits('dxvk9', 32, 'DX11'), isTrue);
+    expect(fits('dxvk9', 64, 'DX12'), isFalse);
     expect(fits('wine', 32, 'DX9'), isTrue);
     expect(fits('d3dmetal', 32, ''), isTrue);
   });
@@ -444,6 +471,7 @@ void main() {
         'wine': BackendRole.everythingElse,
         'dxmt': BackendRole.dx10to11,
         'dxvk': BackendRole.dx10to11,
+        'dxvk9': BackendRole.dx9to11,
         'd3dmetal': BackendRole.dx11to12x64,
       },
     );
@@ -554,6 +582,7 @@ void main() {
       'wine': true,
       'dxmt': false,
       'dxvk': false,
+      'dxvk9': false,
       'd3dmetal': false,
     });
     install(home, 'dxvk');

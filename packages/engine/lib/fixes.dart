@@ -131,9 +131,10 @@ const _fixNote = fixNotApplied;
 /// Whether Steam runs in the bottle. With no wineserver nothing does, which
 /// takes no time to know (design §5); else `tasklist` tells, without a window.
 Future<bool> _steamRunning(String home, String bottle) async {
-  final prefix = '${_existing(home, bottle)}/prefix';
+  final dir = _existing(home, bottle);
+  final prefix = '$dir/prefix';
   final wait = await Process.start(
-    '${currentRuntime(home)}/engine/bin/wineserver',
+    '${runtimeDir(home, _bottleRuntimeIn(dir))}/engine/bin/wineserver',
     ['-w'],
     environment: wineEnv(prefix, Platform.environment),
     includeParentEnvironment: false,

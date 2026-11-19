@@ -1,12 +1,14 @@
-// Headless probe for `bodega backend test`: creates a real D3D11 or D3D12 device and prints the adapter.
+// Headless probe for `bodega backend test`: creates a real D3D9, D3D11 or D3D12 device and prints the adapter.
 #define COBJMACROS
 #define INITGUID
 #include <windows.h>
 #include <stdio.h>
 #include <dxgi.h>
+#include <d3d9.h>
 #include <d3d11.h>
 #include <d3d12.h>
 typedef HRESULT (WINAPI *cf_t)(REFIID, void**);
+typedef IDirect3D9 *(WINAPI *c9_t)(UINT);
 typedef HRESULT (WINAPI *c11_t)(IDXGIAdapter*, D3D_DRIVER_TYPE, HMODULE, UINT, const D3D_FEATURE_LEVEL*, UINT, UINT, ID3D11Device**, D3D_FEATURE_LEVEL*, ID3D11DeviceContext**);
 typedef HRESULT (WINAPI *c12_t)(IUnknown*, D3D_FEATURE_LEVEL, REFIID, void**);
 static void path(const char *n, HMODULE m){ char b[MAX_PATH]; GetModuleFileNameA(m,b,MAX_PATH); printf("%s: %s\n",n,b); }
@@ -17,7 +19,22 @@ int main(int argc, char **argv){
   cf_t cf=(cf_t)GetProcAddress(hd,"CreateDXGIFactory1"); IDXGIFactory1 *f=NULL; IDXGIAdapter1 *a=NULL;
   HRESULT hr=cf?cf(&IID_IDXGIFactory1,(void**)&f):E_FAIL; printf("CreateDXGIFactory1 hr=%08lx\n",hr);
   if(f && SUCCEEDED(IDXGIFactory1_EnumAdapters1(f,0,&a))){ DXGI_ADAPTER_DESC1 d; IDXGIAdapter1_GetDesc1(a,&d); printf("adapter: %ls vendor=%04x device=%04x vram=%lluMB\n",d.Description,d.VendorId,d.DeviceId,(unsigned long long)d.DedicatedVideoMemory/1048576); }
-  if(which[0]=='1'&&which[1]=='1'){
+  if(which[0]=='9'){
+    HMODULE h=LoadLibraryA("d3d9.dll"); if(!h){puts("d3d9 load FAIL");return 2;} path("d3d9",h);
+    c9_t c=(c9_t)GetProcAddress(h,"Direct3DCreate9"); IDirect3D9 *d=c?c(D3D_SDK_VERSION):NULL; printf("Direct3DCreate9 %s\n",d?"ok":"FAIL"); if(!d) return 1;
+    UINT n=IDirect3D9_GetAdapterCount(d); printf("adapters=%u\n",n); if(!n) return 1;
+    D3DADAPTER_IDENTIFIER9 id; if(SUCCEEDED(IDirect3D9_GetAdapterIdentifier(d,0,0,&id))) printf("adapter9: %s driver=%s\n",id.Description,id.Driver);
+    // A hidden window: D3D9 needs one for its implicit swapchain, and nothing is ever shown.
+    HWND w=CreateWindowExA(0,"STATIC","probe",WS_POPUP,0,0,64,64,NULL,NULL,NULL,NULL); if(!w){puts("window FAIL");return 1;}
+    D3DPRESENT_PARAMETERS pp={0}; pp.BackBufferWidth=64; pp.BackBufferHeight=64; pp.BackBufferFormat=D3DFMT_X8R8G8B8; pp.BackBufferCount=1;
+    pp.SwapEffect=D3DSWAPEFFECT_DISCARD; pp.hDeviceWindow=w; pp.Windowed=TRUE;
+    IDirect3DDevice9 *dev=NULL; hr=IDirect3D9_CreateDevice(d,0,D3DDEVTYPE_HAL,w,D3DCREATE_HARDWARE_VERTEXPROCESSING,&pp,&dev); printf("CreateDevice hr=%08lx\n",hr); if(FAILED(hr)) return 1;
+    hr=IDirect3DDevice9_Clear(dev,0,NULL,D3DCLEAR_TARGET,D3DCOLOR_XRGB(255,0,0),1.0f,0); printf("Clear hr=%08lx\n",hr); if(FAILED(hr)) return 1;
+    IDirect3DQuery9 *q=NULL; hr=IDirect3DDevice9_CreateQuery(dev,D3DQUERYTYPE_EVENT,&q); printf("CreateQuery hr=%08lx\n",hr); if(FAILED(hr)) return 1;
+    IDirect3DQuery9_Issue(q,D3DISSUE_END);
+    for(int i=0;i<200&&IDirect3DQuery9_GetData(q,NULL,0,D3DGETDATA_FLUSH)==S_FALSE;i++) Sleep(10);
+    puts("clear+flush ok");
+  } else if(which[0]=='1'&&which[1]=='1'){
     HMODULE h=LoadLibraryA("d3d11.dll"); if(!h){puts("d3d11 load FAIL");return 2;} path("d3d11",h);
     c11_t c=(c11_t)GetProcAddress(h,"D3D11CreateDevice"); ID3D11Device *dev=NULL; ID3D11DeviceContext *ctx=NULL; D3D_FEATURE_LEVEL fl=0;
     hr=c?c(NULL,D3D_DRIVER_TYPE_HARDWARE,NULL,0,NULL,0,D3D11_SDK_VERSION,&dev,&fl,&ctx):E_FAIL; printf("D3D11CreateDevice hr=%08lx level=%x\n",hr,fl);

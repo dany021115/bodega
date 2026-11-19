@@ -14,7 +14,13 @@ typedef InstalledApp = ({
   bool hud,
 });
 
-typedef BottleInfo = ({String name, bool ready, List<InstalledApp> apps});
+/// [runtime] is the kind the bottle really runs on (MB2).
+typedef BottleInfo = ({
+  String name,
+  bool ready,
+  List<InstalledApp> apps,
+  RuntimeKind runtime,
+});
 
 /// A `.lnk` file's target as Windows sees it, and what it passes.
 typedef Lnk = ({String target, String args, String? workingDir});
@@ -361,7 +367,12 @@ List<BottleInfo> listBottles(String home) {
 
 BottleInfo _bottleInfo(String dir) {
   final name = dir.split('/').last;
-  return (name: name, ready: _ready('$dir/prefix'), apps: _appsIn(name, dir));
+  return (
+    name: name,
+    ready: _ready('$dir/prefix'),
+    apps: _appsIn(name, dir),
+    runtime: _bottleRuntimeIn(dir),
+  );
 }
 
 /// The applications of every bottle (I8).
@@ -382,7 +393,7 @@ Future<String> openApp(
 }) async {
   final apps = bottleApps(home, bottle);
   if (apps.isEmpty) throw AppNotFound(bottle);
-  await hostPlatform.prepareBottle(home, bottle);
+  await _prepareBottle(home, bottle);
   final app = key == null
       ? apps.first
       : apps.where((app) => app.key == key).firstOrNull ??
