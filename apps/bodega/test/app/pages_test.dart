@@ -21,6 +21,7 @@ import 'package:bodega/app/bloc/update/update_bloc.dart';
 import 'package:bodega/app/bloc/view_mode/view_mode_bloc.dart';
 import 'package:bodega/app/presentation/add_app/add_app_dialog.dart';
 import 'package:bodega/app/presentation/backends/backends_page.dart';
+import 'package:bodega/app/presentation/backends/widgets/engine_card.dart';
 import 'package:bodega/app/presentation/bottles/bottle_detail_page.dart';
 import 'package:bodega/app/presentation/bottles/new_bottle_dialog.dart';
 import 'package:bodega/app/presentation/bottles/widgets/bottle_column.dart';
@@ -58,7 +59,11 @@ import 'package:bodega/domain/entities/host_issue.dart';
 import 'package:bodega/domain/entities/install_step.dart';
 import 'package:bodega/domain/entities/library_app.dart';
 import 'package:bodega/domain/entities/log_hint.dart';
+import 'package:bodega/domain/entities/mach9_step.dart';
 import 'package:bodega/domain/entities/run_hint.dart';
+import 'package:bodega/domain/entities/runtime_block.dart';
+import 'package:bodega/domain/entities/runtime_info.dart';
+import 'package:bodega/domain/entities/runtime_kind.dart';
 import 'package:bodega/domain/entities/switch_game.dart';
 import 'package:bodega/domain/entities/switch_status.dart';
 import 'package:bodega/l10n/l10n.dart';
@@ -128,12 +133,106 @@ final _long = 'A long note that takes up several lines on the screen. ' * 6;
 final _error = AppError.corruptData(_long, detail: 'stderr: boom');
 final _longName = 'a-bottle-with-a-very-very-long-name-${'x' * 28}';
 
+/// A window tall enough for the whole bottle panel, with every hint above
+/// its settings, so a tap reaches its tools.
+const _tall = 2800.0;
+
 /// Every hint a bottle can get at once, the anti-cheat one for a game with a
 /// long title: the most a bottle's card and page show.
 final _hints = [
   for (final hint in LogHint.values) RunHint.log(hint),
   RunHint.antiCheat(game: _long),
 ];
+
+// The native engine (MA5).
+
+const _rosetta = RuntimeInfo(kind: RuntimeKind.bodega, installed: true);
+
+/// Mach9 not installed, with the pinned release's numbers.
+const _mach9 = RuntimeInfo(
+  kind: RuntimeKind.mach9,
+  installed: false,
+  pinnedVersion: '0.4.0',
+  downloadBytes: 200499232,
+  diskBytes: 1015000000,
+  minimumMacos: '26.4',
+);
+
+/// Each state of the engine card (design §7), with what its state shows:
+/// the runtime, the install in progress and its step.
+final _engineStates = <String, BackendsState>{
+  'not installed': _backends.copyWith(runtimes: const [_rosetta, _mach9]),
+  'app found at the pin': _backends.copyWith(
+    runtimes: [
+      _rosetta,
+      _mach9.copyWith(
+        appPath: '/Applications/$_longName/Mach9.app',
+        appVersion: '0.4.0',
+      ),
+    ],
+  ),
+  'app found newer': _backends.copyWith(
+    runtimes: [
+      _rosetta,
+      _mach9.copyWith(appPath: '/Applications/Mach9.app', appVersion: '0.5.0'),
+    ],
+  ),
+  'downloading': _backends.copyWith(
+    runtimes: const [_rosetta, _mach9],
+    busy: 'mach9',
+    isDownloading: true,
+    runtimeStep: Mach9Step.downloading,
+    received: 100 << 20,
+    total: 200 << 20,
+  ),
+  'a step': _backends.copyWith(
+    runtimes: const [_rosetta, _mach9],
+    busy: 'mach9',
+    isDownloading: false,
+    runtimeStep: Mach9Step.switching,
+  ),
+  'installed': _backends.copyWith(
+    runtimes: [
+      _rosetta,
+      _mach9.copyWith(installed: true, version: '0.4.0'),
+    ],
+  ),
+  'installed, not checked': _backends.copyWith(
+    runtimes: [
+      _rosetta,
+      _mach9.copyWith(installed: true, version: '0.5.0', checked: false),
+    ],
+  ),
+  'update available': _backends.copyWith(
+    runtimes: [
+      _rosetta,
+      _mach9.copyWith(
+        installed: true,
+        version: '0.3.9',
+        pinnedVersion: '0.4.0',
+      ),
+    ],
+  ),
+  'macOS too old': _backends.copyWith(
+    runtimes: [
+      _rosetta,
+      _mach9.copyWith(blocked: RuntimeBlock.macosTooOld),
+    ],
+  ),
+};
+
+/// A native bottle without Wine Mono (MA7).
+BottleDetailState _nativeBottle() {
+  final state = _bottle();
+  return state.copyWith(
+    detail: state.detail!.copyWith(
+      runtime: RuntimeKind.mach9,
+      monoMissing: true,
+      backend: 'mtld3d',
+      installedBackends: const ['wine', 'dxmt', 'mtld3d'],
+    ),
+  );
+}
 
 /// Every chip at once. Its prose comes from the ARBs by id (L16): a copy as
 /// Steam, the catalog's longest, and one as `custom`, which has none.
@@ -735,6 +834,71 @@ void main() {
         );
       });
 
+      for (final MapEntry(key: name, value: state) in _engineStates.entries) {
+        testWidgets('the engine card $name fits at $width px $lang', (
+          tester,
+        ) async {
+          final l10n = lookupAppL10n(locale);
+          whenListen(
+            backends,
+            const Stream<BackendsState>.empty(),
+            initialState: state,
+          );
+          // Tall enough for the list to build the heading under the card.
+          await pump(
+            tester,
+            width,
+            const BackendsPage(),
+            height: 3000,
+            locale: locale,
+          );
+          expect(find.text(l10n.engineNativeTitle), findsOneWidget);
+          // Never a backend's card, and the Rosetta heading above those.
+          expect(find.text(l10n.backendsRosettaGraphics), findsOneWidget);
+          if (name == 'macOS too old') {
+            expect(find.text(l10n.engineNeedsMacos('26.4')), findsOneWidget);
+            expect(
+              find.descendant(
+                of: find.byType(EngineCard),
+                matching: find.text(l10n.commonInstall),
+              ),
+              findsNothing,
+            );
+          }
+          if (name == 'a step') {
+            expect(find.text(l10n.engineStepSwitching), findsOneWidget);
+          }
+          if (name == 'downloading') {
+            expect(find.text(l10n.commonCancel), findsOneWidget);
+          }
+          if (name == 'update available') {
+            expect(find.text(l10n.engineUpdate('0.4.0')), findsOneWidget);
+          }
+        });
+      }
+
+      testWidgets('a native bottle without Wine Mono fits at $width px $lang', (
+        tester,
+      ) async {
+        final l10n = lookupAppL10n(locale);
+        showBottle(_nativeBottle());
+        await pump(tester, width, bottleView(), height: _tall, locale: locale);
+        final install = find.text(l10n.bottleInstallMono);
+        await tester.scrollUntilVisible(
+          install,
+          300,
+          scrollable: find.byType(Scrollable).last,
+        );
+        expect(install, findsOneWidget);
+        expect(find.text(l10n.bottleMonoMissing), findsOneWidget);
+        expect(find.text(l10n.bottleEngine), findsOneWidget);
+        expect(find.text(l10n.engineNativeChip), findsOneWidget);
+        // Rosetta's own options are not offered (MA7).
+        expect(find.text(l10n.bottleAvx), findsNothing);
+        expect(find.text('DLSS'), findsNothing);
+        if (locale.languageCode == 'es') _expectNoEnglishLiterals(tester);
+      });
+
       testWidgets('the language menu fits at $width px $lang', (tester) async {
         // At the foot of a column, as in the side bar.
         await pumpAt(
@@ -947,6 +1111,39 @@ void main() {
       return copied;
     }
 
+    // The native engine's errors (MA3), where its card shows them.
+    for (final error in const [
+      AppError.runtimeNotInstalled(RuntimeKind.mach9, detail: detail),
+      AppError.runtimeUnavailable(
+        RuntimeKind.mach9,
+        RuntimeBlock.macosTooOld,
+        detail: detail,
+      ),
+      AppError.runtimeNotTrusted('/Applications/Mach9.app', detail: detail),
+      AppError.runtimeTooOld('0.3.2', '0.4.0', detail: detail),
+      AppError.backendNotForRuntime('dxvk', RuntimeKind.mach9, detail: detail),
+    ]) {
+      testWidgets('the Backends page copies the detail of $error', (
+        tester,
+      ) async {
+        final copied = clipboard(tester);
+        whenListen(
+          backends,
+          const Stream<BackendsState>.empty(),
+          initialState: BackendsState(isLoading: false, error: error),
+        );
+        await pumpPanel(tester, const BackendsPage(), const Locale('es'));
+        final l10n = lookupAppL10n(const Locale('es'));
+        expect(find.text(error.localized(l10n)), findsOneWidget);
+        expect(find.textContaining('boom', findRichText: true), findsNothing);
+        await tester.tap(find.text(l10n.commonCopyDetails));
+        await tester.pumpAndSettle();
+        expect(copied, [detail]);
+        await tester.pump(const Duration(seconds: 6));
+        await tester.pumpAndSettle();
+      });
+    }
+
     for (final locale in const [Locale('en'), Locale('es')]) {
       final l10n = lookupAppL10n(locale);
       final lang = '(${locale.languageCode})';
@@ -1054,7 +1251,7 @@ void main() {
     });
 
     testWidgets('each control panel runs its program', (tester) async {
-      await pump(tester, 1150, bottleView(), height: 2400);
+      await pump(tester, 1150, bottleView(), height: _tall);
       await tester.tap(find.text('Game controllers'));
       await tester.tap(find.text('Wine configuration'));
       await tester.tap(find.text('Terminal'));
@@ -1070,7 +1267,7 @@ void main() {
     });
 
     testWidgets('the settings show what the bottle has', (tester) async {
-      await pump(tester, 1150, bottleView(), height: 2400);
+      await pump(tester, 1150, bottleView(), height: _tall);
       // The fact card and the selected version of the dropdown both say it.
       expect(
         find.descendant(
@@ -1094,7 +1291,7 @@ void main() {
           capabilities: HostCapabilities(avx: false, dlss: false),
         ),
       );
-      await pump(tester, 1150, bottleView(), height: 2400);
+      await pump(tester, 1150, bottleView(), height: _tall);
       expect(find.text(en.bottleAvx), findsNothing);
       expect(find.text('DLSS'), findsNothing);
     });
@@ -1102,7 +1299,7 @@ void main() {
     testWidgets('a host with one sync mode does not offer msync', (
       tester,
     ) async {
-      await pump(tester, 1150, bottleView(), height: 2400);
+      await pump(tester, 1150, bottleView(), height: _tall);
       expect(find.text('Changing it closes what is open.'), findsOneWidget);
 
       showSetup(
@@ -1113,7 +1310,7 @@ void main() {
         ),
       );
       await tester.pumpWidget(const SizedBox());
-      await pump(tester, 1150, bottleView(), height: 2400);
+      await pump(tester, 1150, bottleView(), height: _tall);
       expect(find.text(en.bottleChangeCloses), findsNothing);
     });
 
@@ -1121,7 +1318,7 @@ void main() {
       tester,
     ) async {
       showBottle(_bottle(ready: false));
-      await pump(tester, 1150, bottleView(), height: 2400);
+      await pump(tester, 1150, bottleView(), height: _tall);
       // The quick actions and the delete button are outlined buttons.
       Finder button(String label) => find.ancestor(
         of: find.text(label),

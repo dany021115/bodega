@@ -106,6 +106,12 @@ class BottleDetailBloc extends Bloc<BottleDetailEvent, BottleDetailState> {
         (name) => _repository.setHud(name, event.key, event.value),
       ),
     );
+    on<BottleDetailInstallMonoEvent>((event, emit) async {
+      if (state.installingMono) return;
+      emit(state.copyWith(installingMono: true));
+      await _change(emit, _repository.installMono);
+      emit(state.copyWith(installingMono: false));
+    });
     on<BottleDetailOpenLogEvent>((event, emit) async {
       emit(state.copyWith(logPath: event.path, logLines: const []));
       final result = await _repository.logLines(event.path);

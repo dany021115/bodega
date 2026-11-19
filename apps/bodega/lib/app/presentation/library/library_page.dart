@@ -70,6 +70,7 @@ class _LibraryPageState extends State<LibraryPage> {
             anchor,
             bottle: app.bottle,
             backends: detail.installedBackends,
+            runtime: detail.runtime,
             program: app.exe,
             args: app.args,
             title: app.title,

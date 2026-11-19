@@ -2,12 +2,29 @@ import 'package:bodega/domain/entities/app_error.dart';
 import 'package:bodega/domain/entities/backend_info.dart';
 import 'package:bodega/domain/entities/exe_graphics.dart';
 import 'package:bodega/domain/entities/gptk_step.dart';
+import 'package:bodega/domain/entities/mach9_step.dart';
+import 'package:bodega/domain/entities/runtime_info.dart';
+import 'package:bodega/domain/entities/runtime_kind.dart';
 import 'package:fpdart/fpdart.dart';
 
 abstract class BackendRepository {
   Future<Either<AppError, List<BackendInfo>>> list();
 
-  /// The bottles that can run a check.
+  /// MR3: each runtime kind on this host: bodega only on Linux, bodega and
+  /// mach9 on the Mac.
+  Future<Either<AppError, List<RuntimeInfo>>> runtimes();
+
+  /// MR4: installs [kind] from [file] (a `.dmg` or a `Mach9.app`), else from
+  /// the Mach9.app found at the pinned version, else from the pinned
+  /// download. False if it was cancelled with [cancelDownload].
+  Future<Either<AppError, bool>> installRuntime(
+    RuntimeKind kind, {
+    String? file,
+    required void Function(int received, int? total) onProgress,
+    required void Function(Mach9Step step) onStep,
+  });
+
+  /// The ready Rosetta bottles, which can run a check.
   Future<Either<AppError, List<String>>> readyBottles();
 
   /// Downloads and installs [name], checking its pinned SHA-256. False if it

@@ -94,6 +94,7 @@ class BottleDetailView extends StatelessWidget {
           anchor,
           bottle: detail.name,
           backends: detail.installedBackends,
+          runtime: detail.runtime,
           program: app.exe,
           args: app.args,
           title: app.title,

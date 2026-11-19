@@ -34,4 +34,7 @@ sealed class BottleDetailEvent with _$BottleDetailEvent {
       BottleDetailSetHudEvent;
   const factory BottleDetailEvent.openLog(String path) =
       BottleDetailOpenLogEvent;
+
+  /// MB7: installs Wine Mono into the native bottle.
+  const factory BottleDetailEvent.installMono() = BottleDetailInstallMonoEvent;
 }

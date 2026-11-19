@@ -1,6 +1,8 @@
 import 'package:bodega/domain/entities/app_error.dart';
 import 'package:bodega/domain/entities/bottle.dart';
 import 'package:bodega/domain/entities/bottle_detail.dart';
+import 'package:bodega/domain/entities/bottle_step.dart';
+import 'package:bodega/domain/entities/runtime_kind.dart';
 import 'package:bodega/domain/entities/user_name_problem.dart';
 import 'package:fpdart/fpdart.dart';
 
@@ -42,12 +44,19 @@ abstract class BottleRepository {
 
   Future<Either<AppError, Unit>> delete(String name);
 
-  /// An empty bottle with [windows] and [backend], both applied after it is made.
+  /// An empty bottle on [runtime] with [windows] and [backend], both applied
+  /// after it is made; a native bottle then gets Wine Mono, last (MB5), so a
+  /// Mono failure leaves the bottle made and set.
   Future<Either<AppError, Unit>> create(
     String name, {
     String windows = 'win11',
     String backend = 'auto',
+    RuntimeKind runtime = RuntimeKind.bodega,
+    void Function(BottleStep step)? onStep,
   });
+
+  /// MB7: installs Wine Mono into the native bottle [name].
+  Future<Either<AppError, Unit>> installMono(String name);
 
   Future<Either<AppError, Unit>> renameBottle(String name, String newName);
 
