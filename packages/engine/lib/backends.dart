@@ -8,9 +8,16 @@ String _layer(String home, String name) => '$home/backends/$name/wine';
 bool _installed(String home, String name) =>
     name == 'wine' || Directory(_layer(home, name)).existsSync();
 
-/// Which backends are installed (B3).
-Map<String, bool> listBackends(String home) => {
-  for (final name in backendNames) name: _installed(home, name),
+/// Which backends are installed (B3): Bodega's layers, or with [runtime]
+/// mach9 the graphics of the Mach9 runtime (MG2).
+Map<String, bool> listBackends(
+  String home, {
+  RuntimeKind runtime = RuntimeKind.bodega,
+}) => switch (runtime) {
+  RuntimeKind.bodega => {
+    for (final name in backendNames) name: _installed(home, name),
+  },
+  RuntimeKind.mach9 => _mach9Backends(home),
 };
 
 /// What [wineEnv] gains for [backend] (S4).
@@ -137,27 +144,7 @@ Future<String?> installD3DMetalDmg(
   }
   final mounted = <String>[];
   Future<String> attach(String image) async {
-    final mount = Directory.systemTemp.createTempSync('bodega-gptk').path;
-    for (var tries = 1; ; tries++) {
-      final result = await Process.run('/usr/bin/hdiutil', [
-        'attach',
-        '-nobrowse',
-        '-readonly',
-        '-mountpoint',
-        mount,
-        image,
-      ]);
-      if (result.exitCode == 0) break;
-      final why = '${result.stdout}${result.stderr}'.trim().split('\n').last;
-      // A dmg just downloaded stays busy for some seconds, held by the
-      // browser or by macOS's malware check.
-      if (why.contains('Resource busy') && tries < 15) {
-        await Future<void>.delayed(const Duration(seconds: 2));
-        continue;
-      }
-      Directory(mount).deleteSync();
-      throw MountFailed(image, why);
-    }
+    final mount = await _attach(image);
     mounted.add(mount);
     return mount;
   }
@@ -223,15 +210,46 @@ Future<String?> installD3DMetalDmg(
   } finally {
     // The inner volume first: its image lives in the outer one.
     for (final mount in mounted.reversed) {
-      await Process.run('/usr/bin/hdiutil', ['detach', mount]);
-      try {
-        Directory(mount).deleteSync();
-      } on FileSystemException {
-        // A volume in /Volumes goes away with the detach.
-      }
+      await _detach(mount);
     }
   }
   return d3dmetalVersion(home);
+}
+
+/// Mounts [image] read-only and hidden at a new temporary folder, which it
+/// returns; [_detach] undoes it. A dmg just downloaded stays busy for some
+/// seconds, held by the browser or by macOS's malware check, so a busy one is
+/// tried again.
+Future<String> _attach(String image, {String prefix = 'bodega-gptk'}) async {
+  final mount = Directory.systemTemp.createTempSync(prefix).path;
+  for (var tries = 1; ; tries++) {
+    final result = await Process.run('/usr/bin/hdiutil', [
+      'attach',
+      '-nobrowse',
+      '-readonly',
+      '-mountpoint',
+      mount,
+      image,
+    ]);
+    if (result.exitCode == 0) return mount;
+    final why = '${result.stdout}${result.stderr}'.trim().split('\n').last;
+    if (why.contains('Resource busy') && tries < 15) {
+      await Future<void>.delayed(const Duration(seconds: 2));
+      continue;
+    }
+    Directory(mount).deleteSync();
+    throw MountFailed(image, why);
+  }
+}
+
+/// Detaches what [_attach] mounted, and removes its folder.
+Future<void> _detach(String mount) async {
+  await Process.run('/usr/bin/hdiutil', ['detach', mount]);
+  try {
+    Directory(mount).deleteSync();
+  } on FileSystemException {
+    // A volume in /Volumes goes away with the detach.
+  }
 }
 
 /// Copies D3DMetal from a folder the user provides (B2). Its unix modules are
@@ -378,8 +396,30 @@ String _exeKey(String program) {
   return name.endsWith('.exe') ? name : '$name.exe';
 }
 
-void _checkChoice(String backend) {
-  if (backend != 'auto' && !backendNames.contains(backend)) {
+/// A graphics choice for a bottle of [kind] (MG3): `auto` or one of its
+/// names; a name of the other kind is [BackendNotForRuntime], anything else
+/// [BadChoice] with the kind's list (the host's own list for bodega).
+void _checkChoiceFor(RuntimeKind kind, String backend) {
+  if (backend == 'auto' || backendNamesFor(kind).contains(backend)) return;
+  if (RuntimeKind.values.any(
+    (other) => other != kind && backendNamesFor(other).contains(backend),
+  )) {
+    throw BackendNotForRuntime(backend, kind);
+  }
+  throw BadChoice(
+    ChoiceKind.backend,
+    backend,
+    kind == RuntimeKind.bodega ? null : backendNamesFor(kind),
+  );
+}
+
+/// A backend stored in settings.json: a name of either runtime kind (D24),
+/// so that a bottle whose settings were edited by hand can still be read.
+void _checkStored(String backend) {
+  if (backend != 'auto' &&
+      !RuntimeKind.values.any(
+        (kind) => backendNamesFor(kind).contains(backend),
+      )) {
     throw BadChoice(ChoiceKind.backend, backend);
   }
 }
@@ -417,6 +457,9 @@ typedef BottleSettings = ({
 
   /// The Windows user name its games see (U1); empty for the host's.
   String user,
+
+  /// The stored kind (MB1); [bottleRuntime] gives the effective one.
+  RuntimeKind runtime,
 });
 
 /// What [setWindowsVersion] admits, newest first.
@@ -438,6 +481,7 @@ BottleSettings get _defaults => (
   gpu: 'auto',
   gamemode: hostPlatform.defaultGamemode,
   user: '',
+  runtime: RuntimeKind.bodega,
 );
 
 /// [settings] with these fields changed: records have no `copyWith`.
@@ -455,6 +499,7 @@ BottleSettings _with(
   String? gpu,
   bool? gamemode,
   String? user,
+  RuntimeKind? runtime,
 }) => (
   backend: backend ?? settings.backend,
   sync: sync ?? settings.sync,
@@ -468,6 +513,7 @@ BottleSettings _with(
   gpu: gpu ?? settings.gpu,
   gamemode: gamemode ?? settings.gamemode,
   user: user ?? settings.user,
+  runtime: runtime ?? settings.runtime,
 );
 
 /// `bottles/<b>/settings.json` (S1, A1, A2, M8). A missing file or field means
@@ -498,13 +544,14 @@ BottleSettings _settings(String dir) {
       gpu: (json['gpu'] ?? 'auto') as String,
       gamemode: (json['gamemode'] ?? hostPlatform.defaultGamemode) as bool,
       user: (json['user'] ?? '') as String,
+      runtime: _runtimeNamed(json['runtime'] as String?),
     );
-    _checkChoice(settings.backend);
+    _checkStored(settings.backend);
     _checkSync(settings.sync);
     _checkGpu(settings.gpu);
     _checkWindows(settings.windows);
     for (final program in settings.programs.values) {
-      if (program.backend case final backend?) _checkChoice(backend);
+      if (program.backend case final backend?) _checkStored(backend);
     }
     return settings;
   } on Object catch (e) {
@@ -525,9 +572,12 @@ void _writeJson(String path, Object value) {
     ..renameSync(path);
 }
 
-/// Only what differs from the defaults, besides backend and sync.
+/// Only what differs from the defaults, besides backend and sync. The
+/// runtime only for Mach9 bottles, so an older file keeps its bytes (I1).
 void _saveSettings(String dir, BottleSettings settings) {
   _writeJson('$dir/settings.json', {
+    if (settings.runtime != RuntimeKind.bodega)
+      'runtime': settings.runtime.name,
     'backend': settings.backend,
     'sync': settings.sync,
     'programs': {
@@ -555,7 +605,7 @@ void _saveSettings(String dir, BottleSettings settings) {
 /// removes the exception and keeps the program's variables (S1, A2).
 void setBackend(String home, String name, String backend, {String? exe}) {
   final dir = _existing(home, name);
-  _checkChoice(backend);
+  _checkChoiceFor(_bottleRuntimeIn(dir), backend);
   final settings = _settings(dir);
   final programs = settings.programs;
   if (exe != null) {
@@ -733,7 +783,9 @@ Future<void> setWindowsVersion(String home, String name, String version) async {
 
 /// Applies S2: option, then the program's exception, then the bottle, then
 /// auto. [dir] is the bottle; [exePath] is null for a program without a path.
-/// Throws if the choice is not installed (S5): it never falls back silently.
+/// Throws if the choice is not installed (S5): it never falls back silently,
+/// and [BackendNotForRuntime] for a name of the other runtime kind (MG3). On
+/// Mach9, auto stays `auto` and leaves the choice to Mach9.
 Future<({String name, String origin})> resolveBackend(
   String home,
   String dir,
@@ -741,8 +793,11 @@ Future<({String name, String origin})> resolveBackend(
   String? exePath, {
   String? option,
 }) async {
-  if (option != null) _checkChoice(option);
   final settings = _settings(dir);
+  if (_bottleRuntimeIn(dir) == RuntimeKind.mach9) {
+    return _mach9Choice(home, settings, _exeKey(program), option);
+  }
+  if (option != null) _checkChoiceFor(RuntimeKind.bodega, option);
   final exception = settings.programs[_exeKey(program)]?.backend;
   final bottle = settings.backend == 'auto' ? null : settings.backend;
   final (name, origin) = option == 'auto'
@@ -760,6 +815,7 @@ Future<({String name, String origin})> resolveBackend(
       origin: origin,
     );
   }
+  _checkChoiceFor(RuntimeKind.bodega, name);
   if (!_installed(home, name)) throw BackendNotInstalled(name);
   return (name: name, origin: origin);
 }
@@ -812,7 +868,15 @@ Future<ExeGraphics?> _readGraphics(String path) async {
 }
 
 /// 64 or 32 from the PE header, or null if [path] is not a PE on x86.
-int? _peBits(String path) {
+int? _peBits(String path) => switch (_peMachine(path)) {
+  0x8664 => 64,
+  0x14C => 32,
+  _ => null,
+};
+
+/// The machine field of a PE header (0x8664, 0x14C, 0xAA64...), or null if
+/// [path] is not a PE or is too short to say.
+int? _peMachine(String path) {
   final file = File(path).openSync();
   try {
     final dos = file.readSync(64);
@@ -821,11 +885,7 @@ int? _peBits(String path) {
     file.setPositionSync(offset);
     final pe = file.readSync(6);
     if (pe.length < 6 || pe[0] != 0x50 || pe[1] != 0x45) return null;
-    return switch (ByteData.sublistView(pe).getUint16(4, Endian.little)) {
-      0x8664 => 64,
-      0x14C => 32,
-      _ => null,
-    };
+    return ByteData.sublistView(pe).getUint16(4, Endian.little);
   } finally {
     file.closeSync();
   }
@@ -897,12 +957,21 @@ Future<List<({int bits, String d3d, bool ok, String log})>> backendTest(
   String name,
   String backend,
 ) async {
-  _existing(home, name);
-  if (!backendNames.contains(backend)) {
-    throw BadChoice(ChoiceKind.testBackend, backend);
+  final dir = _existing(home, name);
+  final kind = _bottleRuntimeIn(dir);
+  final mach9 = kind == RuntimeKind.mach9;
+  if (!backendNamesFor(kind).contains(backend)) {
+    if (RuntimeKind.values.any((k) => backendNamesFor(k).contains(backend))) {
+      throw BackendNotForRuntime(backend, kind);
+    }
+    throw BadChoice(
+      ChoiceKind.testBackend,
+      backend,
+      mach9 ? backendNamesFor(kind) : null,
+    );
   }
   // Throws with the install order if it is missing (S5).
-  await resolveBackend(home, bottleDir(home, name), 'x', null, option: backend);
+  await resolveBackend(home, dir, 'x', null, option: backend);
   final probes = Directory('$home/backends/probe')..createSync(recursive: true);
   final files = {
     64: File('${probes.path}/probe-64.exe')
@@ -910,8 +979,11 @@ Future<List<({int bits, String d3d, bool ok, String log})>> backendTest(
     32: File('${probes.path}/probe-32.exe')
       ..writeAsBytesSync(base64.decode(probe32Base64)),
   };
-  final cases = hostPlatform.probeCases(home, backend);
-  // A crash must end the run, not wait on a debugger nobody can see.
+  final cases = mach9
+      ? _mach9ProbeCases(backend)
+      : hostPlatform.probeCases(home, backend);
+  // A crash must end the run, not wait on a debugger nobody can see. On
+  // Mach9 that is a rule, as every override there (MG10).
   final overrides = backendEnv(home, backend)['WINEDLLOVERRIDES'] ?? _overrides;
   await stopBottle(home, name);
   return [
@@ -923,7 +995,10 @@ Future<List<({int bits, String d3d, bool ok, String log})>> backendTest(
           files[bits]!.path,
           [d3d],
           backend: backend,
-          extra: {'WINEDLLOVERRIDES': '$overrides;winedbg.exe=d'},
+          extra: mach9
+              ? const {}
+              : {'WINEDLLOVERRIDES': '$overrides;winedbg.exe=d'},
+          dllOverrides: mach9 ? const ['winedbg.exe='] : const [],
         );
         final code = await exitOf(log).timeout(
           const Duration(seconds: 90),

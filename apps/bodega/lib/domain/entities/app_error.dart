@@ -1,4 +1,6 @@
 import 'package:bodega/domain/entities/path_problem.dart';
+import 'package:bodega/domain/entities/runtime_block.dart';
+import 'package:bodega/domain/entities/runtime_kind.dart';
 import 'package:bodega/domain/entities/user_name_problem.dart';
 import 'package:bodega/domain/entities/wine_tool.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
@@ -109,6 +111,39 @@ sealed class AppError with _$AppError implements Exception {
 
   /// The user cancelled the D3DMetal import.
   const factory AppError.cancelled({String? detail}) = CancelledError;
+
+  // Runtimes.
+
+  /// The bottle's [runtime] is not installed.
+  const factory AppError.runtimeNotInstalled(
+    RuntimeKind runtime, {
+    String? detail,
+  }) = RuntimeNotInstalledError;
+
+  /// This host cannot run [runtime], because of [reason].
+  const factory AppError.runtimeUnavailable(
+    RuntimeKind runtime,
+    RuntimeBlock reason, {
+    String? detail,
+  }) = RuntimeUnavailableError;
+
+  /// The copy of Mach9 at [source] is not signed by its developer.
+  const factory AppError.runtimeNotTrusted(String source, {String? detail}) =
+      RuntimeNotTrustedError;
+
+  /// Mach9 [version] is older than [minimum], the first one Bodega takes.
+  const factory AppError.runtimeTooOld(
+    String version,
+    String minimum, {
+    String? detail,
+  }) = RuntimeTooOldError;
+
+  /// [backend] does not work with the bottle's [runtime].
+  const factory AppError.backendNotForRuntime(
+    String backend,
+    RuntimeKind runtime, {
+    String? detail,
+  }) = BackendNotForRuntimeError;
 
   // Programs.
 

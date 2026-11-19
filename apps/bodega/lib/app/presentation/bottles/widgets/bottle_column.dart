@@ -9,6 +9,7 @@ import 'package:bodega/app/presentation/bottles/widgets/windows_user_dialog.dart
 import 'package:bodega/app/shared/graphics_of.dart';
 import 'package:bodega/app/shared/text/backend_text.dart';
 import 'package:bodega/app/shared/text/hint_text.dart';
+import 'package:bodega/app/shared/text/runtime_text.dart';
 import 'package:bodega/app/shared/widgets/collapsible_section.dart';
 import 'package:bodega/app/shared/widgets/confirm_dialog.dart';
 import 'package:bodega/app/shared/widgets/status_chip.dart';
@@ -20,6 +21,7 @@ import 'package:bodega/device/theme/spacing.dart';
 import 'package:bodega/device/theme/typography.dart';
 import 'package:bodega/domain/entities/bottle_detail.dart';
 import 'package:bodega/domain/entities/run_hint.dart';
+import 'package:bodega/domain/entities/runtime_kind.dart';
 import 'package:bodega/l10n/l10n.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
@@ -218,7 +220,10 @@ class BottleColumn extends StatelessWidget {
     );
   }
 
-  Widget _facts(BuildContext context) {
+  /// A native bottle: Mach9's Wine, without Rosetta's options (MA7).
+  bool get _native => detail.runtime == RuntimeKind.mach9;
+
+  Widget _facts(BuildContext context, {required bool engine}) {
     final l10n = context.l10n;
     final styles = AppTextStyle(context);
     final colors = Theme.of(context).colorScheme;
@@ -252,7 +257,56 @@ class BottleColumn extends StatelessWidget {
         fact('Windows', windowsNames[detail.windows] ?? detail.windows),
         const SizedBox(width: AppSpacing.sm),
         fact(l10n.bottleGraphics, _backendName(l10n, detail.backend)),
+        if (engine) ...[
+          const SizedBox(width: AppSpacing.sm),
+          fact(l10n.bottleEngine, runtimeChipText(l10n, detail.runtime)),
+        ],
       ],
+    );
+  }
+
+  /// MB7: a native bottle without Wine Mono, and the button that installs it.
+  Widget _monoWarning(BuildContext context) {
+    final l10n = context.l10n;
+    final styles = AppTextStyle(context);
+    final colors = Theme.of(context).colorScheme;
+
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: colors.surfaceContainerHigh,
+        borderRadius: AppRadius.smBorder,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const ExcludeSemantics(
+                child: Icon(
+                  Icons.warning_amber_rounded,
+                  size: 18,
+                  color: AppColor.statusFlaky,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Text(l10n.bottleMonoMissing, style: styles.caption),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          OutlinedButton(
+            onPressed: isBusy || !detail.ready
+                ? null
+                : () => context.read<BottleDetailBloc>().add(
+                    const BottleDetailEvent.installMono(),
+                  ),
+            child: Text(l10n.bottleInstallMono),
+          ),
+        ],
+      ),
     );
   }
 
@@ -300,6 +354,7 @@ class BottleColumn extends StatelessWidget {
             context,
             bottle: name,
             backends: detail.installedBackends,
+            runtime: detail.runtime,
           ),
           enabled: detail.ready,
         ),
@@ -367,7 +422,13 @@ class BottleColumn extends StatelessWidget {
       children: [
         _identity(context, l10n.bottleStatus(status), color),
         const SizedBox(height: AppSpacing.lg),
-        _facts(context),
+        // AVX is Rosetta's own option, so a host that offers it runs
+        // bottles under Rosetta, and the engine is worth saying there.
+        _facts(context, engine: _native || caps.avx),
+        if (_native && detail.monoMissing) ...[
+          const SizedBox(height: AppSpacing.md),
+          _monoWarning(context),
+        ],
         const SizedBox(height: AppSpacing.lg),
         _quickActions(context),
         CollapsibleSection(
@@ -471,7 +532,7 @@ class BottleColumn extends StatelessWidget {
                   }
                 },
               ),
-            if (caps.dlss)
+            if (caps.dlss && !_native)
               _switch(
                 context,
                 'DLSS',
@@ -479,7 +540,7 @@ class BottleColumn extends StatelessWidget {
                 detail.dlss,
                 (value) => bloc.add(BottleDetailEvent.setDlss(value)),
               ),
-            if (caps.avx)
+            if (caps.avx && !_native)
               _switch(
                 context,
                 l10n.bottleAvx,

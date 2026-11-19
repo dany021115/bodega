@@ -121,6 +121,28 @@ AppError appErrorOf(engine.EngineFailure failure) {
       detail: detail,
     ),
     engine.Cancelled() => AppError.cancelled(detail: detail),
+    engine.RuntimeNotInstalled(:final runtime) => AppError.runtimeNotInstalled(
+      runtimeKindOf(runtime),
+      detail: detail,
+    ),
+    engine.RuntimeUnavailable(:final runtime, :final reason) =>
+      AppError.runtimeUnavailable(
+        runtimeKindOf(runtime),
+        runtimeBlockOf(reason),
+        detail: detail,
+      ),
+    engine.RuntimeNotTrusted(:final source) => AppError.runtimeNotTrusted(
+      source,
+      detail: detail,
+    ),
+    engine.RuntimeTooOld(:final version, :final minimum) =>
+      AppError.runtimeTooOld(version, minimum, detail: detail),
+    engine.BackendNotForRuntime(:final backend, :final runtime) =>
+      AppError.backendNotForRuntime(
+        backend,
+        runtimeKindOf(runtime),
+        detail: detail,
+      ),
     engine.LicenseNotAccepted() => AppError.licenseNotAccepted(detail: detail),
     engine.WineToolFailed(:final tool, :final exitCode, :final log) =>
       AppError.wineToolFailed(wineToolOf(tool), exitCode, log, detail: detail),

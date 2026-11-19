@@ -89,6 +89,18 @@ final failures = <EngineFailure>[
   const InstallerNoExe('Program Files (x86)/Steam/steam.exe', _log),
   const ProcessFailed('/usr/bin/tar -xzf x.tar.gz', 2, 'tar: bad archive\n'),
   const ProcessFailed('wine --version', null, ''),
+  for (final runtime in RuntimeKind.values) RuntimeNotInstalled(runtime),
+  for (final reason in RuntimeBlock.values)
+    RuntimeUnavailable(RuntimeKind.mach9, reason),
+  const RuntimeNotTrusted(
+    '/Applications/Mach9.app',
+    'a sealed resource is '
+        'missing or invalid',
+  ),
+  const RuntimeTooOld('0.3.1', '0.4.0'),
+  const BackendNotForRuntime('dxvk', RuntimeKind.mach9),
+  const BackendNotForRuntime('mtld3d', RuntimeKind.bodega),
+  const BadChoice(ChoiceKind.backend, 'foo', ['wine', 'dxmt', 'mtld3d']),
   ...switchFailures.keys,
 ];
 
@@ -130,6 +142,9 @@ String? hintOf(EngineFailure failure) => switch (failure) {
   BadChoice(kind: ChoiceKind.fix) => 'bodega fix list',
   AppNotFound(:final bottle, key: null) => 'bodega run $bottle',
   AlreadyInstalled(:final path) => 'rm -rf "$path"',
+  RuntimeNotInstalled(runtime: RuntimeKind.mach9) =>
+    'bodega runtime install mach9',
+  RuntimeNotInstalled() => 'bodega install <engine.tar.gz>',
   NoEmulator() => 'bodega switch emulator <path>',
   SwitchGameNotFound() => 'bodega switch list',
   SwitchGameRunning(:final path) => 'bodega switch stop "$path"',
@@ -158,7 +173,11 @@ String? hintOf(EngineFailure failure) => switch (failure) {
   InstallerNoExe() ||
   ProcessFailed() ||
   NotAnEmulator() ||
-  NotASwitchGame() => null,
+  NotASwitchGame() ||
+  RuntimeUnavailable() ||
+  RuntimeNotTrusted() ||
+  RuntimeTooOld() ||
+  BackendNotForRuntime() => null,
 };
 
 void main() {
@@ -194,10 +213,26 @@ void main() {
     }
   });
 
-  test('the list holds each of the 36 failures', () {
+  test('the list holds each of the 41 failures', () {
     expect(
       failures.map((failure) => failure.runtimeType).toSet(),
-      hasLength(36),
+      hasLength(41),
+    );
+  });
+
+  test('a choice with its own list names that list, and without it the '
+      "kind's", () {
+    expect(
+      const BadChoice(ChoiceKind.backend, 'foo', [
+        'wine',
+        'dxmt',
+        'mtld3d',
+      ]).message,
+      'unknown backend: foo (wine, dxmt, mtld3d)',
+    );
+    expect(
+      const BadChoice(ChoiceKind.runtime, 'arm').message,
+      'unknown runtime: arm (bodega, mach9)',
     );
   });
 
@@ -255,7 +290,13 @@ void main() {
     final markers = [for (final hint in LogHint.values) hint.marker];
     expect(markers, everyElement(isNotEmpty));
     expect(markers.toSet(), hasLength(LogHint.values.length));
+    expect(markers, hasLength(8));
     expect(LogHint.fixNotApplied.marker, fixNotApplied);
+    expect(LogHint.monoMissing.english, contains('bodega mono install'));
+    expect(
+      LogHint.loaderNotSigned.english,
+      contains('bodega runtime install mach9'),
+    );
   });
 
   test('each code is in English', () {
@@ -264,6 +305,8 @@ void main() {
       for (final value in UserNameProblem.values) '$value': value.english,
       for (final value in WineTool.values) '$value': value.english,
       for (final value in ChoiceKind.values) '$value': value.english,
+      for (final value in RuntimeKind.values) '$value': value.english,
+      for (final value in RuntimeBlock.values) '$value': value.english,
       'describePathProblem': describePathProblem(path),
     };
     for (final MapEntry(:key, :value) in texts.entries) {
@@ -277,9 +320,13 @@ void main() {
   });
 
   test('each step is in English, and names its subject', () {
-    for (final step in GptkStep.values) {
-      expect(step.english, isNotEmpty, reason: '$step');
-      expect(step.english, isNot(matches(spanish)), reason: '$step');
+    for (final (step, english) in [
+      for (final step in GptkStep.values) (step, step.english),
+      for (final step in Mach9Step.values) (step, step.english),
+      for (final step in BottleStep.values) (step, step.english),
+    ]) {
+      expect(english, isNotEmpty, reason: '$step');
+      expect(english, isNot(matches(spanish)), reason: '$step');
     }
     // What each kind names, as installEntry gives it; null for the others.
     const subjects = {

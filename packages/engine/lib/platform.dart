@@ -36,6 +36,9 @@ enum BackendRole {
   /// DXMT and DXVK on the Mac.
   dx10to11('DirectX 10 and 11, 32 and 64 bits'),
 
+  /// dxvk9 on the Mac: DXVK's D3D9, with DXMT behind it.
+  dx9to11('DirectX 9 with DXVK, and 10 and 11 with DXMT'),
+
   /// Wine on the Mac: what the layers do not translate.
   everythingElse(
     'everything: DirectX 9 and older, and what the others cannot run',
@@ -130,6 +133,21 @@ abstract class HostPlatform {
   bool get defaultGamemode;
   String get defaultWineDebug;
   Map<String, String> perfEnv(String bottleDir);
+
+  /// Why Mach9 cannot run here, or null when it can (MR2).
+  RuntimeBlock? get mach9Block;
+
+  /// The Team ID that signs [path], once `codesign --verify --strict` (with
+  /// [deep], the whole bundle) passes; [RuntimeNotTrusted] otherwise (MR5).
+  /// Verifies only: Bodega never signs Mach9.
+  Future<String> signingTeam(String path, {bool deep = false});
+
+  /// Copies the tree [from] to [to], which must not exist, keeping its links,
+  /// modes and dates and never following a link (MR6).
+  Future<void> copyTree(String from, String to);
+
+  /// Where a user keeps apps such as `Mach9.app` (MR4).
+  List<String> get applicationDirs;
 }
 
 /// The host in use. Tests replace it.

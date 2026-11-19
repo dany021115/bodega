@@ -16,4 +16,13 @@ enum LogHint {
 
   /// Steam was already open, so the fix of the game did not reach it.
   fixNotApplied,
+
+  /// The program needs Wine Mono, which the bottle lacks.
+  monoMissing,
+
+  /// Mach9 ignored a rule Bodega sent it.
+  rulesIgnored,
+
+  /// Mach9's copy is damaged, or this macOS cannot run it.
+  loaderNotSigned,
 }

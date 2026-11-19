@@ -14,6 +14,8 @@
 | DXMT | github.com/3Shain/dxmt | see upstream LICENSE | as a renderer overlay |
 | winetricks | github.com/Winetricks/winetricks | LGPL-2.1 | as a tool |
 | wine-mono, wine-gecko | dl.winehq.org | MIT / MPL | as Wine expects |
+| Mach9 v0.4.0 (an arm64 Wine 11.21 with FEX, mtld3d, DXMT, vkd3d-proton and its other components, each under its own licence inside the app) | github.com/athei/mach9, the pinned release's Mach9.dmg (sha256 3b5dd83e…e6d9), or the user's own Mach9.app | Zlib (© 2026 Alexander Theißen) | never; downloaded or copied by the app into the user's data folder, not modified, its signature only verified |
+| Wine Mono 11.3.0 x86, pinned with Mach9 (the version Mach9's appwiz.cpl asks for, sha256 df2dfc16…18d3) | dl.winehq.org/wine/wine-mono | MIT / MPL | never; downloaded with Mach9 and installed into each Mach9 bottle |
 | D3DMetal (Apple Game Porting Toolkit) | Apple | Apple licence | never; gated by the app |
 | Wine (WineHQ upstream, arm64 line) | dl.winehq.org/wine/source | LGPL-2.1-or-later | yes, as the arm64 engine |
 | FEX (libarm64ecfex.dll and libwow64fex.dll, built from FEX 2610 with fex/patches/, or Hangover's build) | github.com/FEX-Emu/FEX, github.com/AndreRH/hangover | MIT | yes, in the arm64 engine, as xtajit64.dll and xtajit.dll |

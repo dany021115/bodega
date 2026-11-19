@@ -59,6 +59,7 @@ void main() {
               'wine': BackendRole.everythingElse,
               'dxmt': BackendRole.dx10to11,
               'dxvk': BackendRole.dx10to11,
+              'dxvk9': BackendRole.dx9to11,
               'd3dmetal': BackendRole.dx11to12x64,
             }
           : {'wine': BackendRole.everythingSlower, 'dxvk': BackendRole.dx8to12},

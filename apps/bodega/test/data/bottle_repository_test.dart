@@ -4,9 +4,12 @@ import 'dart:io';
 import 'package:bodega/data/repository/bottle_repository_impl.dart';
 import 'package:bodega/domain/entities/app_error.dart';
 import 'package:bodega/domain/entities/bottle_detail.dart';
+import 'package:bodega/domain/entities/bottle_step.dart';
+import 'package:bodega/domain/entities/runtime_kind.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '_home.dart';
+import '_mach9.dart';
 
 void main() {
   late Directory home;
@@ -158,5 +161,92 @@ void main() {
         .getOrElse((error) => fail('$error'));
     expect(detail.name, 'games');
     expect(Directory('${home.path}/bottles/steam').existsSync(), isFalse);
+  });
+
+  group('MA4 Mach9 bottles', () {
+    useHost(() => const Mach9Mac());
+
+    test('the list and the detail say the runtime; Mono and the graphics '
+        'follow it', () async {
+      readyBottle(home.path, 'native', mach9: true);
+
+      final bottles = (await repository.list()).getOrElse((e) => fail('$e'));
+      expect(
+        {for (final b in bottles) b.name: b.runtime},
+        {'steam': RuntimeKind.bodega, 'native': RuntimeKind.mach9},
+      );
+
+      var detail = (await repository.detail('native'))
+          .getOrElse((error) => fail('$error'));
+      expect(detail.runtime, RuntimeKind.mach9);
+      expect(detail.monoMissing, isTrue);
+      expect(detail.installedBackends, isEmpty);
+
+      fakeMach9Runtime(home.path);
+      detail = (await repository.detail('native'))
+          .getOrElse((error) => fail('$error'));
+      expect(detail.installedBackends, ['wine', 'dxmt', 'mtld3d']);
+
+      final steam = (await repository.detail('steam'))
+          .getOrElse((error) => fail('$error'));
+      expect(steam.runtime, RuntimeKind.bodega);
+      expect(steam.monoMissing, isFalse);
+    });
+
+    // MA11: end to end on a fake Mach9 runtime.
+    test('create(runtime: mach9) makes the prefix, then Windows, graphics '
+        'and Mono, in that order', () async {
+      final rt = fakeMach9Runtime(home.path);
+      final steps = <BottleStep>[];
+
+      final made = await repository.create(
+        'native',
+        windows: 'win10',
+        backend: 'dxmt',
+        runtime: RuntimeKind.mach9,
+        onStep: steps.add,
+      );
+
+      expect(made.isRight(), isTrue, reason: '$made');
+      expect(steps, [BottleStep.prefix, BottleStep.mono]);
+      final prefix = '${home.path}/bottles/native/prefix';
+      expect(File('$prefix/winecfg.log').readAsStringSync(), contains('win10'));
+      expect(
+        File('$prefix/msi-args').readAsStringSync().trim(),
+        'msiexec /i ${Directory(rt).resolveSymbolicLinksSync()}'
+        '/wine-mono-11.3.0-x86.msi /qn',
+      );
+      final detail = (await repository.detail('native'))
+          .getOrElse((error) => fail('$error'));
+      expect(detail.runtime, RuntimeKind.mach9);
+      expect(detail.backend, 'dxmt');
+      expect(detail.windows, 'win10');
+      expect(detail.monoMissing, isFalse);
+      expect(detail.ready, isTrue);
+    });
+
+    test('installMono puts Mono back in a Mach9 bottle', () async {
+      fakeMach9Runtime(home.path);
+      readyBottle(home.path, 'native', mach9: true);
+
+      expect((await repository.installMono('native')).isRight(), isTrue);
+      final detail = (await repository.detail('native'))
+          .getOrElse((error) => fail('$error'));
+      expect(detail.monoMissing, isFalse);
+    });
+
+    test(
+      'create(runtime: mach9) without the runtime is runtimeNotInstalled',
+      () async {
+        expect(
+          (await repository.create(
+            'native',
+            runtime: RuntimeKind.mach9,
+          )).getLeft().toNullable(),
+          isA<RuntimeNotInstalledError>(),
+        );
+        expect(Directory('${home.path}/bottles/native').existsSync(), isFalse);
+      },
+    );
   });
 }

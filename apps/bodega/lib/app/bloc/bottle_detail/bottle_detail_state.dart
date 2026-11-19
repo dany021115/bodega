@@ -7,6 +7,9 @@ abstract class BottleDetailState with _$BottleDetailState {
     @Default(false) bool isBusy,
     @Default(false) bool deleted,
 
+    /// Wine Mono is being installed (MB7).
+    @Default(false) bool installingMono,
+
     /// The new name, once a rename has succeeded.
     String? renamedTo,
     BottleDetail? detail,

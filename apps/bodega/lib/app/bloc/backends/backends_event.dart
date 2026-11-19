@@ -5,6 +5,12 @@ sealed class BackendsEvent with _$BackendsEvent {
   const factory BackendsEvent.load() = BackendsLoadEvent;
   const factory BackendsEvent.download(String name) = BackendsDownloadEvent;
   const factory BackendsEvent.cancel() = BackendsCancelEvent;
+
+  /// MR4: installs the runtime [kind] from [file] (a `.dmg` or a
+  /// `Mach9.app`); without one, from the Mach9.app found at the pinned
+  /// version, else from the pinned download. [BackendsEvent.cancel] stops it.
+  const factory BackendsEvent.installRuntime(RuntimeKind kind, {String? file}) =
+      BackendsInstallRuntimeEvent;
   const factory BackendsEvent.installFile(String name, String tarball) =
       BackendsInstallFileEvent;
 

@@ -318,4 +318,54 @@ void main() {
       verify(() => repository.detail('steam')).called(2);
     },
   );
+
+  group('Wine Mono (MA7)', () {
+    blocTest<BottleDetailBloc, BottleDetailState>(
+      'installing it reloads the bottle',
+      build: () {
+        when(() => repository.installMono('steam'))
+            .thenAnswer((_) async => right(unit));
+        return build();
+      },
+      act: (bloc) async {
+        bloc.add(load);
+        await bloc.stream.first;
+        bloc.add(const BottleDetailEvent.installMono());
+      },
+      wait: const Duration(milliseconds: 10),
+      verify: (bloc) {
+        verify(() => repository.installMono('steam')).called(1);
+        verify(() => repository.detail('steam')).called(2);
+        expect(bloc.state.installingMono, isFalse);
+        expect(bloc.state.isBusy, isFalse);
+        expect(bloc.state.error, isNull);
+      },
+    );
+
+    blocTest<BottleDetailBloc, BottleDetailState>(
+      'a failure is kept, and the bottle is not reloaded',
+      build: () {
+        when(() => repository.installMono('steam')).thenAnswer(
+          (_) async => left(
+            const AppError.wineToolFailed(WineTool.mono, 1603, '/l/m.log'),
+          ),
+        );
+        return build();
+      },
+      act: (bloc) async {
+        bloc.add(load);
+        await bloc.stream.first;
+        bloc.add(const BottleDetailEvent.installMono());
+      },
+      wait: const Duration(milliseconds: 10),
+      verify: (bloc) {
+        verify(() => repository.detail('steam')).called(1);
+        expect(bloc.state.installingMono, isFalse);
+        expect(
+          bloc.state.error,
+          const AppError.wineToolFailed(WineTool.mono, 1603, '/l/m.log'),
+        );
+      },
+    );
+  });
 }
