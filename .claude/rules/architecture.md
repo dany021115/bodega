@@ -62,3 +62,5 @@ paths:
 - The app reads `HostCapabilities` and `HostIssue` through `RuntimeStatus`, and never imports the engine outside `data/`
 - On Linux, Wine and the dxvk layer ship in the package, at `/opt/bodega/runtime` and `/opt/bodega/backends`. `LinuxPlatform.prepareHome` registers them in `~/.local/share/bodega` by link, or by copy when running from an AppImage
 - D3D layers are copied into each prefix. A launch enables them per process with `WINEDLLOVERRIDES`
+- The runtime is chosen per bottle (`RuntimeKind`, `runtimes.dart`): `runtimes/current` is Bodega's and `runtimes/mach9` is Mach9's, and the prefix's `kernel32.dll` machine has the last word over `settings.json`. Resolve a bottle's Wine with `runtimeDir(home, bottleRuntime(home, name))`, never `currentRuntime` alone
+- Mach9 bottles get `WINE_COMPATDB` rules (`compatdbRules`) instead of `WINEDLLPATH_PREPEND` and `WINEDLLOVERRIDES`, and none of the Rosetta, MoltenVK or D3DMetal variables. `HostPlatform.mach9Block` says whether the host can run Mach9
