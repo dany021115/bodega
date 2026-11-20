@@ -2,6 +2,7 @@ import 'package:bodega/app/bloc/bottle_detail/bottle_detail_bloc.dart';
 import 'package:bodega/app/bloc/library/library_bloc.dart';
 import 'package:bodega/app/bloc/setup/setup_bloc.dart';
 import 'package:bodega/app/presentation/bottles/widgets/dependencies_section.dart';
+import 'package:bodega/app/presentation/bottles/widgets/games_section.dart';
 import 'package:bodega/app/presentation/bottles/widgets/gamepads_section.dart';
 import 'package:bodega/app/presentation/bottles/widgets/log_dialog.dart';
 import 'package:bodega/app/presentation/bottles/widgets/rename_bottle_dialog.dart';
@@ -533,6 +534,7 @@ class BottleColumn extends StatelessWidget {
           ],
         ),
         DependenciesSection(bottle: detail.name, isOpen: isOpen),
+        GamesSection(bottle: detail.name, settings: detail),
         CollapsibleSection(
           id: 'panels',
           title: l10n.bottleSectionTools,

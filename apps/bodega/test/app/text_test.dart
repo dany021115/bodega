@@ -10,6 +10,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:bloc_test/bloc_test.dart';
+import 'package:bodega/app/bloc/app_games/app_games_bloc.dart';
 import 'package:bodega/app/bloc/backends/backends_bloc.dart';
 import 'package:bodega/app/bloc/bottle_detail/bottle_detail_bloc.dart';
 import 'package:bodega/app/bloc/bottles/bottles_bloc.dart';
@@ -73,6 +74,8 @@ import 'package:bodega/domain/entities/dependency.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:bodega/app/shared/text/game_text.dart';
+import 'package:bodega/domain/entities/game.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
@@ -351,6 +354,20 @@ List<String> _switchTextProblems(_Arb en, _Arb es, List<String> keys) => [
           if (pattern.firstMatch(text) case final match?)
             '$file: $key: its $part holds "${match[0]}"',
 ];
+
+class _MockAppGames extends MockBloc<AppGamesEvent, AppGamesState>
+    implements AppGamesBloc {}
+
+/// The bottle's Games section with nothing to show.
+_MockAppGames _quietAppGames() {
+  final bloc = _MockAppGames();
+  whenListen(
+    bloc,
+    const Stream<AppGamesState>.empty(),
+    initialState: const AppGamesState(isLoading: false),
+  );
+  return bloc;
+}
 
 class _MockDependencies extends MockBloc<DependenciesEvent, DependenciesState>
     implements DependenciesBloc {}
@@ -1206,6 +1223,7 @@ void main() {
               BlocProvider<SectionsBloc>.value(value: sections),
               BlocProvider<GraphicsBloc>.value(value: graphics),
               BlocProvider<GamepadsBloc>.value(value: gamepads),
+              BlocProvider<AppGamesBloc>.value(value: _quietAppGames()),
               BlocProvider<DependenciesBloc>.value(value: _quietDependencies()),
             ],
             child: Scaffold(
@@ -1506,6 +1524,7 @@ void main() {
               BlocProvider<LibraryBloc>.value(value: library),
               BlocProvider<BottlesBloc>.value(value: bottles),
               BlocProvider<GamepadsBloc>.value(value: gamepads),
+              BlocProvider<AppGamesBloc>.value(value: _quietAppGames()),
               BlocProvider<DependenciesBloc>.value(value: _quietDependencies()),
               BlocProvider<SectionsBloc>.value(value: sections),
               BlocProvider<SetupBloc>.value(value: setup),
@@ -1727,6 +1746,7 @@ void main() {
               MultiBlocProvider(
                 providers: [
                   BlocProvider<GamepadsBloc>.value(value: gamepads),
+                  BlocProvider<AppGamesBloc>.value(value: _quietAppGames()),
                   BlocProvider<DependenciesBloc>.value(
                     value: _quietDependencies(),
                   ),
@@ -2441,6 +2461,7 @@ void main() {
                   BlocProvider<SectionsBloc>.value(value: sections),
                   BlocProvider<GraphicsBloc>.value(value: graphics),
                   BlocProvider<GamepadsBloc>.value(value: gamepads),
+                  BlocProvider<AppGamesBloc>.value(value: _quietAppGames()),
                   BlocProvider<DependenciesBloc>.value(
                     value: _quietDependencies(),
                   ),
@@ -2507,6 +2528,7 @@ void main() {
                 BlocProvider<UpdateBloc>.value(value: updates),
                 BlocProvider<InstallBloc>.value(value: install),
                 BlocProvider<SwitchBloc>.value(value: switchGames),
+                BlocProvider<AppGamesBloc>.value(value: _quietAppGames()),
                 BlocProvider<DependenciesBloc>.value(
                   value: _quietDependencies(),
                 ),
@@ -3704,5 +3726,33 @@ void main() {
       expect(en.settingLine(setting), 'Game setting: [Sound] Reverb = 0');
       expect(es.settingLine(setting), 'Ajuste del juego: [Sound] Reverb = 0');
     });
+  });
+
+  // A6: every code of the game configurations has its words, in both
+  // languages.
+  test('every game code is worded, in English and in Spanish (A6)', () {
+    for (final l10n in [en, es]) {
+      final words = [
+        for (final status in GameStatus.values) l10n.gameStatusOf(status),
+        for (final rating in [...GameRating.values, null])
+          l10n.ratingOf(rating),
+        for (final verdict in GameVerdict.values) l10n.verdictOf(verdict),
+        for (final kind in GameMatchKind.values) l10n.matchOf(kind, 'Game'),
+        for (final origin in BackendOrigin.values) l10n.originOf(origin),
+        for (final verdict in AntiCheatVerdict.values)
+          l10n.antiCheatOf(verdict, ['VAC']),
+        for (final kind in GameStepKind.values)
+          l10n.stepOf(GameStep(kind: kind, name: 'N', value: 'V')),
+      ];
+      for (final word in words) {
+        expect(word.trim(), isNotEmpty);
+      }
+      expect(words.toSet().length, greaterThan(words.length - 4));
+    }
+    expect(es.gamesMatchTitle('Portal 2'), contains('Portal 2'));
+    expect(
+      es.gamesReports(1, es.gamesRatingWorks, '2026-11-11'),
+      isNot(contains('reports')),
+    );
   });
 }

@@ -2804,5 +2804,339 @@
   "bottleDxvkAsyncNote": "With DXVK: less stutter, though some objects may show a moment late.",
   "@bottleDxvkAsyncNote": {
     "description": "Under the async shader switch: what it changes."
+  },
+  "navGames": "Games",
+  "@navGames": {
+    "description": "Sidebar entry: the game configurations page."
+  },
+  "gamesTitle": "Game configurations",
+  "@gamesTitle": {
+    "description": "Title of the Games page."
+  },
+  "gamesIntro": "What Bodega knows about each game: the backend that worked, its anti-cheat, and how players rated it. A game in one of your bottles gets its configuration when it starts, unless you set something else by hand.",
+  "@gamesIntro": {
+    "description": "Under the Games page's title."
+  },
+  "gamesSearchHint": "Search games",
+  "@gamesSearchHint": {
+    "description": "Hint of the Games page's search field."
+  },
+  "gamesNoMatch": "No game matches.",
+  "@gamesNoMatch": {
+    "description": "On the Games page when the search and filters leave nothing."
+  },
+  "gamesRatingWorks": "Works",
+  "@gamesRatingWorks": {
+    "description": "How a game runs: most players said it works well. Also a choice of the report dialog."
+  },
+  "gamesRatingPlayable": "Playable",
+  "@gamesRatingPlayable": {
+    "description": "How a game runs: it can be played, with problems. Also a choice of the report dialog."
+  },
+  "gamesRatingBroken": "Broken",
+  "@gamesRatingBroken": {
+    "description": "How a game runs: it does not get far enough to play. Also a choice of the report dialog."
+  },
+  "gamesRatingBlocked": "Blocked",
+  "@gamesRatingBlocked": {
+    "description": "How a game runs: its anti-cheat or its publisher keeps it from working."
+  },
+  "gamesRatingNone": "No reports",
+  "@gamesRatingNone": {
+    "description": "Filter chip and chip: no player has rated the game yet."
+  },
+  "gamesStatusVerified": "Tested on Bodega",
+  "@gamesStatusVerified": {
+    "description": "Chip: Bodega's own configuration, tested on Bodega."
+  },
+  "gamesStatusCommunity": "Community",
+  "@gamesStatusCommunity": {
+    "description": "Chip: a configuration from highball-db's players, not tested on Bodega."
+  },
+  "gamesStatusBlocked": "Won't run",
+  "@gamesStatusBlocked": {
+    "description": "Chip: anti-cheat or the publisher keeps the game from running under Wine."
+  },
+  "gamesAntiCheatBlocked": "{names}: online play won't work on the Mac.",
+  "@gamesAntiCheatBlocked": {
+    "description": "Banner on a game's page and row: its anti-cheat blocks it on the Mac. names are the anti-cheats, as they are named.",
+    "placeholders": {
+      "names": {
+        "type": "String",
+        "example": "Easy Anti-Cheat"
+      }
+    }
+  },
+  "gamesAntiCheatWarning": "{names}: online play may not work on the Mac.",
+  "@gamesAntiCheatWarning": {
+    "description": "Banner on a game's page and row: its anti-cheat may get in the way on the Mac. names are the anti-cheats, as they are named.",
+    "placeholders": {
+      "names": {
+        "type": "String",
+        "example": "VAC"
+      }
+    }
+  },
+  "gamesReports": "{count, plural, =1{1 report, rated {rating}} other{{count} reports, mostly {rating}}}; the last on {date}.",
+  "@gamesReports": {
+    "description": "On a game's page: how many players reported it, the median of their ratings (gamesRatingWorks and the others, lowercase is not needed), and the day of the last report.",
+    "placeholders": {
+      "count": {
+        "type": "int",
+        "example": "3"
+      },
+      "rating": {
+        "type": "String",
+        "example": "Playable"
+      },
+      "date": {
+        "type": "String",
+        "example": "2026-11-11"
+      }
+    }
+  },
+  "gamesReportsSource": "From Highball's players, on other Wine builds than Bodega's.",
+  "@gamesReportsSource": {
+    "description": "Under the reports line: where those reports come from."
+  },
+  "gamesNoReports": "No player has reported this game yet.",
+  "@gamesNoReports": {
+    "description": "On a game's page with no reports."
+  },
+  "gamesNativeMac": "It also has a native Mac version, which needs no Wine.",
+  "@gamesNativeMac": {
+    "description": "On a game's page."
+  },
+  "gamesChangesTitle": "What it changes here",
+  "@gamesChangesTitle": {
+    "description": "Heading on a game's page: what its configuration does on this computer."
+  },
+  "gamesChangesNone": "Nothing on this computer.",
+  "@gamesChangesNone": {
+    "description": "Under gamesChangesTitle when the configuration has nothing for this host."
+  },
+  "gamesStepBackend": "Backend: {name}",
+  "@gamesStepBackend": {
+    "description": "One change of a configuration: the graphics backend. name is its name, as Bodega names it.",
+    "placeholders": {
+      "name": {
+        "type": "String",
+        "example": "dxmt"
+      }
+    }
+  },
+  "gamesStepVariable": "Variable {name}={value}",
+  "@gamesStepVariable": {
+    "description": "One change of a configuration: an environment variable.",
+    "placeholders": {
+      "name": {
+        "type": "String",
+        "example": "DXVK_CONFIG"
+      },
+      "value": {
+        "type": "String",
+        "example": "dxgi.maxFrameRate=60"
+      }
+    }
+  },
+  "gamesStepOverride": "DLL override {value}",
+  "@gamesStepOverride": {
+    "description": "One change of a configuration: a DLL override, as Wine writes it.",
+    "placeholders": {
+      "value": {
+        "type": "String",
+        "example": "xaudio2_7=n,b"
+      }
+    }
+  },
+  "gamesStepRegistry": "Registry: {name} = {value}",
+  "@gamesStepRegistry": {
+    "description": "One change of a configuration: a registry value. name is the value's name, value its data.",
+    "placeholders": {
+      "name": {
+        "type": "String",
+        "example": "EmulateModeset"
+      },
+      "value": {
+        "type": "String",
+        "example": "y"
+      }
+    }
+  },
+  "gamesStepSettingsFile": "Game setting {name} = {value}, applied when you ask",
+  "@gamesStepSettingsFile": {
+    "description": "One change of a configuration: a line of the game's own settings file, which Bodega changes only when the user asks.",
+    "placeholders": {
+      "name": {
+        "type": "String",
+        "example": "[Sound] Reverb"
+      },
+      "value": {
+        "type": "String",
+        "example": "0"
+      }
+    }
+  },
+  "gamesStepRuntime": "Runtime: {name}",
+  "@gamesStepRuntime": {
+    "description": "One change of a configuration: a Windows runtime it needs, offered in the Dependencies section. name is the runtime's id.",
+    "placeholders": {
+      "name": {
+        "type": "String",
+        "example": "vcrun2022"
+      }
+    }
+  },
+  "gamesNotesHighball": "From highball-db, in English",
+  "@gamesNotesHighball": {
+    "description": "Label over a game's notes and known issues, which are shown as highball-db wrote them, in English."
+  },
+  "gamesNotesBodega": "From Bodega, in English",
+  "@gamesNotesBodega": {
+    "description": "Label over the notes of Bodega's own configurations, kept in English."
+  },
+  "gamesKnownIssues": "Known issues",
+  "@gamesKnownIssues": {
+    "description": "Heading on a game's page."
+  },
+  "gamesSourceHighball": "Source: highball-db (CC0-1.0).",
+  "@gamesSourceHighball": {
+    "description": "On a game's page: where its configuration comes from, and its license."
+  },
+  "gamesSourceBodega": "Source: Bodega's own configurations, tested on Bodega.",
+  "@gamesSourceBodega": {
+    "description": "On a game's page, for Bodega's own entries."
+  },
+  "gamesSourceOpen": "Open its entry",
+  "@gamesSourceOpen": {
+    "description": "Button on a game's page: opens the game's file in highball-db, in the browser."
+  },
+  "gamesAllGames": "All games",
+  "@gamesAllGames": {
+    "description": "Back button on a game's page."
+  },
+  "gamesSectionTitle": "Games",
+  "@gamesSectionTitle": {
+    "description": "Section of a bottle's page: what each app gets when it starts."
+  },
+  "gamesSectionIntro": "What each app gets when it starts: its game's configuration, or what Bodega reads in its exe.",
+  "@gamesSectionIntro": {
+    "description": "Under the bottle's Games section title."
+  },
+  "gamesMatchSteam": "{game} · by its Steam app",
+  "@gamesMatchSteam": {
+    "description": "Under an app in the bottle's Games section: the game it was matched to, by its Steam app id.",
+    "placeholders": {
+      "game": {
+        "type": "String",
+        "example": "Hogwarts Legacy"
+      }
+    }
+  },
+  "gamesMatchExe": "{game} · by its exe's name",
+  "@gamesMatchExe": {
+    "description": "Under an app in the bottle's Games section: the game it was matched to, by the name of its exe.",
+    "placeholders": {
+      "game": {
+        "type": "String",
+        "example": "Blur"
+      }
+    }
+  },
+  "gamesMatchTitle": "{game} · by its name: check it's the right game",
+  "@gamesMatchTitle": {
+    "description": "Under an app in the bottle's Games section: the game it was matched to, by its title only.",
+    "placeholders": {
+      "game": {
+        "type": "String",
+        "example": "Portal 2"
+      }
+    }
+  },
+  "gamesAutomatic": "Automatic configuration",
+  "@gamesAutomatic": {
+    "description": "Under an app in the bottle's Games section that no configuration matches."
+  },
+  "gamesBackendFrom": "{backend}, {origin}",
+  "@gamesBackendFrom": {
+    "description": "An app's backend at launch and where it comes from (gamesOrigin…).",
+    "placeholders": {
+      "backend": {
+        "type": "String",
+        "example": "dxmt"
+      },
+      "origin": {
+        "type": "String",
+        "example": "from the game's configuration"
+      }
+    }
+  },
+  "gamesOriginOption": "for this launch",
+  "@gamesOriginOption": {
+    "description": "Where an app's backend comes from: the launch's own option."
+  },
+  "gamesOriginExe": "set for this program",
+  "@gamesOriginExe": {
+    "description": "Where an app's backend comes from: the program's exception."
+  },
+  "gamesOriginBottle": "set for the bottle",
+  "@gamesOriginBottle": {
+    "description": "Where an app's backend comes from: the bottle's own backend."
+  },
+  "gamesOriginConfig": "from the game's configuration",
+  "@gamesOriginConfig": {
+    "description": "Where an app's backend comes from: the game's configuration."
+  },
+  "gamesOriginAuto": "chosen from the exe",
+  "@gamesOriginAuto": {
+    "description": "Where an app's backend comes from: what Bodega reads in the exe."
+  },
+  "gamesUseConfig": "Use this game's configuration",
+  "@gamesUseConfig": {
+    "description": "Switch on an app in the bottle's Games section. Off, the app gets nothing from it, and the registry values it wrote are removed."
+  },
+  "gamesOpenPage": "Open page",
+  "@gamesOpenPage": {
+    "description": "Button on an app in the bottle's Games section: opens its game's page."
+  },
+  "gamesReport": "Report how it ran",
+  "@gamesReport": {
+    "description": "Button on an app in the bottle's Games section: opens the report dialog."
+  },
+  "gamesYouSaid": "You said: {verdict}",
+  "@gamesYouSaid": {
+    "description": "On an app in the bottle's Games section: what the user reported (gamesRatingWorks and the others).",
+    "placeholders": {
+      "verdict": {
+        "type": "String",
+        "example": "Playable"
+      }
+    }
+  },
+  "gamesNoApps": "This bottle has no apps yet.",
+  "@gamesNoApps": {
+    "description": "In the bottle's Games section when it has no apps."
+  },
+  "gamesReportTitle": "How did {game} run?",
+  "@gamesReportTitle": {
+    "description": "Title of the report dialog.",
+    "placeholders": {
+      "game": {
+        "type": "String",
+        "example": "Hogwarts Legacy"
+      }
+    }
+  },
+  "gamesReportNote": "Anything worth saying (optional)",
+  "@gamesReportNote": {
+    "description": "Field of the report dialog."
+  },
+  "gamesReportExplain": "Bodega saves your answer and opens a GitHub form in your browser, filled in with it, the backend and your system's versions. Nothing is sent until you submit it there, with your own account.",
+  "@gamesReportExplain": {
+    "description": "In the report dialog: what Send does."
+  },
+  "gamesReportSend": "Open the form",
+  "@gamesReportSend": {
+    "description": "Button of the report dialog: saves the answer and opens the form in the browser."
   }
 }
