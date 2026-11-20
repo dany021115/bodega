@@ -421,7 +421,16 @@ typedef BottleSettings = ({
 
   /// The Windows user name its games see (U1); empty for the host's.
   String user,
+
+  /// The app keys whose game configuration is off (G6).
+  Set<String> configOff,
+
+  /// What the user said of each app: `works`, `playable` or `broken` (G6).
+  Map<String, String> verdicts,
 });
+
+/// What [setGameVerdict] admits.
+const gameVerdicts = ['works', 'playable', 'broken'];
 
 /// What [setWindowsVersion] admits, newest first.
 const windowsVersions = ['win11', 'win10', 'win81', 'win7'];
@@ -443,6 +452,8 @@ BottleSettings get _defaults => (
   gpu: 'auto',
   gamemode: hostPlatform.defaultGamemode,
   user: '',
+  configOff: {},
+  verdicts: {},
 );
 
 /// [settings] with these fields changed: records have no `copyWith`.
@@ -461,6 +472,8 @@ BottleSettings _with(
   String? gpu,
   bool? gamemode,
   String? user,
+  Set<String>? configOff,
+  Map<String, String>? verdicts,
 }) => (
   backend: backend ?? settings.backend,
   sync: sync ?? settings.sync,
@@ -475,13 +488,23 @@ BottleSettings _with(
   gpu: gpu ?? settings.gpu,
   gamemode: gamemode ?? settings.gamemode,
   user: user ?? settings.user,
+  configOff: configOff ?? settings.configOff,
+  verdicts: verdicts ?? settings.verdicts,
 );
 
 /// `bottles/<b>/settings.json` (S1, A1, A2, M8). A missing file or field means
 /// its default; a broken one is an error, never ignored.
 BottleSettings _settings(String dir) {
   final file = File('$dir/settings.json');
-  if (!file.existsSync()) return _with(_defaults, programs: {}, env: {});
+  if (!file.existsSync()) {
+    return _with(
+      _defaults,
+      programs: {},
+      env: {},
+      configOff: {},
+      verdicts: {},
+    );
+  }
   try {
     final json = jsonDecode(file.readAsStringSync()) as Map<String, dynamic>;
     final programs = (json['programs'] ?? <String, dynamic>{}) as Map;
@@ -506,17 +529,28 @@ BottleSettings _settings(String dir) {
       gpu: (json['gpu'] ?? 'auto') as String,
       gamemode: (json['gamemode'] ?? hostPlatform.defaultGamemode) as bool,
       user: (json['user'] ?? '') as String,
+      configOff: Set<String>.from((json['configOff'] ?? const []) as List),
+      verdicts: Map<String, String>.from(
+        (json['verdicts'] ?? const {}) as Map,
+      ),
     );
     _checkChoice(settings.backend);
     _checkSync(settings.sync);
     _checkGpu(settings.gpu);
     _checkWindows(settings.windows);
+    settings.verdicts.values.forEach(_checkVerdict);
     for (final program in settings.programs.values) {
       if (program.backend case final backend?) _checkChoice(backend);
     }
     return settings;
   } on Object catch (e) {
     throw CorruptData(file.path, '$e');
+  }
+}
+
+void _checkVerdict(String verdict) {
+  if (!gameVerdicts.contains(verdict)) {
+    throw BadChoice(ChoiceKind.verdict, verdict);
   }
 }
 
@@ -557,6 +591,9 @@ void _saveSettings(String dir, BottleSettings settings) {
     if (settings.gamemode != hostPlatform.defaultGamemode)
       'gamemode': settings.gamemode,
     if (settings.user.isNotEmpty) 'user': settings.user,
+    if (settings.configOff.isNotEmpty)
+      'configOff': [...settings.configOff]..sort(),
+    if (settings.verdicts.isNotEmpty) 'verdicts': settings.verdicts,
   });
 }
 
@@ -743,14 +780,17 @@ Future<void> setWindowsVersion(String home, String name, String version) async {
 }
 
 /// Applies S2: option, then the program's exception, then the bottle, then
-/// auto. [dir] is the bottle; [exePath] is null for a program without a path.
-/// Throws if the choice is not installed (S5): it never falls back silently.
+/// the game's [config] (G5), then auto. [dir] is the bottle; [exePath] is null
+/// for a program without a path. Throws if a choice the user made is not
+/// installed (S5): it never falls back silently. A [config] that is not
+/// installed is only a suggestion, so auto decides.
 Future<({String name, String origin})> resolveBackend(
   String home,
   String dir,
   String program,
   String? exePath, {
   String? option,
+  String? config,
 }) async {
   if (option != null) _checkChoice(option);
   final settings = _settings(dir);
@@ -764,6 +804,8 @@ Future<({String name, String origin})> resolveBackend(
       ? (exception, 'exe')
       : bottle != null
       ? (bottle, 'bottle')
+      : config != null && _installed(home, config)
+      ? (config, 'config')
       : (null, 'auto');
   if (name == null) {
     return (

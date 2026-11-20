@@ -1,3 +1,4 @@
+import 'package:bodega/app/bloc/app_games/app_games_bloc.dart';
 import 'package:bodega/app/bloc/bottle_detail/bottle_detail_bloc.dart';
 import 'package:bodega/app/bloc/dependencies/dependencies_bloc.dart';
 import 'package:bodega/app/bloc/bottles/bottles_bloc.dart';
@@ -51,6 +52,7 @@ class BottleDetailPage extends StatelessWidget {
         BlocProvider(
           create: (_) => getIt<GamepadsBloc>()..add(const GamepadsEvent.load()),
         ),
+        BlocProvider(create: (_) => getIt<AppGamesBloc>()),
       ],
       child: BottleDetailView(name: name),
     );

@@ -1,4 +1,5 @@
 import 'package:bloc_test/bloc_test.dart';
+import 'package:bodega/app/bloc/app_games/app_games_bloc.dart';
 import 'package:bodega/app/bloc/bottle_detail/bottle_detail_bloc.dart';
 import 'package:bodega/app/bloc/bottles/bottles_bloc.dart';
 import 'package:bodega/app/bloc/gamepads/gamepads_bloc.dart';
@@ -65,6 +66,20 @@ BottleDetail _detail({bool ready = true, int apps = 8}) => BottleDetail(
   apps: [for (var i = 0; i < apps; i++) _app(i, inLibrary: i.isEven)],
   installedBackends: const ['dxvk', 'vkd3d'],
 );
+
+class _MockAppGames extends MockBloc<AppGamesEvent, AppGamesState>
+    implements AppGamesBloc {}
+
+/// The bottle's Games section with nothing to show.
+_MockAppGames _quietAppGames() {
+  final bloc = _MockAppGames();
+  whenListen(
+    bloc,
+    const Stream<AppGamesState>.empty(),
+    initialState: const AppGamesState(isLoading: false),
+  );
+  return bloc;
+}
 
 class _MockDependencies extends MockBloc<DependenciesEvent, DependenciesState>
     implements DependenciesBloc {}
@@ -143,6 +158,7 @@ void main() {
             BlocProvider<GamepadsBloc>.value(value: gamepads),
             BlocProvider<SectionsBloc>.value(value: sections),
             BlocProvider<SetupBloc>.value(value: setup),
+            BlocProvider<AppGamesBloc>.value(value: _quietAppGames()),
             BlocProvider<DependenciesBloc>.value(value: _quietDependencies()),
             BlocProvider<ViewModeBloc>.value(value: viewMode),
             BlocProvider<GraphicsBloc>.value(value: graphics),

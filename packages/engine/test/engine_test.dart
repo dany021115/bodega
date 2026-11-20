@@ -17,7 +17,7 @@ wineboot)
   d=$WINEPREFIX/drive_c/windows/syswow64
   mkdir -p "$d" && touch "$d/kernel32.dll" "$WINEPREFIX/system.reg" ;;
 reg)
-  case "$*" in *FAIL*) exit 3 ;; esac
+  case "$*" in *FAIL*) exit 3 ;; *GONE*) exit 1 ;; esac
   # printf, not echo: sh's echo reads \v in AppDefaults\vcrun… as a tab.
   printf '%s\n' "$*" >>"$WINEPREFIX/reg.log"
   # As Wine's server does, it outlives the last program for a while.

@@ -387,7 +387,7 @@ Future<String> openApp(
       ? apps.first
       : apps.where((app) => app.key == key).firstOrNull ??
             (throw AppNotFound(bottle, key));
-  final fix = fixForApp(app.key);
+  final fix = _gameIn(_existing(home, bottle), app)?.fix;
   // A Steam already open starts the game with its own environment, so the
   // fix's variables would not reach it: the log says so instead of hiding it.
   final missed =
@@ -396,7 +396,7 @@ Future<String> openApp(
   return _launchIn(
     home,
     bottle,
-    app.exe.startsWith('/') ? app.exe : 'C:\\${app.exe.replaceAll('/', r'\')}',
+    _appProgram(app),
     app.args,
     backend: backend,
     hud: hud,
