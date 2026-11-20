@@ -229,6 +229,29 @@ Future<String> runInBottle(
   );
 }
 
+/// Where [program] runs from: the exe Wine gets, its folder, and the file
+/// [exeGraphics] reads (null for a program without a path, like `reg`).
+({String exe, String cwd, String? scan}) _programPaths(
+  String drive,
+  String program,
+) {
+  if (program.contains('/')) {
+    final exe = File(program).resolveSymbolicLinksSync();
+    if (winPathProblem(exe) case final problem?) throw BadWindowsPath(problem);
+    return (exe: exe, cwd: File(exe).parent.path, scan: exe);
+  }
+  if (program.toLowerCase().startsWith(r'c:\')) {
+    final scan = findCI(drive, program.substring(3).replaceAll(r'\', '/'));
+    final folder = File(scan).parent;
+    return (
+      exe: program,
+      cwd: folder.existsSync() ? folder.path : drive,
+      scan: scan,
+    );
+  }
+  return (exe: program, cwd: drive, scan: null);
+}
+
 Future<String> _launchIn(
   String home,
   String name,
@@ -249,24 +272,14 @@ Future<String> _launchIn(
   final prefix = '$dir/prefix';
   final drive = '$prefix/drive_c';
   if (!_ready(prefix)) throw BottleNotReady(name);
-  var exe = program, cwd = drive;
-  String? scan;
-  if (program.contains('/')) {
-    exe = File(program).resolveSymbolicLinksSync();
-    if (winPathProblem(exe) case final problem?) throw BadWindowsPath(problem);
-    cwd = File(exe).parent.path;
-    scan = exe;
-  } else if (program.toLowerCase().startsWith(r'c:\')) {
-    scan = findCI(drive, program.substring(3).replaceAll(r'\', '/'));
-    final folder = File(scan).parent;
-    if (folder.existsSync()) cwd = folder.path;
-  }
+  final (:exe, :cwd, :scan) = _programPaths(drive, program);
   final choice = await resolveBackend(
     home,
     dir,
     program,
     scan,
     option: backend,
+    config: fix?.backend,
   );
   final tag =
       label ??

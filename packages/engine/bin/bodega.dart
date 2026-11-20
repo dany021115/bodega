@@ -28,6 +28,8 @@ usage: bodega install <engine.tar.gz> <hostlibs.tar.gz>
        bodega fix list [text]
        bodega fix show <id|steam-appid>
        bodega fix apply <bottle> <id>
+       bodega game show <bottle> <key>
+       bodega game use <bottle> <key> on|off
        bodega deps list <bottle>
        bodega deps check <bottle> <key>
        bodega deps install <bottle> <id> <x86|x64|all> [file…]
@@ -116,7 +118,7 @@ Future<void> main(List<String> args) async {
               home,
               open.bottle,
             ).where((app) => app.key == open.key).firstOrNull;
-      final fix = app == null ? null : fixForApp(app.key);
+      final fix = app == null ? null : gameFor(app)?.fix;
       if (fix != null) {
         stdout.writeln(
           'fix: ${fix.title}, ${_stepsHere(fix)}'
@@ -183,6 +185,17 @@ Future<void> main(List<String> args) async {
       stdout.writeln('applied: ${gameFix(id).title}');
       return 0;
     },
+    ['game', 'show', final bottle, final key] => (home) async {
+      _showPlan(await gamePlan(home, bottle, key));
+      return 0;
+    },
+    ['game', 'use', final bottle, final key, final state]
+        when state == 'on' || state == 'off' =>
+      (home) async {
+        await setGameConfig(home, bottle, key, on: state == 'on');
+        stdout.writeln('$state: $key');
+        return 0;
+      },
     ['deps', ...final rest] => depsVerb(rest, stdout),
     ['catalog', 'install', final id, ...final rest] when rest.length < 2 =>
       (home) async {
@@ -370,7 +383,19 @@ void _showFix(GameFix fix) {
       '${fix.title} (${fix.id}), '
       '${fix.steam == null ? 'exe ${fix.exes.join(', ')}' : 'Steam ${fix.steam}'}',
     )
-    ..writeln(_stepsHere(fix) + (fix.optIn ? '; $_optIn' : ''));
+    ..writeln(_stepsHere(fix) + (fix.optIn ? '; $_optIn' : ''))
+    ..writeln('status: ${fix.status}')
+    ..writeln(
+      'backend: ${fix.backend ?? 'none here'}'
+      '${fix.backends.isEmpty ? '' : ' (${fix.backends.entries.map((e) => '${e.key} ${e.value}').join(', ')})'}',
+    );
+  if (fix.antiCheat case (:final names, :final verdict)) {
+    stdout.writeln('anti-cheat: ${names.join(', ')}, $verdict on the Mac');
+  }
+  if (fix.reports case (:final count, :final median, :final last)) {
+    stdout.writeln('reports: $count, median $median/5, last $last');
+  }
+  if (fix.nativeMac) stdout.writeln('native mac: yes');
   if (fix.requires.isNotEmpty) {
     stdout.writeln('needs: ${fix.requires.join(', ')}');
   }
@@ -403,6 +428,43 @@ void _showFix(GameFix fix) {
     'source: $source; '
     'verified: ${verified == null ? 'no' : '${verified['date']} on ${verified['chip']}'}',
   );
+}
+
+/// What a launch of the app gets (G7), one line per thing.
+void _showPlan(GamePlan plan) {
+  final match = plan.match;
+  stdout
+    ..writeln(
+      !plan.on
+          ? 'match: off'
+          : match == null
+          ? 'match: none (automatic)'
+          : 'match: ${match.fix.title} (${match.fix.id}), '
+                'by ${match.by.name}, ${match.fix.status}',
+    )
+    ..writeln('backend: ${plan.backend.name} (${plan.backend.origin})');
+  if (plan.graphics case final graphics?) {
+    stdout.writeln(
+      'graphics: ${graphics.directx.isEmpty ? 'no DirectX' : graphics.directx}'
+      ', ${graphics.bits}-bit',
+    );
+  }
+  plan.env.forEach((name, value) => stdout.writeln('env: $name=$value'));
+  for (final value in plan.overrides) {
+    stdout.writeln('override: $value');
+  }
+  for (final step in plan.registry) {
+    stdout.writeln('registry: ${step.key} ${step.name} = ${step.data}');
+  }
+  for (final step in plan.ini) {
+    stdout.writeln(
+      'ini: [${step.section}] ${step.name}=${step.data} in ${step.file}',
+    );
+  }
+  if (plan.requires.isNotEmpty) {
+    stdout.writeln('requires: ${plan.requires.join(', ')}');
+  }
+  if (plan.verdict case final verdict?) stdout.writeln('you said: $verdict');
 }
 
 Future<void> _hints(String log) async {

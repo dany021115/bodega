@@ -337,6 +337,7 @@ final class BadChoice extends EngineFailure {
     ChoiceKind.catalogApp => 'bodega catalog list',
     ChoiceKind.fix => 'bodega fix list',
     ChoiceKind.dependency => 'bodega deps list <bottle>',
+    ChoiceKind.verdict => gameVerdicts.join(', '),
   };
 }
 
@@ -513,7 +514,10 @@ enum ChoiceKind {
   fix('fix'),
 
   /// A runtime of [dependencyTable] and an arch, `x86` or `x64`.
-  dependency('dependency');
+  dependency('dependency'),
+
+  /// What the user said of a game: one of [gameVerdicts].
+  verdict('verdict');
 
   const ChoiceKind(this.english);
 

@@ -80,9 +80,72 @@ class GameFix {
       source = json['source'] as String,
       verified = json['verified'] == null
           ? null
-          : Map<String, String?>.from(json['verified'] as Map);
+          : Map<String, String?>.from(json['verified'] as Map),
+      status = (json['status'] ?? 'community') as String,
+      backends = Map<String, String>.from(
+        (json['backends'] ?? const <String, String>{}) as Map,
+      ),
+      antiCheat = switch (json['antiCheat']) {
+        null => null,
+        final cheat => (
+          names: List<String>.from(cheat['names'] as List),
+          verdict: cheat['verdict'] as String,
+        ),
+      },
+      reports = switch (json['reports']) {
+        null => null,
+        final reports => (
+          count: reports['count'] as int,
+          median: reports['median'] as int,
+          last: reports['last'] as String,
+        ),
+      },
+      nativeMac = (json['nativeMac'] ?? false) as bool {
+    if (!const {'verified', 'community', 'blocked'}.contains(status)) {
+      throw CorruptData(source, '$id: unknown status $status');
+    }
+    if (antiCheat case (verdict: final verdict, names: _)
+        when verdict != 'warning' && verdict != 'blocked') {
+      throw CorruptData(source, '$id: unknown anti-cheat verdict $verdict');
+    }
+  }
 
   final String id, title, source;
+
+  /// `verified` (on Bodega), `community` (from highball-db's players) or
+  /// `blocked` (anti-cheat or its publisher keeps it from working).
+  final String status;
+
+  /// The backend that worked, by platform id: highball-db's are the Mac's.
+  final Map<String, String> backends;
+
+  /// The anti-cheat's names and highball-db's verdict for the Mac: `warning`
+  /// or `blocked`.
+  final ({List<String> names, String verdict})? antiCheat;
+
+  /// How many players reported a rating from 1 to 5, its median and the day
+  /// of the last report.
+  final ({int count, int median, String last})? reports;
+
+  /// Whether the game also has a native Mac version.
+  final bool nativeMac;
+
+  /// The backend this host gets: only one it has.
+  String? get backend => switch (backends[hostPlatform.id]) {
+    final name? when backendNames.contains(name) => name,
+    _ => null,
+  };
+
+  /// `blocked`, or from the reports' median: `works` (4 or 5), `playable` (3)
+  /// or `broken` (1 or 2); null with no reports.
+  String? get rating => status == 'blocked'
+      ? 'blocked'
+      : switch (reports?.median) {
+          null => null,
+          >= 4 => 'works',
+          3 => 'playable',
+          _ => 'broken',
+        };
 
   /// Null for a game that is matched by its exe's name instead (D7).
   final int? steam;
@@ -115,20 +178,27 @@ class GameFix {
   bool get needsLaunchEnv => active.any((step) => step.type != 'registry');
 }
 
-/// The fixes in file order, the generated ones and then Bodega's (D7),
-/// filtered by [query] on id and title.
-List<GameFix> gameFixes([String query = '']) {
-  final text = query.toLowerCase();
+/// The parsed data, kept while both sources stay the same strings.
+({String fixes, String bodegas, List<GameFix> all})? _parsed;
+
+List<GameFix> _allFixes() {
+  if (_parsed case final parsed?
+      when identical(parsed.fixes, fixesSource) &&
+          identical(parsed.bodegas, bodegaFixesSource)) {
+    return parsed.all;
+  }
   final all = [
     for (final json in jsonDecode(fixesSource) as List)
       GameFix.fromJson(json as Map<String, dynamic>),
   ];
-  final ids = {for (final fix in all) fix.id};
+  // Bodega's own entry, verified here, replaces highball-db's of that id.
+  final ids = <String>{};
   for (final json in jsonDecode(bodegaFixesSource) as List) {
     final fix = GameFix.fromJson(json as Map<String, dynamic>, _bodegas);
     if (!ids.add(fix.id)) {
       throw CorruptData(_bodegas, 'the id ${fix.id} is there twice');
     }
+    all.removeWhere((other) => other.id == fix.id);
     for (final id in fix.requires) {
       if (!dependencyTable.any((row) => row.id == id)) {
         throw CorruptData(_bodegas, '${fix.id} requires $id, which is unknown');
@@ -136,14 +206,27 @@ List<GameFix> gameFixes([String query = '']) {
     }
     all.add(fix);
   }
-  return all.where((fix) {
+  _parsed = (
+    fixes: fixesSource,
+    bodegas: bodegaFixesSource,
+    all: List.unmodifiable(all),
+  );
+  return _parsed!.all;
+}
+
+/// The fixes in file order, the generated ones and then Bodega's (D7),
+/// filtered by [query] on id and title.
+List<GameFix> gameFixes([String query = '']) {
+  final text = query.toLowerCase();
+  return _allFixes().where((fix) {
     return fix.id.contains(text) || fix.title.toLowerCase().contains(text);
   }).toList();
 }
 
-/// The fix of a Steam game, or null if there is none.
+/// The fix of a Steam game, or null if there is none. Bodega's own come
+/// first.
 GameFix? fixForSteamApp(int appid) =>
-    gameFixes().where((fix) => fix.steam == appid).firstOrNull;
+    _matchOrder().where((fix) => fix.steam == appid).firstOrNull;
 
 /// A fix by id or by Steam app id.
 GameFix gameFix(String idOrApp) =>
@@ -156,15 +239,186 @@ GameFix gameFix(String idOrApp) =>
         .firstOrNull ??
     (throw BadChoice(ChoiceKind.fix, idOrApp));
 
-/// The fix for the application with this [key]: a Steam game's
-/// (`steam:<appid>`) by its app id, any other by its exe's file name (D7).
-GameFix? fixForApp(String key) {
-  if (key.startsWith('steam:')) {
-    final app = int.tryParse(key.substring(6));
-    return app == null ? null : fixForSteamApp(app);
+/// How [gameFor] matched an app (G3).
+enum MatchKind { steam, exe, title }
+
+typedef GameMatch = ({GameFix fix, MatchKind by});
+
+/// Bodega's own fixes, verified here, before highball-db's.
+Iterable<GameFix> _matchOrder() {
+  final all = _allFixes();
+  return [
+    ...all.where((fix) => fix.source == 'bodega'),
+    ...all.where((fix) => fix.source != 'bodega'),
+  ];
+}
+
+/// [title] lowercased, without trademark signs, with every run of other
+/// characters than letters and digits as one space.
+String normalTitle(String title) => title
+    .toLowerCase()
+    .replaceAll(RegExp('[™®©]'), '')
+    .replaceAll(RegExp(r'[^\p{L}\p{N}]+', unicode: true), ' ')
+    .trim();
+
+/// The configuration of [app] (G3): a Steam game's by its app id only; any
+/// other by its exe's file name, and else by its title.
+GameMatch? gameFor(InstalledApp app) {
+  if (app.key.startsWith('steam:')) {
+    final id = int.tryParse(app.key.substring('steam:'.length));
+    final fix = id == null ? null : fixForSteamApp(id);
+    return fix == null ? null : (fix: fix, by: MatchKind.steam);
   }
-  final exe = key.split('/').last.toLowerCase();
-  return gameFixes().where((fix) => fix.exes.contains(exe)).firstOrNull;
+  final fixes = _matchOrder();
+  final exe = app.exe.split(RegExp(r'[/\\]')).last.toLowerCase();
+  if (fixes.where((fix) => fix.exes.contains(exe)).firstOrNull
+      case final fix?) {
+    return (fix: fix, by: MatchKind.exe);
+  }
+  final title = normalTitle(app.title);
+  if (title.isEmpty) return null;
+  final fix = fixes.where((fix) => normalTitle(fix.title) == title).firstOrNull;
+  return fix == null ? null : (fix: fix, by: MatchKind.title);
+}
+
+/// [app]'s configuration in the bottle at [dir], unless the user turned it
+/// off (G6).
+GameMatch? _gameIn(String dir, InstalledApp app) =>
+    _settings(dir).configOff.contains(app.key) ? null : gameFor(app);
+
+InstalledApp _appWithKey(String home, String bottle, String key) =>
+    _appsIn(bottle, _existing(home, bottle))
+        .where((app) => app.key == key)
+        .firstOrNull ??
+    (throw AppNotFound(bottle, key));
+
+/// What a launch of an app gets from its game's configuration and from auto
+/// (G7). [openApp] launches from the same match, so what is shown is what
+/// runs.
+typedef GamePlan = ({
+  InstalledApp app,
+
+  /// The app's game, or null with no entry. It stays when the user turns the
+  /// configuration off, so the switch can turn it back on.
+  GameMatch? match,
+
+  /// False when the user turned the configuration off: then nothing below
+  /// comes from it.
+  bool on,
+  ({String name, String origin}) backend,
+
+  /// What auto read in the exe, when auto chose.
+  ExeGraphics? graphics,
+  Map<String, String> env,
+  List<String> overrides,
+  List<FixStep> registry,
+
+  /// Settings-file steps, which the user applies (D9).
+  List<FixStep> ini,
+  List<String> requires,
+  String? verdict,
+});
+
+/// The program [openApp] starts for [app].
+String _appProgram(InstalledApp app) => app.exe.startsWith('/')
+    ? app.exe
+    : 'C:\\${app.exe.replaceAll('/', r'\')}';
+
+Future<GamePlan> gamePlan(String home, String bottle, String key) async {
+  final app = _appWithKey(home, bottle, key);
+  final dir = _existing(home, bottle);
+  final settings = _settings(dir);
+  final on = !settings.configOff.contains(key);
+  final match = gameFor(app);
+  final fix = on ? match?.fix : null;
+  final program = _appProgram(app);
+  final (exe: _, cwd: _, :scan) = _programPaths('$dir/prefix/drive_c', program);
+  final backend = await resolveBackend(
+    home,
+    dir,
+    program,
+    scan,
+    config: fix?.backend,
+  );
+  final steps = fix?.active ?? const <FixStep>[];
+  return (
+    app: app,
+    match: match,
+    on: on,
+    backend: backend,
+    graphics: backend.origin == 'auto' && scan != null
+        ? await exeGraphics(scan)
+        : null,
+    env: {
+      for (final step in steps)
+        if (step.type == 'env')
+          if (fixValue(step.value!) case final value?) step.name!: value,
+    },
+    overrides: [
+      for (final step in steps)
+        if (step.type == 'dlloverride') step.value!,
+    ],
+    registry: [
+      for (final step in steps)
+        if (step.type == 'registry') step,
+    ],
+    ini: [
+      for (final step in fix?.steps ?? const <FixStep>[])
+        if (step.type == 'ini' && step.applies) step,
+    ],
+    requires: fix?.requires ?? const [],
+    verdict: settings.verdicts[key],
+  );
+}
+
+/// Turns [key]'s game configuration on or off (G6). Off first deletes the
+/// registry values it writes at launch; on writes them again at the next one.
+Future<void> setGameConfig(
+  String home,
+  String bottle,
+  String key, {
+  required bool on,
+}) async {
+  final app = _appWithKey(home, bottle, key);
+  final dir = _existing(home, bottle);
+  if (!on) {
+    for (final step
+        in gameFor(app)?.fix.active.where((step) => step.type == 'registry') ??
+            const <FixStep>[]) {
+      final log = await _launchIn(home, bottle, 'reg', [
+        'delete',
+        step.key!,
+        '/v',
+        step.name!,
+        '/f',
+      ], backend: 'wine');
+      final code = await exitOf(log);
+      // 1: the value is not there, which is what off wants.
+      if (code != 0 && code != 1) throw WineToolFailed(WineTool.reg, code, log);
+    }
+  }
+  final settings = _settings(dir);
+  _saveSettings(
+    dir,
+    _with(
+      settings,
+      configOff: on
+          ? ({...settings.configOff}..remove(key))
+          : {...settings.configOff, key},
+    ),
+  );
+}
+
+/// Saves what the user said of [key]'s game, one of [gameVerdicts], or clears
+/// it with null (G6).
+void setGameVerdict(String home, String bottle, String key, String? verdict) {
+  _appWithKey(home, bottle, key);
+  if (verdict != null) _checkVerdict(verdict);
+  final dir = _existing(home, bottle);
+  final settings = _settings(dir);
+  final verdicts = {...settings.verdicts}..remove(key);
+  if (verdict != null) verdicts[key] = verdict;
+  _saveSettings(dir, _with(settings, verdicts: verdicts));
 }
 
 /// [value] with highball-db's `${memoryMB*0.375}` worked out for this host, or

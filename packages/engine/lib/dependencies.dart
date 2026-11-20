@@ -1224,7 +1224,7 @@ Future<AppNeeds> appNeeds(String home, String bottle, String key) async {
   final app =
       _appsIn(bottle, dir).where((app) => app.key == key).firstOrNull ??
       (throw AppNotFound(bottle, key));
-  final fix = fixForApp(app.key);
+  final fix = _gameIn(dir, app)?.fix;
   final needs = <String, DependencyNeed>{};
   void add(String id, String arch, Need need, NeedReason reason, String? dll) {
     final old = needs[id];
