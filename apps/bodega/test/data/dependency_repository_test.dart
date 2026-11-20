@@ -51,14 +51,15 @@ void main() {
   test("a bottle's runtimes and its apps' needs become entities", () async {
     blurBottle();
     final data = (await repository.bottle('b')).getRight().toNullable()!;
-    expect(data.all, hasLength(12));
+    expect(data.all, hasLength(25));
+    expect(data.checkedAt, isNotNull);
     expect(data.all.where((d) => d.installed), [
       const Dependency(
         id: 'vcrun2010',
         name: 'Visual C++ 2010',
         arch: Arch.x86,
         bytes: 5076456,
-        installed: true,
+        status: DependencyStatus.installed,
       ),
     ]);
     final blur = data.apps.single;
@@ -92,9 +93,11 @@ void main() {
         ..writeAsStringSync('the installer');
     });
 
-    /// [engine.dependencyTable] with vcrun2008's x86 pinned to [sha256].
-    void pin(String sha256) {
+    /// [engine.dependencyTable] with vcrun2008's x86 pinned to [sha256], and
+    /// [more] downloads after it.
+    void pin(String sha256, [List<engine.Download> more = const []]) {
       final row = engine.dependencies[1];
+      final x86 = row.files['x86']!;
       engine.dependencyTable = [
         (
           id: row.id,
@@ -102,16 +105,23 @@ void main() {
           imports: row.imports,
           dlls: row.dlls,
           windows: row.windows,
-          x86: (
-            url: 'https://example.com/vcrun2008-x86.exe',
-            sha256: sha256,
-            bytes: 13,
-            file: row.x86.file,
-            args: row.x86.args,
-            marker: row.x86.marker,
-            wineManifests: row.x86.wineManifests,
-          ),
-          x64: row.x64,
+          files: {
+            'x86': engine.DependencyFile.run(
+              [
+                (
+                  url: 'https://example.com/vcrun2008-x86.exe',
+                  sha256: sha256,
+                  bytes: 13,
+                  file: x86.downloads.single.file,
+                ),
+                ...more,
+              ],
+              args: x86.args,
+              marker: x86.marker,
+              wineManifests: x86.wineManifests,
+            ),
+            'x64': row.files['x64']!,
+          },
         ),
       ];
     }
@@ -119,7 +129,7 @@ void main() {
     test('one already downloaded that matches is used as it is', () async {
       pin(await engine.sha256Of(cached));
       final path = await repository.download('vcrun2008', Arch.x86, (_, _) {});
-      expect(path.getRight().toNullable(), cached);
+      expect(path.getRight().toNullable(), [cached]);
       verifyNever(
         () => downloader.fetch(
           any(),
@@ -141,7 +151,7 @@ void main() {
         ),
       ).thenAnswer((call) async => call.positionalArguments[1] as String);
       final path = await repository.download('vcrun2008', Arch.x86, (_, _) {});
-      expect(path.getRight().toNullable(), cached);
+      expect(path.getRight().toNullable(), [cached]);
       verify(
         () => downloader.fetch(
           'https://example.com/vcrun2008-x86.exe',
@@ -152,13 +162,54 @@ void main() {
       ).called(1);
     });
 
-    test("the engine's failures come back as codes", () async {
-      final install = await repository.install(
-        'nope',
+    test('several files: only the missing ones download, and progress '
+        'counts the ones there (RA3)', () async {
+      pin(await engine.sha256Of(cached), [
+        (
+          url: 'https://example.com/second.exe',
+          sha256: '0' * 64,
+          bytes: 87,
+          file: 'second.exe',
+        ),
+      ]);
+      when(
+        () => downloader.fetch(
+          any(),
+          any(),
+          cancel: any(named: 'cancel'),
+          onProgress: any(named: 'onProgress'),
+        ),
+      ).thenAnswer((call) async {
+        final onProgress =
+            call.namedArguments[#onProgress] as void Function(int, int?);
+        onProgress(40, 87);
+        return call.positionalArguments[1] as String;
+      });
+      final seen = <(int, int?)>[];
+      final paths = await repository.download(
         'vcrun2008',
         Arch.x86,
-        cached,
+        (received, total) => seen.add((received, total)),
       );
+      expect(paths.getRight().toNullable(), [
+        cached,
+        '$home/downloads/second.exe',
+      ]);
+      verify(
+        () => downloader.fetch(
+          'https://example.com/second.exe',
+          '$home/downloads/second.exe',
+          cancel: any(named: 'cancel'),
+          onProgress: any(named: 'onProgress'),
+        ),
+      ).called(1);
+      expect(seen, [(13, 100), (53, 100), (100, 100)]);
+    });
+
+    test("the engine's failures come back as codes", () async {
+      final install = await repository.install('nope', 'vcrun2008', Arch.x86, [
+        cached,
+      ]);
       expect(install.getLeft().toNullable(), isA<BottleNotFoundError>());
       // The NFS fix's setting is the Mac's: on the Mac it looks for the bottle.
       engine.hostPlatform = const engine.MacPlatform();
@@ -169,5 +220,20 @@ void main() {
       );
       expect(apply.getLeft().toNullable(), isA<BottleNotFoundError>());
     });
+  });
+
+  test("a bottle that can't be read gives unknown (RA3)", () async {
+    blurBottle();
+    final syswow64 = '$home/bottles/b/prefix/drive_c/windows/syswow64';
+    Process.runSync('/bin/chmod', ['000', syswow64]);
+    addTearDown(() => Process.runSync('/bin/chmod', ['755', syswow64]));
+    final data = (await repository.bottle('b')).getRight().toNullable()!;
+    final vc2010 = data.all.firstWhere(
+      (d) => d.id == 'vcrun2010' && d.arch == Arch.x86,
+    );
+    expect(vc2010.status, DependencyStatus.unknown);
+    expect(data.all, hasLength(25));
+    final dotnet = data.all.firstWhere((d) => d.id == 'dotnet48');
+    expect((dotnet.arch, dotnet.files), (Arch.all, 2));
   });
 }

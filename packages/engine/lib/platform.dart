@@ -64,6 +64,9 @@ typedef HostCapabilities = ({
   bool gameMode,
   List<String> syncModes,
   bool switchGames,
+
+  /// DXVK's async compiling: only the Mac's DXVK reads `DXVK_ASYNC` (RE8).
+  bool dxvkAsync,
 });
 
 /// What differs between hosts. The rest of the engine is shared.
@@ -106,6 +109,9 @@ abstract class HostPlatform {
   HostCapabilities get capabilities;
   String get defaultSync;
   Map<String, String> syncEnv(String mode);
+
+  /// What a launch with DXVK gains in the bottle [dir] (RE8).
+  Map<String, String> dxvkEnv(String dir, {required bool async});
   List<String> get backendNames;
   Map<String, ({String url, String sha256})> get pinnedBackends;
   ({String dir, String file}) get layerCheck;

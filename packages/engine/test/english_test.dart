@@ -93,12 +93,15 @@ final failures = <EngineFailure>[
   ...switchFailures.keys,
 ];
 
-/// The two failures of the dependencies, each with its message as DE10 gives
-/// it.
+/// The failures of the dependencies, each with its message as DE10 and RE5
+/// give it.
 final dependencyFailures = <EngineFailure, String>{
   const DependencyNotInstalled('vcrun2008', 'x86', _log):
-      "the installer of vcrun2008 (x86) finished, but Microsoft's files are "
+      "the install of vcrun2008 (x86) finished, but the vendor's files are "
       'not in the bottle: see $_log',
+  const InstallTimedOut('dotnet48', 'all', _log):
+      'the install of dotnet48 (all) ran past its time limit, so the bottle '
+      'was stopped: see $_log',
   const UnexpectedLink(
     '/h/bottles/steam/prefix/drive_c/users/q/Documents/x.ini',
   ): 'a link in /h/bottles/steam/prefix/drive_c/users/q/Documents/x.ini '
@@ -159,6 +162,7 @@ String? hintOf(EngineFailure failure) => switch (failure) {
   MissingFile() ||
   ChecksumMismatch() ||
   DependencyNotInstalled() ||
+  InstallTimedOut() ||
   UnexpectedLink() ||
   IncompleteArchive() ||
   CorruptData() ||
@@ -213,10 +217,10 @@ void main() {
     }
   });
 
-  test('the list holds each of the 39 failures', () {
+  test('the list holds each of the 40 failures', () {
     expect(
       failures.map((failure) => failure.runtimeType).toSet(),
-      hasLength(39),
+      hasLength(40),
     );
   });
 

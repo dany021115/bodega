@@ -488,6 +488,14 @@ class BottleColumn extends StatelessWidget {
                 detail.avx,
                 (value) => bloc.add(BottleDetailEvent.setAvx(value)),
               ),
+            if (caps.dxvkAsync)
+              _switch(
+                context,
+                l10n.bottleDxvkAsync,
+                l10n.bottleDxvkAsyncNote,
+                detail.dxvkAsync,
+                (value) => bloc.add(BottleDetailEvent.setDxvkAsync(value)),
+              ),
             if (caps.gpu) ...[
               const SizedBox(height: AppSpacing.md),
               DropdownButtonFormField<String>(

@@ -25,7 +25,7 @@ paths:
 - `EngineHome` holds the data root; never call `bodegaHome` elsewhere
 - Name clashes with the engine's functions: `import 'package:engine/engine.dart' as engine;`
 - Downloads go through `Downloader`: HTTPS only, resumable, with progress. Don't use `dio.download`
-- A runtime's installer goes to `downloads/<id>-<arch>.exe` (`engine.dependencyDownload`) and the engine checks it: `engine.installDependency(..., file:)`, as backends go to `engine.installBackend(..., tarball:)`
+- A runtime's files go to `downloads/<file>` (`engine.dependencyDownload` lists them in order) and the engine checks them: `engine.installDependency(..., files:)`, as backends go to `engine.installBackend(..., tarball:)`
 
 ## BLoCs
 - All in `app/bloc/{name}/`, with Freezed events and one state with `@Default` fields and `copyWith`

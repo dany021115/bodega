@@ -67,6 +67,8 @@ extension AppErrorText on AppError {
       },
     DependencyNotInstalledError(:final name, :final arch, :final log) =>
       l10n.errDependencyNotInstalled(name, l10n.archOf(arch), log),
+    InstallTimedOutError(:final name, :final arch, :final log) =>
+      l10n.errInstallTimedOut(name, l10n.archOf(arch), log),
     UnexpectedLinkError(:final path) => l10n.errUnexpectedLink(path),
     InstallerNoExeError(:final exe, :final log) => l10n.errInstallerNoExe(
       exe,

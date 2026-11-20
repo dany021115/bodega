@@ -47,6 +47,12 @@ class BottleDetailBloc extends Bloc<BottleDetailEvent, BottleDetailState> {
         (name) => _repository.setOptions(name, avx: event.value),
       ),
     );
+    on<BottleDetailSetDxvkAsyncEvent>(
+      (event, emit) => _change(
+        emit,
+        (name) => _repository.setOptions(name, dxvkAsync: event.value),
+      ),
+    );
     on<BottleDetailSetUserEvent>(
       (event, emit) =>
           _change(emit, (name) => _repository.setUser(name, event.user)),

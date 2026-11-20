@@ -36,6 +36,7 @@ abstract class BottleRepository {
     String name, {
     bool? dlss,
     bool? avx,
+    bool? dxvkAsync,
     String? gpu,
     bool? gamemode,
   });

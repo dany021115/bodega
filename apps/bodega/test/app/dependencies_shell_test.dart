@@ -61,7 +61,7 @@ const _blur = AppNeeds(
         name: 'Visual C++ 2008',
         arch: Arch.x86,
         bytes: 4483040,
-        installed: false,
+        status: DependencyStatus.notInstalled,
       ),
       need: Need.recommended,
       reason: NeedReason.knownFix,

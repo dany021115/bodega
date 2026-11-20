@@ -188,14 +188,31 @@ final class DependencyNotInstalled extends EngineFailure {
 
   final String id;
 
-  /// `x86` or `x64`.
+  /// `x86`, `x64` or `all`.
   final String arch;
   final String log;
 
   @override
   String get message =>
-      "the installer of $id ($arch) finished, but Microsoft's files are not "
+      "the install of $id ($arch) finished, but the vendor's files are not "
       'in the bottle: see $log';
+}
+
+/// The install of runtime [id] for [arch] ran past its time limit, so the
+/// bottle was stopped (design §4).
+final class InstallTimedOut extends EngineFailure {
+  const InstallTimedOut(this.id, this.arch, this.log);
+
+  final String id;
+
+  /// `x86`, `x64` or `all`.
+  final String arch;
+  final String log;
+
+  @override
+  String get message =>
+      'the install of $id ($arch) ran past its time limit, so the bottle was '
+      'stopped: see $log';
 }
 
 /// A link on the way to a game's settings file leads outside the bottle and

@@ -130,14 +130,23 @@ sealed class AppError with _$AppError implements Exception {
 
   // Dependencies.
 
-  /// The installer of runtime [name] for [arch] ended well, but Microsoft's
-  /// files are not in the bottle; [log] is the installer's log.
+  /// The install of runtime [name] for [arch] ended well, but the vendor's
+  /// files are not in the bottle; [log] is the last step's log.
   const factory AppError.dependencyNotInstalled(
     String name,
     Arch arch,
     String log, {
     String? detail,
   }) = DependencyNotInstalledError;
+
+  /// The install of runtime [name] for [arch] ran past its time limit, so the
+  /// bottle was stopped; [log] is the last step's log.
+  const factory AppError.installTimedOut(
+    String name,
+    Arch arch,
+    String log, {
+    String? detail,
+  }) = InstallTimedOutError;
 
   /// A link on the way to a game's settings file at [path] leads outside the
   /// bottle and the home folder, so Bodega did not write there.

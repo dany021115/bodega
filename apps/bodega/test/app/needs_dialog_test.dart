@@ -18,14 +18,14 @@ const _vc2008 = Dependency(
   name: 'Visual C++ 2008',
   arch: Arch.x86,
   bytes: 4483040,
-  installed: false,
+  status: DependencyStatus.notInstalled,
 );
 const _vc2010 = Dependency(
   id: 'vcrun2010',
   name: 'Visual C++ 2010',
   arch: Arch.x86,
   bytes: 5076456,
-  installed: false,
+  status: DependencyStatus.notInstalled,
 );
 
 void main() {
@@ -44,11 +44,7 @@ void main() {
   });
 
   /// Opens the dialog from a button, as the app does.
-  Future<void> open(
-    WidgetTester tester, {
-    AppNeeds? needs,
-    List<Dependency>? all,
-  }) async {
+  Future<void> open(WidgetTester tester, {required AppNeeds needs}) async {
     await tester.pumpWidget(
       wrapApp(
         BlocProvider<DependenciesBloc>.value(
@@ -56,12 +52,8 @@ void main() {
           child: Builder(
             builder: (context) => Scaffold(
               body: TextButton(
-                onPressed: () => showNeedsDialog(
-                  context,
-                  bottle: 'games',
-                  needs: needs,
-                  all: all,
-                ),
+                onPressed: () =>
+                    showNeedsDialog(context, bottle: 'games', needs: needs),
                 child: const Text('open'),
               ),
             ),
@@ -174,23 +166,5 @@ void main() {
         ]),
       ),
     ).called(1);
-  });
-
-  testWidgets('by hand: every runtime not installed, none checked', (
-    tester,
-  ) async {
-    await open(tester, all: [_vc2008.copyWith(installed: true), _vc2010]);
-    expect(find.text(en.depsDialogAll), findsOneWidget);
-    expect(find.byType(CheckboxListTile), findsOneWidget);
-    expect(find.text('Visual C++ 2010 · 32-bit · 5.1 MB'), findsOneWidget);
-    expect(
-      tester.widget<CheckboxListTile>(find.byType(CheckboxListTile)).value,
-      isFalse,
-    );
-  });
-
-  testWidgets('by hand, with everything installed, it says so', (tester) async {
-    await open(tester, all: [_vc2008.copyWith(installed: true)]);
-    expect(find.text(en.depsDialogNone), findsOneWidget);
   });
 }

@@ -12,10 +12,10 @@ abstract class DependencyRepository {
   /// The key the catalog app [catalogId] gets in a bottle once installed.
   Future<Either<AppError, String>> catalogKey(String catalogId);
 
-  /// The installer of [id] for [arch]: the one already downloaded when it
-  /// matches its SHA-256, or else a download, with progress. Null if it was
-  /// cancelled with [cancelDownload].
-  Future<Either<AppError, String?>> download(
+  /// The files of [id] for [arch], in order: each one already downloaded
+  /// when it matches its SHA-256, or else a download, with the progress of
+  /// them all. Null if it was cancelled with [cancelDownload].
+  Future<Either<AppError, List<String>?>> download(
     String id,
     Arch arch,
     void Function(int received, int? total) onProgress,
@@ -23,13 +23,13 @@ abstract class DependencyRepository {
 
   void cancelDownload();
 
-  /// Installs [id] for [arch] in [bottle] from [file], checked against its
-  /// pinned SHA-256.
+  /// Installs [id] for [arch] in [bottle] from [files], in order, each
+  /// checked against its pinned SHA-256.
   Future<Either<AppError, Unit>> install(
     String bottle,
     String id,
     Arch arch,
-    String file,
+    List<String> files,
   );
 
   /// Applies fix [fix]'s changes to its game's settings file in [bottle].

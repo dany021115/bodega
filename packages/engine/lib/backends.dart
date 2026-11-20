@@ -408,6 +408,10 @@ typedef BottleSettings = ({
 
   /// False takes `ROSETTA_ADVERTISE_AVX` out of every launch (M8).
   bool avx,
+
+  /// DXVK compiles shaders in the background: `DXVK_ASYNC=1` on the Mac,
+  /// whose DXVK reads it (RE8).
+  bool dxvkAsync,
   String windows,
   Map<String, String> env,
 
@@ -433,6 +437,7 @@ BottleSettings get _defaults => (
   highRes: false,
   dlss: false,
   avx: true,
+  dxvkAsync: false,
   windows: 'win10',
   env: {},
   gpu: 'auto',
@@ -450,6 +455,7 @@ BottleSettings _with(
   bool? highRes,
   bool? dlss,
   bool? avx,
+  bool? dxvkAsync,
   String? windows,
   Map<String, String>? env,
   String? gpu,
@@ -463,6 +469,7 @@ BottleSettings _with(
   highRes: highRes ?? settings.highRes,
   dlss: dlss ?? settings.dlss,
   avx: avx ?? settings.avx,
+  dxvkAsync: dxvkAsync ?? settings.dxvkAsync,
   windows: windows ?? settings.windows,
   env: env ?? settings.env,
   gpu: gpu ?? settings.gpu,
@@ -493,6 +500,7 @@ BottleSettings _settings(String dir) {
       highRes: (json['highRes'] ?? false) as bool,
       dlss: (json['dlss'] ?? false) as bool,
       avx: (json['avx'] ?? true) as bool,
+      dxvkAsync: (json['dxvkAsync'] ?? false) as bool,
       windows: (json['windows'] ?? 'win10') as String,
       env: Map<String, String>.from((json['env'] ?? const {}) as Map),
       gpu: (json['gpu'] ?? 'auto') as String,
@@ -542,6 +550,7 @@ void _saveSettings(String dir, BottleSettings settings) {
     if (settings.highRes) 'highRes': true,
     if (settings.dlss) 'dlss': true,
     if (!settings.avx) 'avx': false,
+    if (settings.dxvkAsync) 'dxvkAsync': true,
     if (settings.windows != _defaults.windows) 'windows': settings.windows,
     if (settings.env.isNotEmpty) 'env': settings.env,
     if (settings.gpu != _defaults.gpu) 'gpu': settings.gpu,
@@ -593,13 +602,14 @@ Future<bool> setSync(String home, String name, String sync) async {
   return true;
 }
 
-/// DLSS, AVX, GPU, GameMode and the bottle's own variables (M8): they apply
-/// from the next launch, so nothing is stopped.
+/// DLSS, AVX, DXVK's async compiling, GPU, GameMode and the bottle's own
+/// variables (M8): they apply from the next launch, so nothing is stopped.
 void setBottleOptions(
   String home,
   String name, {
   bool? dlss,
   bool? avx,
+  bool? dxvkAsync,
   String? gpu,
   bool? gamemode,
   Map<String, String>? env,
@@ -612,6 +622,7 @@ void setBottleOptions(
       _settings(dir),
       dlss: dlss,
       avx: avx,
+      dxvkAsync: dxvkAsync,
       gpu: gpu,
       gamemode: gamemode,
       env: env,

@@ -10,36 +10,28 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 /// Opens the dialog of what [needs] proposes for one app of [bottle], its
-/// recommended items checked, or, with [all] instead, every runtime of the
-/// bottle not installed yet, none checked (DA5).
+/// recommended items checked (DA5). Every runtime by hand is the section's
+/// list (RA6).
 Future<void> showNeedsDialog(
   BuildContext context, {
   required String bottle,
-  AppNeeds? needs,
-  List<Dependency>? all,
+  required AppNeeds needs,
 }) => showDialog<void>(
   context: context,
   builder: (_) => BlocProvider.value(
     value: context.read<DependenciesBloc>(),
-    child: NeedsDialog(bottle: bottle, needs: needs, all: all),
+    child: NeedsDialog(bottle: bottle, needs: needs),
   ),
 );
 
-/// One line of the dialog: a runtime of [need] or of [dependency] (by hand),
-/// or a [setting].
-typedef _Option = ({
-  NeedItem item,
-  DependencyNeed? need,
-  Dependency? dependency,
-  SettingNeed? setting,
-});
+/// One line of the dialog: a runtime of [need], or a [setting].
+typedef _Option = ({NeedItem item, DependencyNeed? need, SettingNeed? setting});
 
 class NeedsDialog extends StatefulWidget {
   final String bottle;
-  final AppNeeds? needs;
-  final List<Dependency>? all;
+  final AppNeeds needs;
 
-  const NeedsDialog({super.key, required this.bottle, this.needs, this.all});
+  const NeedsDialog({super.key, required this.bottle, required this.needs});
 
   @override
   State<NeedsDialog> createState() => _NeedsDialogState();
@@ -53,40 +45,19 @@ class _NeedsDialogState extends State<NeedsDialog> {
   void initState() {
     super.initState();
     final needs = widget.needs;
-    _options = needs == null
-        ? [
-            for (final dependency in widget.all ?? const <Dependency>[])
-              if (!dependency.installed)
-                (
-                  item: NeedItem.runtime(dependency.id, dependency.arch),
-                  need: null,
-                  dependency: dependency,
-                  setting: null,
-                ),
-          ]
-        : [
-            for (final need in needs.dependencies)
-              if (!need.dependency.installed)
-                (
-                  item: NeedItem.runtime(
-                    need.dependency.id,
-                    need.dependency.arch,
-                  ),
-                  need: need,
-                  dependency: need.dependency,
-                  setting: null,
-                ),
-            for (final setting in needs.settings)
-              if (setting.state == SettingState.notApplied)
-                (
-                  item: NeedItem.settings(setting.fix),
-                  need: null,
-                  dependency: null,
-                  setting: setting,
-                ),
-          ];
-    // Recommended runtimes and settings start checked; optional ones and the
-    // list by hand do not.
+    _options = [
+      for (final need in needs.dependencies)
+        if (!need.dependency.installed)
+          (
+            item: NeedItem.runtime(need.dependency.id, need.dependency.arch),
+            need: need,
+            setting: null,
+          ),
+      for (final setting in needs.settings)
+        if (setting.state == SettingState.notApplied)
+          (item: NeedItem.settings(setting.fix), need: null, setting: setting),
+    ];
+    // Recommended runtimes and settings start checked; optional ones do not.
     _checked = {
       for (final option in _options)
         if (option.need?.need == Need.recommended || option.setting != null)
@@ -98,8 +69,6 @@ class _NeedsDialogState extends State<NeedsDialog> {
     final need = option.setting != null ? Need.recommended : option.need?.need;
     final reason = option.setting != null
         ? l10n.fixReason(option.setting!.fix)
-        : option.need == null
-        ? null
         : l10n.reasonOf(option.need!);
     return Padding(
       padding: const EdgeInsets.only(top: AppSpacing.xs),
@@ -115,7 +84,7 @@ class _NeedsDialogState extends State<NeedsDialog> {
                   ? AppColor.statusTested
                   : AppColor.statusUntested,
             ),
-          if (reason != null) Text(reason, style: styles.caption),
+          Text(reason, style: styles.caption),
         ],
       ),
     );
@@ -128,9 +97,7 @@ class _NeedsDialogState extends State<NeedsDialog> {
     final needs = widget.needs;
 
     return AlertDialog(
-      title: Text(
-        needs == null ? l10n.depsDialogAll : l10n.depsDialogFor(needs.title),
-      ),
+      title: Text(l10n.depsDialogFor(needs.title)),
       content: SizedBox(
         width: 480,
         child: SingleChildScrollView(
@@ -153,11 +120,9 @@ class _NeedsDialogState extends State<NeedsDialog> {
                   title: Text(
                     option.setting != null
                         ? l10n.settingLine(option.setting!)
-                        : l10n.dependencyLine(option.dependency!),
+                        : l10n.dependencyLine(option.need!.dependency),
                   ),
-                  subtitle: option.need == null && option.setting == null
-                      ? null
-                      : _subtitle(l10n, styles, option),
+                  subtitle: _subtitle(l10n, styles, option),
                 ),
               if (_options.any((option) => option.item is RuntimeItem)) ...[
                 const SizedBox(height: AppSpacing.sm),

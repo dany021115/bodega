@@ -89,6 +89,7 @@ class BottleRepositoryImpl implements BottleRepository {
     String name, {
     bool? dlss,
     bool? avx,
+    bool? dxvkAsync,
     String? gpu,
     bool? gamemode,
   }) => repositoryCall(() {
@@ -97,6 +98,7 @@ class BottleRepositoryImpl implements BottleRepository {
       name,
       dlss: dlss,
       avx: avx,
+      dxvkAsync: dxvkAsync,
       gpu: gpu,
       gamemode: gamemode,
     );
@@ -179,6 +181,7 @@ BottleDetail _detail(String home, String name) {
     highRes: settings.highRes,
     dlss: settings.dlss,
     avx: settings.avx,
+    dxvkAsync: settings.dxvkAsync,
     gpu: settings.gpu,
     gamemode: settings.gamemode,
     windows: settings.windows,
