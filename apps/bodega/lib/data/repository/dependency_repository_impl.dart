@@ -22,16 +22,23 @@ class DependencyRepositoryImpl implements DependencyRepository {
   static String _arch(Arch arch) => switch (arch) {
     Arch.x86 => 'x86',
     Arch.x64 => 'x64',
+    Arch.all => 'all',
   };
 
-  static Dependency _dependency(String id, String arch, bool installed) {
+  static Dependency _dependency(String id, String arch, bool? installed) {
     final row = engine.dependencyTable.firstWhere((row) => row.id == id);
+    final file = row.files[arch]!;
     return Dependency(
       id: id,
       name: row.name,
-      arch: arch == 'x64' ? Arch.x64 : Arch.x86,
-      bytes: (arch == 'x64' ? row.x64 : row.x86).bytes,
-      installed: installed,
+      arch: archOf(arch),
+      bytes: file.bytes,
+      status: switch (installed) {
+        true => DependencyStatus.installed,
+        false => DependencyStatus.notInstalled,
+        null => DependencyStatus.unknown,
+      },
+      files: file.downloads.length,
     );
   }
 
@@ -87,6 +94,7 @@ class DependencyRepositoryImpl implements DependencyRepository {
           if (!needs.isEmpty) apps.add(needs);
         }
         return BottleDependencies(
+          checkedAt: DateTime.now(),
           all: [
             for (final line in engine.bottleDependencies(home, bottle))
               _dependency(line.id, line.arch, line.installed),
@@ -113,23 +121,36 @@ class DependencyRepositoryImpl implements DependencyRepository {
   Future<Either<AppError, String>> catalogKey(String catalogId) =>
       repositoryCall(() => engine.appKey(engine.catalogEntry(catalogId).exe));
 
+  /// Each file in turn; progress counts the files already there as received,
+  /// over the size of them all (RA3).
   @override
-  Future<Either<AppError, String?>> download(
+  Future<Either<AppError, List<String>?>> download(
     String id,
     Arch arch,
     void Function(int received, int? total) onProgress,
   ) => repositoryCall(() async {
-    final pin = engine.dependencyDownload(_home.path, id, _arch(arch));
-    if (File(pin.path).existsSync() &&
-        await engine.sha256Of(pin.path) == pin.sha256) {
-      return pin.path;
+    final pins = engine.dependencyDownload(_home.path, id, _arch(arch));
+    final total = pins.fold(0, (sum, pin) => sum + pin.bytes);
+    var done = 0;
+    final paths = <String>[];
+    for (final pin in pins) {
+      if (!File(pin.path).existsSync() ||
+          await engine.sha256Of(pin.path) != pin.sha256) {
+        onProgress(done, total);
+        final before = done;
+        final path = await _downloader.fetch(
+          pin.url,
+          pin.path,
+          cancel: _cancel = CancelToken(),
+          onProgress: (received, _) => onProgress(before + received, total),
+        );
+        if (path == null) return null;
+      }
+      done += pin.bytes;
+      paths.add(pin.path);
     }
-    return _downloader.fetch(
-      pin.url,
-      pin.path,
-      cancel: _cancel = CancelToken(),
-      onProgress: onProgress,
-    );
+    onProgress(done, total);
+    return paths;
   });
 
   @override
@@ -140,7 +161,7 @@ class DependencyRepositoryImpl implements DependencyRepository {
     String bottle,
     String id,
     Arch arch,
-    String file,
+    List<String> files,
   ) => repositoryCall(() async {
     try {
       await engine.installDependency(
@@ -148,14 +169,21 @@ class DependencyRepositoryImpl implements DependencyRepository {
         bottle,
         id,
         _arch(arch),
-        file: file,
+        files: files,
       );
-    } on engine.ChecksumMismatch {
+    } on engine.ChecksumMismatch catch (failure) {
       // A bad download must not be reused by the next attempt; a file the
       // user picked stays where it was.
-      final cached = engine.dependencyDownload(_home.path, id, _arch(arch));
-      if (file == cached.path && File(file).existsSync()) {
-        File(file).deleteSync();
+      final cached = {
+        for (final pin in engine.dependencyDownload(
+          _home.path,
+          id,
+          _arch(arch),
+        ))
+          pin.path,
+      };
+      if (cached.contains(failure.file) && File(failure.file).existsSync()) {
+        File(failure.file).deleteSync();
       }
       rethrow;
     }

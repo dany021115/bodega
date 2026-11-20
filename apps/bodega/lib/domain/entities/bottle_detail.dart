@@ -29,6 +29,9 @@ abstract class BottleDetail with _$BottleDetail {
     @Default(false) bool highRes,
     @Default(false) bool dlss,
     @Default(true) bool avx,
+
+    /// DXVK compiles shaders in the background (RE8).
+    @Default(false) bool dxvkAsync,
     @Default('auto') String gpu,
     @Default(false) bool gamemode,
     @Default('win10') String windows,

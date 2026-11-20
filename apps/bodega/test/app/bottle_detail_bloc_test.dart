@@ -109,6 +109,8 @@ void main() {
           .thenAnswer((_) async => right(unit));
       when(() => repository.setOptions('steam', avx: false))
           .thenAnswer((_) async => right(unit));
+      when(() => repository.setOptions('steam', dxvkAsync: true))
+          .thenAnswer((_) async => right(unit));
       when(() => repository.setUser('steam', 'Dany'))
           .thenAnswer((_) async => right(unit));
       return build();
@@ -121,6 +123,7 @@ void main() {
         ..add(const BottleDetailEvent.setWindows('win7'))
         ..add(const BottleDetailEvent.setDlss(true))
         ..add(const BottleDetailEvent.setAvx(false))
+        ..add(const BottleDetailEvent.setDxvkAsync(true))
         ..add(const BottleDetailEvent.setUser('Dany'));
     },
     wait: const Duration(milliseconds: 20),
@@ -129,8 +132,9 @@ void main() {
       verify(() => repository.setWindowsVersion('steam', 'win7')).called(1);
       verify(() => repository.setOptions('steam', dlss: true)).called(1);
       verify(() => repository.setOptions('steam', avx: false)).called(1);
+      verify(() => repository.setOptions('steam', dxvkAsync: true)).called(1);
       verify(() => repository.setUser('steam', 'Dany')).called(1);
-      verify(() => repository.detail('steam')).called(6);
+      verify(() => repository.detail('steam')).called(7);
       expect(bloc.state.isBusy, isFalse);
     },
   );

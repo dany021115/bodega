@@ -1900,6 +1900,15 @@ void main() {
         ['Visual C++ 2008', log],
       ),
       (
+        const AppError.installTimedOut(
+          '.NET Framework 4.8',
+          Arch.all,
+          log,
+          detail: detail,
+        ),
+        ['.NET Framework 4.8', log],
+      ),
+      (
         const AppError.unexpectedLink(
           '/b/prefix/drive_c/users/me/Documents/x.ini',
           detail: detail,
@@ -1965,7 +1974,7 @@ void main() {
     test('the cases hold every code', () {
       expect({
         for (final (error, _) in codes) error.runtimeType,
-      }, hasLength(38));
+      }, hasLength(39));
     });
 
     for (final (language, l10n) in [('en', en), ('es', es)]) {
@@ -3605,7 +3614,7 @@ void main() {
       name: 'Visual C++ 2008',
       arch: Arch.x86,
       bytes: 4483040,
-      installed: false,
+      status: DependencyStatus.notInstalled,
     );
 
     test(
@@ -3645,6 +3654,39 @@ void main() {
           }
         }
         expect(en.archOf(Arch.x86), isNot(es.archOf(Arch.x86)));
+      },
+    );
+
+    test(
+      'each status, both arches at once, and each runtime\'s line (RA8)',
+      () {
+        for (final l10n in [en, es]) {
+          final statuses = [
+            for (final status in DependencyStatus.values) l10n.statusOf(status),
+          ];
+          expect(statuses.toSet(), hasLength(3), reason: l10n.localeName);
+          expect(l10n.archOf(Arch.all), isNotEmpty);
+          final lines = {
+            for (final id in [
+              'vcrun2005',
+              'vcrun2022',
+              'dotnet48',
+              'd3dx9',
+              'd3dcompiler_47',
+              'xact',
+              'physx',
+              'corefonts',
+              'x',
+            ])
+              l10n.runtimeLine(id),
+          };
+          // The old Visual C++ share a line, as the three D3DX do.
+          expect(lines, hasLength(9), reason: l10n.localeName);
+          expect(l10n.runtimeLine('d3dx10'), l10n.runtimeLine('d3dx9'));
+          expect(l10n.runtimeLine('vcrun2013'), l10n.runtimeLine('vcrun2005'));
+        }
+        expect(en.archOf(Arch.all), isNot(es.archOf(Arch.all)));
+        expect(en.depsUnknown, isNot(es.depsUnknown));
       },
     );
 

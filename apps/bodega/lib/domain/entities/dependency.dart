@@ -2,8 +2,12 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 
 part 'dependency.freezed.dart';
 
-/// A runtime's architecture: a program's bits decide which one it needs.
-enum Arch { x86, x64 }
+/// A runtime's architecture: a program's bits decide which one it needs;
+/// [all] is one install for both, as .NET's, PhysX's and the fonts'.
+enum Arch { x86, x64, all }
+
+/// What the bottle shows of a runtime; [unknown] when its files can't be read.
+enum DependencyStatus { installed, notInstalled, unknown }
 
 /// How much Bodega wants a runtime for a program (D5).
 enum Need { recommended, optional }
@@ -15,19 +19,27 @@ enum NeedReason { knownFix, notInWine, imported }
 /// Where a fix's change to a game's own file stands.
 enum SettingState { applied, notApplied, noFile }
 
-/// A Windows runtime Bodega installs from its vendor's installer, for one
-/// [arch]. [name] is a product name, shown as it is.
+/// A Windows runtime Bodega installs from its vendor's files, for one [arch].
+/// [name] is a product name, shown as it is.
 @freezed
 abstract class Dependency with _$Dependency {
+  const Dependency._();
+
   const factory Dependency({
     required String id,
     required String name,
     required Arch arch,
 
-    /// Its installer's size, shown before anything downloads.
+    /// What its files weigh together, shown before anything downloads.
     required int bytes,
-    required bool installed,
+    required DependencyStatus status,
+
+    /// How many files it downloads: a file of the user's can stand in for
+    /// one only.
+    @Default(1) int files,
   }) = _Dependency;
+
+  bool get installed => status == DependencyStatus.installed;
 }
 
 /// A runtime one program needs. [dll] is the import that pointed to it, [fix]
@@ -86,6 +98,10 @@ abstract class AppNeeds with _$AppNeeds {
 abstract class BottleDependencies with _$BottleDependencies {
   const factory BottleDependencies({
     @Default(<Dependency>[]) List<Dependency> all,
+
+    /// When the bottle was read: a check is a few file reads, done again by
+    /// "Check again".
+    DateTime? checkedAt,
 
     /// The apps with at least one need, in the bottle's order.
     @Default(<AppNeeds>[]) List<AppNeeds> apps,

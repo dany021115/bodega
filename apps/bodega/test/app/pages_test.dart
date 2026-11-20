@@ -246,14 +246,14 @@ final _dependencies = BottleDependencies(
       name: 'Visual C++ 2008',
       arch: Arch.x86,
       bytes: 4483040,
-      installed: true,
+      status: DependencyStatus.installed,
     ),
     const Dependency(
       id: 'vcrun2022',
       name: 'Visual C++ 2015–2026',
       arch: Arch.x64,
       bytes: 18731856,
-      installed: false,
+      status: DependencyStatus.notInstalled,
     ),
   ],
   apps: [
@@ -267,7 +267,7 @@ final _dependencies = BottleDependencies(
             name: 'Visual C++ 2015–2026',
             arch: Arch.x64,
             bytes: 18731856,
-            installed: false,
+            status: DependencyStatus.notInstalled,
           ),
           need: Need.optional,
           reason: NeedReason.imported,
@@ -279,7 +279,7 @@ final _dependencies = BottleDependencies(
             name: 'Visual C++ 2008',
             arch: Arch.x86,
             bytes: 4483040,
-            installed: true,
+            status: DependencyStatus.installed,
           ),
           need: Need.recommended,
           reason: NeedReason.knownFix,
@@ -702,7 +702,7 @@ void main() {
         }
         await tester.pump();
         expect(
-          find.text(lookupAppL10n(locale).depsInstallOther),
+          find.text(lookupAppL10n(locale).depsAllRuntimes),
           findsOneWidget,
         );
       });
@@ -1240,6 +1240,20 @@ void main() {
       await pump(tester, 1150, bottleView(), height: 2400);
       expect(find.text(en.bottleAvx), findsNothing);
       expect(find.text('DLSS'), findsNothing);
+      expect(find.text(en.bottleDxvkAsync), findsNothing);
+    });
+
+    testWidgets('the Mac offers DXVK\'s async compiling (RA7)', (tester) async {
+      showSetup(
+        const SetupState(
+          isChecking: false,
+          runtime: true,
+          capabilities: HostCapabilities(dxvkAsync: true),
+        ),
+      );
+      await pump(tester, 1150, bottleView(), height: 2400);
+      expect(find.text(en.bottleDxvkAsync), findsOneWidget);
+      expect(find.text(en.bottleDxvkAsyncNote), findsOneWidget);
     });
 
     testWidgets('a host with one sync mode does not offer msync', (

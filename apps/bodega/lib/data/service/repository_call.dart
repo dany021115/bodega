@@ -127,9 +127,15 @@ AppError appErrorOf(engine.EngineFailure failure) {
       AppError.wineToolFailed(wineToolOf(tool), exitCode, log, detail: detail),
     engine.DependencyNotInstalled(:final id, :final arch, :final log) =>
       AppError.dependencyNotInstalled(
-        engine.dependencyTable.where((row) => row.id == id).firstOrNull?.name ??
-            id,
-        arch == 'x64' ? Arch.x64 : Arch.x86,
+        _dependencyName(id),
+        archOf(arch),
+        log,
+        detail: detail,
+      ),
+    engine.InstallTimedOut(:final id, :final arch, :final log) =>
+      AppError.installTimedOut(
+        _dependencyName(id),
+        archOf(arch),
         log,
         detail: detail,
       ),
@@ -174,3 +180,14 @@ AppError appErrorOf(engine.EngineFailure failure) {
     ),
   };
 }
+
+/// A runtime's product name, or its id when the table lacks it.
+String _dependencyName(String id) =>
+    engine.dependencyTable.where((row) => row.id == id).firstOrNull?.name ?? id;
+
+/// The engine's `x86`, `x64` or `all`.
+Arch archOf(String arch) => switch (arch) {
+  'x64' => Arch.x64,
+  'all' => Arch.all,
+  _ => Arch.x86,
+};

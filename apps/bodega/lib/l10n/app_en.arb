@@ -1538,9 +1538,9 @@
       }
     }
   },
-  "errDependencyNotInstalled": "The installer of {name} ({arch}) finished, but Microsoft's files are not in the bottle. Log: {log}",
+  "errDependencyNotInstalled": "The install of {name} ({arch}) finished, but the vendor's files are not in the bottle. Log: {log}",
   "@errDependencyNotInstalled": {
-    "description": "Error, in a toast and in the Dependencies section: a runtime's installer ended well, but its DLL is not where it should be. name is the runtime, arch its bits (depsArch32 or depsArch64), log the installer's log.",
+    "description": "Error, in a toast and in the Dependencies section: a runtime's install ended well, but its file is not where it should be. name is the runtime, arch its bits (depsArch32, depsArch64 or depsArchAll), log the last step's log.",
     "placeholders": {
       "name": {
         "type": "String",
@@ -2611,10 +2611,6 @@
   "@depsApply": {
     "description": "Button that makes a known fix's change in a game's settings file."
   },
-  "depsInstallOther": "Install a runtime…",
-  "@depsInstallOther": {
-    "description": "Button of the Dependencies section that opens the list of every runtime Bodega can install."
-  },
   "depsStopFirst": "Stop the bottle to install or apply anything.",
   "@depsStopFirst": {
     "description": "In the Dependencies section while a program of the bottle runs: installs and settings wait for the bottle to stop."
@@ -2632,10 +2628,6 @@
         "example": "Blur"
       }
     }
-  },
-  "depsDialogAll": "Install runtimes",
-  "@depsDialogAll": {
-    "description": "Title of the dialog with every runtime Bodega can install in the bottle."
   },
   "depsDialogNone": "Every runtime is installed in this bottle.",
   "@depsDialogNone": {
@@ -2669,10 +2661,6 @@
   "@depsChooseFile": {
     "description": "Button after a runtime failed to download: the user picks the installer they already have, which Bodega checks before using."
   },
-  "depsInstalledHeader": "Installed here",
-  "@depsInstalledHeader": {
-    "description": "Heading of the Dependencies section's list of the runtimes the bottle has."
-  },
   "depsInstalledItem": "{name} ({arch})",
   "@depsInstalledItem": {
     "description": "One runtime the bottle has: its product name, shown as is, and its bits (depsArch32 or depsArch64).",
@@ -2686,5 +2674,135 @@
         "example": "32-bit"
       }
     }
+  },
+  "depsArchAll": "32 and 64-bit",
+  "@depsArchAll": {
+    "description": "A runtime with one install for both architectures, such as .NET or PhysX."
+  },
+  "depsUnknown": "Unknown",
+  "@depsUnknown": {
+    "description": "State of a runtime when Bodega can't read the bottle's files."
+  },
+  "depsCheckedAt": "Checked at {time}",
+  "@depsCheckedAt": {
+    "description": "When Bodega last read which runtimes the bottle has. time is a time of day, in the user's format.",
+    "placeholders": {
+      "time": {
+        "type": "String",
+        "example": "15:04"
+      }
+    }
+  },
+  "depsCheckAgain": "Check again",
+  "@depsCheckAgain": {
+    "description": "Button: read the bottle again to see which runtimes it has."
+  },
+  "depsAllRuntimes": "All runtimes",
+  "@depsAllRuntimes": {
+    "description": "Header of the list of every Windows runtime Bodega can install in the bottle."
+  },
+  "depsArchStatus": "{arch}: {status}",
+  "@depsArchStatus": {
+    "description": "One architecture of a runtime and its state. arch is depsArch32 or depsArch64, status depsInstalled, depsNotInstalled or depsUnknown.",
+    "placeholders": {
+      "arch": {
+        "type": "String",
+        "example": "32-bit"
+      },
+      "status": {
+        "type": "String",
+        "example": "Installed"
+      }
+    }
+  },
+  "depsInstallArch": "Install {arch} · {size}",
+  "@depsInstallArch": {
+    "description": "Button: download and install a runtime for one architecture. arch is depsArch32 or depsArch64, size its download size (depsSize).",
+    "placeholders": {
+      "arch": {
+        "type": "String",
+        "example": "32-bit"
+      },
+      "size": {
+        "type": "String",
+        "example": "100.3 MB"
+      }
+    }
+  },
+  "depsInstallSize": "Install · {size}",
+  "@depsInstallSize": {
+    "description": "Button: download and install a runtime with one install for both architectures. size is its download size (depsSize).",
+    "placeholders": {
+      "size": {
+        "type": "String",
+        "example": "29.4 MB"
+      }
+    }
+  },
+  "depsDetails": "Details",
+  "@depsDetails": {
+    "description": "Button after a failed install: shows the install's log."
+  },
+  "depsLineVcNew": "Most modern games and launchers",
+  "@depsLineVcNew": {
+    "description": "What needs Visual C++ 2015–2026, in one line."
+  },
+  "depsLineVcOld": "Older games",
+  "@depsLineVcOld": {
+    "description": "What needs an older Visual C++ (2005 to 2013), in one line."
+  },
+  "depsLineDotnet": ".NET apps and some launchers. It can take up to an hour.",
+  "@depsLineDotnet": {
+    "description": "What needs .NET Framework 4.8, in one line, and how long its install takes on a Mac."
+  },
+  "depsLineD3dx": "Older DirectX 9 to 11 games",
+  "@depsLineD3dx": {
+    "description": "What needs D3DX9, D3DX10 or D3DX11, in one line."
+  },
+  "depsLineD3dcompiler": "Games that compile their shaders while they run",
+  "@depsLineD3dcompiler": {
+    "description": "What needs D3DCompiler 47, in one line."
+  },
+  "depsLineXact": "Games that use XACT or XAudio for their sound",
+  "@depsLineXact": {
+    "description": "What needs XACT, in one line."
+  },
+  "depsLinePhysx": "Games that use NVIDIA PhysX",
+  "@depsLinePhysx": {
+    "description": "What needs PhysX, in one line."
+  },
+  "depsLineCorefonts": "Launchers and games that expect Arial and other common fonts",
+  "@depsLineCorefonts": {
+    "description": "What needs the core fonts, in one line."
+  },
+  "depsLineOther": "A Windows runtime",
+  "@depsLineOther": {
+    "description": "What a runtime with no line of its own is, in one line."
+  },
+  "errInstallTimedOut": "Installing {name} ({arch}) took too long, so Bodega stopped the bottle. Log: {log}",
+  "@errInstallTimedOut": {
+    "description": "Error, in the Dependencies section: a runtime's install ran past its time limit. name is the runtime, arch its bits (depsArch32, depsArch64 or depsArchAll), log the last step's log.",
+    "placeholders": {
+      "name": {
+        "type": "String",
+        "example": ".NET Framework 4.8"
+      },
+      "arch": {
+        "type": "String",
+        "example": "32 and 64-bit"
+      },
+      "log": {
+        "type": "String",
+        "example": "/Users/me/Library/Application Support/Bodega/bottles/Games/logs/dotnet48-all.log"
+      }
+    }
+  },
+  "bottleDxvkAsync": "Async shader compilation",
+  "@bottleDxvkAsync": {
+    "description": "Switch in a bottle's settings, on the Mac: DXVK compiles shaders in the background."
+  },
+  "bottleDxvkAsyncNote": "With DXVK: less stutter, though some objects may show a moment late.",
+  "@bottleDxvkAsyncNote": {
+    "description": "Under the async shader switch: what it changes."
   }
 }

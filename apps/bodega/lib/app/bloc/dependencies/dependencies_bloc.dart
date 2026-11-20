@@ -122,7 +122,7 @@ class DependenciesBloc extends Bloc<DependenciesEvent, DependenciesState> {
     await _load(bottle, emit);
   }
 
-  /// Downloads [item]'s installer, unless [file] stands for it, and installs
+  /// Downloads [item]'s files, unless [file] stands for its one, and installs
   /// it. A cancelled download ends the job with no error.
   Future<AppError?> _runtime(
     String bottle,
@@ -130,8 +130,8 @@ class DependenciesBloc extends Bloc<DependenciesEvent, DependenciesState> {
     Emitter<DependenciesState> emit,
     String? file,
   ) async {
-    var path = file;
-    if (path == null) {
+    var paths = [?file];
+    if (file == null) {
       emit(
         state.copyWith(
           phase: DependencyPhase.downloading,
@@ -158,7 +158,7 @@ class DependenciesBloc extends Bloc<DependenciesEvent, DependenciesState> {
           emit(state.copyWith(phase: DependencyPhase.idle, item: null));
           return null;
         case Right(:final value?):
-          path = value;
+          paths = value;
       }
     }
     emit(state.copyWith(phase: DependencyPhase.installing, item: item));
@@ -166,7 +166,7 @@ class DependenciesBloc extends Bloc<DependenciesEvent, DependenciesState> {
       bottle,
       item.id,
       item.arch,
-      path,
+      paths,
     )).getLeft().toNullable();
   }
 }

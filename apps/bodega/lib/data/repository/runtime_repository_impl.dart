@@ -33,6 +33,7 @@ class RuntimeRepositoryImpl implements RuntimeRepository {
         gameMode: caps.gameMode,
         syncModes: caps.syncModes,
         switchGames: caps.switchGames,
+        dxvkAsync: caps.dxvkAsync,
       ),
     );
   });
