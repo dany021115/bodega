@@ -1,0 +1,53 @@
+name: Game report
+description: How a Windows game ran in Bodega.
+title: "Game report: "
+labels: [game-report]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Bodega filled this form in from the game's row in its bottle: nothing is sent until you submit it here, with your own account. Change or remove anything you like.
+
+        By submitting it, you release your report under [CC0-1.0](https://creativecommons.org/publicdomain/zero/1.0/), so that it can become a game configuration in Bodega and be shared with highball-db.
+  - type: input
+    id: game
+    attributes:
+      label: Game
+    validations:
+      required: true
+  - type: input
+    id: steam_appid
+    attributes:
+      label: Steam app id (if a Steam game)
+  - type: dropdown
+    id: rating
+    attributes:
+      label: How it ran
+      options:
+        - works
+        - playable
+        - broken
+    validations:
+      required: true
+  - type: input
+    id: backend
+    attributes:
+      label: Backend
+      description: The graphics backend it ran with, and where that choice came from.
+  - type: input
+    id: bodega
+    attributes:
+      label: Bodega version
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+  - type: input
+    id: cpu
+    attributes:
+      label: Chip or processor
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes
+      description: What you played into, for how long, and anything that went wrong or that you had to change.
