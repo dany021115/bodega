@@ -8,6 +8,8 @@ import 'package:test/test.dart';
 import '_mac.dart';
 
 const fakeWine = r'''#!/bin/sh
+# C:\x\y -> $WINEPREFIX/drive_c/x/y
+unix() { printf '%s' "$1" | sed -e 's|^[Cc]:|'"$WINEPREFIX"'/drive_c|' -e 's|\\|/|g'; }
 case $1 in
 --version) echo wine-11.0 ;;
 wineboot)
@@ -23,7 +25,20 @@ reg)
     touch "$WINEPREFIX/hang"
     (sleep 2; rm -f "$WINEPREFIX/hang") >/dev/null 2>&1 &
   fi ;;
-msiexec) echo "$@" >"$WINEPREFIX/msi-args"; . "$3" ;;
+msiexec) echo "$@" >"$WINEPREFIX/msi-args"
+  case $2 in /x) ;; *) . "$3" ;; esac ;;
+# A batch of RE6: extrac32 drops a fake cabinet's 8-byte MSCF header and
+# untars the rest; regsvr32 is only logged.
+cmd)
+  tr -d '\r' <"$(unix "$3")" | sed 's/ || exit \/b 1$//' | while read -r line; do
+    set -- $line
+    case $1 in
+    extrac32) mkdir -p "$(unix "$5")" &&
+      tail -c +9 "$(unix "$6")" | /usr/bin/tar -xf - -C "$(unix "$5")" || exit 1 ;;
+    *regsvr32.exe) printf '%s\n' "$*" >>"$WINEPREFIX/regsvr32.log" ;;
+    esac
+  done || exit 1 ;;
+regedit) cp "$(unix "$3")" "$WINEPREFIX/regedit.reg" ;;
 tasklist) cat "$WINEPREFIX/tasks" 2>/dev/null ;;
 winecfg) echo "$@" >>"$WINEPREFIX/winecfg.log" ;;
 */vcrun20*-x86.exe|*/vcrun20*-x64.exe)

@@ -143,6 +143,7 @@ class MacPlatform extends HostPlatform {
     gameMode: false,
     syncModes: const ['msync', 'none'],
     switchGames: emulators.supported,
+    dxvkAsync: true,
   );
 
   @override
@@ -151,6 +152,20 @@ class MacPlatform extends HostPlatform {
   @override
   Map<String, String> syncEnv(String mode) =>
       mode == 'none' ? const {'WINEMSYNC': '0'} : const {};
+
+  /// The Mac's DXVK is an async build (`v1.10.3-20230507-async`): it reads
+  /// `DXVK_ASYNC`, and keeps its shader state cache where
+  /// `DXVK_STATE_CACHE_PATH` says, which is the bottle's own `dxvk-cache` as
+  /// a Windows path, since DXVK opens it from inside Wine (RE8). The folder is
+  /// made here, as DXVK makes none.
+  @override
+  Map<String, String> dxvkEnv(String dir, {required bool async}) {
+    Directory('$dir/dxvk-cache').createSync(recursive: true);
+    return {
+      'DXVK_STATE_CACHE_PATH': 'Z:${'$dir/dxvk-cache'.replaceAll('/', r'\')}',
+      if (async) 'DXVK_ASYNC': '1',
+    };
+  }
 
   @override
   List<String> get backendNames => const ['wine', 'dxmt', 'dxvk', 'd3dmetal'];

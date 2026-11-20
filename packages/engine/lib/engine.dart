@@ -292,6 +292,8 @@ Future<String> _launchIn(
   final steps = fix?.active ?? const <FixStep>[];
   final launchEnv = {
     ...backendEnv(home, choice.name, hud: hudOn),
+    if (choice.name == 'dxvk')
+      ...hostPlatform.dxvkEnv(dir, async: settings.dxvkAsync),
     if (hudOn) ...hostPlatform.perfEnv(dir),
     if (settings.dlss) ..._dlssEnv,
     ...hostPlatform.gpuEnv(settings.gpu),

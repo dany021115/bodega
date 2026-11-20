@@ -30,7 +30,7 @@ usage: bodega install <engine.tar.gz> <hostlibs.tar.gz>
        bodega fix apply <bottle> <id>
        bodega deps list <bottle>
        bodega deps check <bottle> <key>
-       bodega deps install <bottle> <id> <x86|x64> [installer.exe]
+       bodega deps install <bottle> <id> <x86|x64|all> [file…]
        bodega apps
        bodega open [--backend <b>] [--hud] <bottle> [key]
        bodega switch status
