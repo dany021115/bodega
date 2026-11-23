@@ -16,6 +16,12 @@ class Mach9Mac extends engine.MacPlatform {
   @override
   engine.RuntimeBlock? get mach9Block => null;
 
+  // The repository reads a bottle inside `Isolate.run`, where the real host's
+  // platform holds: on Linux CI that host admits only `none`, so a bottle
+  // made here must not ask for msync (MA11).
+  @override
+  String get defaultSync => 'none';
+
   @override
   List<String> get applicationDirs => [?applications];
 
