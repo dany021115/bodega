@@ -96,6 +96,12 @@ Input: the judge's synthesis of three candidate designs (minimal, robust, user-f
 3. Commit `.fvmrc`?
 4. M3 in this release or the next?
 
+**Answers (the user, 2026-11-23):**
+1. Yes: once Mach9 is installed, new bottles default to Native, as D26 says. Rosetta stays in the menu.
+2. Placed by hand, as MG12 says. The repo has no recipe that builds dxvk9. A pin comes with the next change, which also serves #24's DirectX 9 games.
+3. No: the repo and CI use Flutter 3.47 without FVM.
+4. The next change: M3 goes with the improvements taken from Mach9's own launcher.
+
 ## Specs
 - `specs/runtimes.md` (MR1..MR13): runtime kinds, availability, the Mach9 and Mono pins, install, trust checks, layout, updates, packaging guard, the shared engine contract.
 - `specs/bottles.md` (MB1..MB10): the stored and effective runtime, every bottle operation on its own runtime, creation, registry, Wine Mono, the catalog.

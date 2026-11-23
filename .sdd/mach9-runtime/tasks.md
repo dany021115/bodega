@@ -99,3 +99,35 @@
   **Check:** the user's notes and numbers in `verify.md`.
 - [ ] **V7 (USER)** Delivery (MD8): commit from a script beside the repo on `feat/mach9-runtime` (`git switch --no-track -c`), no AI attribution, `tool/version.sh check` before each commit; the agent leaves the script unrun.
   **Check:** `git log --format=%B` of the branch holds no attribution line.
+  - **2026-11-19:** the five commits were pushed as pull request #22 against `main`.
+- [x] **V8** On top of the open pull requests (no requirement changes): #22 conflicted with #20 in 4 files and with #21, #23 and #24 in 11, and both sides shared 1.7.0.
+  **Does:**
+  - Merges `feat/game-configurations` (#24, which carries #20, #21 and #23) into this branch, in the worktree `../pr22`, keeping both sides of every conflict:
+    - `.claude/CLAUDE.md`: the Mach9 lines beside #20's rules for the Switch keys and firmware.
+    - `lib/cli.dart`: `bodegaUsage` gains `fix apply`, `game show|use`, `deps` and `switch keys|firmware`.
+    - `BottleSettings` carries `runtime`, `configOff` and `verdicts`.
+    - `resolveBackend`: a Mach9 bottle never uses a game's configuration (#24's `config`), so a configured `dxvk` can't raise `BackendNotForRuntime`.
+    - DXVK's options (#23) apply only when `!mach9`, like the other backend variables.
+    - The ARBs are merged key by key: 46 new messages in each file, no key changed on both sides.
+    - The tests' counts add up both sides: 45 engine failures and 44 app error codes, and `repository_call_test` gives 42.
+  - Fixes what the merge exposed, which compiled but failed 19 tests:
+    - `_serverRunning` now takes the runtime (E2);
+    - `installDependency` (#21, #23) and `applyFixSettings` (#21) passed `home`;
+    - both now use `_installedRuntime`, as `renameBottle` does.
+  - Fixes MA11 on Linux CI (`create(runtime: mach9)` failed there with `unknown sync mode: msync (none)`):
+    - the repository reads a bottle inside `Isolate.run`, where the real host's platform holds;
+    - so the test host `Mach9Mac` (`APP/test/data/_mach9.dart`) defaults to sync `none`.
+  - Leaves `MERGE_HEAD` staged and the MA11 fix unstaged, for `../mach9-merge-commit.sh`.
+
+  **Check:**
+  - In `ENG`:
+    - `dart analyze` reports no issues, and `dart test` gives 456 passed, 5 skipped.
+    - `dart format` leaves `lib/backends.dart`, `lib/fixes.dart`, `test/backends_test.dart` and `test/fixes_test.dart` changed, the same four files as on #24's own tip.
+  - In `APP`:
+    - `build_runner` and `gen-l10n` run;
+    - `flutter analyze` reports no issues;
+    - `flutter test` gives 962 passed;
+    - `tool/check_layers.sh` says `Layers OK`;
+    - after the MA11 fix, `bottle_repository_test.dart` and `backend_repository_test.dart` give 23 passed.
+  - Every line #22 adds (99 files, 7,992 lines) and every line #20–#24 add (147 files, 15,579 lines) is in the merged tree, except the resolutions listed above.
+  - Linux CI confirms MA11 once the branch is pushed.
