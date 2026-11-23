@@ -10,6 +10,11 @@ import 'package:bodega/data/service/repository_call.dart';
 import 'package:bodega/domain/entities/app_error.dart';
 import 'package:bodega/domain/entities/bottle.dart';
 import 'package:bodega/domain/entities/bottle_detail.dart';
+import 'package:bodega/domain/entities/bottle_step.dart';
+import 'package:bodega/domain/entities/native_move_step.dart';
+import 'package:bodega/domain/entities/native_option.dart';
+import 'package:bodega/domain/entities/retina_mode.dart';
+import 'package:bodega/domain/entities/runtime_kind.dart';
 import 'package:bodega/domain/entities/user_name_problem.dart';
 import 'package:bodega/domain/repository/bottle_repository.dart';
 import 'package:engine/engine.dart' as engine;
@@ -28,7 +33,11 @@ class BottleRepositoryImpl implements BottleRepository {
   Future<Either<AppError, List<Bottle>>> list() => repositoryCall(
     () => [
       for (final bottle in engine.listBottles(_home.path))
-        Bottle(name: bottle.name, ready: bottle.ready),
+        Bottle(
+          name: bottle.name,
+          ready: bottle.ready,
+          runtime: runtimeKindOf(bottle.runtime),
+        ),
     ],
   );
 
@@ -124,12 +133,28 @@ class BottleRepositoryImpl implements BottleRepository {
     String name, {
     String windows = 'win11',
     String backend = 'auto',
+    RuntimeKind runtime = RuntimeKind.bodega,
+    void Function(BottleStep step)? onStep,
   }) => repositoryCall(() async {
-    await engine.createBottle(_home.path, name);
+    // MA4: Mono last, so a bottle whose Mono fails is still made (MB5).
+    final kind = engineRuntimeOf(runtime);
+    onStep?.call(BottleStep.prefix);
+    await engine.createBottle(_home.path, name, runtime: kind, mono: false);
     await engine.setWindowsVersion(_home.path, name, windows);
     engine.setBackend(_home.path, name, backend);
+    if (kind == engine.RuntimeKind.mach9) {
+      onStep?.call(BottleStep.mono);
+      await engine.installMono(_home.path, name);
+    }
     return unit;
   });
+
+  @override
+  Future<Either<AppError, Unit>> installMono(String name) =>
+      repositoryCall(() async {
+        await engine.installMono(_home.path, name);
+        return unit;
+      });
 
   @override
   Future<Either<AppError, Unit>> renameBottle(String name, String newName) =>
@@ -156,6 +181,42 @@ class BottleRepositoryImpl implements BottleRepository {
       });
 
   @override
+  Future<Either<AppError, Unit>> setRetina(String name, RetinaMode mode) =>
+      repositoryCall(() async {
+        await engine.setRetina(_home.path, name, mode.name);
+        return unit;
+      });
+
+  @override
+  Future<Either<AppError, List<String>>> moveToNative(
+    String name,
+    void Function(NativeMoveStep step) onStep,
+  ) => repositoryCall(
+    () => engine.moveToNative(
+      _home.path,
+      name,
+      onStep: (step) => onStep(NativeMoveStep.values.byName(step.name)),
+    ),
+  );
+
+  @override
+  Future<Either<AppError, Unit>> setNativeOption(
+    String name,
+    String key,
+    NativeOption option,
+    bool on,
+  ) => repositoryCall(() {
+    engine.setNativeOption(
+      _home.path,
+      name,
+      key,
+      engine.NativeOption.values.byName(option.name),
+      on: on,
+    );
+    return unit;
+  });
+
+  @override
   Future<Either<AppError, List<String>>> logLines(String path) =>
       repositoryCall(() async {
         final lines = ListQueue<String>();
@@ -173,12 +234,18 @@ class BottleRepositoryImpl implements BottleRepository {
 
 BottleDetail _detail(String home, String name) {
   final settings = engine.bottleSettings(home, name);
+  // Files only: this runs in another isolate, so no listRuntimes (MA4).
+  final runtime = engine.bottleRuntime(home, name);
   return BottleDetail(
     name: name,
+    runtime: runtimeKindOf(runtime),
+    monoMissing: engine.monoMissing(home, name),
     ready: engine.listBottles(home).any((b) => b.name == name && b.ready),
     backend: settings.backend,
     sync: settings.sync,
     highRes: settings.highRes,
+    retina: RetinaMode.values.byName(settings.retina),
+    nativeInstalled: _nativeInstalled(home),
     dlss: settings.dlss,
     avx: settings.avx,
     dxvkAsync: settings.dxvkAsync,
@@ -204,8 +271,20 @@ BottleDetail _detail(String home, String name) {
         ),
     ],
     installedBackends: [
-      for (final MapEntry(:key, :value) in engine.listBackends(home).entries)
+      for (final MapEntry(:key, :value)
+          in engine.listBackends(home, runtime: runtime).entries)
         if (value) key,
     ],
   );
+}
+
+/// Whether the Native engine's runtime is there: files only, as [_detail]
+/// runs in another isolate (PA8).
+bool _nativeInstalled(String home) {
+  try {
+    engine.runtimeDir(home, engine.RuntimeKind.mach9);
+    return true;
+  } on engine.RuntimeNotInstalled {
+    return false;
+  }
 }

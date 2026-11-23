@@ -24,6 +24,9 @@ sealed class InstallStep with _$InstallStep {
   const factory InstallStep.creatingBottle(String bottle) =
       InstallCreatingBottleStep;
 
+  /// Installs Wine Mono into the new native bottle.
+  const factory InstallStep.installingMono() = InstallInstallingMonoStep;
+
   /// Writes [value], one of the registry values the app needs.
   const factory InstallStep.registry(String value) = InstallRegistryStep;
 

@@ -46,6 +46,7 @@ String describeInstallStep(InstallStep step) {
       'The bottle keeps its sync, $subject, though the app asks for another: '
           'change it if the app fails',
     InstallStepKind.creatingBottle => 'Creating the bottle $subject',
+    InstallStepKind.installingMono => 'Installing Wine Mono',
     InstallStepKind.registry => 'Registry: $subject',
     InstallStepKind.runningInstaller => 'Running the installer',
     InstallStepKind.waiting => 'Waiting for the installation to finish',

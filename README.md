@@ -1,15 +1,22 @@
 # Bodega
 
 Bodega is a launcher for Windows games on Apple Silicon Macs and on x86_64 Linux. It runs them with
-Wine (x86_64 Wine under Rosetta 2 on the Mac) and picks a graphics backend for each game: Wine's own
-wined3d, DXMT, DXVK, or Apple's D3DMetal on the Mac once you import it.
+Wine and picks a graphics backend for each game. On the Mac, each bottle runs on one of two engines:
+Bodega's own x86_64 Wine under Rosetta 2, with Wine's wined3d, DXMT, DXVK, or Apple's D3DMetal once
+you import it; or the Native engine, [Mach9](https://github.com/athei/mach9), an arm64 Wine that runs
+games without Rosetta, with mtld3d for Direct3D 9, DXMT for Direct3D 10 and 11, and vkd3d-proton for
+Direct3D 12. On Linux, Bodega's Wine uses wined3d or DXVK.
 
 It is young and moves fast: it runs the games we play, and you should expect rough edges.
 
 ## What it does
 
-- **Bottles.** Each bottle is its own Windows prefix with its own settings: graphics backend, sync
-  mode, the Windows user name games see, and options per program.
+- **Bottles.** Each bottle is its own Windows prefix with its own settings: engine, graphics
+  backend, sync mode, the Windows user name games see, and options per program.
+- **Native engine on the Mac.** Install Mach9 from Backends and new bottles run natively on Apple
+  silicon: Windows code runs through FEX instead of Rosetta, and games can use much less CPU.
+  Bodega copies Mach9 unmodified after checking its signature, and puts Wine Mono into each Mach9
+  bottle. Your existing bottles stay on the Rosetta engine.
 - **Graphics backends.** Bodega reads each `.exe` to tell 32 from 64 bits and which DirectX it uses,
   picks a backend that fits, and warns you when the one you chose doesn't.
 - **Catalog and fixes.** Known games and launchers come with tested settings, and per-game fixes come
@@ -31,8 +38,9 @@ It is young and moves fast: it runs the games we play, and you should expect rou
 
 On a Mac:
 
-- Apple Silicon (M1 or later) with Rosetta 2.
+- Apple Silicon (M1 or later) with Rosetta 2. Rosetta is still needed for Bodega's own engine.
 - macOS 14 Sonoma or later.
+- For the Native engine (Mach9): macOS 26.4 or later on Apple silicon.
 
 On Linux:
 
@@ -59,11 +67,20 @@ notarized, so macOS blocks it the first time: open System Settings → Privacy &
 The Linux section of [apps/bodega/README.md](apps/bodega/README.md#linux) has the details: data
 folders, gamepads, ntsync, HUD.
 
+### Native engine (Mach9)
+
+On a Mac with macOS 26.4 or later, open Backends ▸ Native engine and install it. Bodega uses the
+`Mach9.app` in Applications when it is the version Bodega was checked with, or downloads that
+version's `Mach9.dmg` from Mach9's GitHub release, or takes a `.dmg` or `.app` you pick. It also
+downloads Wine Mono, which .NET launchers need. Mach9 is never bundled with Bodega. From the
+command line: `bodega runtime install mach9`, then `bodega create --runtime mach9 <bottle>`.
+
 ### D3DMetal
 
 D3DMetal is part of Apple's Game Porting Toolkit and has its own license, so Bodega never bundles or
 downloads it. To use it, download the Game Porting Toolkit from Apple yourself and import it from
-Bodega's backends screen. Its license is between you and Apple.
+Bodega's backends screen. Its license is between you and Apple. D3DMetal works only with the
+Rosetta engine, not in Mach9 bottles.
 
 ## Build from source
 
@@ -120,13 +137,19 @@ Releases bundle third-party components under their own licenses, among them Wine
 MoltenVK, vkd3d and SDL2: see [wine/NOTICE.md](wine/NOTICE.md) and
 [packaging/linux/LICENSES](packaging/linux/LICENSES).
 
+The Native engine is downloaded, never bundled, and never modified: Mach9 (Zlib, © 2026 Alexander
+Theißen) with what it ships, among them mtld3d (Zlib), FEX (MIT), DXMT and vkd3d-proton, and Wine
+Mono (MIT/MPL), downloaded from WineHQ. Each keeps its own license.
+
 ## Credits
 
 - [Wine](https://www.winehq.org), and CodeWeavers for the LGPL Wine source of CrossOver that the
   macOS engine is built from.
 - [Highball](https://github.com/gauthierpiarrette/highball), whose engine recipe and game data
   Bodega builds on.
-- DXVK, DXMT, MoltenVK, vkd3d-proton, SDL and AreWeAntiCheatYet.
+- [Mach9](https://github.com/athei/mach9) by Alexander Theißen, the Native engine, with mtld3d
+  and FEX.
+- DXVK, DXMT, MoltenVK, vkd3d-proton, Wine Mono, SDL and AreWeAntiCheatYet.
 
 Bodega is not affiliated with Apple, CodeWeavers or Nintendo. CrossOver is a trademark of
 CodeWeavers, D3DMetal and Game Porting Toolkit belong to Apple, and Nintendo Switch is a

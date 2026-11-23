@@ -3138,5 +3138,459 @@
   "gamesReportSend": "Open the form",
   "@gamesReportSend": {
     "description": "Button of the report dialog: saves the answer and opens the form in the browser."
+  },
+  "backendDescriptionDxvk9": "D3D9 on Vulkan, through MoltenVK. D3D10 and D3D11 go to DXMT.",
+  "@backendDescriptionDxvk9": {
+    "description": "On the card of the dxvk9 backend, under its name: what it is. It draws DirectX 9 games with DXVK and leaves DirectX 10 and 11 to the DXMT backend."
+  },
+  "backendRoleDx9to11": "DirectX 9 with DXVK, and 10 and 11 with DXMT",
+  "@backendRoleDx9to11": {
+    "description": "What dxvk9 is for on the Mac, after backendUsedFor on its card: games that draw with DirectX 9 go through DXVK, and DirectX 10 or 11 through DXMT, at 32 or 64 bits."
+  },
+  "backendsRosettaGraphics": "Graphics for the Rosetta engine",
+  "@backendsRosettaGraphics": {
+    "description": "Heading on the Backends page above the graphics backends' cards, shown only when the native engine's card is shown above it: these backends work only in Rosetta bottles."
+  },
+  "engineNativeTitle": "Native engine (Mach9)",
+  "@engineNativeTitle": {
+    "description": "Title of the native engine's card on the Backends page. Mach9 is the name of the project whose Wine it is, credited here."
+  },
+  "engineNativeDescription": "Runs Windows games on Apple silicon without Rosetta, so they use less of the processor. Each bottle picks its engine when it's made.",
+  "@engineNativeDescription": {
+    "description": "On the native engine's card, under its title: what the engine is for."
+  },
+  "engineNativeIncludes": "Includes mtld3d for DirectX 9, DXMT for DirectX 10 and 11, vkd3d-proton for DirectX 12, and wined3d for older games.",
+  "@engineNativeIncludes": {
+    "description": "On the native engine's card, under its description: the graphics it brings. The names are those of the projects and stay as they are."
+  },
+  "engineNativeDock": "Games on this engine show as Mach9 in the Dock.",
+  "@engineNativeDock": {
+    "description": "Note on the native engine's card: a game in a native bottle shows Mach9's name and icon in the Dock, not Bodega's."
+  },
+  "engineSizeDownload": "{download} MB download, {disk} MB on disk",
+  "@engineSizeDownload": {
+    "description": "On the native engine's card before it is installed: the size of its download and of its copy on disk, in MB of 10^6 bytes.",
+    "placeholders": {
+      "download": {
+        "type": "double",
+        "format": "decimalPatternDigits",
+        "optionalParameters": {
+          "decimalDigits": 0
+        },
+        "example": "200.5"
+      },
+      "disk": {
+        "type": "double",
+        "format": "decimalPatternDigits",
+        "optionalParameters": {
+          "decimalDigits": 0
+        },
+        "example": "1015"
+      }
+    }
+  },
+  "engineSizeFromApp": "No download: Bodega copies the Mach9 app you have. {disk} MB on disk",
+  "@engineSizeFromApp": {
+    "description": "On the native engine's card when Mach9.app, at the version Bodega was checked with, is in Applications: installing copies it instead of downloading. disk is the size of the copy, in MB of 10^6 bytes.",
+    "placeholders": {
+      "disk": {
+        "type": "double",
+        "format": "decimalPatternDigits",
+        "optionalParameters": {
+          "decimalDigits": 0
+        },
+        "example": "1015"
+      }
+    }
+  },
+  "engineOwnCopy": "Bodega keeps a copy of its own and never changes your Mach9 app.",
+  "@engineOwnCopy": {
+    "description": "Note on the native engine's card: the install copies Mach9's Wine into Bodega and leaves the Mach9 app untouched."
+  },
+  "engineUseApp": "Mach9 {version} is in {path}.",
+  "@engineUseApp": {
+    "description": "On the native engine's card: Bodega found Mach9.app at the version it was checked with. version is that version; path is where the app is.",
+    "placeholders": {
+      "version": {
+        "type": "String",
+        "example": "0.4.0"
+      },
+      "path": {
+        "type": "String",
+        "example": "/Applications/Mach9.app"
+      }
+    }
+  },
+  "engineUntested": "Mach9 {version} hasn't been checked with this version of Bodega.",
+  "@engineUntested": {
+    "description": "On the native engine's card: the Mach9 found in Applications, or the one installed, is newer than the one this Bodega was checked with. It can still be used. version is its version.",
+    "placeholders": {
+      "version": {
+        "type": "String",
+        "example": "0.5.0"
+      }
+    }
+  },
+  "engineNeedsMacos": "The native engine needs macOS {version} or later.",
+  "@engineNeedsMacos": {
+    "description": "On the native engine's card, instead of its buttons, when this Mac's macOS is too old for it. version is the oldest macOS it runs on.",
+    "placeholders": {
+      "version": {
+        "type": "String",
+        "example": "26.4"
+      }
+    }
+  },
+  "engineUpdate": "Update to {version}",
+  "@engineUpdate": {
+    "description": "Button on the native engine's card when an older version is installed: installs the version this Bodega was checked with. version is that version.",
+    "placeholders": {
+      "version": {
+        "type": "String",
+        "example": "0.4.0"
+      }
+    }
+  },
+  "engineStepDownloadingMono": "Downloading Wine Mono",
+  "@engineStepDownloadingMono": {
+    "description": "Under the progress bar of the native engine's card while Bodega downloads Wine Mono, which runs .NET programs and goes into each native bottle."
+  },
+  "engineStepDownloading": "Downloading Mach9",
+  "@engineStepDownloading": {
+    "description": "Under the progress bar of the native engine's card while Bodega downloads Mach9's disk image."
+  },
+  "engineStepMounting": "Opening the disk image",
+  "@engineStepMounting": {
+    "description": "Under the progress bar of the native engine's card while Bodega opens Mach9's disk image."
+  },
+  "engineStepCheckingSignature": "Checking Mach9's signature",
+  "@engineStepCheckingSignature": {
+    "description": "Under the progress bar of the native engine's card while Bodega checks that Mach9 is signed by its developer, before copying it."
+  },
+  "engineStepCopying": "Copying Mach9 into Bodega",
+  "@engineStepCopying": {
+    "description": "Under the progress bar of the native engine's card while Bodega copies Mach9's Wine."
+  },
+  "engineStepChecking": "Checking the copy",
+  "@engineStepChecking": {
+    "description": "Under the progress bar of the native engine's card while Bodega checks the copy it made of Mach9."
+  },
+  "engineStepSwitching": "Getting it ready for your bottles",
+  "@engineStepSwitching": {
+    "description": "Under the progress bar of the native engine's card at the install's last step, when the new copy becomes the one bottles use."
+  },
+  "engineInstalled": "Installed",
+  "@engineInstalled": {
+    "description": "Chip on the native engine's card: the engine is installed. Goes with engine (masculine in Spanish), not with an app or a bottle."
+  },
+  "engineNotInstalled": "Not installed",
+  "@engineNotInstalled": {
+    "description": "Chip on the native engine's card: the engine is not installed. Goes with engine (masculine in Spanish)."
+  },
+  "bottleEngine": "Engine",
+  "@bottleEngine": {
+    "description": "Label of a bottle's engine, the Wine it runs on: the caption of its fact in the bottle's panel, and the label of the engine dropdown in the new-bottle dialog."
+  },
+  "engineNative": "Native (Mach9)",
+  "@engineNative": {
+    "description": "Option of the engine dropdown in the new-bottle dialog: the native engine, Mach9. Goes with engine (masculine in Spanish)."
+  },
+  "engineRosetta": "Rosetta",
+  "@engineRosetta": {
+    "description": "Option of the engine dropdown in the new-bottle dialog: Bodega's own engine, under Rosetta 2. A name, the same in every language."
+  },
+  "newBottleNoteNative": "A native bottle takes about a minute, as it also installs Wine Mono for .NET programs. Then you add apps from the bottle.",
+  "@newBottleNoteNative": {
+    "description": "Note at the bottom of the new-bottle dialog when the native engine is chosen, instead of newBottleNote."
+  },
+  "newBottleNativeHint": "A bottle keeps its engine. dxvk and D3DMetal work only with Rosetta.",
+  "@newBottleNativeHint": {
+    "description": "In the new-bottle dialog, under the dropdowns when the engine dropdown shows: the engine cannot be changed later, and which backends need the Rosetta engine."
+  },
+  "newBottleInstallingMono": "Installing Wine Mono…",
+  "@newBottleInstallingMono": {
+    "description": "Shown in the new-bottle dialog, with a spinner, while Wine Mono goes into a new native bottle, after newBottleCreating."
+  },
+  "newBottleMonoFailed": "The bottle {bottle} was created, but Wine Mono couldn't be installed. You can install it from the bottle's page.",
+  "@newBottleMonoFailed": {
+    "description": "Toast after a native bottle was made but Wine Mono, its last step, failed. bottle is the bottle's name.",
+    "placeholders": {
+      "bottle": {
+        "type": "String",
+        "example": "games"
+      }
+    }
+  },
+  "engineNativeChip": "Native",
+  "@engineNativeChip": {
+    "description": "The value of a bottle's engine fact in its panel: the native engine, Mach9. Goes with engine (masculine in Spanish)."
+  },
+  "engineRosettaChip": "Rosetta",
+  "@engineRosettaChip": {
+    "description": "The value of a bottle's engine fact in its panel: Bodega's own engine, under Rosetta 2. A name, the same in every language."
+  },
+  "bottleMonoMissing": "Wine Mono isn't installed in this bottle, so .NET programs, like some game launchers, won't open.",
+  "@bottleMonoMissing": {
+    "description": "Warning in the panel of a native bottle that lacks Wine Mono, above bottleInstallMono."
+  },
+  "bottleInstallMono": "Install Wine Mono",
+  "@bottleInstallMono": {
+    "description": "Button under bottleMonoMissing: installs Wine Mono into the bottle."
+  },
+  "errRuntimeNotInstalled": "This bottle uses the native engine, which isn't installed. Install it in {backends}.",
+  "@errRuntimeNotInstalled": {
+    "description": "Error, in the error panel of the screen that failed or in a toast: the bottle, or the one being made, uses the native engine, which is not installed. backends is navBackends, the page that installs it, in the same language.",
+    "placeholders": {
+      "backends": {
+        "type": "String",
+        "example": "Backends"
+      }
+    }
+  },
+  "errRuntimeUnavailable": "{reason, select, macosTooOld{The native engine needs a newer version of macOS.} appleSiliconOnly{The native engine needs a Mac with Apple silicon.} other{The native engine runs only on a Mac.}}",
+  "@errRuntimeUnavailable": {
+    "description": "Error, in the error panel of the screen that failed or in a toast: this computer cannot run the native engine. reason is why: macosTooOld, appleSiliconOnly or notThisHost (other).",
+    "placeholders": {
+      "reason": {
+        "type": "String",
+        "example": "macosTooOld"
+      }
+    }
+  },
+  "errRuntimeNotTrusted": "That copy of Mach9 isn't signed by its developer, so Bodega won't use it.",
+  "@errRuntimeNotTrusted": {
+    "description": "Error, on the native engine's card: the Mach9 chosen or found has a broken signature, another developer's, or changed while it was copied."
+  },
+  "errRuntimeTooOld": "Mach9 {version} is older than {minimum}, the first version Bodega works with.",
+  "@errRuntimeTooOld": {
+    "description": "Error, on the native engine's card: the Mach9 chosen is too old. version is its version; minimum is the oldest Bodega takes.",
+    "placeholders": {
+      "version": {
+        "type": "String",
+        "example": "0.3.2"
+      },
+      "minimum": {
+        "type": "String",
+        "example": "0.4.0"
+      }
+    }
+  },
+  "errBackendNotForRuntime": "{runtime, select, mach9{{backend} doesn't work with the native engine. Choose another option in Graphics.} other{{backend} doesn't work with the Rosetta engine. Choose another option in Graphics.}}",
+  "@errBackendNotForRuntime": {
+    "description": "Error, in the error panel of the screen that failed or in a toast: the graphics backend chosen does not work with the bottle's engine. backend is its name; runtime is the engine: mach9 (the native one) or bodega (other, the Rosetta one). Graphics is bottleGraphics, the label of the dropdown.",
+    "placeholders": {
+      "backend": {
+        "type": "String",
+        "example": "dxvk"
+      },
+      "runtime": {
+        "type": "String",
+        "example": "mach9"
+      }
+    }
+  },
+  "errMonoFailed": "Couldn't install Wine Mono: its installer exited with code {code}. Log: {log}",
+  "@errMonoFailed": {
+    "description": "Error, in the error panel of the screen that failed or in a toast: Wine Mono's installer, which a native bottle needs for .NET programs, failed. code is its exit code; log is the path of its log.",
+    "placeholders": {
+      "code": {
+        "type": "int",
+        "example": "1603"
+      },
+      "log": {
+        "type": "String",
+        "example": "/Users/me/Library/Application Support/Bodega/bottles/games/logs/mono.log"
+      }
+    }
+  },
+  "hintMonoMissing": "This program needs Wine Mono, which isn't in the bottle. Install it from the bottle's page.",
+  "@hintMonoMissing": {
+    "description": "Advice after a bottle's run, under the bottle on its page, in the tooltip of the warning icon on its first app in the library, and in a toast: the program is a .NET one and the native bottle lacks Wine Mono."
+  },
+  "hintRulesIgnored": "Mach9 ignored a graphics setting Bodega sent. Copy the log and report it.",
+  "@hintRulesIgnored": {
+    "description": "Advice after a bottle's run, in the same places as the other hints: the native engine did not take one of the graphics rules Bodega passed to it, so the run may have used other graphics."
+  },
+  "hintLoaderNotSigned": "The native engine's copy is damaged, or this macOS can't run it. Install it again in {backends}.",
+  "@hintLoaderNotSigned": {
+    "description": "Advice after a bottle's run, in the same places as the other hints: the native engine refused to start because its copy is not signed as it should be. backends is navBackends, the page that installs it, in the same language.",
+    "placeholders": {
+      "backends": {
+        "type": "String",
+        "example": "Backends"
+      }
+    }
+  },
+  "installStepMono": "Installing Wine Mono in the bottle",
+  "@installStepMono": {
+    "description": "Headline of the install panel while Bodega installs Wine Mono into a new native bottle made for an app."
+  },
+  "engineFileType": "Mach9 disk image or app",
+  "@engineFileType": {
+    "description": "Name of the file type in the file picker that the native engine's Choose file button opens: Mach9's .dmg or Mach9.app."
+  },
+  "engineVersion": "Mach9 {version}",
+  "@engineVersion": {
+    "description": "On the native engine's card once it is installed: the version of Mach9 that bottles use. version is that version.",
+    "placeholders": {
+      "version": {
+        "type": "String",
+        "example": "0.4.0"
+      }
+    }
+  },
+  "bottleRetina": "High resolution (Retina)",
+  "@bottleRetina": {
+    "description": "Label of the dropdown in a Native engine bottle's Settings that chooses Wine's retina mode: whether games draw at the display's full pixel density."
+  },
+  "bottleRetinaNote": "Follow the display turns it on when the main display is a Retina one, as Mach9 does. It applies from the next launch.",
+  "@bottleRetinaNote": {
+    "description": "Line under the retina dropdown of a Native engine bottle. 'Follow the display' is the dropdown's first option (retinaAuto), quoted as the user sees it. Mach9 is the engine's name."
+  },
+  "retinaAuto": "Follow the display",
+  "@retinaAuto": {
+    "description": "Option of the retina dropdown: the mode follows the main display's density, as Mach9 does."
+  },
+  "retinaOn": "On",
+  "@retinaOn": {
+    "description": "Option of the retina dropdown: always on."
+  },
+  "retinaOff": "Off",
+  "@retinaOff": {
+    "description": "Option of the retina dropdown: always off."
+  },
+  "appMenuNativeOptions": "Native engine options…",
+  "@appMenuNativeOptions": {
+    "description": "Item of an app's menu, for apps of a Native engine bottle: opens the dialog with the app's Native engine options."
+  },
+  "nativeOptionsTitle": "Native engine options for {title}",
+  "@nativeOptionsTitle": {
+    "description": "Title of the dialog with one app's Native engine options.",
+    "placeholders": {
+      "title": {
+        "type": "String",
+        "example": "Half-Life"
+      }
+    }
+  },
+  "nativeOptionsNote": "They apply from the game's next launch. Off leaves the choice to Mach9.",
+  "@nativeOptionsNote": {
+    "description": "Line at the bottom of the Native engine options dialog. Mach9 is the engine's name."
+  },
+  "nativeNoForceNx": "For old launchers",
+  "@nativeNoForceNx": {
+    "description": "Name of the option that turns off Mach9's forced no-execute for this app, a switch of the Native engine options dialog."
+  },
+  "nativeNoForceNxHint": "Turn it on when a launcher or a settings window closes as soon as it opens: many made with Visual Studio 2003 need it.",
+  "@nativeNoForceNxHint": {
+    "description": "Line under the switch named nativeNoForceNx: when to turn it on."
+  },
+  "nativeLargeAddressAware": "4 GB of memory",
+  "@nativeLargeAddressAware": {
+    "description": "Name of the option that gives a 32-bit game the 4 GB address space, a switch of the Native engine options dialog."
+  },
+  "nativeLargeAddressAwareHint": "Turn it on when a 32-bit game runs out of memory or closes after a while.",
+  "@nativeLargeAddressAwareHint": {
+    "description": "Line under the switch named nativeLargeAddressAware: when to turn it on."
+  },
+  "nativeNotDpiAware": "Ignore Windows scaling",
+  "@nativeNotDpiAware": {
+    "description": "Name of the option that turns Windows' scaling off for this app, a switch of the Native engine options dialog."
+  },
+  "nativeNotDpiAwareHint": "Turn it on when the game's menus come out tiny or cut off.",
+  "@nativeNotDpiAwareHint": {
+    "description": "Line under the switch named nativeNotDpiAware: when to turn it on."
+  },
+  "nativeCglOpenGl": "macOS's own OpenGL",
+  "@nativeCglOpenGl": {
+    "description": "Name of the option that uses macOS's OpenGL instead of EGL, a switch of the Native engine options dialog."
+  },
+  "nativeCglOpenGlHint": "Turn it on when an OpenGL game shows nothing or does not start.",
+  "@nativeCglOpenGlHint": {
+    "description": "Line under the switch named nativeCglOpenGl: when to turn it on."
+  },
+  "nativeVulkanWined3d": "wined3d with Vulkan",
+  "@nativeVulkanWined3d": {
+    "description": "Name of the option that makes wined3d draw with Vulkan, a switch of the Native engine options dialog."
+  },
+  "nativeVulkanWined3dHint": "For DirectX 8, DirectDraw and games on the wine graphics: wined3d draws with Vulkan instead of OpenGL.",
+  "@nativeVulkanWined3dHint": {
+    "description": "Line under the switch named nativeVulkanWined3d: when to turn it on."
+  },
+  "catalogEngine": "Engine",
+  "@catalogEngine": {
+    "description": "Label of the dropdown on a catalog app's page that chooses the engine of the bottle of its own the app installs into."
+  },
+  "engineCheckNoBottle": "Create a bottle on the Native engine to check it.",
+  "@engineCheckNoBottle": {
+    "description": "Line on the Native engine's card when no ready bottle uses it, so its check can't run."
+  },
+  "bottleMoveToNative": "Move to the Native engine…",
+  "@bottleMoveToNative": {
+    "description": "Button in a Rosetta bottle's panel, shown once the Native engine is installed: moves the bottle to it."
+  },
+  "bottleMoveToNativeNote": "Its games run without Rosetta, so they use less of the processor.",
+  "@bottleMoveToNativeNote": {
+    "description": "Line above the button that moves a Rosetta bottle to the Native engine: why one would."
+  },
+  "bottleMoveTitle": "Move {bottle} to the Native engine?",
+  "@bottleMoveTitle": {
+    "description": "Title of the confirmation before a bottle moves to the Native engine.",
+    "placeholders": {
+      "bottle": {
+        "type": "String",
+        "example": "Games"
+      }
+    }
+  },
+  "bottleMoveMessage": "Its programs, files and settings go to a new Native engine bottle named {bottle}, and the Rosetta one is deleted at the end. Its installed runtimes and its programs' registry don't move: install the runtimes again in Dependencies. If anything fails, the Rosetta bottle stays as it is.",
+  "@bottleMoveMessage": {
+    "description": "Body of the confirmation before a bottle moves to the Native engine: what moves, what is deleted and what is lost.",
+    "placeholders": {
+      "bottle": {
+        "type": "String",
+        "example": "Games"
+      }
+    }
+  },
+  "bottleMoveAction": "Move",
+  "@bottleMoveAction": {
+    "description": "Button of the confirmation that moves a bottle to the Native engine."
+  },
+  "moveStepCreating": "Making the Native engine bottle…",
+  "@moveStepCreating": {
+    "description": "Step of moving a bottle to the Native engine: its new bottle is being made, with Wine Mono."
+  },
+  "moveStepCopying": "Copying programs, files and settings…",
+  "@moveStepCopying": {
+    "description": "Step of moving a bottle to the Native engine: what its programs and user wrote is being copied."
+  },
+  "moveStepFinishing": "Deleting the Rosetta bottle…",
+  "@moveStepFinishing": {
+    "description": "Step of moving a bottle to the Native engine: the old Rosetta bottle is being deleted and the new one takes its name."
+  },
+  "bottleMoved": "{bottle} runs on the Native engine now.",
+  "@bottleMoved": {
+    "description": "Toast once a bottle has moved to the Native engine.",
+    "placeholders": {
+      "bottle": {
+        "type": "String",
+        "example": "Games"
+      }
+    }
+  },
+  "bottleMovedReinstall": "{bottle} runs on the Native engine now. Install again in Dependencies: {runtimes}.",
+  "@bottleMovedReinstall": {
+    "description": "Toast once a bottle has moved to the Native engine and it had runtimes installed, which don't move. runtimes lists them as Bodega names them, joined by commas.",
+    "placeholders": {
+      "bottle": {
+        "type": "String",
+        "example": "Games"
+      },
+      "runtimes": {
+        "type": "String",
+        "example": "vcrun2008 x86, dotnet48 all"
+      }
+    }
   }
 }

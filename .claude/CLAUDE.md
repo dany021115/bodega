@@ -1,6 +1,6 @@
 # Bodega
 
-Open-source launcher to play Windows games on Apple Silicon Macs (Wine x86_64 under Rosetta 2, plus the graphics backends) and on x86_64 Linux, and Nintendo Switch games on the Mac through an emulator the user installs. Public on GitHub, under the GPL-3.0-or-later; `wine/` is LGPL-2.1-or-later. Answer the user in Spanish, in simple language.
+Open-source launcher to play Windows games on Apple Silicon Macs and on x86_64 Linux, and Nintendo Switch games on the Mac through an emulator the user installs. On the Mac each bottle runs on one of two engines, fixed at creation: Bodega's x86_64 Wine under Rosetta 2, plus the graphics backends, or the Native engine, Mach9 (an arm64 Wine, Zlib), which Bodega copies unmodified into `runtimes/mach9-<version>` and never bundles. Public on GitHub, under the GPL-3.0-or-later; `wine/` is LGPL-2.1-or-later. Answer the user in Spanish, in simple language.
 
 ## Language
 
@@ -50,6 +50,15 @@ cd packages/engine
 dart analyze && dart test
 dart compile exe bin/bodega.dart -o ../../build/bodega
 
+# Mach9, the Native engine (agents: only in a temporary BODEGA_HOME, and see Lines not to cross)
+bodega runtime list
+bodega runtime install mach9 [Mach9.dmg|Mach9.app] [--mono <wine-mono.msi>]
+bodega create --runtime mach9 <bottle>     # without --runtime: Bodega's engine
+bodega mono install <bottle>
+bodega rules <bottle> [--backend <b>] [--hud] <program>   # the WINE_COMPATDB a launch would send
+bodega backend list --runtime mach9
+bodega catalog install <id> [bottle] --runtime mach9
+
 tool/package_linux.sh   # .deb (needs dpkg-deb), .tar.gz, AppImage and Arch .pkg.tar.zst (needs makepkg) in dist/ (releases: workflow release-linux, manual only)
 tool/version.sh get|bump|check   # SemVer in apps/bodega/pubspec.yaml
 ```
@@ -70,6 +79,8 @@ See `rules/architecture.md`. The short version: `domain/` is pure Dart, **only `
 - Bodega's own per-game fixes live in `packages/engine/lib/bodega_fixes_data.dart`, written by hand, each with how and when it was verified; a game added by hand matches one by its exe's file name.
 - The Windows runtimes' files (the table in `packages/engine/lib/dependencies.dart`) are downloaded from each vendor's own server (Microsoft, NVIDIA) when the user asks, checked against their pinned size and SHA-256, and never stored in the repo or in Bodega's packages. The only exceptions are the core fonts and `d3dcompiler_47`, which no vendor serves any more: they come from the copies winetricks uses (the `pushcx/corefonts` and `mozilla/fxc2` repositories), pinned at a commit and by SHA-256. Cabinets are opened with Wine's own `extrac32`, not winetricks or `cabextract`.
 - Switch emulators, keys, firmware and games are never bundled or downloaded by Bodega. One link is allowed: the emulator's official download page, which the app opens in the browser, as it opens Apple's page for D3DMetal; it lives only in the emulator table of `packages/engine/lib/switch.dart` and in the tests that check it. No other URL, domain or forge path (owner/repo) of an emulator project, of nxnative, or of their downloads, keys, firmware or games anywhere in the repo, its commits or its pull requests; names that identify and do not link, such as app file names (`Ryujinx.app`), bundle ids and Flatpak ids, are fine, and legal documents may be cited.
+- Mach9 is downloaded from its pinned GitHub release or copied from the user's `Mach9.app`, never bundled in Bodega.app. Never re-sign, edit or move anything inside Mach9's tree (`runtimes/mach9-<v>/engine`), the source app included; Bodega only verifies its signature. Strip quarantine only from Bodega's own copy (`ditto --noqtn`), never from the source. Wine Mono goes only into prefixes, never into Mach9's tree.
+- Agents may run wineboot, `msiexec /qn` and the probe (`bodega backend test`) in Mach9 bottles, headless, and nothing else; games and launchers in them are the user's.
 - Bodega never reads, validates or decrypts keys, firmware or game files: it checks that they exist, and lists a folder only to tell empty from not, or to find game files, native apps and `.keys` files by name; of a native app it reads only what the nxnative line below names. Only at the user's pick, it copies the user's own `.keys` files as they are where the emulator reads them, as the emulator's own "Install keys" does, and it hands the user's own firmware to the emulator's own installer (`--install-firmware`), which asks in its window (the user's decision of 2026-11-12).
 - No text explains how to obtain or dump keys, firmware or games, or how to make an nxnative app: UI, ARB descriptions, docs, `.sdd/`, comments, commits, pull request titles and bodies. Of an emulator, text says only that it is missing, that Bodega opens its official download page, and that its app goes in Applications; of the keys and the firmware, only that they come from the user's own console and how Bodega puts them in place.
 - No titledb data, eShop images or Nintendo logos; "Nintendo Switch" only as descriptive text.

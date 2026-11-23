@@ -1260,11 +1260,13 @@ Future<AppNeeds> appNeeds(String home, String bottle, String key) async {
         : findCI('$dir/prefix/drive_c', app.exe);
     if (await scanProgram(exe) case final scan?) {
       arch = scan.bits == 64 ? 'x64' : 'x86';
-      // Without a runtime nothing is known to be missing from Wine.
-      final wine = hasRuntime(home)
-          ? '${currentRuntime(home)}/engine/lib/wine/'
-                '${scan.bits == 64 ? 'x86_64' : 'i386'}-windows'
-          : null;
+      // Without a runtime nothing is known to be missing from Wine. Mach9's
+      // x64 programs load its ARM64X modules (PE10).
+      final rt = _installedRuntime(home, dir);
+      final wine = rt == null
+          ? null
+          : '$rt/engine/lib/wine/'
+                '${scan.bits == 64 ? (_bottleRuntimeIn(dir) == RuntimeKind.mach9 ? 'aarch64' : 'x86_64') : 'i386'}-windows';
       for (final row in dependencyTable) {
         for (final pattern in row.imports) {
           for (final dll in scan.imports) {
@@ -1352,7 +1354,10 @@ Future<String> installDependency(
   final dir = _existing(home, bottle);
   final prefix = '$dir/prefix';
   if (!_ready(prefix)) throw BottleNotReady(bottle);
-  if (await _serverRunning(home, dir)) throw BottleOpen(bottle);
+  if (_installedRuntime(home, dir) case final rt?
+      when await _serverRunning(rt, dir)) {
+    throw BottleOpen(bottle);
+  }
   if (files != null && files.length != pin.downloads.length) {
     throw BadChoice(ChoiceKind.dependency, '$id $arch');
   }

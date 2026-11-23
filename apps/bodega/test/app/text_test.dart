@@ -43,8 +43,10 @@ import 'package:bodega/app/shared/text/catalog_text.dart';
 import 'package:bodega/app/shared/text/error_text.dart';
 import 'package:bodega/app/shared/text/hint_text.dart';
 import 'package:bodega/app/shared/text/issue_text.dart';
+import 'package:bodega/app/shared/text/native_text.dart';
 import 'package:bodega/app/shared/text/problem_text.dart';
 import 'package:bodega/app/shared/text/progress_text.dart';
+import 'package:bodega/app/shared/text/runtime_text.dart';
 import 'package:bodega/app/shared/text/step_text.dart';
 import 'package:bodega/app/shared/text/switch_text.dart';
 import 'package:bodega/app/shared/widgets/copy_details_button.dart';
@@ -54,6 +56,7 @@ import 'package:bodega/domain/entities/app_error.dart';
 import 'package:bodega/domain/entities/backend_info.dart';
 import 'package:bodega/domain/entities/backend_role.dart';
 import 'package:bodega/domain/entities/bottle_detail.dart';
+import 'package:bodega/domain/entities/bottle_step.dart';
 import 'package:bodega/domain/entities/catalog_app.dart';
 import 'package:bodega/domain/entities/exe_graphics.dart';
 import 'package:bodega/domain/entities/gamepad.dart';
@@ -63,8 +66,14 @@ import 'package:bodega/domain/entities/host_issue.dart';
 import 'package:bodega/domain/entities/install_step.dart';
 import 'package:bodega/domain/entities/library_app.dart';
 import 'package:bodega/domain/entities/log_hint.dart';
+import 'package:bodega/domain/entities/mach9_step.dart';
+import 'package:bodega/domain/entities/native_move_step.dart';
+import 'package:bodega/domain/entities/native_option.dart';
 import 'package:bodega/domain/entities/path_problem.dart';
+import 'package:bodega/domain/entities/retina_mode.dart';
 import 'package:bodega/domain/entities/run_hint.dart';
+import 'package:bodega/domain/entities/runtime_block.dart';
+import 'package:bodega/domain/entities/runtime_kind.dart';
 import 'package:bodega/domain/entities/user_name_problem.dart';
 import 'package:bodega/domain/entities/wine_tool.dart';
 import 'package:bodega/l10n/l10n.dart';
@@ -183,6 +192,9 @@ const _hintCases = <(RunHint, List<String>)>[
   (RunHint.log(LogHint.otherServer), []),
   (RunHint.log(LogHint.cannotOpen), ['<>:"|?*']),
   (RunHint.log(LogHint.fixNotApplied), ['Steam', 'Bodega']),
+  (RunHint.log(LogHint.monoMissing), ['Wine Mono']),
+  (RunHint.log(LogHint.rulesIgnored), ['Mach9']),
+  (RunHint.log(LogHint.loaderNotSigned), []),
   (RunHint.antiCheat(game: 'POLYGON'), ['POLYGON', 'Easy Anti-Cheat', '206']),
   (RunHint.antiCheat(), ['Easy Anti-Cheat', '206']),
 ];
@@ -1904,6 +1916,35 @@ void main() {
       ),
       (const AppError.licenseNotAccepted(detail: detail), []),
       (const AppError.cancelled(detail: detail), []),
+      (
+        const AppError.runtimeNotInstalled(RuntimeKind.mach9, detail: detail),
+        [],
+      ),
+      for (final reason in RuntimeBlock.values)
+        (
+          AppError.runtimeUnavailable(
+            RuntimeKind.mach9,
+            reason,
+            detail: detail,
+          ),
+          [],
+        ),
+      (
+        const AppError.runtimeNotTrusted(
+          '/Applications/Mach9.app',
+          detail: detail,
+        ),
+        ['Mach9'],
+      ),
+      (
+        const AppError.runtimeTooOld('0.3.2', '0.4.0', detail: detail),
+        ['0.3.2', '0.4.0'],
+      ),
+      for (final runtime in RuntimeKind.values)
+        (
+          AppError.backendNotForRuntime('dxvk', runtime, detail: detail),
+          ['dxvk'],
+        ),
       for (final tool in WineTool.values)
         (AppError.wineToolFailed(tool, 53, log, detail: detail), ['53', log]),
       (
@@ -1994,7 +2035,7 @@ void main() {
     test('the cases hold every code', () {
       expect({
         for (final (error, _) in codes) error.runtimeType,
-      }, hasLength(39));
+      }, hasLength(44));
     });
 
     for (final (language, l10n) in [('en', en), ('es', es)]) {
@@ -2585,6 +2626,11 @@ void main() {
           'Writing ServicesPipeTimeout to the Windows registry',
           ['ServicesPipeTimeout'],
         ),
+        (
+          InstallStep.installingMono(),
+          'Installing Wine Mono in the bottle',
+          ['Wine Mono'],
+        ),
         (InstallStep.runningInstaller(), 'Running the installer', []),
         (InstallStep.waiting(), 'Waiting for the installation to finish', []),
       ];
@@ -2592,7 +2638,7 @@ void main() {
       test('the cases hold every step', () {
         expect({
           for (final (step, _, _) in steps) step.runtimeType,
-        }, hasLength(7));
+        }, hasLength(8));
       });
 
       test('in English, each step reads as written', () {
@@ -2664,6 +2710,143 @@ void main() {
             _steamApp,
           ),
           es.stepSyncMismatch('none', 'Steam', 'msync'),
+        );
+      });
+    });
+
+    group('the native engine (MA9)', () {
+      test('in English, each runtime word reads as written', () {
+        expect(
+          {
+            for (final kind in RuntimeKind.values)
+              kind: runtimeKindText(en, kind),
+          },
+          {RuntimeKind.bodega: 'Rosetta', RuntimeKind.mach9: 'Native (Mach9)'},
+        );
+        expect(
+          {
+            for (final kind in RuntimeKind.values)
+              kind: runtimeChipText(en, kind),
+          },
+          {RuntimeKind.bodega: 'Rosetta', RuntimeKind.mach9: 'Native'},
+        );
+        expect(
+          {
+            for (final step in BottleStep.values)
+              step: bottleStepText(en, step),
+          },
+          {
+            BottleStep.prefix: 'Creating the bottle…',
+            BottleStep.mono: 'Installing Wine Mono…',
+          },
+        );
+        expect(en.engineNativeTitle, 'Native engine (Mach9)');
+        expect(en.backendsRosettaGraphics, 'Graphics for the Rosetta engine');
+      });
+
+      test("each of Mach9's steps has words of its own, and Spanish ones", () {
+        for (final l10n in [en, es]) {
+          final texts = [
+            for (final step in Mach9Step.values) mach9StepText(l10n, step),
+          ];
+          expect(texts, everyElement(isNotEmpty), reason: l10n.localeName);
+          expect(texts, everyElement(isNot(contains(_command))));
+          expect(texts.toSet(), hasLength(Mach9Step.values.length));
+        }
+        for (final step in Mach9Step.values) {
+          expect(
+            mach9StepText(es, step),
+            isNot(mach9StepText(en, step)),
+            reason: '$step',
+          );
+        }
+      });
+
+      test('PA6 each retina mode and native option has words, in both', () {
+        for (final l10n in [en, es]) {
+          final modes = [
+            for (final mode in RetinaMode.values) retinaModeText(l10n, mode),
+          ];
+          expect(modes.toSet(), hasLength(RetinaMode.values.length));
+          final names = [
+            for (final option in NativeOption.values)
+              nativeOptionText(l10n, option),
+          ];
+          final hints = [
+            for (final option in NativeOption.values)
+              nativeOptionHintText(l10n, option),
+          ];
+          for (final words in [modes, names, hints]) {
+            expect(words, everyElement(isNotEmpty), reason: l10n.localeName);
+            expect(words, everyElement(isNot(contains(_command))));
+          }
+          expect(names.toSet(), hasLength(NativeOption.values.length));
+        }
+        for (final mode in RetinaMode.values) {
+          expect(retinaModeText(es, mode), isNot(retinaModeText(en, mode)));
+        }
+        for (final option in NativeOption.values) {
+          expect(
+            nativeOptionHintText(es, option),
+            isNot(nativeOptionHintText(en, option)),
+            reason: '$option',
+          );
+        }
+        for (final step in NativeMoveStep.values) {
+          expect(
+            nativeMoveStepText(es, step),
+            isNot(nativeMoveStepText(en, step)),
+          );
+        }
+        expect({
+          for (final step in NativeMoveStep.values)
+            nativeMoveStepText(en, step),
+        }, hasLength(NativeMoveStep.values.length));
+        expect(retinaModeText(en, RetinaMode.auto), 'Follow the display');
+        expect(
+          nativeOptionText(en, NativeOption.largeAddressAware),
+          '4 GB of memory',
+        );
+      });
+
+      test('the native words are translated, and Rosetta stays a name', () {
+        expect(runtimeKindText(es, RuntimeKind.mach9), isNot(en.engineNative));
+        expect(
+          runtimeChipText(es, RuntimeKind.mach9),
+          isNot(en.engineNativeChip),
+        );
+        expect(es.engineRosetta, 'Rosetta');
+        expect(es.bottleMonoMissing, isNot(en.bottleMonoMissing));
+        expect(es.bottleInstallMono, isNot(en.bottleInstallMono));
+      });
+
+      test('an engine mismatch names the engine of the bottle (select)', () {
+        expect(
+          const AppError.backendNotForRuntime(
+            'dxvk',
+            RuntimeKind.mach9,
+          ).localized(en),
+          "dxvk doesn't work with the native engine. Choose another option in "
+          'Graphics.',
+        );
+        expect(
+          const AppError.backendNotForRuntime(
+            'mtld3d',
+            RuntimeKind.bodega,
+          ).localized(en),
+          contains('Rosetta'),
+        );
+      });
+
+      test('Wine Mono failing has words of its own (the wine-tool word)', () {
+        expect(
+          const AppError.wineToolFailed(
+            WineTool.mono,
+            1603,
+            '/l/m.log',
+          ).localized(en),
+          "Couldn't install Wine Mono: its installer exited with code 1603. "
+          'Log: /l/m.log',
         );
       });
     });
@@ -3020,6 +3203,7 @@ void main() {
           {
             BackendRole.dx11to12x64: 'DirectX 11 and 12, 64 bits only',
             BackendRole.dx10to11: 'DirectX 10 and 11, 32 and 64 bits',
+            BackendRole.dx9to11: 'DirectX 9 with DXVK, and 10 and 11 with DXMT',
             BackendRole.everythingElse: "Everything: DirectX 9 and older, and what the others can't run",
             BackendRole.dx8to12: 'DirectX 8 to 12 (DXVK and vkd3d-proton)',
             BackendRole.everythingSlower: 'Everything, slower than dxvk',

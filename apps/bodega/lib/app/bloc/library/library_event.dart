@@ -14,6 +14,7 @@ sealed class LibraryEvent with _$LibraryEvent {
   /// Follows a launch made elsewhere, such as with options.
   const factory LibraryEvent.track(String bottle, String log) =
       LibraryTrackEvent;
+
   /// Stops the bottle, or with [key] only that app.
   const factory LibraryEvent.stop(String bottle, [String? key]) =
       LibraryStopEvent;
@@ -24,6 +25,14 @@ sealed class LibraryEvent with _$LibraryEvent {
   ) = LibrarySetInLibraryEvent;
   const factory LibraryEvent.setHud(String bottle, String key, bool value) =
       LibrarySetHudEvent;
+
+  /// One Native engine option of an app (PA2).
+  const factory LibraryEvent.setNativeOption(
+    String bottle,
+    String key,
+    NativeOption option,
+    bool on,
+  ) = LibrarySetNativeOptionEvent;
   const factory LibraryEvent.detected(String bottle) = LibraryDetectedEvent;
   const factory LibraryEvent.closed(String bottle) = LibraryClosedEvent;
   const factory LibraryEvent.appClosed(String bottle, String key) =

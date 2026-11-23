@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:bodega/data/repository/game_repository_impl.dart';
 import 'package:bodega/domain/entities/game.dart';
+import 'package:bodega/domain/entities/runtime_kind.dart';
 import 'package:engine/engine.dart' as engine;
 import 'package:engine/probe_data.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -42,9 +43,9 @@ void main() {
     expect(blur.status, GameStatus.verified);
     expect(blur.sourceUrl, isNull);
     expect(blur.requires, ['vcrun2008']);
-    final alice = (await repository.game(
-      'alice-madness-returns',
-    )).getRight().toNullable()!;
+    final alice = (await repository.game('alice-madness-returns'))
+        .getRight()
+        .toNullable()!;
     expect(alice.status, GameStatus.community);
     expect(
       alice.sourceUrl,
@@ -123,23 +124,31 @@ void main() {
       'steam_appid': '19680',
       'rating': 'playable',
       'backend': 'dxmt (config)',
+      'engine': 'Rosetta',
       'bodega': '1.8.0',
       'os': startsWith(Platform.operatingSystem),
       'cpu': isA<String>(),
       'notes': 'menu only & more',
     });
     expect(url.toString(), contains('menu+only+%26+more'));
+    final native = (await repository.reportUrl(
+      game.copyWith(runtime: RuntimeKind.mach9),
+      GameVerdict.works,
+      '',
+    )).getRight().toNullable()!;
+    expect(native.queryParameters['engine'], 'Native (Mach9)');
+    expect(native.toString(), contains('engine=Native+%28Mach9%29'));
   });
 
   test('the issue form has the fields the URL fills, and names CC0', () {
-    final form = File(
-      '../../.github/ISSUE_TEMPLATE/game-report.yml',
-    ).readAsStringSync();
+    final form = File('../../.github/ISSUE_TEMPLATE/game-report.yml')
+        .readAsStringSync();
     for (final id in [
       'game',
       'steam_appid',
       'rating',
       'backend',
+      'engine',
       'bodega',
       'os',
       'cpu',

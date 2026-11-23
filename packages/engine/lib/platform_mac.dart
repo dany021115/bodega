@@ -56,7 +56,7 @@ class MacPlatform extends HostPlatform {
   /// another version, whose pad controls can be wrong. The bundle's SDL2 goes
   /// into the runtime in use whenever it differs (design §10).
   void _syncSdl(String home, String root) {
-    if (!hasRuntime(home)) return;
+    if (!_takesSdl(home)) return;
     final source = [
       for (final id in _subdirs('$root/runtime'))
         if (File('$root/runtime/$id/$_sdlInRuntime') case final file
@@ -168,7 +168,13 @@ class MacPlatform extends HostPlatform {
   }
 
   @override
-  List<String> get backendNames => const ['wine', 'dxmt', 'dxvk', 'd3dmetal'];
+  List<String> get backendNames => const [
+    'wine',
+    'dxmt',
+    'dxvk',
+    'dxvk9',
+    'd3dmetal',
+  ];
 
   @override
   Map<String, ({String url, String sha256})> get pinnedBackends => _pinned;
@@ -185,12 +191,30 @@ class MacPlatform extends HostPlatform {
     String backend, {
     bool hud = false,
   }) => {
-    'CX_ACTIVE_GRAPHICS_BACKEND': backend == 'wine' ? 'wined3d' : backend,
+    'CX_ACTIVE_GRAPHICS_BACKEND': switch (backend) {
+      'wine' => 'wined3d',
+      'dxvk9' => 'dxvk',
+      _ => backend,
+    },
     ...switch (backend) {
       'dxmt' => {'WINEDLLPATH_PREPEND': _layer(home, 'dxmt'), ..._crossProcess},
       'dxvk' => {
         'WINEDLLPATH_PREPEND': _layer(home, 'dxvk'),
         'WINEDLLOVERRIDES': '$_overrides;d3d10core,d3d11=n,b',
+      },
+      'dxvk9' => {
+        // DXVK's d3d9 first, and DXMT behind it for D3D10/11: a launcher
+        // such as Plutonium's draws with D3D11 and starts a D3D9 game.
+        'WINEDLLPATH_PREPEND': [
+          _layer(home, 'dxvk9'),
+          if (_installed(home, 'dxmt')) _layer(home, 'dxmt'),
+        ].join(':'),
+        // Apple GPUs lack features DXVK requires, geometry shaders among
+        // them; the layer's patch turns those into warnings (relaxed features).
+        'DXVK_RELAX_FEATURES': '1',
+        // DXVK logs to stderr, which is the run's log, and not next to the game.
+        'DXVK_LOG_PATH': 'none',
+        if (_installed(home, 'dxmt')) ..._crossProcess,
       },
       'd3dmetal' => {
         // D3DMetal is 64-bit only: DXMT behind it serves 32-bit D3D10/11.
@@ -222,7 +246,7 @@ class MacPlatform extends HostPlatform {
   }
 
   /// G3: what each layer translates. DXVK-macOS has no d3d9 and D3DMetal no
-  /// 32-bit DX12.
+  /// 32-bit DX12; dxvk9 is DXVK's d3d9 with DXMT behind it for DX10 and 11.
   @override
   bool backendFits(String backend, ExeGraphics exe) =>
       exe.directx.isEmpty ||
@@ -230,6 +254,7 @@ class MacPlatform extends HostPlatform {
         'd3dmetal' =>
           exe.bits == 64 && (exe.directx == 'DX11' || exe.directx == 'DX12'),
         'dxmt' || 'dxvk' => exe.directx == 'DX10' || exe.directx == 'DX11',
+        'dxvk9' => exe.directx != 'DX12',
         _ => true,
       };
 
@@ -237,6 +262,7 @@ class MacPlatform extends HostPlatform {
   BackendRole backendRole(String backend) => switch (backend) {
     'd3dmetal' => BackendRole.dx11to12x64,
     'dxmt' || 'dxvk' => BackendRole.dx10to11,
+    'dxvk9' => BackendRole.dx9to11,
     _ => BackendRole.everythingElse,
   };
 
@@ -252,12 +278,20 @@ class MacPlatform extends HostPlatform {
           (64, '12'),
           if (_installed(home, 'dxmt')) (32, '11'),
         ],
+        'dxvk9' => [
+          (32, '9'),
+          (64, '9'),
+          if (_installed(home, 'dxmt')) (32, '11'),
+        ],
         _ => [(64, '11'), (32, '11')],
       };
 
   @override
   Future<void> prepareBottle(String home, String name) =>
       _ensureGamepads(home, name);
+
+  @override
+  bool mainDisplayHiDpi() => _mainDisplayHiDpi();
 
   @override
   List<List<String>> highResRegistry(bool value) => [
@@ -289,6 +323,83 @@ class MacPlatform extends HostPlatform {
 
   @override
   Map<String, String> perfEnv(String bottleDir) => const {};
+
+  @override
+  RuntimeBlock? get mach9Block => (_mach9Block ??= (_readMach9Block(),)).$1;
+
+  @override
+  Future<String> signingTeam(String path, {bool deep = false}) async {
+    final verify = await Process.run('/usr/bin/codesign', [
+      '--verify',
+      '--strict',
+      if (deep) '--deep',
+      path,
+    ]);
+    if (verify.exitCode != 0) {
+      throw RuntimeNotTrusted(path, '${verify.stdout}${verify.stderr}'.trim());
+    }
+    // -dv writes what it displays to stderr.
+    final display = await Process.run('/usr/bin/codesign', ['-dv', path]);
+    final team = RegExp(
+      r'^TeamIdentifier=(\S+)$',
+      multiLine: true,
+    ).firstMatch('${display.stdout}${display.stderr}')?.group(1);
+    if (display.exitCode != 0 || team == null) {
+      throw RuntimeNotTrusted(path, 'no Team ID in its signature');
+    }
+    return team;
+  }
+
+  /// ditto clones on APFS, keeps links and dates, and with `--noqtn` leaves no
+  /// quarantine on the copy (D6).
+  @override
+  Future<void> copyTree(String from, String to) async {
+    await _run('/usr/bin/ditto', ['--noqtn', from, to]);
+  }
+
+  @override
+  List<String> get applicationDirs => [
+    '/Applications',
+    if (Platform.environment['HOME'] case final home?) '$home/Applications',
+  ];
+}
+
+/// [MacPlatform.mach9Block], read once: neither changes while Bodega runs.
+(RuntimeBlock?,)? _mach9Block;
+
+RuntimeBlock? _readMach9Block() {
+  String ask(String exe, List<String> args) {
+    try {
+      return '${Process.runSync(exe, args).stdout}'.trim();
+    } on ProcessException {
+      return '';
+    }
+  }
+
+  if (ask('/usr/sbin/sysctl', ['-n', 'hw.optional.arm64']) != '1') {
+    return RuntimeBlock.appleSiliconOnly;
+  }
+  final version = ask('/usr/bin/sw_vers', ['-productVersion']);
+  return _versionAtLeast(version, mach9Release.minimumMacos)
+      ? null
+      : RuntimeBlock.macosTooOld;
+}
+
+/// Whether the dotted [version] is [minimum] or later; a version that does
+/// not parse is not.
+bool _versionAtLeast(String version, String minimum) {
+  List<int>? parts(String text) {
+    final list = text.split('.').map(int.tryParse).toList();
+    return list.contains(null) ? null : list.cast<int>();
+  }
+
+  final have = parts(version), want = parts(minimum);
+  if (have == null || want == null) return false;
+  for (var i = 0; i < want.length || i < have.length; i++) {
+    final a = i < have.length ? have[i] : 0, b = i < want.length ? want[i] : 0;
+    if (a != b) return a > b;
+  }
+  return true;
 }
 
 /// Copied from the app bundle, the files would be blocked by Gatekeeper.
@@ -344,7 +455,7 @@ Future<void> _ensureGamepads(String home, String name) async {
   // lasts. Measured: Blur opened right after had no pad until the bottle was
   // reopened. So let that session end; something else keeping it up only
   // costs this wait, and then it sees them after it restarts.
-  final rt = currentRuntime(home);
+  final rt = runtimeDir(home, _bottleRuntimeIn(dir));
   final wait = await Process.start(
     '$rt/engine/bin/wineserver',
     ['-w'],
@@ -366,4 +477,39 @@ bool _sameBytes(List<int> a, List<int> b) {
     if (a[i] != b[i]) return false;
   }
   return true;
+}
+
+/// Mach9.app's rule (`retina.rs`): the main display's current mode has more
+/// pixels than points. CoreGraphics' C API through `dart:ffi`; false without
+/// a display or the library (PE3).
+bool _mainDisplayHiDpi() {
+  try {
+    final cg = DynamicLibrary.open(
+      '/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics',
+    );
+    final display = cg.lookupFunction<Uint32 Function(), int Function()>(
+      'CGMainDisplayID',
+    )();
+    final mode = cg
+        .lookupFunction<
+          Pointer<Void> Function(Uint32),
+          Pointer<Void> Function(int)
+        >('CGDisplayCopyDisplayMode')(display);
+    if (mode == nullptr) return false;
+    int size(String function) =>
+        cg.lookupFunction<
+          Size Function(Pointer<Void>),
+          int Function(Pointer<Void>)
+        >(function)(mode);
+    try {
+      return size('CGDisplayModeGetPixelWidth') > size('CGDisplayModeGetWidth');
+    } finally {
+      cg.lookupFunction<
+        Void Function(Pointer<Void>),
+        void Function(Pointer<Void>)
+      >('CGDisplayModeRelease')(mode);
+    }
+  } on Object {
+    return false;
+  }
 }
