@@ -258,6 +258,9 @@ class LinuxPlatform extends HostPlatform {
       _ensureLayers(home, name);
 
   @override
+  bool mainDisplayHiDpi() => false;
+
+  @override
   List<List<String>> highResRegistry(bool value) => [
     [
       r'HKCU\Control Panel\Desktop',
@@ -284,6 +287,21 @@ class LinuxPlatform extends HostPlatform {
   // Harmless without GameMode installed: launchWrapper then adds nothing.
   @override
   bool get defaultGamemode => true;
+
+  @override
+  RuntimeBlock? get mach9Block => RuntimeBlock.notThisHost;
+
+  @override
+  Future<String> signingTeam(String path, {bool deep = false}) =>
+      throw NotAvailable('codesign', displayName);
+
+  @override
+  Future<void> copyTree(String from, String to) async {
+    await _run('/bin/cp', ['-a', from, to]);
+  }
+
+  @override
+  List<String> get applicationDirs => const [];
 }
 
 /// Whether [name] is an executable file somewhere on the PATH.

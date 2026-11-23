@@ -1,3 +1,4 @@
+import 'package:bodega/domain/entities/native_option.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 part 'library_app.freezed.dart';
@@ -24,5 +25,11 @@ abstract class LibraryApp with _$LibraryApp {
 
     /// Whether every launch of it shows the performance HUD.
     @Default(false) bool hud,
+
+    /// Whether its bottle runs on the Native engine (PA2).
+    @Default(false) bool nativeEngine,
+
+    /// The Native engine options it has on (PA2).
+    @Default({}) Set<NativeOption> nativeOptions,
   }) = _LibraryApp;
 }

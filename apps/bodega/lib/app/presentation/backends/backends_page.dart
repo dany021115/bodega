@@ -1,6 +1,7 @@
 import 'package:bodega/app/bloc/backends/backends_bloc.dart';
 import 'package:bodega/app/bloc/setup/setup_bloc.dart';
 import 'package:bodega/app/presentation/backends/widgets/backend_card.dart';
+import 'package:bodega/app/presentation/backends/widgets/engine_card.dart';
 import 'package:bodega/app/shared/text/error_text.dart';
 import 'package:bodega/app/shared/widgets/copy_details_button.dart';
 import 'package:bodega/app/shared/widgets/custom_loading.dart';
@@ -47,6 +48,17 @@ class _BackendsPageState extends State<BackendsPage> {
                   ),
                 ),
                 CopyDetailsButton(error: error),
+              ],
+              // The native engine, then the Rosetta engine's graphics, only
+              // where this Mac could run it (MA5).
+              if (state.mach9 case final mach9?) ...[
+                const SizedBox(height: AppSpacing.md),
+                EngineCard(runtime: mach9, state: state),
+                const SizedBox(height: AppSpacing.xl),
+                Text(
+                  context.l10n.backendsRosettaGraphics,
+                  style: styles.subsectionTitle,
+                ),
               ],
               for (final backend in state.backends)
                 if (backend.name != 'd3dmetal' || caps.d3dmetal) ...[

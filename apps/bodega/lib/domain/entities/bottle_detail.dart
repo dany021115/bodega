@@ -1,4 +1,6 @@
 import 'package:bodega/domain/entities/library_app.dart';
+import 'package:bodega/domain/entities/retina_mode.dart';
+import 'package:bodega/domain/entities/runtime_kind.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 part 'bottle_detail.freezed.dart';
@@ -27,6 +29,13 @@ abstract class BottleDetail with _$BottleDetail {
     required String backend,
     required String sync,
     @Default(false) bool highRes,
+
+    /// A Native engine bottle's retina mode (PA1); Rosetta's is [highRes].
+    @Default(RetinaMode.auto) RetinaMode retina,
+
+    /// The Native engine is installed, so a Rosetta bottle can move to it
+    /// (PA8).
+    @Default(false) bool nativeInstalled,
     @Default(false) bool dlss,
     @Default(true) bool avx,
 
@@ -48,5 +57,11 @@ abstract class BottleDetail with _$BottleDetail {
     @Default([]) List<ProgramBackend> exceptions,
     @Default([]) List<BottleLogEntry> logs,
     @Default([]) List<String> installedBackends,
+
+    /// The Wine it runs on: its prefix's (D2).
+    @Default(RuntimeKind.bodega) RuntimeKind runtime,
+
+    /// A native bottle without Wine Mono (MB7).
+    @Default(false) bool monoMissing,
   }) = _BottleDetail;
 }

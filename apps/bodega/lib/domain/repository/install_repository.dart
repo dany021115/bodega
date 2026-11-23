@@ -1,5 +1,6 @@
 import 'package:bodega/domain/entities/app_error.dart';
 import 'package:bodega/domain/entities/install_step.dart';
+import 'package:bodega/domain/entities/runtime_kind.dart';
 import 'package:fpdart/fpdart.dart';
 
 abstract class InstallRepository {
@@ -20,6 +21,10 @@ abstract class InstallRepository {
     String setup,
     void Function(InstallStep step) onStep, {
     String? bottle,
+
+    /// The engine of a bottle of its own (PA3); an existing [bottle] keeps
+    /// its own.
+    RuntimeKind runtime = RuntimeKind.bodega,
   });
 
   bool bottleExists(String name);

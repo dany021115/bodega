@@ -4,6 +4,10 @@ import 'package:bloc/bloc.dart';
 import 'package:bodega/domain/entities/app_error.dart';
 import 'package:bodega/domain/entities/backend_info.dart';
 import 'package:bodega/domain/entities/gptk_step.dart';
+import 'package:bodega/domain/entities/mach9_step.dart';
+import 'package:bodega/domain/entities/runtime_block.dart';
+import 'package:bodega/domain/entities/runtime_info.dart';
+import 'package:bodega/domain/entities/runtime_kind.dart';
 import 'package:bodega/domain/repository/backend_repository.dart';
 import 'package:fpdart/fpdart.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
@@ -12,6 +16,13 @@ import 'package:injectable/injectable.dart';
 part 'backends_event.dart';
 part 'backends_state.dart';
 part 'backends_bloc.freezed.dart';
+
+/// The engine card's check: [BackendsState.checking] while it runs, and the
+/// prefix of its results' keys (PA4).
+const mach9Check = 'mach9';
+
+/// What the engine card's check probes, in order (P14).
+const mach9Checks = ['mtld3d', 'dxmt', 'wine'];
 
 @lazySingleton
 class BackendsBloc extends Bloc<BackendsEvent, BackendsState> {
@@ -46,6 +57,45 @@ class BackendsBloc extends Bloc<BackendsEvent, BackendsState> {
       await _finish(result.map((_) => unit), emit);
     });
     on<BackendsCancelEvent>((event, emit) => _repository.cancelDownload());
+    on<BackendsInstallRuntimeEvent>((event, emit) async {
+      if (state.busy != null || state.checking != null) return;
+      emit(
+        state.copyWith(
+          busy: event.kind.name,
+          isDownloading: false,
+          received: 0,
+          total: null,
+          runtimeStep: null,
+          error: null,
+        ),
+      );
+      var shown = -1;
+      final result = await _repository.installRuntime(
+        event.kind,
+        file: event.file,
+        onProgress: (received, total) {
+          final mark = total == null ? received >> 20 : received * 100 ~/ total;
+          if (mark == shown) return;
+          shown = mark;
+          emit(state.copyWith(received: received, total: total));
+        },
+        onStep: (step) {
+          shown = -1;
+          emit(
+            state.copyWith(
+              runtimeStep: step,
+              isDownloading:
+                  step == Mach9Step.downloading ||
+                  step == Mach9Step.downloadingMono,
+              received: 0,
+              total: null,
+            ),
+          );
+        },
+      );
+      emit(state.copyWith(runtimeStep: null));
+      await _finish(result.map((_) => unit), emit);
+    });
     on<BackendsInstallFileEvent>((event, emit) async {
       if (state.busy != null) return;
       emit(
@@ -85,6 +135,26 @@ class BackendsBloc extends Bloc<BackendsEvent, BackendsState> {
     on<BackendsCancelGptkEvent>((event, emit) {
       _cancelled = true;
       _stopWaiting(emit);
+    });
+    on<BackendsCheckEngineEvent>((event, emit) async {
+      if (state.busy != null || state.checking != null) return;
+      emit(state.copyWith(checking: mach9Check, error: null));
+      for (final name in mach9Checks) {
+        final result = await _repository.check(event.bottle, name);
+        final failed = result.getLeft().toNullable();
+        if (failed != null) {
+          return emit(state.copyWith(checking: null, error: failed));
+        }
+        emit(
+          state.copyWith(
+            results: {
+              ...state.results,
+              '$mach9Check:$name': result.getRight().toNullable()!,
+            },
+          ),
+        );
+      }
+      emit(state.copyWith(checking: null));
     });
     on<BackendsCheckEvent>((event, emit) async {
       if (state.busy != null || state.checking != null) return;
@@ -162,15 +232,20 @@ class BackendsBloc extends Bloc<BackendsEvent, BackendsState> {
   Future<void> _load(Emitter<BackendsState> emit) async {
     final backends = await _repository.list();
     final bottles = await _repository.readyBottles();
+    final native = await _repository.readyBottles(runtime: RuntimeKind.mach9);
+    final runtimes = await _repository.runtimes();
     emit(
       state.copyWith(
         isLoading: false,
         backends: backends.getOrElse((_) => state.backends),
         bottles: bottles.getOrElse((_) => state.bottles),
+        nativeBottles: native.getOrElse((_) => state.nativeBottles),
+        runtimes: runtimes.getOrElse((_) => state.runtimes),
         error:
             state.error ??
             backends.getLeft().toNullable() ??
-            bottles.getLeft().toNullable(),
+            bottles.getLeft().toNullable() ??
+            runtimes.getLeft().toNullable(),
       ),
     );
   }

@@ -4,6 +4,9 @@ import 'dart:io';
 
 import 'package:bloc_test/bloc_test.dart';
 import 'package:bodega/app/bloc/add_app/add_app_bloc.dart';
+import 'package:bodega/app/bloc/app_games/app_games_bloc.dart';
+import 'package:bodega/app/bloc/game_detail/game_detail_bloc.dart';
+import 'package:bodega/app/bloc/games/games_bloc.dart';
 import 'package:bodega/app/bloc/backends/backends_bloc.dart';
 import 'package:bodega/app/bloc/bottle_detail/bottle_detail_bloc.dart';
 import 'package:bodega/app/bloc/bottles/bottles_bloc.dart';
@@ -21,6 +24,7 @@ import 'package:bodega/app/bloc/update/update_bloc.dart';
 import 'package:bodega/app/bloc/view_mode/view_mode_bloc.dart';
 import 'package:bodega/app/presentation/add_app/add_app_dialog.dart';
 import 'package:bodega/app/presentation/backends/backends_page.dart';
+import 'package:bodega/app/presentation/backends/widgets/engine_card.dart';
 import 'package:bodega/app/presentation/bottles/bottle_detail_page.dart';
 import 'package:bodega/app/presentation/bottles/new_bottle_dialog.dart';
 import 'package:bodega/app/presentation/bottles/widgets/bottle_column.dart';
@@ -28,8 +32,11 @@ import 'package:bodega/app/presentation/bottles/widgets/bottle_empty_apps.dart';
 import 'package:bodega/app/presentation/bottles/widgets/run_options_dialog.dart';
 import 'package:bodega/app/presentation/catalog/catalog_detail_page.dart';
 import 'package:bodega/app/presentation/catalog/catalog_page.dart';
+import 'package:bodega/app/presentation/games/game_detail_page.dart';
+import 'package:bodega/app/presentation/games/games_page.dart';
 import 'package:bodega/app/presentation/library/library_page.dart';
 import 'package:bodega/app/presentation/library/widgets/bottle_tag.dart';
+import 'package:bodega/app/presentation/library/widgets/native_options_dialog.dart';
 import 'package:bodega/app/shared/widgets/language_menu.dart';
 import 'package:bodega/app/presentation/setup/setup_page.dart';
 import 'package:bodega/app/presentation/switch/switch_page.dart';
@@ -51,6 +58,8 @@ import 'package:bodega/domain/entities/backend_role.dart';
 import 'package:bodega/domain/entities/bottle.dart';
 import 'package:bodega/domain/entities/bottle_detail.dart';
 import 'package:bodega/domain/entities/catalog_app.dart';
+import 'package:bodega/domain/entities/exe_graphics.dart';
+import 'package:bodega/domain/entities/game.dart';
 import 'package:bodega/domain/entities/gamepad.dart';
 import 'package:bodega/domain/entities/gptk_step.dart';
 import 'package:bodega/domain/entities/host_capabilities.dart';
@@ -58,7 +67,14 @@ import 'package:bodega/domain/entities/host_issue.dart';
 import 'package:bodega/domain/entities/install_step.dart';
 import 'package:bodega/domain/entities/library_app.dart';
 import 'package:bodega/domain/entities/log_hint.dart';
+import 'package:bodega/domain/entities/mach9_step.dart';
+import 'package:bodega/domain/entities/native_move_step.dart';
+import 'package:bodega/domain/entities/native_option.dart';
+import 'package:bodega/domain/entities/retina_mode.dart';
 import 'package:bodega/domain/entities/run_hint.dart';
+import 'package:bodega/domain/entities/runtime_block.dart';
+import 'package:bodega/domain/entities/runtime_info.dart';
+import 'package:bodega/domain/entities/runtime_kind.dart';
 import 'package:bodega/domain/entities/switch_game.dart';
 import 'package:bodega/domain/entities/switch_status.dart';
 import 'package:bodega/l10n/l10n.dart';
@@ -126,6 +142,53 @@ class _MockSwitch extends MockBloc<SwitchEvent, SwitchState>
 class _MockDependencies extends MockBloc<DependenciesEvent, DependenciesState>
     implements DependenciesBloc {}
 
+class _MockAppGames extends MockBloc<AppGamesEvent, AppGamesState>
+    implements AppGamesBloc {}
+
+class _MockGames extends MockBloc<GamesEvent, GamesState>
+    implements GamesBloc {}
+
+class _MockGameDetail extends MockBloc<GameDetailEvent, GameDetailState>
+    implements GameDetailBloc {}
+
+/// A game with the longest texts and every part of its page and its row.
+final _longGame = GameConfig(
+  id: 'long',
+  title: 'A Game With A Very Long Title: The Definitive Edition Remastered',
+  status: GameStatus.community,
+  rating: GameRating.playable,
+  backend: 'd3dmetal',
+  antiCheat: const ['Easy Anti-Cheat', 'BattlEye', 'Denuvo Anti-Cheat'],
+  antiCheatVerdict: AntiCheatVerdict.blocked,
+  reports: 12,
+  lastReport: '2026-11-11',
+  nativeMac: true,
+  steps: const [
+    GameStep(
+      kind: GameStepKind.variable,
+      name: 'D3DM_DEVICE_DESCRIPTION',
+      value: 'AMD Radeon RX 6800 XT with a long description',
+    ),
+    GameStep(kind: GameStepKind.override, value: 'xaudio2_7,xaudio2_9=n,b'),
+    GameStep(
+      kind: GameStepKind.registry,
+      name: 'EmulateModeset',
+      value: 'y',
+      where: r'HKCU\Software\Wine\AppDefaults\Game.exe\X11 Driver',
+    ),
+    GameStep(
+      kind: GameStepKind.settingsFile,
+      name: '[Sound] ReverbWithALongName',
+      value: '0',
+      where: r'%USERPROFILE%\Documents\Game\config.ini',
+    ),
+  ],
+  requires: const ['vcrun2022', 'dotnet48'],
+  notes: [_long],
+  knownIssues: [GameIssue(symptom: _long, cause: '', fix: _long)],
+  sourceUrl: 'https://github.com/gauthierpiarrette/highball-db/blob/x/a.json',
+);
+
 // The longest texts and every chip at once: what would overflow first.
 final _long = 'A long note that takes up several lines on the screen. ' * 6;
 
@@ -134,12 +197,125 @@ final _long = 'A long note that takes up several lines on the screen. ' * 6;
 final _error = AppError.corruptData(_long, detail: 'stderr: boom');
 final _longName = 'a-bottle-with-a-very-very-long-name-${'x' * 28}';
 
+/// A window tall enough for the whole bottle panel, with every hint above
+/// its settings, so a tap reaches its tools.
+const _tall = 2800.0;
+
 /// Every hint a bottle can get at once, the anti-cheat one for a game with a
 /// long title: the most a bottle's card and page show.
 final _hints = [
   for (final hint in LogHint.values) RunHint.log(hint),
   RunHint.antiCheat(game: _long),
 ];
+
+// The native engine (MA5).
+
+const _rosetta = RuntimeInfo(kind: RuntimeKind.bodega, installed: true);
+
+/// Mach9 not installed, with the pinned release's numbers.
+const _mach9 = RuntimeInfo(
+  kind: RuntimeKind.mach9,
+  installed: false,
+  pinnedVersion: '0.4.0',
+  downloadBytes: 200499232,
+  diskBytes: 1015000000,
+  minimumMacos: '26.4',
+);
+
+/// Each state of the engine card (design §7), with what its state shows:
+/// the runtime, the install in progress and its step.
+final _engineStates = <String, BackendsState>{
+  'not installed': _backends.copyWith(runtimes: const [_rosetta, _mach9]),
+  'app found at the pin': _backends.copyWith(
+    runtimes: [
+      _rosetta,
+      _mach9.copyWith(
+        appPath: '/Applications/$_longName/Mach9.app',
+        appVersion: '0.4.0',
+      ),
+    ],
+  ),
+  'app found newer': _backends.copyWith(
+    runtimes: [
+      _rosetta,
+      _mach9.copyWith(appPath: '/Applications/Mach9.app', appVersion: '0.5.0'),
+    ],
+  ),
+  'downloading': _backends.copyWith(
+    runtimes: const [_rosetta, _mach9],
+    busy: 'mach9',
+    isDownloading: true,
+    runtimeStep: Mach9Step.downloading,
+    received: 100 << 20,
+    total: 200 << 20,
+  ),
+  'a step': _backends.copyWith(
+    runtimes: const [_rosetta, _mach9],
+    busy: 'mach9',
+    isDownloading: false,
+    runtimeStep: Mach9Step.switching,
+  ),
+  'installed': _backends.copyWith(
+    runtimes: [
+      _rosetta,
+      _mach9.copyWith(installed: true, version: '0.4.0'),
+    ],
+  ),
+  'installed, not checked': _backends.copyWith(
+    runtimes: [
+      _rosetta,
+      _mach9.copyWith(installed: true, version: '0.5.0', checked: false),
+    ],
+  ),
+  'update available': _backends.copyWith(
+    runtimes: [
+      _rosetta,
+      _mach9.copyWith(
+        installed: true,
+        version: '0.3.9',
+        pinnedVersion: '0.4.0',
+      ),
+    ],
+  ),
+  // PA4: a ready Native bottle, and a check that ran with long logs.
+  'installed, checked': _backends.copyWith(
+    runtimes: [
+      _rosetta,
+      _mach9.copyWith(installed: true, version: '0.4.0'),
+    ],
+    nativeBottles: [_longName],
+    results: {
+      for (final name in mach9Checks)
+        '$mach9Check:$name': [
+          ProbeResult(
+            bits: 64,
+            d3d: '9',
+            ok: name != 'wine',
+            log: '/Users/$_longName/Library/$_longName/$name.log',
+          ),
+        ],
+    },
+  ),
+  'macOS too old': _backends.copyWith(
+    runtimes: [
+      _rosetta,
+      _mach9.copyWith(blocked: RuntimeBlock.macosTooOld),
+    ],
+  ),
+};
+
+/// A native bottle without Wine Mono (MA7).
+BottleDetailState _nativeBottle() {
+  final state = _bottle();
+  return state.copyWith(
+    detail: state.detail!.copyWith(
+      runtime: RuntimeKind.mach9,
+      monoMissing: true,
+      backend: 'mtld3d',
+      installedBackends: const ['wine', 'dxmt', 'mtld3d'],
+    ),
+  );
+}
 
 /// Every chip at once. Its prose comes from the ARBs by id (L16): a copy as
 /// Steam, the catalog's longest, and one as `custom`, which has none.
@@ -447,6 +623,9 @@ void main() {
   late _MockSetup setup;
   late _MockSwitch switchGames;
   late _MockDependencies dependencies;
+  late _MockAppGames appGames;
+  late _MockGames games;
+  late _MockGameDetail gameDetail;
 
   void showBottle(BottleDetailState state) => whenListen(
     bottle,
@@ -470,6 +649,47 @@ void main() {
   );
 
   setUp(() {
+    appGames = _MockAppGames();
+    whenListen(
+      appGames,
+      const Stream<AppGamesState>.empty(),
+      initialState: AppGamesState(
+        bottle: _longName,
+        isLoading: false,
+        apps: [
+          AppGame(
+            key: 'steam:1',
+            title: _longGame.title,
+            config: _longGame,
+            by: GameMatchKind.title,
+            backend: 'd3dmetal',
+            origin: BackendOrigin.config,
+            steps: _longGame.steps,
+            requires: _longGame.requires,
+            verdict: GameVerdict.playable,
+          ),
+          const AppGame(
+            key: 'other.exe',
+            title: 'Other',
+            backend: 'wine',
+            origin: BackendOrigin.auto,
+            graphics: ExeGraphics(bits: 32, directx: 'DX9'),
+          ),
+        ],
+      ),
+    );
+    games = _MockGames();
+    whenListen(
+      games,
+      const Stream<GamesState>.empty(),
+      initialState: GamesState(isLoading: false, games: [_longGame]),
+    );
+    gameDetail = _MockGameDetail();
+    whenListen(
+      gameDetail,
+      const Stream<GameDetailState>.empty(),
+      initialState: GameDetailState(isLoading: false, game: _longGame),
+    );
     backends = _MockBackends();
     bottles = _MockBottles();
     bottle = _MockBottle();
@@ -587,6 +807,9 @@ void main() {
     BlocProvider<SetupBloc>.value(value: setup),
     BlocProvider<SwitchBloc>.value(value: switchGames),
     BlocProvider<DependenciesBloc>.value(value: dependencies),
+    BlocProvider<AppGamesBloc>.value(value: appGames),
+    BlocProvider<GamesBloc>.value(value: games),
+    BlocProvider<GameDetailBloc>.value(value: gameDetail),
   ];
 
   // [width] is the window's: the sidebar takes its part, as in the app. In
@@ -653,6 +876,8 @@ void main() {
         await pumpAt(tester, const LibraryPage());
         await pumpAt(tester, bottleView());
         await pumpAt(tester, const BackendsPage());
+        await pumpAt(tester, const GamesView());
+        await pumpAt(tester, GameDetailView(id: _longGame.id));
       });
 
       testWidgets('an empty or incomplete bottle fits at $width px $lang', (
@@ -872,6 +1097,168 @@ void main() {
         );
       });
 
+      for (final MapEntry(key: name, value: state) in _engineStates.entries) {
+        testWidgets('the engine card $name fits at $width px $lang', (
+          tester,
+        ) async {
+          final l10n = lookupAppL10n(locale);
+          whenListen(
+            backends,
+            const Stream<BackendsState>.empty(),
+            initialState: state,
+          );
+          // Tall enough for the list to build the heading under the card.
+          await pump(
+            tester,
+            width,
+            const BackendsPage(),
+            height: 3000,
+            locale: locale,
+          );
+          expect(find.text(l10n.engineNativeTitle), findsOneWidget);
+          // Never a backend's card, and the Rosetta heading above those.
+          expect(find.text(l10n.backendsRosettaGraphics), findsOneWidget);
+          if (name == 'macOS too old') {
+            expect(find.text(l10n.engineNeedsMacos('26.4')), findsOneWidget);
+            expect(
+              find.descendant(
+                of: find.byType(EngineCard),
+                matching: find.text(l10n.commonInstall),
+              ),
+              findsNothing,
+            );
+          }
+          if (name == 'a step') {
+            expect(find.text(l10n.engineStepSwitching), findsOneWidget);
+          }
+          if (name == 'downloading') {
+            expect(find.text(l10n.commonCancel), findsOneWidget);
+          }
+          if (name == 'update available') {
+            expect(find.text(l10n.engineUpdate('0.4.0')), findsOneWidget);
+          }
+          if (name == 'installed') {
+            expect(find.text(l10n.engineCheckNoBottle), findsOneWidget);
+          }
+          if (name == 'installed, checked') {
+            expect(
+              find.descendant(
+                of: find.byType(EngineCard),
+                matching: find.text(l10n.backendCheck),
+              ),
+              findsOneWidget,
+            );
+            expect(find.text('mtld3d'), findsOneWidget);
+            expect(find.text(l10n.backendCheckFailed), findsOneWidget);
+          }
+        });
+      }
+
+      testWidgets('a native bottle without Wine Mono fits at $width px $lang', (
+        tester,
+      ) async {
+        final l10n = lookupAppL10n(locale);
+        showBottle(_nativeBottle());
+        await pump(tester, width, bottleView(), height: _tall, locale: locale);
+        final install = find.text(l10n.bottleInstallMono);
+        await tester.scrollUntilVisible(
+          install,
+          300,
+          scrollable: find.byType(Scrollable).last,
+        );
+        expect(install, findsOneWidget);
+        expect(find.text(l10n.bottleMonoMissing), findsOneWidget);
+        expect(find.text(l10n.bottleEngine), findsOneWidget);
+        expect(find.text(l10n.engineNativeChip), findsOneWidget);
+        // Rosetta's own options are not offered (MA7).
+        expect(find.text(l10n.bottleAvx), findsNothing);
+        expect(find.text('DLSS'), findsNothing);
+        // PA1: the retina dropdown stands for the high-res switch.
+        expect(find.text(l10n.bottleRetina), findsOneWidget);
+        expect(find.text(l10n.bottleHighRes), findsNothing);
+        // PA8: a Native bottle has nothing to move.
+        expect(find.text(l10n.bottleMoveToNative), findsNothing);
+        if (locale.languageCode == 'es') _expectNoEnglishLiterals(tester);
+      });
+
+      testWidgets('a Rosetta bottle that can move fits at $width px $lang', (
+        tester,
+      ) async {
+        final l10n = lookupAppL10n(locale);
+        final state = _bottle();
+        showBottle(
+          state.copyWith(detail: state.detail!.copyWith(nativeInstalled: true)),
+        );
+        await pump(tester, width, bottleView(), height: _tall, locale: locale);
+        expect(find.text(l10n.bottleMoveToNative), findsOneWidget);
+        expect(find.text(l10n.bottleMoveToNativeNote), findsOneWidget);
+      });
+
+      testWidgets('a bottle moving to Native fits at $width px $lang', (
+        tester,
+      ) async {
+        final l10n = lookupAppL10n(locale);
+        final state = _bottle();
+        showBottle(
+          state.copyWith(
+            detail: state.detail!.copyWith(nativeInstalled: true),
+            moveStep: NativeMoveStep.copying,
+          ),
+        );
+        await pump(tester, width, bottleView(), height: _tall, locale: locale);
+        expect(find.text(l10n.moveStepCopying), findsOneWidget);
+        expect(find.text(l10n.bottleMoveToNative), findsNothing);
+      });
+
+      testWidgets('the Native engine options fit at $width px $lang', (
+        tester,
+      ) async {
+        final l10n = lookupAppL10n(locale);
+        await pump(
+          tester,
+          width,
+          NativeOptionsDialog(
+            app: LibraryApp(
+              bottle: _longName,
+              key: 'steam:9',
+              id: 'steam-game',
+              title: _longName,
+              nativeEngine: true,
+              nativeOptions: const {NativeOption.largeAddressAware},
+            ),
+          ),
+          height: 1200,
+          locale: locale,
+        );
+        expect(find.text(l10n.nativeOptionsTitle(_longName)), findsOneWidget);
+        expect(find.byType(SwitchListTile), findsNWidgets(5));
+      });
+
+      testWidgets(
+        'the catalog detail with its engine fits at $width px $lang',
+        (tester) async {
+          final l10n = lookupAppL10n(locale);
+          whenListen(
+            catalog,
+            const Stream<CatalogState>.empty(),
+            initialState: _catalog.copyWith(
+              nativeUsable: true,
+              // Not installed yet, so its page offers the install.
+              apps: [_app.copyWith(id: 'steam', bottle: null)],
+            ),
+          );
+          await pump(
+            tester,
+            width,
+            const CatalogDetailPage(id: 'steam'),
+            height: 3000,
+            locale: locale,
+          );
+          expect(find.text(l10n.catalogEngine), findsOneWidget);
+          expect(find.text(l10n.engineNative), findsOneWidget);
+        },
+      );
+
       testWidgets('the language menu fits at $width px $lang', (tester) async {
         // At the foot of a column, as in the side bar.
         await pumpAt(
@@ -1084,6 +1471,39 @@ void main() {
       return copied;
     }
 
+    // The native engine's errors (MA3), where its card shows them.
+    for (final error in const [
+      AppError.runtimeNotInstalled(RuntimeKind.mach9, detail: detail),
+      AppError.runtimeUnavailable(
+        RuntimeKind.mach9,
+        RuntimeBlock.macosTooOld,
+        detail: detail,
+      ),
+      AppError.runtimeNotTrusted('/Applications/Mach9.app', detail: detail),
+      AppError.runtimeTooOld('0.3.2', '0.4.0', detail: detail),
+      AppError.backendNotForRuntime('dxvk', RuntimeKind.mach9, detail: detail),
+    ]) {
+      testWidgets('the Backends page copies the detail of $error', (
+        tester,
+      ) async {
+        final copied = clipboard(tester);
+        whenListen(
+          backends,
+          const Stream<BackendsState>.empty(),
+          initialState: BackendsState(isLoading: false, error: error),
+        );
+        await pumpPanel(tester, const BackendsPage(), const Locale('es'));
+        final l10n = lookupAppL10n(const Locale('es'));
+        expect(find.text(error.localized(l10n)), findsOneWidget);
+        expect(find.textContaining('boom', findRichText: true), findsNothing);
+        await tester.tap(find.text(l10n.commonCopyDetails));
+        await tester.pumpAndSettle();
+        expect(copied, [detail]);
+        await tester.pump(const Duration(seconds: 6));
+        await tester.pumpAndSettle();
+      });
+    }
+
     for (final locale in const [Locale('en'), Locale('es')]) {
       final l10n = lookupAppL10n(locale);
       final lang = '(${locale.languageCode})';
@@ -1191,7 +1611,7 @@ void main() {
     });
 
     testWidgets('each control panel runs its program', (tester) async {
-      await pump(tester, 1150, bottleView(), height: 2400);
+      await pump(tester, 1150, bottleView(), height: _tall);
       // Tools sit below the Dependencies section: scroll each into view.
       for (final label in [
         'Game controllers',
@@ -1213,7 +1633,7 @@ void main() {
     });
 
     testWidgets('the settings show what the bottle has', (tester) async {
-      await pump(tester, 1150, bottleView(), height: 2400);
+      await pump(tester, 1150, bottleView(), height: _tall);
       // The fact card and the selected version of the dropdown both say it.
       expect(
         find.descendant(
@@ -1237,7 +1657,7 @@ void main() {
           capabilities: HostCapabilities(avx: false, dlss: false),
         ),
       );
-      await pump(tester, 1150, bottleView(), height: 2400);
+      await pump(tester, 1150, bottleView(), height: _tall);
       expect(find.text(en.bottleAvx), findsNothing);
       expect(find.text('DLSS'), findsNothing);
       expect(find.text(en.bottleDxvkAsync), findsNothing);
@@ -1259,7 +1679,7 @@ void main() {
     testWidgets('a host with one sync mode does not offer msync', (
       tester,
     ) async {
-      await pump(tester, 1150, bottleView(), height: 2400);
+      await pump(tester, 1150, bottleView(), height: _tall);
       expect(find.text('Changing it closes what is open.'), findsOneWidget);
 
       showSetup(
@@ -1270,7 +1690,7 @@ void main() {
         ),
       );
       await tester.pumpWidget(const SizedBox());
-      await pump(tester, 1150, bottleView(), height: 2400);
+      await pump(tester, 1150, bottleView(), height: _tall);
       expect(find.text(en.bottleChangeCloses), findsNothing);
     });
 
@@ -1278,7 +1698,7 @@ void main() {
       tester,
     ) async {
       showBottle(_bottle(ready: false));
-      await pump(tester, 1150, bottleView(), height: 2400);
+      await pump(tester, 1150, bottleView(), height: _tall);
       // The quick actions and the delete button are outlined buttons.
       Finder button(String label) => find.ancestor(
         of: find.text(label),
@@ -1324,6 +1744,82 @@ void main() {
       await tester.pump(const Duration(seconds: 1));
       verify(() => library.add(LibraryEvent.open(_longName, 'steam:9')))
           .called(1);
+    });
+
+    testWidgets('PA1 a Native bottle sets its retina mode', (tester) async {
+      showBottle(_nativeBottle());
+      await pump(tester, 1150, bottleView(), height: _tall);
+      final dropdown = find.byKey(const ValueKey('retina auto'));
+      await tester.ensureVisible(dropdown);
+      await tester.tap(dropdown);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(en.retinaOff).last);
+      await tester.pumpAndSettle();
+      verify(
+        () => bottle.add(const BottleDetailEvent.setRetina(RetinaMode.off)),
+      ).called(1);
+    });
+
+    testWidgets('PA8 confirming the move asks the bottle', (tester) async {
+      final state = _bottle();
+      showBottle(
+        state.copyWith(detail: state.detail!.copyWith(nativeInstalled: true)),
+      );
+      await pump(tester, 1150, bottleView(), height: _tall);
+      await tester.tap(find.text(en.bottleMoveToNative));
+      await tester.pumpAndSettle();
+      expect(find.text(en.bottleMoveTitle(_longName)), findsOneWidget);
+      await tester.tap(find.text(en.bottleMoveAction));
+      await tester.pumpAndSettle();
+      verify(() => bottle.add(const BottleDetailEvent.moveToNative()))
+          .called(1);
+    });
+
+    testWidgets('PA2 a Native app has its options in the menu', (tester) async {
+      final app = LibraryApp(
+        bottle: _longName,
+        key: 'steam:9',
+        id: 'steam-game',
+        title: 'Muck',
+        nativeEngine: true,
+      );
+      showBottle(_bottle(apps: [app]));
+      await pump(tester, 1150, bottleView(), height: 1200);
+      await tester.tap(find.byIcon(Icons.more_horiz_rounded));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(en.appMenuNativeOptions));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(en.nativeLargeAddressAware));
+      await tester.pumpAndSettle();
+      verify(
+        () => library.add(
+          LibraryEvent.setNativeOption(
+            _longName,
+            'steam:9',
+            NativeOption.largeAddressAware,
+            true,
+          ),
+        ),
+      ).called(1);
+    });
+
+    testWidgets('PA2 a Rosetta app has no such item', (tester) async {
+      showBottle(
+        _bottle(
+          apps: [
+            LibraryApp(
+              bottle: _longName,
+              key: 'steam:9',
+              id: 'steam-game',
+              title: 'Muck',
+            ),
+          ],
+        ),
+      );
+      await pump(tester, 1150, bottleView(), height: 1200);
+      await tester.tap(find.byIcon(Icons.more_horiz_rounded));
+      await tester.pumpAndSettle();
+      expect(find.text(en.appMenuNativeOptions), findsNothing);
     });
 
     testWidgets('hiding one asks the bottle', (tester) async {
@@ -1623,6 +2119,62 @@ void main() {
     });
   }
 
+  testWidgets('PA3 a bottle of its own can take the Rosetta engine', (
+    tester,
+  ) async {
+    registerFallbackValue(const InstallEvent.cancel());
+    whenListen(
+      catalog,
+      const Stream<CatalogState>.empty(),
+      initialState: _catalog.copyWith(
+        nativeUsable: true,
+        // Not installed yet, so its page offers the install.
+        apps: [_app.copyWith(id: 'steam', bottle: null)],
+      ),
+    );
+    await pump(
+      tester,
+      1150,
+      const CatalogDetailPage(id: 'steam'),
+      height: 3000,
+    );
+    await tester.tap(find.byKey(const ValueKey('engine mach9')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(en.engineRosetta).last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(en.commonInstall));
+    await tester.pump();
+    final started = verify(() => install.add(captureAny())).captured;
+    expect(
+      started.whereType<InstallStartEvent>().single.runtime,
+      RuntimeKind.bodega,
+    );
+  });
+
+  testWidgets('PA4 the engine card checks a Native bottle', (tester) async {
+    whenListen(
+      backends,
+      const Stream<BackendsState>.empty(),
+      // Nothing else busy, so Check can run.
+      initialState: _engineStates['installed, checked']!.copyWith(
+        busy: null,
+        checking: null,
+      ),
+    );
+    await pump(tester, 1150, const BackendsPage(), height: 3000);
+    await tester.tap(
+      find.descendant(
+        of: find.byType(EngineCard),
+        matching: find.text(en.backendCheck),
+      ),
+    );
+    // The page has a spinner of its own, so no pumpAndSettle.
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.tap(find.widgetWithText(FilledButton, en.backendCheck));
+    await tester.pump(const Duration(milliseconds: 300));
+    verify(() => backends.add(BackendsEvent.checkEngine(_longName))).called(1);
+  });
+
   testWidgets('an app with no prose shows its page without it', (tester) async {
     await pump(
       tester,
@@ -1701,6 +2253,8 @@ void main() {
       addTearDown(() => getIt.unregister<BottleDetailBloc>());
       getIt.registerFactory<GamepadsBloc>(() => gamepads);
       addTearDown(() => getIt.unregister<GamepadsBloc>());
+      getIt.registerFactory<AppGamesBloc>(() => appGames);
+      addTearDown(() => getIt.unregister<AppGamesBloc>());
       final router = await pumpRouter(tester);
       await tester.tap(find.text(_longName));
       await tester.pumpAndSettle();

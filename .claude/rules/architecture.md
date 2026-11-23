@@ -40,6 +40,7 @@ paths:
 - Errors are codes: an `AppError` is worded by `error.localized(l10n)` (`app/shared/text/error_text.dart`). Its `detail` (the engine's English message, a tool's stderr) is never rendered; `CopyDetailsButton` copies it
 - No user-facing copy in `domain/` or `data/`: they return codes, and the page phrases them
 - Only `app/` and `main.dart` import `package:bodega/l10n/` (`tool/check_layers.sh`)
+- Third-party prose (highball-db's notes and known issues on a game's page) is shown as it is, under a label that names its source and its language (`gamesNotesHighball`). It is data, never an ARB key, and never Bodega's own copy
 - Words for codes live in `app/shared/text/`, one file per family, in exhaustive switches without `_ =>`, so a new code fails analysis until it is worded. Only tables keyed by a `String` (backend names, catalog ids and source fields) keep a default
 
 ## Repositories
@@ -63,3 +64,6 @@ paths:
 - The app reads `HostCapabilities` and `HostIssue` through `RuntimeStatus`, and never imports the engine outside `data/`
 - On Linux, Wine and the dxvk layer ship in the package, at `/opt/bodega/runtime` and `/opt/bodega/backends`. `LinuxPlatform.prepareHome` registers them in `~/.local/share/bodega` by link, or by copy when running from an AppImage
 - D3D layers are copied into each prefix. A launch enables them per process with `WINEDLLOVERRIDES`
+- The runtime is chosen per bottle (`RuntimeKind`, `runtimes.dart`): `runtimes/current` is Bodega's and `runtimes/mach9` is Mach9's, and the prefix's `kernel32.dll` machine has the last word over `settings.json`. Resolve a bottle's Wine with `runtimeDir(home, bottleRuntime(home, name))`, never `currentRuntime` alone
+- Mach9 bottles get `WINE_COMPATDB` rules (`compatdbRules`) instead of `WINEDLLPATH_PREPEND` and `WINEDLLOVERRIDES`, and none of the Rosetta, MoltenVK or D3DMetal variables. `HostPlatform.mach9Block` says whether the host can run Mach9
+- A Mach9 bottle's `retina` mode (`auto` follows `HostPlatform.mainDisplayHiDpi`, as Mach9.app does) is written to `user.reg` before its session boots, never into a running one. An app's Native engine options (`native` in `settings.json`, by app key) go on that app's own `WINE_COMPATDB` line, and a Steam game's line is `exe=steam:<appid>`. Fields follow compatdb's `Key::ALL` order (`_compatdbKeys`). A game fix's `ROSETTA_`, `D3DM_`, `DXVK_`, `MVK_` and `MTL_HUD_` variables never reach a Mach9 bottle

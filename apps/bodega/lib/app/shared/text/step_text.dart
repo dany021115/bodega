@@ -23,6 +23,7 @@ String installStepText(AppL10n l10n, InstallStep step, CatalogApp app) =>
       InstallCreatingBottleStep(:final bottle) => l10n.stepCreatingBottle(
         bottle,
       ),
+      InstallInstallingMonoStep() => l10n.installStepMono,
       InstallRegistryStep(:final value) => l10n.stepRegistry(value),
       InstallRunningInstallerStep() => l10n.stepRunningInstaller,
       InstallWaitingStep() => l10n.stepWaiting,

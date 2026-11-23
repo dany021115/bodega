@@ -34,20 +34,24 @@ Map<String, Object?> override(String value) => {
 };
 
 /// The fixes file with one game, Steam app 9.
-String fixes(List<Map<String, Object?>> steps, {bool optIn = false}) =>
-    jsonEncode([
-      {
-        'id': 'game',
-        'title': 'Game',
-        'steam': 9,
-        'optIn': optIn,
-        'steps': steps,
-        'notes': <String>[],
-        'knownIssues': <Object?>[],
-        'source': 'recipes/games/game.json',
-        'verified': null,
-      },
-    ]);
+String fixes(
+  List<Map<String, Object?>> steps, {
+  bool optIn = false,
+  Map<String, String> backends = const {},
+}) => jsonEncode([
+  {
+    'id': 'game',
+    'title': 'Game',
+    'steam': 9,
+    'backends': backends,
+    'optIn': optIn,
+    'steps': steps,
+    'notes': <String>[],
+    'knownIssues': <Object?>[],
+    'source': 'recipes/games/game.json',
+    'verified': null,
+  },
+]);
 
 /// Bodega's fixes file with [entries], each completed with the fields every
 /// fix has.
@@ -68,12 +72,30 @@ String bodegas(List<Map<String, Object?>> entries) => jsonEncode([
     },
 ]);
 
+/// An app of the bottle `b`, for matching.
+InstalledApp app({
+  String key = 'hand',
+  String exe = 'Games/game.exe',
+  String title = '',
+}) => (
+  bottle: 'b',
+  key: key,
+  id: key,
+  title: title,
+  exe: exe,
+  args: const [],
+  inLibrary: true,
+  hud: false,
+);
+
 /// NFS13's settings file, as the game writes it: CRLF, and its key in [Sound].
 const nfsConfig =
     '[Display]\r\nWidth=2048\r\nHeight=1330\r\n[Sound]\r\nMusicVolume=8\r\n'
     'Reverb=1\r\n[Gameplay]\r\nEnableVibration=true\r\n';
 
 void main() {
+  group('the CLI (E8)', cliMain, testOn: 'mac-os');
+
   late String tmp, home;
   final shipped = fixesSource;
   final shippedBodegas = bodegaFixesSource;
@@ -93,38 +115,63 @@ void main() {
     Directory(tmp).deleteSync(recursive: true);
   });
 
-  group('the shipped data', () {
-    test('parses, with unique ids and Steam apps', () {
+  group('the shipped data (E2)', () {
+    test('parses, with unique ids and Steam apps, Bodega\'s last', () {
       final all = gameFixes();
-      expect(all, isNotEmpty);
+      expect(all.length, greaterThanOrEqualTo(890));
       expect({for (final fix in all) fix.id}.length, all.length);
-      // highball-db's are Steam games with steps; Bodega's follow them (D7).
-      final generated = [
+      final steam = [
         for (final fix in all)
-          if (fix.source != 'bodega') fix,
+          if (fix.steam != null) fix.steam,
       ];
-      expect({for (final fix in generated) fix.steam}.length, generated.length);
-      for (final fix in generated) {
-        expect(fix.steam, isNotNull, reason: fix.id);
-        expect(fix.steps, isNotEmpty, reason: fix.id);
-        expect(fix.source, startsWith('recipes/games/'), reason: fix.id);
-      }
-      expect(all.skip(generated.length).map((fix) => fix.id), [
+      expect(steam.toSet().length, steam.length);
+      expect(all.skip(all.length - 2).map((fix) => fix.id), [
         'blur',
         'need-for-speed-most-wanted-2012',
       ]);
+      for (final fix in all.take(all.length - 2)) {
+        expect(fix.source, 'db/games/${fix.id}.json', reason: fix.id);
+        expect(fix.status, isNot('verified'), reason: fix.id);
+      }
+      expect(fixesSourceCommit, startsWith('bc72f85'));
+    });
+
+    test('keeps the fixes it had, and names only what Bodega has', () {
+      final ids = {for (final fix in gameFixes()) fix.id};
+      // The 20 fixes of highball-db at 7a008d5.
+      for (final id in const [
+        'alice-madness-returns', 'assetto-corsa', 'bloody-spell', //
+        'csgo-legacy', 'cyberpunk-2077', 'death-stranding-directors-cut',
+        'death-stranding', 'five-nights-at-freddys-2', //
+        'five-nights-at-freddys', 'forza-horizon-6', 'half-life-2',
+        'helldivers-2', 'hogwarts-legacy', 'marvels-guardians-of-the-galaxy',
+        'microsoft-flight-simulator-2024', 'portal-2', //
+        'raceroom-racing-experience', 'red-dead-redemption-2',
+        'the-last-caretaker', 'warframe',
+      ]) {
+        expect(ids, contains(id));
+      }
+      final runtimes = {for (final row in dependencies) row.id};
+      const macBackends = {'wine', 'dxmt', 'dxvk', 'd3dmetal'};
+      for (final fix in gameFixes()) {
+        expect(runtimes, containsAll(fix.requires), reason: fix.id);
+        expect(macBackends, containsAll(fix.backends.values), reason: fix.id);
+        expect(fix.backends.keys, everyElement('mac'), reason: fix.id);
+      }
+      expect(gameFix('blur').status, 'verified');
+      expect(gameFix('need-for-speed-most-wanted-2012').status, 'verified');
+      expect(gameFixes().where((fix) => fix.status == 'blocked'), isNotEmpty);
+      expect(gameFixes().where((fix) => fix.reports != null), isNotEmpty);
     });
 
     test(
       'finds a fix by Steam app and by id, and an unknown one is an error',
       () {
-        final first = gameFixes().first;
+        final first = gameFixes().firstWhere((fix) => fix.steam != null);
         expect(fixForSteamApp(first.steam!)?.id, first.id);
-        expect(fixForApp('steam:${first.steam}')?.id, first.id);
         expect(gameFix(first.id).steam, first.steam);
         expect(gameFix('${first.steam}').id, first.id);
-        expect(fixForApp('steam:0'), isNull);
-        expect(fixForApp('something-else'), isNull);
+        expect(fixForSteamApp(0), isNull);
         expect(
           () => gameFix('nope'),
           throwsA(
@@ -151,6 +198,154 @@ void main() {
               .having((f) => f.detail, 'detail', contains('rm')),
         ),
       );
+    });
+  });
+
+  group('the model (E3)', () {
+    setUp(() => bodegaFixesSource = '[]');
+
+    Map<String, Object?> entry(String id, Map<String, Object?> fields) => {
+      'id': id,
+      'title': id,
+      'steam': null,
+      'optIn': false,
+      'steps': <Object?>[],
+      'notes': <String>[],
+      'knownIssues': <Object?>[],
+      'source': 'db/games/$id.json',
+      'verified': null,
+      ...fields,
+    };
+
+    ({int count, int median, String last}) reports(int median) =>
+        (count: 2, median: median, last: '2026-11-11');
+
+    test('a backend only where it was verified, and one the host has', () {
+      fixesSource = jsonEncode([
+        entry('a', {
+          'backends': {'mac': 'dxmt'},
+        }),
+        entry('b', {
+          'backends': {'linux': 'dxmt'},
+        }),
+        entry('c', {
+          'backends': {'linux': 'dxvk'},
+        }),
+      ]);
+      expect(
+        [for (final fix in gameFixes()) fix.backend],
+        ['dxmt', null, null],
+      );
+      hostPlatform = const LinuxPlatform();
+      expect(
+        [for (final fix in gameFixes()) fix.backend],
+        [null, null, 'dxvk'],
+      );
+    });
+
+    test('the rating comes from the median, blocked first', () {
+      fixesSource = jsonEncode([
+        for (final (id, median) in [('a', 5), ('b', 4), ('c', 3), ('d', 2)])
+          entry(id, {
+            'reports': {'count': 2, 'median': median, 'last': '2026-11-11'},
+          }),
+        entry('e', {}),
+        entry('f', {
+          'status': 'blocked',
+          'reports': {'count': 1, 'median': 5, 'last': '2026-11-11'},
+          'antiCheat': {
+            'names': ['Easy Anti-Cheat'],
+            'verdict': 'blocked',
+          },
+        }),
+      ]);
+      final all = gameFixes();
+      expect(
+        [for (final fix in all) fix.rating],
+        ['works', 'works', 'playable', 'broken', null, 'blocked'],
+      );
+      expect(all.first.reports, reports(5));
+      expect(all.last.antiCheat?.names, ['Easy Anti-Cheat']);
+      expect(all.last.antiCheat?.verdict, 'blocked');
+    });
+
+    test('the old shape reads as community, with no backend', () {
+      fixesSource = fixes([]);
+      final fix = gameFixes().single;
+      expect(fix.status, 'community');
+      expect(fix.backends, isEmpty);
+      expect(fix.antiCheat, isNull);
+      expect(fix.reports, isNull);
+      expect(fix.nativeMac, isFalse);
+    });
+
+    test('a bad status or verdict is refused', () {
+      for (final fields in [
+        <String, Object?>{'status': 'great'},
+        <String, Object?>{
+          'antiCheat': {'names': <String>[], 'verdict': 'maybe'},
+        },
+      ]) {
+        fixesSource = jsonEncode([entry('a', fields)]);
+        expect(gameFixes, throwsA(isA<CorruptData>()));
+      }
+    });
+
+    test('the data is parsed once while its source stays the same', () {
+      bodegaFixesSource = shippedBodegas;
+      final first = gameFixes();
+      expect(identical(gameFixes().first, first.first), isTrue);
+      fixesSource = fixes([]);
+      expect(gameFixes().first.id, 'game');
+      fixesSource = shipped;
+      expect(identical(gameFixes().first, first.first), isFalse);
+    });
+  });
+
+  group('matching (E4)', () {
+    setUp(() {
+      fixesSource = jsonEncode([
+        for (final (id, title, steam, exes) in [
+          ('a', 'Alpha™: Game', 10, <String>[]),
+          ('b', 'Beta', null, ['beta.exe']),
+          ('c', 'Gamma', null, <String>[]),
+        ])
+          {
+            'id': id,
+            'title': title,
+            'steam': steam,
+            'exes': exes,
+            'optIn': false,
+            'steps': <Object?>[],
+            'notes': <String>[],
+            'knownIssues': <Object?>[],
+            'source': 'db/games/$id.json',
+            'verified': null,
+          },
+      ]);
+      bodegaFixesSource = '[]';
+    });
+
+    String? found(InstalledApp app) {
+      final match = gameFor(app);
+      return match == null ? null : '${match.fix.id} ${match.by.name}';
+    }
+
+    test('by Steam app, exe and title, in that order', () {
+      expect(found(app(key: 'steam:10')), 'a steam');
+      expect(found(app(key: 'steam:99', title: 'Gamma')), isNull);
+      expect(found(app(exe: 'Games/BETA.EXE')), 'b exe');
+      expect(found(app(title: 'alpha: game')), 'a title');
+      expect(found(app(title: 'gamma 2')), isNull);
+      expect(found(app(exe: r'C:\x\beta.exe', title: 'Gamma')), 'b exe');
+      expect(normalTitle('  Alpha™: Game!  '), 'alpha game');
+    });
+
+    test("Bodega's own entry comes before highball-db's", () {
+      bodegaFixesSource = bodegas([
+        {'id': 'mine', 'title': 'Gamma'},
+      ]);
+      expect(found(app(title: 'Gamma')), 'mine title');
     });
   });
 
@@ -207,6 +402,129 @@ void main() {
 
     Future<void> open({bool? avx}) async =>
         exitOf(await openApp(home, 'b', key: 'steam:9', avx: avx));
+
+    test('PE6 a Rosetta bottle keeps every variable', () async {
+      fixesSource = fixes([
+        env('D3DM_ENABLE_METALFX', '1'),
+        env('DXVK_ASYNC', '1'),
+      ]);
+      final log = await openApp(home, 'b', key: 'steam:9');
+      await exitOf(log);
+      expect(lastEnv(), containsPair('D3DM_ENABLE_METALFX', '1'));
+      expect(lastEnv(), containsPair('DXVK_ASYNC', '1'));
+      expect(File(log).readAsStringSync(), isNot(contains('# skipped')));
+    });
+
+    test('the plan is what runs (E7)', () async {
+      Directory('$home/backends/dxmt/wine').createSync(recursive: true);
+      fixesSource = fixes(
+        [env('FIX_ONLY', 'fix'), override('foo=n'), registry('1')],
+        backends: {'mac': 'dxmt'},
+      );
+      final plan = await gamePlan(home, 'b', 'steam:9');
+      expect(plan.on, isTrue);
+      expect(plan.match?.fix.id, 'game');
+      expect(plan.match?.by, MatchKind.steam);
+      expect(plan.backend, (name: 'dxmt', origin: 'config'));
+      expect(plan.graphics, isNull);
+      expect(plan.env, {'FIX_ONLY': 'fix'});
+      expect(plan.overrides, ['foo=n']);
+      expect(plan.registry.single.data, '1');
+      expect(plan.ini, isEmpty);
+      final log = await openApp(home, 'b', key: 'steam:9');
+      await exitOf(log);
+      expect(
+        File(log).readAsStringSync(),
+        contains('# backend ${plan.backend.name} (${plan.backend.origin})'),
+      );
+      expect(lastEnv()['FIX_ONLY'], 'fix');
+      expect(lastEnv()['WINEDLLOVERRIDES'], contains('foo=n'));
+    });
+
+    test('an app with no entry gets auto (E7)', () async {
+      fixesSource = '[]';
+      final plan = await gamePlan(home, 'b', 'steam:9');
+      expect(plan.match, isNull);
+      expect(plan.on, isTrue);
+      expect(plan.backend.origin, 'auto');
+      expect(plan.env, isEmpty);
+      await expectLater(
+        gamePlan(home, 'b', 'steam:1'),
+        throwsA(isA<AppNotFound>()),
+      );
+    });
+
+    test('switched off, it gets nothing, and its values go (E6)', () async {
+      fixesSource = fixes([env('FIX_ONLY', 'fix'), registry('1')]);
+      await setGameConfig(home, 'b', 'steam:9', on: false);
+      expect(bottleSettings(home, 'b').configOff, {'steam:9'});
+      expect(regLog(), [r'reg delete HKCU\Software\Game /v Value /f']);
+      final plan = await gamePlan(home, 'b', 'steam:9');
+      expect(plan.on, isFalse);
+      expect(plan.match?.fix.id, 'game');
+      expect(plan.env, isEmpty);
+      expect(plan.registry, isEmpty);
+      await open();
+      expect(regLog(), hasLength(1));
+      expect(lastEnv(), isNot(contains('FIX_ONLY')));
+
+      await setGameConfig(home, 'b', 'steam:9', on: true);
+      expect(bottleSettings(home, 'b').configOff, isEmpty);
+      await open();
+      expect(regLog().last, startsWith('reg add'));
+      expect(lastEnv()['FIX_ONLY'], 'fix');
+      final saved = jsonDecode(
+        File('$home/bottles/b/settings.json').readAsStringSync(),
+      );
+      expect(saved, isNot(contains('configOff')));
+    });
+
+    test('a value already gone is fine; another failure stops (E6)', () async {
+      Map<String, Object?> step(String name) => {
+        ...registry('1'),
+        'name': name,
+      };
+      fixesSource = fixes([step('GONE')]);
+      await setGameConfig(home, 'b', 'steam:9', on: false);
+      expect(bottleSettings(home, 'b').configOff, {'steam:9'});
+      await setGameConfig(home, 'b', 'steam:9', on: true);
+      fixesSource = fixes([step('FAIL')]);
+      await expectLater(
+        setGameConfig(home, 'b', 'steam:9', on: false),
+        throwsA(
+          isA<WineToolFailed>()
+              .having((f) => f.tool, 'tool', WineTool.reg)
+              .having((f) => f.exitCode, 'exitCode', 3),
+        ),
+      );
+      expect(bottleSettings(home, 'b').configOff, isEmpty);
+      await expectLater(
+        setGameConfig(home, 'b', 'steam:1', on: false),
+        throwsA(isA<AppNotFound>()),
+      );
+    });
+
+    test('the verdict is saved, cleared and checked (E6)', () async {
+      setGameVerdict(home, 'b', 'steam:9', 'playable');
+      expect(bottleSettings(home, 'b').verdicts, {'steam:9': 'playable'});
+      expect((await gamePlan(home, 'b', 'steam:9')).verdict, 'playable');
+      setGameVerdict(home, 'b', 'steam:9', null);
+      expect(bottleSettings(home, 'b').verdicts, isEmpty);
+      expect(
+        () => setGameVerdict(home, 'b', 'steam:9', 'great'),
+        throwsA(
+          isA<BadChoice>().having((f) => f.kind, 'kind', ChoiceKind.verdict),
+        ),
+      );
+      expect(
+        () => setGameVerdict(home, 'b', 'steam:1', 'works'),
+        throwsA(isA<AppNotFound>()),
+      );
+      final saved = jsonDecode(
+        File('$home/bottles/b/settings.json').readAsStringSync(),
+      );
+      expect(saved, isNot(contains('verdicts')));
+    });
 
     test(
       'its variables reach the game, below the bottle and the launch',
@@ -367,13 +685,14 @@ void main() {
         'blur',
         'need-for-speed-most-wanted-2012',
       ]);
-      final blur = fixForApp('/users/x/games/blur/blur.exe')!;
-      expect(blur.id, 'blur');
-      expect(blur.steam, isNull);
-      expect(blur.requires, ['vcrun2008']);
-      expect(fixForApp('program files/blur/Blur.exe')?.id, 'blur');
-      expect(fixForApp('steam:19680')?.id, 'alice-madness-returns');
-      expect(fixForApp('/users/x/games/other.exe'), isNull);
+      final blur = gameFor(app(exe: '/users/x/games/blur/blur.exe'))!;
+      expect(blur.fix.id, 'blur');
+      expect(blur.by, MatchKind.exe);
+      expect(blur.fix.steam, isNull);
+      expect(blur.fix.requires, ['vcrun2008']);
+      expect(gameFor(app(exe: r'C:\Games\Blur\Blur.exe'))?.fix.id, 'blur');
+      expect(gameFor(app(key: 'steam:19680'))?.fix.id, 'alice-madness-returns');
+      expect(gameFor(app(exe: '/users/x/games/other.exe')), isNull);
       // `fix show null` must not find a fix that has no Steam app.
       expect(() => gameFix('null'), throwsA(isA<BadChoice>()));
     });
@@ -388,7 +707,7 @@ void main() {
 
     test('a repeated id, an unknown runtime or a bad ini step is refused', () {
       for (final (entry, detail) in [
-        (<String, Object?>{'id': 'alice-madness-returns'}, 'twice'),
+        (<String, Object?>{'id': 'blur'}, 'twice'),
         (
           <String, Object?>{
             'id': 'x',
@@ -413,7 +732,7 @@ void main() {
           'USERPROFILE',
         ),
       ]) {
-        bodegaFixesSource = bodegas([entry]);
+        bodegaFixesSource = bodegas([entry, if (entry['id'] == 'blur') entry]);
         expect(
           gameFixes,
           throwsA(
@@ -558,5 +877,86 @@ void main() {
       await applyFixSettings(home, 'b', nfs, env);
       expect(File(file).readAsStringSync(), nfsConfig);
     });
+  });
+}
+
+/// E8: the CLI, built once, against the shipped data and a fake bottle.
+void cliMain() {
+  late String tmp, home, bin;
+
+  setUpAll(() async {
+    tmp = Directory.systemTemp
+        .createTempSync('bodega-cli')
+        .resolveSymbolicLinksSync();
+    bin = '$tmp/bodega';
+    final build = await Process.run(Platform.resolvedExecutable, [
+      'compile',
+      'exe',
+      'bin/bodega.dart',
+      '-o',
+      bin,
+    ]);
+    expect(build.exitCode, 0, reason: '${build.stderr}');
+    home = bodegaHome({'BODEGA_HOME': '$tmp/home'});
+    hostPlatform = const TestMac();
+    final (engine, hostlibs) = await fakeRuntime(tmp, 'engine');
+    await installRuntime(home, engine, hostlibs);
+    await createBottle(home, 'b');
+    final steam = '$home/bottles/b/prefix/drive_c/Program Files (x86)/Steam';
+    File('$steam/steam.exe').createSync(recursive: true);
+    File('$steam/steamapps/appmanifest_19680.acf')
+      ..createSync(recursive: true)
+      ..writeAsStringSync('"appid" "19680"\n"name" "Alice"\n"StateFlags" "4"');
+  });
+
+  tearDownAll(() {
+    hostPlatform = HostPlatform.detect();
+    Directory(tmp).deleteSync(recursive: true);
+  });
+
+  Future<ProcessResult> cli(List<String> args) =>
+      Process.run(bin, args, environment: {'BODEGA_HOME': home});
+
+  test('game show and use print the plan and switch it', () async {
+    var run = await cli(['game', 'show', 'b', 'steam:19680']);
+    expect(run.exitCode, 0, reason: '${run.stderr}');
+    expect(
+      run.stdout,
+      allOf(
+        contains(
+          'match: Alice: Madness Returns (alice-madness-returns), '
+          'by steam, community',
+        ),
+        contains('backend: '),
+        contains(r'registry: HKCU\Software\Wine\AppDefaults'),
+      ),
+    );
+    run = await cli(['game', 'use', 'b', 'steam:19680', 'off']);
+    expect(run.exitCode, 0, reason: '${run.stderr}');
+    run = await cli(['game', 'show', 'b', 'steam:19680']);
+    expect(run.stdout, contains('match: off'));
+    expect(run.stdout, isNot(contains('registry:')));
+    run = await cli(['game', 'use', 'b', 'steam:19680', 'maybe']);
+    expect(run.exitCode, 64);
+  });
+
+  test('fix show prints the status, backend, anti-cheat and reports', () async {
+    final run = await cli(['fix', 'show', 'armored-core-vi']);
+    expect(run.exitCode, 0, reason: '${run.stderr}');
+    expect(
+      run.stdout,
+      allOf(
+        contains('status: community'),
+        contains('backend: d3dmetal (mac d3dmetal)'),
+        contains('anti-cheat: Easy Anti-Cheat, warning on the Mac'),
+        contains('reports: 1, median 4/5, last 2026-11-03'),
+      ),
+    );
+    final native = await cli([
+      'fix',
+      'show',
+      'baldur-s-gate-3',
+    ]);
+    expect(native.stdout, contains('native mac: yes'));
   });
 }

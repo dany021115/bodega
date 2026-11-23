@@ -12,6 +12,7 @@ const bodegaFixesJson = r'''
   "title": "Blur",
   "steam": null,
   "exes": ["blur.exe"],
+  "status": "verified",
   "optIn": false,
   "requires": ["vcrun2008"],
   "steps": [],
@@ -30,8 +31,9 @@ const bodegaFixesJson = r'''
  {
   "id": "need-for-speed-most-wanted-2012",
   "title": "Need for Speed: Most Wanted (2012)",
-  "steam": null,
+  "steam": 1262560,
   "exes": ["nfs13.exe"],
+  "status": "verified",
   "optIn": false,
   "requires": [],
   "steps": [

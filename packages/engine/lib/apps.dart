@@ -14,7 +14,13 @@ typedef InstalledApp = ({
   bool hud,
 });
 
-typedef BottleInfo = ({String name, bool ready, List<InstalledApp> apps});
+/// [runtime] is the kind the bottle really runs on (MB2).
+typedef BottleInfo = ({
+  String name,
+  bool ready,
+  List<InstalledApp> apps,
+  RuntimeKind runtime,
+});
 
 /// A `.lnk` file's target as Windows sees it, and what it passes.
 typedef Lnk = ({String target, String args, String? workingDir});
@@ -361,7 +367,12 @@ List<BottleInfo> listBottles(String home) {
 
 BottleInfo _bottleInfo(String dir) {
   final name = dir.split('/').last;
-  return (name: name, ready: _ready('$dir/prefix'), apps: _appsIn(name, dir));
+  return (
+    name: name,
+    ready: _ready('$dir/prefix'),
+    apps: _appsIn(name, dir),
+    runtime: _bottleRuntimeIn(dir),
+  );
 }
 
 /// The applications of every bottle (I8).
@@ -382,12 +393,12 @@ Future<String> openApp(
 }) async {
   final apps = bottleApps(home, bottle);
   if (apps.isEmpty) throw AppNotFound(bottle);
-  await hostPlatform.prepareBottle(home, bottle);
+  await _prepareBottle(home, bottle);
   final app = key == null
       ? apps.first
       : apps.where((app) => app.key == key).firstOrNull ??
             (throw AppNotFound(bottle, key));
-  final fix = fixForApp(app.key);
+  final fix = _gameIn(_existing(home, bottle), app)?.fix;
   // A Steam already open starts the game with its own environment, so the
   // fix's variables would not reach it: the log says so instead of hiding it.
   final missed =
@@ -396,7 +407,7 @@ Future<String> openApp(
   return _launchIn(
     home,
     bottle,
-    app.exe.startsWith('/') ? app.exe : 'C:\\${app.exe.replaceAll('/', r'\')}',
+    _appProgram(app),
     app.args,
     backend: backend,
     hud: hud,
@@ -650,3 +661,37 @@ Uint8List? _iconIn(Uint8List resources, int address) {
   out.setRange(22, out.length, icon);
   return out;
 }
+
+/// Turns [option] on or off for the app [key] of [bottle] (PE7). It is kept in
+/// a bottle of either runtime; only a Mach9 launch sends it.
+void setNativeOption(
+  String home,
+  String bottle,
+  String key,
+  NativeOption option, {
+  required bool on,
+}) {
+  final dir = _existing(home, bottle);
+  _appWithKey(home, bottle, key);
+  final settings = _settings(dir);
+  final names = {...?settings.native[key]};
+  on ? names.add(option.name) : names.remove(option.name);
+  _saveSettings(
+    dir,
+    _with(
+      settings,
+      native: {
+        for (final MapEntry(key: app, :value) in settings.native.entries)
+          if (app != key) app: value,
+        if (names.isNotEmpty) key: names.toList()..sort(),
+      },
+    ),
+  );
+}
+
+/// The native options the app [key] of [bottle] has on (PE7).
+Set<NativeOption> nativeOptions(String home, String bottle, String key) => {
+  for (final name
+      in _settings(_existing(home, bottle)).native[key] ?? const <String>[])
+    NativeOption.values.byName(name),
+};

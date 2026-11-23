@@ -3,6 +3,7 @@
 library;
 
 import 'dart:convert';
+import 'dart:ffi';
 import 'dart:io';
 import 'dart:isolate';
 import 'dart:typed_data';
@@ -15,14 +16,17 @@ import 'probe_data.dart';
 part 'apps.dart';
 part 'backends.dart';
 part 'catalog.dart';
+part 'cli.dart';
 part 'dependencies.dart';
 part 'english.dart';
 part 'failures.dart';
 part 'fixes.dart';
+part 'mach9.dart';
 part 'platform.dart';
 part 'platform_linux.dart';
 part 'platform_mac.dart';
 part 'gamepads.dart';
+part 'runtimes.dart';
 part 'switch.dart';
 
 /// The data root (R1): `BODEGA_HOME`, or else the host's default, created and
@@ -65,24 +69,48 @@ String bottleDir(String home, String name) {
 const _overrides = 'winemenubuilder.exe=d';
 
 /// The whole environment of every process the engine starts (R12): nothing
-/// else from [parent] gets in; [extra] is what the backend adds (S4).
+/// else from [parent] gets in; [extra] is what the backend adds (S4). A Mach9
+/// prefix gets design §4.3's Mach9 column (MG6): no Rosetta or .NET knobs, no
+/// `WINEDLLOVERRIDES`, and the menu builder off through `WINE_COMPATDB`.
 Map<String, String> wineEnv(
   String prefix,
   Map<String, String> parent, [
   Map<String, String> extra = const {},
-]) => {
-  ...hostPlatform.baseEnv(parent),
-  // U2: Wine names the Windows user after USER. Every process of the bottle
-  // gets it, or wineboot would make a profile for the host's name again.
-  if (_settings(Directory(prefix).parent.path).user case final user
-      when user.isNotEmpty)
-    'USER': user,
-  'WINEPREFIX': prefix,
-  'WINEDLLOVERRIDES': _overrides,
-  // ponytail: BODEGA_WINEDEBUG is the only knob read from the caller.
-  'WINEDEBUG': parent['BODEGA_WINEDEBUG'] ?? hostPlatform.defaultWineDebug,
-  ...extra,
+]) {
+  final dir = Directory(prefix).parent.path;
+  final mach9 = _bottleRuntimeIn(dir) == RuntimeKind.mach9;
+  return {
+    ...hostPlatform.baseEnv(parent)
+      ..removeWhere((key, _) => mach9 && _notOnMach9.contains(key)),
+    // U2: Wine names the Windows user after USER. Every process of the bottle
+    // gets it, or wineboot would make a profile for the host's name again.
+    if (_settings(dir).user case final user when user.isNotEmpty) 'USER': user,
+    'WINEPREFIX': prefix,
+    if (mach9)
+      'WINE_COMPATDB': _compatdbLine([
+        ('exe', '*'),
+        ('dll_overrides', _mach9MenuOverride),
+      ])
+    else
+      'WINEDLLOVERRIDES': _overrides,
+    // ponytail: BODEGA_WINEDEBUG is the only knob read from the caller.
+    'WINEDEBUG':
+        parent['BODEGA_WINEDEBUG'] ??
+        (mach9 ? _mach9WineDebug : hostPlatform.defaultWineDebug),
+    ...extra,
+  };
+}
+
+/// What the host's base environment sets for Rosetta's Wine only (MG6).
+const _notOnMach9 = {
+  'ROSETTA_ADVERTISE_AVX',
+  'DOTNET_EnableWriteXorExecute',
+  'MVK_CONFIG_LOG_LEVEL',
 };
+
+/// Mach9.app's own default, which also quiets dbghelp's readers.
+const _mach9WineDebug =
+    'fixme-all,-dbghelp_msc,-dbghelp_dwarf,-dbghelp_pdb,-dbghelp_macho';
 
 /// What an installed runtime must contain (R5), for this host.
 List<String> get requiredFiles => hostPlatform.requiredFiles;
@@ -175,13 +203,29 @@ String currentRuntime(String home) {
 
 /// Builds `bottles/<name>` with a plain `wine wineboot`, whose automatic
 /// `--init` creates the prefix, then waits for the server to save the
-/// registry (R9, R10, design §5). Returns the log.
-Future<String> createBottle(String home, String name) async {
+/// registry (R9, R10, design §5). Returns the log. [runtime] is fixed for the
+/// bottle's life (MB5); [mono] and [onStep] serve Mach9 bottles.
+Future<String> createBottle(
+  String home,
+  String name, {
+  RuntimeKind runtime = RuntimeKind.bodega,
+  bool mono = true,
+  void Function(BottleStep step)? onStep,
+}) async {
   final dir = bottleDir(home, name);
-  final rt = currentRuntime(home);
+  final mach9 = runtime == RuntimeKind.mach9;
+  if (mach9) {
+    if (hostPlatform.mach9Block case final block?) {
+      throw RuntimeUnavailable(runtime, block);
+    }
+  }
+  final rt = runtimeDir(home, runtime);
   if (Directory(dir).existsSync()) throw BottleExists(name);
   Directory('$dir/logs').createSync(recursive: true);
+  // Before wineboot: wineEnv gives a Mach9 prefix its own environment (MB5).
+  if (mach9) _saveSettings(dir, _with(_settings(dir), runtime: runtime));
   final prefix = '$dir/prefix';
+  onStep?.call(BottleStep.prefix);
   final log = _newLog(dir, 'wineboot', rt, dir, ['wineboot']);
   final wineboot = await _start(rt, prefix, log, dir, ['wineboot']);
   final code = await wineboot.exitCode;
@@ -199,9 +243,50 @@ Future<String> createBottle(String home, String name) async {
   // ponytail: syswow64 is not repaired (Highball copies i386-windows); in a
   // prototype that failure has to show.
   if (!_ready(prefix)) throw BottleSetupFailed(log, false);
-  await hostPlatform.prepareBottle(home, name);
+  await _prepareBottle(home, name);
+  if (mach9) {
+    for (final value in _mach9Registry) {
+      final reg = await _launchIn(home, name, 'reg', [
+        'add',
+        value.key,
+        '/v',
+        value.name,
+        '/t',
+        value.type,
+        '/d',
+        value.data,
+        '/f',
+      ], backend: 'wine');
+      final code = await exitOf(reg);
+      if (code != 0) throw WineToolFailed(WineTool.reg, code, reg);
+    }
+    // PE5: the values reach user.reg when the session ends, and the next one
+    // boots with them in place.
+    await _wineserver(rt, prefix, '-w');
+    if (mono) {
+      onStep?.call(BottleStep.mono);
+      await installMono(home, name);
+    }
+  }
   return log;
 }
+
+/// What a Mach9 prefix gets at creation (MB6), as Mach9.app sets it: no crash
+/// dialog nobody can see, and mode changes emulated for full-screen games.
+const _mach9Registry = [
+  (
+    key: r'HKCU\Software\Wine\WineDbg',
+    name: 'ShowCrashDialog',
+    type: 'REG_DWORD',
+    data: '0',
+  ),
+  (
+    key: r'HKCU\Software\Wine\X11 Driver',
+    name: 'EmulateModeset',
+    type: 'REG_SZ',
+    data: 'Y',
+  ),
+];
 
 /// Starts [program] detached, so it outlives the CLI and the Terminal, and
 /// returns its log (R13–R15); [exitOf] gives its exit code. [backend] is the
@@ -216,7 +301,7 @@ Future<String> runInBottle(
   Map<String, String> env = const {},
   bool? avx,
 }) async {
-  await hostPlatform.prepareBottle(home, name);
+  await _prepareBottle(home, name);
   return _launchIn(
     home,
     name,
@@ -227,6 +312,29 @@ Future<String> runInBottle(
     env: env,
     avx: avx,
   );
+}
+
+/// Where [program] runs from: the exe Wine gets, its folder, and the file
+/// [exeGraphics] reads (null for a program without a path, like `reg`).
+({String exe, String cwd, String? scan}) _programPaths(
+  String drive,
+  String program,
+) {
+  if (program.contains('/')) {
+    final exe = File(program).resolveSymbolicLinksSync();
+    if (winPathProblem(exe) case final problem?) throw BadWindowsPath(problem);
+    return (exe: exe, cwd: File(exe).parent.path, scan: exe);
+  }
+  if (program.toLowerCase().startsWith(r'c:\')) {
+    final scan = findCI(drive, program.substring(3).replaceAll(r'\', '/'));
+    final folder = File(scan).parent;
+    return (
+      exe: program,
+      cwd: folder.existsSync() ? folder.path : drive,
+      scan: scan,
+    );
+  }
+  return (exe: program, cwd: drive, scan: null);
 }
 
 Future<String> _launchIn(
@@ -243,30 +351,28 @@ Future<String> _launchIn(
   GameFix? fix,
   String? note,
   String? appKey,
+  List<String> dllOverrides = const [],
 }) async {
   final dir = _existing(home, name);
-  final rt = currentRuntime(home);
+  final kind = _bottleRuntimeIn(dir);
+  final mach9 = kind == RuntimeKind.mach9;
+  if (mach9) {
+    if (hostPlatform.mach9Block case final block?) {
+      throw RuntimeUnavailable(kind, block);
+    }
+  }
+  final rt = runtimeDir(home, kind);
   final prefix = '$dir/prefix';
   final drive = '$prefix/drive_c';
   if (!_ready(prefix)) throw BottleNotReady(name);
-  var exe = program, cwd = drive;
-  String? scan;
-  if (program.contains('/')) {
-    exe = File(program).resolveSymbolicLinksSync();
-    if (winPathProblem(exe) case final problem?) throw BadWindowsPath(problem);
-    cwd = File(exe).parent.path;
-    scan = exe;
-  } else if (program.toLowerCase().startsWith(r'c:\')) {
-    scan = findCI(drive, program.substring(3).replaceAll(r'\', '/'));
-    final folder = File(scan).parent;
-    if (folder.existsSync()) cwd = folder.path;
-  }
+  final (:exe, :cwd, :scan) = _programPaths(drive, program);
   final choice = await resolveBackend(
     home,
     dir,
     program,
     scan,
     option: backend,
+    config: fix?.backend,
   );
   final tag =
       label ??
@@ -277,8 +383,36 @@ Future<String> _launchIn(
           .replaceAll(RegExp(r'[^A-Za-z0-9._-]'), '_');
   final argv = [exe, ...args];
   final settings = _settings(dir);
+  final key = _exeKey(program);
+  final more = [
+    if (mach9 && !_ownRuns.contains(key))
+      ...await _syncRetina(home, name, dir, rt, settings.retina),
+  ];
   // The HUD saved for the program, or else asked for by this launch.
-  final hudOn = hud || (settings.programs[_exeKey(program)]?.hud ?? false);
+  final hudOn = hud || (settings.programs[key]?.hud ?? false);
+  final allSteps = fix?.active ?? const <FixStep>[];
+  final steps = _stepsFor(kind, allSteps);
+  final skipped = [
+    for (final step in allSteps)
+      if (!steps.contains(step)) step.name!,
+  ]..sort();
+  if (skipped.isNotEmpty) more.add('skipped ${skipped.join(', ')}');
+  final overrides = [
+    for (final step in steps)
+      if (step.type == 'dlloverride') step.value!,
+  ];
+  // Mach9 takes the graphics, the HUD and the DLL overrides as rules (MG5).
+  final rules = mach9
+      ? _mach9Rules(
+          settings,
+          key,
+          choice,
+          optionGiven: backend != null,
+          hud: hudOn,
+          overrides: [...overrides, ...dllOverrides],
+          appKey: appKey,
+        )
+      : null;
   final log = _newLog(
     dir,
     tag.length > 40 ? tag.substring(0, 40) : tag,
@@ -287,30 +421,37 @@ Future<String> _launchIn(
     argv,
     backend: '${choice.name} (${choice.origin})',
     note: note,
+    rules: rules?.join(' | '),
+    more: more,
   );
+  final programEnv = settings.programs[key]?.env ?? const <String, String>{};
+  final userEnv = {...settings.env, ...programEnv, ...env};
+  if (mach9) Directory('$dir/cache/vkd3d').createSync(recursive: true);
   // Backend, then the game's fix, then bottle, program and this launch (M8, F3).
-  final steps = fix?.active ?? const <FixStep>[];
   final launchEnv = {
-    ...backendEnv(home, choice.name, hud: hudOn),
-    if (choice.name == 'dxvk')
+    if (!mach9) ...backendEnv(home, choice.name, hud: hudOn),
+    if (!mach9 && choice.name == 'dxvk')
       ...hostPlatform.dxvkEnv(dir, async: settings.dxvkAsync),
-    if (hudOn) ...hostPlatform.perfEnv(dir),
-    if (settings.dlss) ..._dlssEnv,
+    if (!mach9 && hudOn) ...hostPlatform.perfEnv(dir),
+    if (!mach9 && settings.dlss) ..._dlssEnv,
+    if (mach9) 'VKD3D_SHADER_CACHE_PATH': '$dir/cache/vkd3d',
     ...hostPlatform.gpuEnv(settings.gpu),
     for (final step in steps)
       if (step.type == 'env')
         if (fixValue(step.value!) case final value?) step.name!: value,
     ...settings.env,
-    ...?settings.programs[_exeKey(program)]?.env,
+    ...programEnv,
     ...hostPlatform.syncEnv(settings.sync),
     ...env,
     ...extra,
   };
-  final overrides = [
-    for (final step in steps)
-      if (step.type == 'dlloverride') step.value!,
-  ];
-  if (overrides.isNotEmpty) {
+  if (rules != null) {
+    // The user's own rules come after Bodega's, so that theirs win (MG9).
+    launchEnv['WINE_COMPATDB'] = [
+      ...rules,
+      ?userEnv['WINE_COMPATDB'],
+    ].join('\n');
+  } else if (overrides.isNotEmpty) {
     launchEnv['WINEDLLOVERRIDES'] =
         '${launchEnv['WINEDLLOVERRIDES'] ?? _overrides};${overrides.join(';')}';
   }
@@ -323,7 +464,7 @@ Future<String> _launchIn(
     detached: true,
     wrapper: hostPlatform.launchWrapper(gamemode: settings.gamemode),
     extra: launchEnv,
-    remove: {if (!(avx ?? settings.avx)) 'ROSETTA_ADVERTISE_AVX'},
+    remove: {if (mach9 || !(avx ?? settings.avx)) 'ROSETTA_ADVERTISE_AVX'},
   );
   // The pid is the run's process group too: stopApp and runningApps read it here.
   if (appKey != null) {
@@ -333,20 +474,109 @@ Future<String> _launchIn(
   return log;
 }
 
+/// Bodega's own headless runs, which never wait for the retina values (PE4):
+/// the `reg add` that writes them is one.
+const _ownRuns = {
+  'reg.exe',
+  'wineboot.exe',
+  'msiexec.exe',
+  'regsvr32.exe',
+  'extrac32.exe',
+  'cmd.exe',
+  'winecfg.exe',
+};
+
+/// PE4: `RetinaMode` and `LogPixels` as the bottle's retina [mode] wants them,
+/// written before the session boots, since Wine reads them only then (Mach9's
+/// `registry.rs`, `session.rs`). A running session keeps its own: stopping it
+/// would stop a game. Returns the log header's lines.
+Future<List<String>> _syncRetina(
+  String home,
+  String name,
+  String dir,
+  String rt,
+  String mode,
+) async {
+  final on = switch (mode) {
+    'on' => true,
+    'off' => false,
+    _ => hostPlatform.mainDisplayHiDpi(),
+  };
+  final header = 'retina ${on ? 'on' : 'off'} ($mode)';
+  final (:retina, :dpi) = _userRegRetina('$dir/prefix/user.reg');
+  if (retina == on && dpi == (on ? 192 : 96)) return [header];
+  if (await _serverRunning(rt, dir)) {
+    return [header, 'retina waits for the next session'];
+  }
+  for (final args in hostPlatform.highResRegistry(on)) {
+    final log = await _launchIn(
+      home,
+      name,
+      'reg',
+      ['add', args[0], '/v', args[1], '/t', args[2], '/d', args[3], '/f'],
+      backend: 'wine',
+      label: 'retina',
+    );
+    final code = await exitOf(log);
+    if (code != 0) throw WineToolFailed(WineTool.reg, code, log);
+  }
+  // The `reg add` booted a session with the old values: end it.
+  await _wineserver(rt, '$dir/prefix', '-k');
+  await _wineserver(rt, '$dir/prefix', '-w');
+  return [header];
+}
+
+/// What `user.reg` holds for retina mode and the system DPI; Wine's defaults,
+/// off and 96, where a value is missing (design §2).
+({bool retina, int dpi}) _userRegRetina(String path) {
+  final file = File(path);
+  if (!file.existsSync()) return (retina: false, dpi: 96);
+  var retina = false;
+  var dpi = 96;
+  String? section;
+  for (final line in file.readAsLinesSync()) {
+    if (line.startsWith('[')) {
+      section = line.substring(1, line.indexOf(']')).toLowerCase();
+    } else if (section == r'software\\wine\\mac driver' &&
+        line.startsWith('"RetinaMode"=')) {
+      retina = line.toLowerCase().contains('"y');
+    } else if (section == r'control panel\\desktop' &&
+        line.startsWith('"LogPixels"=dword:')) {
+      dpi = int.tryParse(line.split(':').last.trim(), radix: 16) ?? 96;
+    }
+  }
+  return (retina: retina, dpi: dpi);
+}
+
 /// `wineserver -w`: returns when the bottle's last process is gone, or at
 /// once if none runs (R11).
 Future<int> waitBottle(String home, String name) async {
-  final prefix = '${_existing(home, name)}/prefix';
-  return _wineserver(currentRuntime(home), prefix, '-w');
+  final dir = _existing(home, name);
+  final rt = _serverRuntime(home, dir);
+  return rt == null ? 0 : _wineserver(rt, '$dir/prefix', '-w');
 }
 
 /// `wineserver -k`; its 1 means there was no server, so it counts as 0 (R11).
 Future<int> stopBottle(String home, String name) async {
-  final prefix = '${_existing(home, name)}/prefix';
+  final dir = _existing(home, name);
+  final rt = _serverRuntime(home, dir);
+  if (rt == null) return 0;
   // ponytail: no reaper; whatever survives -k (trap 6) stays, and acceptance
   // looks for it with pgrep.
-  final code = await _wineserver(currentRuntime(home), prefix, '-k');
+  final code = await _wineserver(rt, '$dir/prefix', '-k');
   return code == 1 ? 0 : code;
+}
+
+/// The runtime whose wineserver serves the bottle in [dir] (MB3): null for a
+/// Mach9 bottle while Mach9 is not installed, since no server of it can run;
+/// a bodega bottle without `current` still throws [NoRuntime].
+String? _serverRuntime(String home, String dir) {
+  final kind = _bottleRuntimeIn(dir);
+  try {
+    return runtimeDir(home, kind);
+  } on RuntimeNotInstalled {
+    return null;
+  }
 }
 
 /// The program's exit code, from the `.exit` file that the launch script
@@ -397,6 +627,25 @@ enum LogHint {
     _fixNote,
     "Steam was already open, so this game's fix did not reach it. Stop the "
     'bottle and open the game again from Bodega.',
+  ),
+
+  /// A .NET program in a Mach9 bottle without Wine Mono.
+  monoMissing(
+    'Wine Mono is not installed',
+    'the program needs Wine Mono: bodega mono install <bottle>',
+  ),
+
+  /// Mach9's compatdb dropped a line of `WINE_COMPATDB`.
+  rulesIgnored(
+    'warning: WINE_COMPATDB line',
+    'Mach9 ignored a rule Bodega sent: report it with this log',
+  ),
+
+  /// Mach9's loader refused to start outside its signed wine.app.
+  loaderNotSigned(
+    'the loader must run from the signed wine.app',
+    "Mach9's copy is damaged or this macOS cannot run it: bodega runtime "
+        'install mach9',
   );
 
   const LogHint(this.marker, this.english);
@@ -513,18 +762,27 @@ const _sdlInRuntime = 'engine/lib/wine/x86_64-unix/libSDL2-2.0.0.dylib';
 
 String _sdlPath(String home) => '${currentRuntime(home)}/$_sdlInRuntime';
 
+/// Whether `current` is a Wine that can take SDL2: one with x86_64 unix
+/// modules (MB4).
+bool _takesSdl(String home) =>
+    hasRuntime(home) &&
+    Directory(File(_sdlPath(home)).parent.path).existsSync();
+
 /// Whether the current runtime has SDL2, so that gamepads go through it.
 bool hasSdl(String home) =>
     hasRuntime(home) && File(_sdlPath(home)).existsSync();
 
 /// Downloads the pinned SDL2, or takes [dmg], checks its SHA-256, and puts its
 /// x86_64 part in the current runtime. Bottles switch to it on their next
-/// launch. Returns where it went.
+/// launch. Returns where it went. Does nothing when `current` has no
+/// x86_64 unix modules (MB4).
 Future<String> installSdl(String home, {String? dmg}) async {
   if (!hostPlatform.capabilities.sdl) {
     throw NotAvailable('SDL', hostPlatform.displayName);
   }
   final dest = _sdlPath(home);
+  // A runtime without x86_64 unix modules has no winebus to give it to.
+  if (!_takesSdl(home)) return dest;
   final file = dmg ?? await _download(home, _sdl.url, _sdl.sha256);
   if (await sha256Of(file) != _sdl.sha256) throw ChecksumMismatch(file);
   final mount = Directory.systemTemp.createTempSync('bodega-sdl');
@@ -589,6 +847,8 @@ String _newLog(
   List<String> argv, {
   String? backend,
   String? note,
+  String? rules,
+  List<String> more = const [],
 }) {
   final now = DateTime.now().toUtc();
   final iso = now.toIso8601String();
@@ -604,7 +864,9 @@ String _newLog(
       '${backend == null ? '' : '# backend $backend\n'}'
       '# cwd $cwd\n'
       '# argv ${argv.join(' ')}\n'
-      '${note == null ? '' : '# note $note\n'}',
+      '${note == null ? '' : '# note $note\n'}'
+      '${[for (final line in more) '# $line\n'].join()}'
+      '${rules == null ? '' : '# rules $rules\n'}',
     );
   return log.path;
 }
@@ -641,8 +903,7 @@ bool hasRuntime(String home) =>
 /// following them, which matters because `dosdevices/z:` points to / (E4).
 Future<void> removeBottle(String home, String name) async {
   final dir = _existing(home, name);
-  if (hasRuntime(home)) {
-    final rt = currentRuntime(home);
+  if (_installedRuntime(home, dir) case final rt?) {
     await _wineserver(rt, '$dir/prefix', '-k');
     await _wineserver(rt, '$dir/prefix', '-w');
   }
@@ -656,19 +917,38 @@ Future<void> renameBottle(String home, String from, String to) async {
   final target = bottleDir(home, to);
   final dir = _existing(home, from);
   if (Directory(target).existsSync()) throw BottleExists(to);
-  if (hasRuntime(home) && await _serverRunning(home, dir)) {
+  if (_installedRuntime(home, dir) case final rt?
+      when await _serverRunning(rt, dir)) {
     throw BottleOpen(from);
   }
   Directory(dir).renameSync(target);
-  await hostPlatform.prepareBottle(home, to);
+  await _prepareBottle(home, to);
+}
+
+/// The bottle's runtime, or null when it is not installed (MB3).
+String? _installedRuntime(String home, String dir) {
+  try {
+    return runtimeDir(home, _bottleRuntimeIn(dir));
+  } on NoRuntime {
+    return null;
+  } on RuntimeNotInstalled {
+    return null;
+  }
+}
+
+/// [hostPlatform]'s preparation of a bottle (gamepads, layers), which only
+/// Rosetta's Wine needs: a Mach9 bottle gets none (MB4).
+Future<void> _prepareBottle(String home, String name) async {
+  if (bottleRuntime(home, name) == RuntimeKind.mach9) return;
+  await hostPlatform.prepareBottle(home, name);
 }
 
 /// `wineserver -w` returns at once when the bottle has no server, so one still
 /// waiting after a second is running (as the app's watch assumes).
-Future<bool> _serverRunning(String home, String dir) async {
+Future<bool> _serverRunning(String rt, String dir) async {
   var ended = false;
   final wait = _wineserver(
-    currentRuntime(home),
+    rt,
     '$dir/prefix',
     '-w',
   ).whenComplete(() => ended = true);

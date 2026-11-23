@@ -23,4 +23,7 @@ String logHintText(AppL10n l10n, LogHint hint) => switch (hint) {
   LogHint.otherServer => l10n.hintOtherServer,
   LogHint.cannotOpen => l10n.hintCannotOpen,
   LogHint.fixNotApplied => l10n.hintFixNotApplied,
+  LogHint.monoMissing => l10n.hintMonoMissing,
+  LogHint.rulesIgnored => l10n.hintRulesIgnored,
+  LogHint.loaderNotSigned => l10n.hintLoaderNotSigned(l10n.navBackends),
 };

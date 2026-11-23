@@ -84,6 +84,9 @@ enum InstallStepKind {
   /// The subject is the bottle.
   creatingBottle,
 
+  /// Wine Mono goes into a new Mach9 bottle (MB9).
+  installingMono,
+
   /// Writes one of the entry's registry values: the subject is its name.
   registry,
   runningInstaller,
@@ -97,7 +100,8 @@ enum InstallStepKind {
 /// failure after the bottle exists leaves it, with its logs, and without the
 /// entry in `apps.json` that would make it count as installed. A [setup] that
 /// is already on disk replaces the download, so that a UI can show its
-/// progress (E6). [onStep] hears each [InstallStep] as it starts.
+/// progress (E6). [onStep] hears each [InstallStep] as it starts. [runtime]
+/// is the kind of a new bottle (MB9).
 Future<String> installEntry(
   String home,
   CatalogEntry entry, {
@@ -105,6 +109,7 @@ Future<String> installEntry(
   bool intoExisting = false,
   String? setup,
   void Function(InstallStep step)? onStep,
+  RuntimeKind runtime = RuntimeKind.bodega,
   Duration grace = const Duration(seconds: 60),
   Duration limit = const Duration(minutes: 30),
 }) async {
@@ -114,14 +119,27 @@ Future<String> installEntry(
   final name = bottle ?? entry.id;
   final dir = bottleDir(home, name);
   if (entry.status == 'blocked') throw CatalogBlocked(entry.id);
-  final backend = hostPlatform.mapBackend(entry.backend);
-  if (!_installed(home, backend)) throw BackendNotInstalled(backend);
   final exists = Directory(dir).existsSync();
+  // An existing bottle keeps its own kind; a new one gets [runtime] (MB9).
+  final kind = exists ? bottleRuntime(home, name) : runtime;
+  final mach9 = kind == RuntimeKind.mach9;
+  if (mach9) {
+    if (hostPlatform.mach9Block case final block?) {
+      throw RuntimeUnavailable(kind, block);
+    }
+    runtimeDir(home, kind);
+  }
+  final backend = mapBackendFor(kind, entry.backend);
+  if (!(mach9
+      ? backend == 'auto' || (_mach9Backends(home)[backend] ?? false)
+      : _installed(home, backend))) {
+    throw BackendNotInstalled(backend);
+  }
   if (exists && !intoExisting) throw BottleExists(name);
   if (intoExisting && !(exists && _ready('$dir/prefix'))) {
     throw BottleNotReady(name);
   }
-  final rt = currentRuntime(home);
+  final rt = runtimeDir(home, kind);
   final String file;
   if (setup == null) {
     final uri = Uri.parse(entry.url);
@@ -143,7 +161,9 @@ Future<String> installEntry(
     }
   }
 
-  final program = (backend: backend, env: entry.env, hud: false);
+  // Automatic is no exception: the bottle's choice, or Mach9's, applies.
+  final exception = backend == 'auto' ? null : backend;
+  final program = (backend: exception, env: entry.env, hud: false);
   if (intoExisting) {
     // The bottle keeps its backend and sync: other things live in it (M12).
     final settings = _settings(dir);
@@ -158,22 +178,28 @@ Future<String> installEntry(
         settings,
         programs: {
           ...settings.programs,
-          _exeKey(entry.exe): (backend: backend, env: entry.env, hud: hud),
+          _exeKey(entry.exe): (backend: exception, env: entry.env, hud: hud),
         },
       ),
     );
   } else {
     step(InstallStepKind.creatingBottle, name);
-    await createBottle(home, name);
+    await createBottle(home, name, runtime: runtime, mono: false);
     _saveSettings(
       dir,
       _with(
         _settings(dir),
         backend: 'auto',
-        sync: entry.sync,
+        // PE1: the entries' `none` is for Rosetta's Wine; Mach9 keeps msync.
+        sync: runtime == RuntimeKind.mach9 ? null : entry.sync,
         programs: {_exeKey(entry.exe): program},
       ),
     );
+  }
+
+  if (!intoExisting && mach9) {
+    step(InstallStepKind.installingMono);
+    await installMono(home, name);
   }
 
   for (final value in entry.registry) {
@@ -202,7 +228,8 @@ Future<String> installEntry(
       if (entry.msi) ...['/i', file, '/qn'],
       ...entry.installerArgs,
     ],
-    backend: 'wine',
+    // Mach9 picks per program: an installer's own window may be D3D9 or 11.
+    backend: mach9 ? 'auto' : 'wine',
     label: '${entry.id}-setup',
   );
   final code = await exitOf(log);

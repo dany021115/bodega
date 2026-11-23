@@ -5,6 +5,8 @@ import 'package:bodega/app/presentation/backends/backends_page.dart';
 import 'package:bodega/app/presentation/bottles/bottle_detail_page.dart';
 import 'package:bodega/app/presentation/catalog/catalog_detail_page.dart';
 import 'package:bodega/app/presentation/catalog/catalog_page.dart';
+import 'package:bodega/app/presentation/games/game_detail_page.dart';
+import 'package:bodega/app/presentation/games/games_page.dart';
 import 'package:bodega/app/presentation/library/library_page.dart';
 import 'package:bodega/app/presentation/setup/setup_page.dart';
 import 'package:bodega/app/presentation/switch/switch_page.dart';
@@ -35,6 +37,10 @@ enum AppRoute {
   switchGames,
   catalog,
   catalogDetail,
+
+  /// The game configurations (A2) and one game's page (A3).
+  games,
+  gameDetail,
   bottles,
   bottleDetail,
   backends,
@@ -95,6 +101,20 @@ GoRouter createRouter(SetupBloc setup) {
                 pageBuilder: (context, state) => NoTransitionPage(
                   key: ValueKey(state.matchedLocation),
                   child: CatalogDetailPage(id: state.pathParameters['id']!),
+                ),
+              ),
+            ],
+          ),
+          _section(
+            AppRoute.games,
+            const GamesPage(),
+            routes: [
+              GoRoute(
+                path: ':id',
+                name: AppRoute.gameDetail.name,
+                pageBuilder: (context, state) => NoTransitionPage(
+                  key: ValueKey(state.matchedLocation),
+                  child: GameDetailPage(id: state.pathParameters['id']!),
                 ),
               ),
             ],

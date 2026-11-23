@@ -2,6 +2,8 @@ import 'package:bloc_test/bloc_test.dart';
 import 'package:bodega/app/bloc/new_bottle/new_bottle_bloc.dart';
 import 'package:bodega/domain/entities/app_error.dart';
 import 'package:bodega/domain/entities/bottle.dart';
+import 'package:bodega/domain/entities/bottle_step.dart';
+import 'package:bodega/domain/entities/runtime_kind.dart';
 import 'package:bodega/domain/entities/wine_tool.dart';
 import 'package:bodega/domain/repository/bottle_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -131,4 +133,138 @@ void main() {
       ),
     ),
   );
+
+  group('the engine (MA6)', () {
+    setUpAll(() => registerFallbackValue((BottleStep _) {}));
+
+    /// Native creation reports [steps], then ends with [result].
+    void createsNative(List<BottleStep> steps, Either<AppError, Unit> result) {
+      when(
+        () => repository.create(
+          'games',
+          windows: 'win11',
+          backend: 'auto',
+          runtime: RuntimeKind.mach9,
+          onStep: any(named: 'onStep'),
+        ),
+      ).thenAnswer((call) async {
+        steps.forEach(
+          call.namedArguments[#onStep] as void Function(BottleStep),
+        );
+        return result;
+      });
+    }
+
+    test('starts on Rosetta; Native when the engine is available, until '
+        'the user picks one (D26)', () async {
+      final bloc = build();
+      await Future<void>.delayed(Duration.zero);
+      expect(bloc.state.runtime, RuntimeKind.bodega);
+
+      bloc.add(const NewBottleEvent.nativeAvailable(true));
+      await Future<void>.delayed(Duration.zero);
+      expect(bloc.state.runtime, RuntimeKind.mach9);
+
+      bloc
+        ..add(const NewBottleEvent.runtimeChanged(RuntimeKind.bodega))
+        ..add(const NewBottleEvent.nativeAvailable(true));
+      await Future<void>.delayed(Duration.zero);
+      expect(bloc.state.runtime, RuntimeKind.bodega);
+      await bloc.close();
+    });
+
+    blocTest<NewBottleBloc, NewBottleState>(
+      'changing the engine resets Graphics to Automatic',
+      build: build,
+      act: (bloc) async {
+        await Future<void>.delayed(Duration.zero);
+        bloc
+          ..add(const NewBottleEvent.backendChanged('dxvk'))
+          ..add(const NewBottleEvent.runtimeChanged(RuntimeKind.mach9));
+      },
+      verify: (bloc) {
+        expect(bloc.state.runtime, RuntimeKind.mach9);
+        expect(bloc.state.backend, 'auto');
+      },
+    );
+
+    blocTest<NewBottleBloc, NewBottleState>(
+      'submitting passes the engine, and shows each step',
+      build: () {
+        createsNative(const [BottleStep.prefix, BottleStep.mono], right(unit));
+        return build();
+      },
+      act: (bloc) async {
+        await Future<void>.delayed(Duration.zero);
+        bloc
+          ..add(const NewBottleEvent.nameChanged('games'))
+          ..add(const NewBottleEvent.runtimeChanged(RuntimeKind.mach9))
+          ..add(const NewBottleEvent.submit());
+      },
+      wait: const Duration(milliseconds: 10),
+      expect: () => containsAllInOrder([
+        isA<NewBottleState>().having((s) => s.step, 'step', BottleStep.prefix),
+        isA<NewBottleState>().having((s) => s.step, 'step', BottleStep.mono),
+      ]),
+      verify: (bloc) {
+        expect(bloc.state.createdName, 'games');
+        expect(bloc.state.monoFailed, isFalse);
+        expect(bloc.state.error, isNull);
+      },
+    );
+
+    blocTest<NewBottleBloc, NewBottleState>(
+      'a Wine Mono failure leaves the bottle made, with the error',
+      build: () {
+        createsNative(
+          const [BottleStep.prefix, BottleStep.mono],
+          left(const AppError.wineToolFailed(WineTool.mono, 1603, '/l/m.log')),
+        );
+        return build();
+      },
+      act: (bloc) async {
+        await Future<void>.delayed(Duration.zero);
+        bloc
+          ..add(const NewBottleEvent.nameChanged('games'))
+          ..add(const NewBottleEvent.runtimeChanged(RuntimeKind.mach9))
+          ..add(const NewBottleEvent.submit());
+      },
+      wait: const Duration(milliseconds: 10),
+      verify: (bloc) {
+        expect(bloc.state.createdName, 'games');
+        expect(bloc.state.monoFailed, isTrue);
+        expect(
+          bloc.state.error,
+          const AppError.wineToolFailed(WineTool.mono, 1603, '/l/m.log'),
+        );
+        expect(bloc.state.isCreating, isFalse);
+      },
+    );
+
+    blocTest<NewBottleBloc, NewBottleState>(
+      'a failure before Mono creates nothing',
+      build: () {
+        createsNative(const [
+          BottleStep.prefix,
+        ], left(const AppError.runtimeNotInstalled(RuntimeKind.mach9)));
+        return build();
+      },
+      act: (bloc) async {
+        await Future<void>.delayed(Duration.zero);
+        bloc
+          ..add(const NewBottleEvent.nameChanged('games'))
+          ..add(const NewBottleEvent.runtimeChanged(RuntimeKind.mach9))
+          ..add(const NewBottleEvent.submit());
+      },
+      wait: const Duration(milliseconds: 10),
+      verify: (bloc) {
+        expect(bloc.state.createdName, isNull);
+        expect(bloc.state.monoFailed, isFalse);
+        expect(
+          bloc.state.error,
+          const AppError.runtimeNotInstalled(RuntimeKind.mach9),
+        );
+      },
+    );
+  });
 }
