@@ -47,7 +47,26 @@ class FixStep {
   final List<String> platforms;
 
   bool get applies => platforms.contains(hostPlatform.id);
+
+  /// An `env` step for Rosetta, D3DMetal, DXVK, MoltenVK or the Metal HUD,
+  /// none of which a Mach9 bottle has (PE6, P5).
+  bool get forRosettaOnly =>
+      type == 'env' &&
+      const [
+        'ROSETTA_',
+        'D3DM_',
+        'DXVK_',
+        'MVK_',
+        'MTL_HUD_',
+      ].any((prefix) => name!.startsWith(prefix));
 }
+
+/// [steps] as a bottle of [kind] runs them: a Mach9 bottle leaves out the
+/// Rosetta-only ones (PE6).
+List<FixStep> _stepsFor(RuntimeKind kind, List<FixStep> steps) =>
+    kind == RuntimeKind.mach9
+    ? [for (final step in steps) if (!step.forRosettaOnly) step]
+    : steps;
 
 const _generated = 'fixes_data.dart', _bodegas = 'bodega_fixes_data.dart';
 
@@ -340,7 +359,10 @@ Future<GamePlan> gamePlan(String home, String bottle, String key) async {
     scan,
     config: fix?.backend,
   );
-  final steps = fix?.active ?? const <FixStep>[];
+  final steps = _stepsFor(
+    _bottleRuntimeIn(dir),
+    fix?.active ?? const <FixStep>[],
+  );
   return (
     app: app,
     match: match,

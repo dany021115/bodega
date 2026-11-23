@@ -8,13 +8,24 @@ import 'package:test/test.dart';
 /// unless [mach9Block] says otherwise; [team] is what every signature names
 /// (null: none passes); [applications] is the one applications folder.
 class TestMac extends MacPlatform {
-  const TestMac({this.mach9Block, this.team = 'WLKUUJD25W', this.applications});
+  const TestMac({
+    this.mach9Block,
+    this.team = 'WLKUUJD25W',
+    this.applications,
+    this.hiDpi = false,
+  });
 
   @override
   final RuntimeBlock? mach9Block;
 
   final String? team;
   final String? applications;
+
+  /// What [mainDisplayHiDpi] answers, instead of this machine's display.
+  final bool hiDpi;
+
+  @override
+  bool mainDisplayHiDpi() => hiDpi;
 
   @override
   Future<void> afterExtract(String dir) async {}

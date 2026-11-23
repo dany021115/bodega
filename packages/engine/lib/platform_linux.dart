@@ -258,6 +258,9 @@ class LinuxPlatform extends HostPlatform {
       _ensureLayers(home, name);
 
   @override
+  bool mainDisplayHiDpi() => false;
+
+  @override
   List<List<String>> highResRegistry(bool value) => [
     [
       r'HKCU\Control Panel\Desktop',

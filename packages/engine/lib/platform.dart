@@ -134,6 +134,10 @@ abstract class HostPlatform {
   List<(int, String)> probeCases(String home, String backend);
   Future<void> prepareBottle(String home, String name);
   List<List<String>> highResRegistry(bool value);
+
+  /// Whether the main display draws more pixels than points, as Mach9.app's
+  /// `retina.rs` decides its `auto` (PE3). False when the host can't tell.
+  bool mainDisplayHiDpi();
   Map<String, String> gpuEnv(String gpu);
   List<String> launchWrapper({required bool gamemode});
   bool get defaultGamemode;

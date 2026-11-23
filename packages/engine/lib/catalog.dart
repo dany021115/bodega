@@ -190,7 +190,8 @@ Future<String> installEntry(
       _with(
         _settings(dir),
         backend: 'auto',
-        sync: entry.sync,
+        // PE1: the entries' `none` is for Rosetta's Wine; Mach9 keeps msync.
+        sync: runtime == RuntimeKind.mach9 ? null : entry.sync,
         programs: {_exeKey(entry.exe): program},
       ),
     );

@@ -190,6 +190,7 @@ String? compatdbRules(
   String program, {
   String? backend,
   bool hud = false,
+  String? appKey,
 }) {
   final dir = _existing(home, name);
   if (_bottleRuntimeIn(dir) != RuntimeKind.mach9) return null;
@@ -201,6 +202,7 @@ String? compatdbRules(
     _mach9Choice(home, settings, key, backend),
     optionGiven: backend != null,
     hud: hud || (settings.programs[key]?.hud ?? false),
+    appKey: appKey,
   );
   final user = {...settings.env, ...?settings.programs[key]?.env};
   return [...rules, ?user['WINE_COMPATDB']].join('\n');
@@ -261,21 +263,32 @@ List<String> _mach9Rules(
   required bool optionGiven,
   required bool hud,
   List<String> overrides = const [],
+  String? appKey,
 }) {
   final fields = _mach9Fields(choice.name);
+  // PE8: a Steam game's own line names its app id, not the store client.
+  final steam = appKey != null && appKey.startsWith('steam:');
+  final own = [
+    if (choice.origin == 'option' || choice.origin == 'exe') ...fields,
+    if (steam && hud) ('metal_hud', 'true'),
+    // PE7: the app's native options, on its own line only.
+    for (final option in settings.native[appKey] ?? const <String>[])
+      (
+        NativeOption.values.byName(option).field,
+        NativeOption.values.byName(option).value,
+      ),
+  ];
   return [
     _compatdbLine([
       ('exe', '*'),
       ...fields,
-      if (hud) ('metal_hud', 'true'),
+      if (hud && !steam) ('metal_hud', 'true'),
       ('dll_overrides', _mach9MenuOverride),
       for (final value in overrides)
         for (final element in value.split(';'))
           if (element.isNotEmpty) ('dll_overrides', element),
     ]),
-    if ((choice.origin == 'option' || choice.origin == 'exe') &&
-        fields.isNotEmpty)
-      _compatdbLine([('exe', key), ...fields]),
+    if (own.isNotEmpty) _compatdbLine([('exe', steam ? appKey : key), ...own]),
     for (final other in settings.programs.keys.toList()..sort())
       if (other != key)
         if ([
@@ -289,11 +302,43 @@ List<String> _mach9Rules(
 }
 
 /// One line of `WINE_COMPATDB` (MG4): `name=value` fields joined by `;`, in
-/// the order given, with `%`, `;` and control bytes of each value escaped as
-/// `%XX`.
-String _compatdbLine(List<(String, String)> fields) =>
-    [for (final (name, value) in fields) '$name=${_compatdbEscape(value)}']
-        .join(';');
+/// compatdb's `Key::ALL` order (design §3; fields of one key keep theirs),
+/// with `%`, `;` and control bytes of each value escaped as `%XX`.
+String _compatdbLine(List<(String, String)> fields) {
+  for (final (name, _) in fields) {
+    if (!_compatdbKeys.contains(name))
+      throw StateError('no compatdb key $name');
+  }
+  return [
+    for (final key in _compatdbKeys)
+      for (final (name, value) in fields)
+        if (name == key) '$name=${_compatdbEscape(value)}',
+  ].join(';');
+}
+
+/// compatdb's `Key::ALL` at Mach9 v0.4.0 (`compatdb/core/src/key.rs`).
+const _compatdbKeys = [
+  'exe',
+  'company',
+  'product',
+  'original_filename',
+  'dxgi',
+  'd3d9',
+  'wined3d',
+  'opengl',
+  'dpi_aware',
+  'large_address_aware',
+  'gcmouse',
+  'force_nx',
+  'metal_hud',
+  'vulkan_capture',
+  'metal_capture',
+  'dll_overrides',
+  'arguments_override',
+  'arguments',
+  'debug_channels',
+  'env',
+];
 
 String _compatdbEscape(String value) {
   final out = StringBuffer();
@@ -313,3 +358,31 @@ List<(int, String)> _mach9ProbeCases(String backend) => switch (backend) {
   'dxmt' => const [(32, '11'), (64, '11'), (64, '12')],
   _ => const [(32, '9'), (64, '9'), (64, '11')],
 };
+
+/// A compatdb setting a Mach9 bottle sends on one app's own rule, from
+/// `builtin.rs`'s documented fixes (PE7, P7). Off sends nothing, so Mach9's
+/// own default holds.
+enum NativeOption {
+  /// No-execute as Wine does it: launchers and configurators built with the
+  /// ATL of Visual Studio 2003 crash on their first window without it.
+  noForceNx('force_nx', 'false'),
+
+  /// The 4 GB address space for a 32-bit game, which otherwise shares 2 GB
+  /// with Wine and the Direct3D layers under FEX.
+  largeAddressAware('large_address_aware', 'true'),
+
+  /// Windows' scaling off, for interfaces drawn in fixed pixels.
+  notDpiAware('dpi_aware', 'false'),
+
+  /// macOS's own OpenGL instead of EGL, when a game gets no OpenGL at all.
+  cglOpenGl('opengl', 'cgl'),
+
+  /// wined3d draws with Vulkan instead of OpenGL.
+  vulkanWined3d('wined3d', 'vulkan');
+
+  const NativeOption(this.field, this.value);
+
+  /// compatdb's key and the value this option sends.
+  final String field;
+  final String value;
+}

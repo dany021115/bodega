@@ -22,6 +22,9 @@ usage: bodega install <engine.tar.gz> <hostlibs.tar.gz>
        bodega sync <bottle> <msync|none>
        bodega option <bottle> gpu auto|discrete
        bodega option <bottle> gamemode on|off
+       bodega option <bottle> retina auto|on|off
+       bodega native <bottle> <key> [<option> on|off]
+       bodega native-move <bottle>
        bodega sdl install [file.dmg]
        bodega pads
        bodega catalog list [text]
@@ -120,6 +123,20 @@ RuntimeKind? _kindNamed(String name) =>
   );
 }
 
+/// The CLI's names of the [NativeOption]s (PE11).
+const nativeOptionNames = {
+  NativeOption.noForceNx: 'no-force-nx',
+  NativeOption.largeAddressAware: 'large-address-aware',
+  NativeOption.notDpiAware: 'not-dpi-aware',
+  NativeOption.cglOpenGl: 'cgl-opengl',
+  NativeOption.vulkanWined3d: 'vulkan-wined3d',
+};
+
+NativeOption? _nativeOptionNamed(String name) => nativeOptionNames.entries
+    .where((entry) => entry.value == name)
+    .firstOrNull
+    ?.key;
+
 /// One line of `runtime list` (MC1).
 String describeRuntime(RuntimeInfo info) {
   final name = info.kind.name;
@@ -187,6 +204,50 @@ Future<int> Function(String home)? runtimeVerb(
           '${rules.bottle} runs on ${RuntimeKind.bodega.english}, '
               'which takes no rules',
     );
+    return 0;
+  },
+  ['option', final bottle, 'retina', final mode]
+      when retinaModes.contains(mode) =>
+    (home) async {
+      await setRetina(home, bottle, mode);
+      return 0;
+    },
+  ['native', final bottle, final key] => (home) async {
+    final on = nativeOptions(home, bottle, key);
+    for (final MapEntry(key: option, value: name)
+        in nativeOptionNames.entries) {
+      out.writeln('$name: ${on.contains(option) ? 'on' : 'off'}');
+    }
+    return 0;
+  },
+  ['native', final bottle, final key, final name, final state]
+      when _nativeOptionNamed(name) != null &&
+          (state == 'on' || state == 'off') =>
+    (home) async {
+      setNativeOption(
+        home,
+        bottle,
+        key,
+        _nativeOptionNamed(name)!,
+        on: state == 'on',
+      );
+      out.writeln('$name: $state');
+      return 0;
+    },
+  ['native-move', final bottle] => (home) async {
+    final runtimes = await moveToNative(
+      home,
+      bottle,
+      onStep: (step) => out.writeln(switch (step) {
+        NativeMoveStep.creating => 'Making the Native engine bottle',
+        NativeMoveStep.copying => 'Copying programs, files and settings',
+        NativeMoveStep.finishing => 'Deleting the Rosetta bottle',
+      }),
+    );
+    out.writeln('$bottle runs on the Native engine now');
+    if (runtimes.isNotEmpty) {
+      out.writeln('install again: ${runtimes.join(', ')}');
+    }
     return 0;
   },
   ['backend', 'list', '--runtime', final name] when _kindNamed(name) != null =>

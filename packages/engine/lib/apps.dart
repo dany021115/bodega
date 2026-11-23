@@ -661,3 +661,37 @@ Uint8List? _iconIn(Uint8List resources, int address) {
   out.setRange(22, out.length, icon);
   return out;
 }
+
+/// Turns [option] on or off for the app [key] of [bottle] (PE7). It is kept in
+/// a bottle of either runtime; only a Mach9 launch sends it.
+void setNativeOption(
+  String home,
+  String bottle,
+  String key,
+  NativeOption option, {
+  required bool on,
+}) {
+  final dir = _existing(home, bottle);
+  _appWithKey(home, bottle, key);
+  final settings = _settings(dir);
+  final names = {...?settings.native[key]};
+  on ? names.add(option.name) : names.remove(option.name);
+  _saveSettings(
+    dir,
+    _with(
+      settings,
+      native: {
+        for (final MapEntry(key: app, :value) in settings.native.entries)
+          if (app != key) app: value,
+        if (names.isNotEmpty) key: names.toList()..sort(),
+      },
+    ),
+  );
+}
+
+/// The native options the app [key] of [bottle] has on (PE7).
+Set<NativeOption> nativeOptions(String home, String bottle, String key) => {
+  for (final name
+      in _settings(_existing(home, bottle)).native[key] ?? const <String>[])
+    NativeOption.values.byName(name),
+};

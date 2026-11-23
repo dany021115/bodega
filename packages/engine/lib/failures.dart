@@ -345,6 +345,7 @@ final class BadChoice extends EngineFailure {
         ChoiceKind.runtime => RuntimeKind.values.map((k) => k.name).join(', '),
         ChoiceKind.dependency => 'bodega deps list <bottle>',
         ChoiceKind.verdict => gameVerdicts.join(', '),
+        ChoiceKind.retina => retinaModes.join(', '),
       };
 }
 
@@ -600,7 +601,10 @@ enum ChoiceKind {
   dependency('dependency'),
 
   /// What the user said of a game: one of [gameVerdicts].
-  verdict('verdict');
+  verdict('verdict'),
+
+  /// A Mach9 bottle's retina mode: one of [retinaModes].
+  retina('retina mode');
 
   const ChoiceKind(this.english);
 
