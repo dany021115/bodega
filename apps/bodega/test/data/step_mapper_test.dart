@@ -3,8 +3,12 @@
 // text (E11).
 
 import 'package:bodega/data/service/code_mapper.dart';
+import 'package:bodega/domain/entities/bottle_step.dart';
 import 'package:bodega/domain/entities/gptk_step.dart';
 import 'package:bodega/domain/entities/install_step.dart';
+import 'package:bodega/domain/entities/mach9_step.dart';
+import 'package:bodega/domain/entities/runtime_block.dart';
+import 'package:bodega/domain/entities/runtime_kind.dart';
 import 'package:engine/engine.dart' as engine;
 import 'package:flutter_test/flutter_test.dart';
 
@@ -29,6 +33,10 @@ void main() {
       expect(
         of(engine.InstallStepKind.creatingBottle, 'steam'),
         const InstallStep.creatingBottle('steam'),
+      );
+      expect(
+        of(engine.InstallStepKind.installingMono),
+        const InstallStep.installingMono(),
       );
       expect(
         of(engine.InstallStepKind.registry, 'GlobalFlag'),
@@ -56,5 +64,33 @@ void main() {
     expect({
       for (final step in engine.GptkStep.values) gptkStepOf(step),
     }, GptkStep.values.toSet());
+  });
+
+  test('the runtime enums keep each value, both ways for the kind (MA10)', () {
+    for (final kind in engine.RuntimeKind.values) {
+      expect(runtimeKindOf(kind).name, kind.name);
+      expect(engineRuntimeOf(runtimeKindOf(kind)), kind);
+    }
+    expect({
+      for (final kind in engine.RuntimeKind.values) runtimeKindOf(kind),
+    }, RuntimeKind.values.toSet());
+    for (final block in engine.RuntimeBlock.values) {
+      expect(runtimeBlockOf(block).name, block.name);
+    }
+    expect({
+      for (final block in engine.RuntimeBlock.values) runtimeBlockOf(block),
+    }, RuntimeBlock.values.toSet());
+    expect({
+      for (final step in engine.Mach9Step.values) mach9StepOf(step),
+    }, Mach9Step.values.toSet());
+    for (final step in engine.Mach9Step.values) {
+      expect(mach9StepOf(step).name, step.name);
+    }
+    expect({
+      for (final step in engine.BottleStep.values) bottleStepOf(step),
+    }, BottleStep.values.toSet());
+    for (final step in engine.BottleStep.values) {
+      expect(bottleStepOf(step).name, step.name);
+    }
   });
 }

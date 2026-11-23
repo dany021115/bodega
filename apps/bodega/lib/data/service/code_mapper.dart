@@ -2,7 +2,11 @@ import 'package:bodega/domain/entities/backend_role.dart';
 import 'package:bodega/domain/entities/gptk_step.dart';
 import 'package:bodega/domain/entities/host_issue.dart';
 import 'package:bodega/domain/entities/install_step.dart';
+import 'package:bodega/domain/entities/bottle_step.dart';
+import 'package:bodega/domain/entities/mach9_step.dart';
 import 'package:bodega/domain/entities/path_problem.dart';
+import 'package:bodega/domain/entities/runtime_block.dart';
+import 'package:bodega/domain/entities/runtime_kind.dart';
 import 'package:bodega/domain/entities/user_name_problem.dart';
 import 'package:bodega/domain/entities/wine_tool.dart';
 import 'package:engine/engine.dart' as engine;
@@ -30,6 +34,7 @@ InstallStep installStepOf(engine.InstallStep step) {
     engine.InstallStepKind.creatingBottle => InstallStep.creatingBottle(
       subject,
     ),
+    engine.InstallStepKind.installingMono => const InstallStep.installingMono(),
     engine.InstallStepKind.registry => InstallStep.registry(subject),
     engine.InstallStepKind.runningInstaller =>
       const InstallStep.runningInstaller(),
@@ -40,6 +45,7 @@ InstallStep installStepOf(engine.InstallStep step) {
 BackendRole backendRoleOf(engine.BackendRole role) => switch (role) {
   engine.BackendRole.dx11to12x64 => BackendRole.dx11to12x64,
   engine.BackendRole.dx10to11 => BackendRole.dx10to11,
+  engine.BackendRole.dx9to11 => BackendRole.dx9to11,
   engine.BackendRole.everythingElse => BackendRole.everythingElse,
   engine.BackendRole.dx8to12 => BackendRole.dx8to12,
   engine.BackendRole.everythingSlower => BackendRole.everythingSlower,
@@ -78,4 +84,36 @@ WineTool wineToolOf(engine.WineTool tool) => switch (tool) {
   engine.WineTool.reg => WineTool.reg,
   engine.WineTool.installer => WineTool.installer,
   engine.WineTool.winecfg => WineTool.winecfg,
+  engine.WineTool.mono => WineTool.mono,
+};
+
+RuntimeKind runtimeKindOf(engine.RuntimeKind kind) => switch (kind) {
+  engine.RuntimeKind.bodega => RuntimeKind.bodega,
+  engine.RuntimeKind.mach9 => RuntimeKind.mach9,
+};
+
+engine.RuntimeKind engineRuntimeOf(RuntimeKind kind) => switch (kind) {
+  RuntimeKind.bodega => engine.RuntimeKind.bodega,
+  RuntimeKind.mach9 => engine.RuntimeKind.mach9,
+};
+
+RuntimeBlock runtimeBlockOf(engine.RuntimeBlock block) => switch (block) {
+  engine.RuntimeBlock.notThisHost => RuntimeBlock.notThisHost,
+  engine.RuntimeBlock.appleSiliconOnly => RuntimeBlock.appleSiliconOnly,
+  engine.RuntimeBlock.macosTooOld => RuntimeBlock.macosTooOld,
+};
+
+Mach9Step mach9StepOf(engine.Mach9Step step) => switch (step) {
+  engine.Mach9Step.downloadingMono => Mach9Step.downloadingMono,
+  engine.Mach9Step.downloading => Mach9Step.downloading,
+  engine.Mach9Step.mounting => Mach9Step.mounting,
+  engine.Mach9Step.checkingSignature => Mach9Step.checkingSignature,
+  engine.Mach9Step.copying => Mach9Step.copying,
+  engine.Mach9Step.checking => Mach9Step.checking,
+  engine.Mach9Step.switching => Mach9Step.switching,
+};
+
+BottleStep bottleStepOf(engine.BottleStep step) => switch (step) {
+  engine.BottleStep.prefix => BottleStep.prefix,
+  engine.BottleStep.mono => BottleStep.mono,
 };

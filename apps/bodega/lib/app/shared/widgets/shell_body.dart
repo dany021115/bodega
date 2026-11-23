@@ -1,5 +1,6 @@
 import 'package:bodega/app/bloc/bottles/bottles_bloc.dart';
 import 'package:bodega/app/bloc/catalog/catalog_bloc.dart';
+import 'package:bodega/app/bloc/dependencies/dependencies_bloc.dart';
 import 'package:bodega/app/bloc/install/install_bloc.dart';
 import 'package:bodega/app/bloc/library/library_bloc.dart';
 import 'package:bodega/app/bloc/switch/switch_bloc.dart';
@@ -8,6 +9,7 @@ import 'package:bodega/app/shared/text/error_text.dart';
 import 'package:bodega/app/shared/text/hint_text.dart';
 import 'package:bodega/app/shared/text/switch_text.dart';
 import 'package:bodega/app/shared/widgets/install_panel.dart';
+import 'package:bodega/app/shared/widgets/needs_dialog.dart';
 import 'package:bodega/app/shared/widgets/update_dialog.dart';
 import 'package:bodega/device/helpers/app_toast.dart';
 import 'package:bodega/l10n/l10n.dart';
@@ -107,7 +109,37 @@ class _ShellBodyState extends State<ShellBody> {
             context.read<BottlesBloc>().add(const BottlesEvent.load());
             context.read<CatalogBloc>().add(const CatalogEvent.load());
             context.read<LibraryBloc>().add(const LibraryEvent.load());
+            // What the app just installed may need a runtime (DA6).
+            if ((state.phase, state.bottle, state.app) case (
+              InstallPhase.done,
+              final bottle?,
+              final app?,
+            )) {
+              context.read<DependenciesBloc>().add(
+                DependenciesEvent.offerCatalogApp(bottle, app.id),
+              );
+            }
           },
+        ),
+        // A proposal opens its dialog over whatever page is showing, once.
+        BlocListener<DependenciesBloc, DependenciesState>(
+          listenWhen: (previous, current) =>
+              current.offer != null && previous.offer != current.offer,
+          listener: (context, state) async {
+            final bloc = context.read<DependenciesBloc>();
+            bloc.add(const DependenciesEvent.offerShown());
+            await showNeedsDialog(
+              context,
+              bottle: state.offerBottle!,
+              needs: state.offer!,
+            );
+          },
+        ),
+        BlocListener<DependenciesBloc, DependenciesState>(
+          listenWhen: (previous, current) =>
+              current.error != null && previous.error != current.error,
+          listener: (context, state) =>
+              AppToast.error(context, state.error!.localized(context.l10n)),
         ),
       ],
       child: Column(

@@ -137,7 +137,8 @@ mkdir -p "$bundle/runtime" "$bundle/backends"
 
 for d in "$seed"/runtimes/*/; do
   name="$(basename "$d")"
-  case "$name" in current|.tmp-*) continue ;; esac
+  # Mach9 is the user's own install and is never bundled (MR12).
+  case "$name" in current|mach9|mach9-*|.tmp-*) continue ;; esac
   # No trailing slash: BSD cp would copy the folder's contents, not the folder.
   cp -R "${d%/}" "$bundle/runtime/"
 done

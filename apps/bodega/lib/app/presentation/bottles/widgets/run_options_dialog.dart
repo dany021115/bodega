@@ -10,16 +10,19 @@ import 'package:bodega/device/theme/color.dart';
 import 'package:bodega/device/theme/spacing.dart';
 import 'package:bodega/device/theme/typography.dart';
 import 'package:bodega/di.dart';
+import 'package:bodega/domain/entities/runtime_kind.dart';
 import 'package:bodega/l10n/l10n.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 /// [program] and [args] fill it in when it comes from an application.
+/// [runtime] is the bottle's engine: AVX is Rosetta's own option (MA8).
 Future<void> showRunOptions(
   BuildContext context, {
   required String bottle,
   required List<String> backends,
+  RuntimeKind runtime = RuntimeKind.bodega,
   String program = '',
   List<String> args = const [],
   String title = '',
@@ -36,14 +39,21 @@ Future<void> showRunOptions(
           title: title,
         ),
       ),
-    child: RunOptionsDialog(backends: backends),
+    child: RunOptionsDialog(backends: backends, runtime: runtime),
   ),
 );
 
 class RunOptionsDialog extends StatefulWidget {
   final List<String> backends;
 
-  const RunOptionsDialog({super.key, required this.backends});
+  /// The bottle's engine: a native bottle has no AVX switch (MA8).
+  final RuntimeKind runtime;
+
+  const RunOptionsDialog({
+    super.key,
+    required this.backends,
+    this.runtime = RuntimeKind.bodega,
+  });
 
   @override
   State<RunOptionsDialog> createState() => _RunOptionsDialogState();
@@ -192,7 +202,7 @@ class _RunOptionsDialogState extends State<RunOptionsDialog> {
                         ),
                       ),
                     ),
-                  if (caps.avx)
+                  if (caps.avx && widget.runtime == RuntimeKind.bodega)
                     SwitchListTile.adaptive(
                       contentPadding: EdgeInsets.zero,
                       title: Text(l10n.bottleAvx, style: styles.body),

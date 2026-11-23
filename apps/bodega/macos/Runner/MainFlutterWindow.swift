@@ -3,19 +3,26 @@ import Cocoa
 import FlutterMacOS
 
 class MainFlutterWindow: NSWindow {
+  private static let frameName = "BodegaMainWindow"
+
   override func awakeFromNib() {
     let flutterViewController = FlutterViewController()
     let windowFrame = self.frame
     self.contentViewController = flutterViewController
     self.setFrame(windowFrame, display: true)
     self.minSize = NSSize(width: 720, height: 480)
-    self.setContentSize(NSSize(width: 1150, height: 800))
+    // Starts at a fixed size, centered and never larger than the screen's
+    // usable area: maximized, an ultrawide screen stretched every page across
+    // it. Zoom still maximizes.
+    let visible = (self.screen ?? NSScreen.main)?.visibleFrame
+    self.setContentSize(
+      NSSize(
+        width: min(1150, visible?.width ?? 1150),
+        height: min(800, visible?.height ?? 800)))
     self.center()
-    // Starts maximized (the screen's usable area); the size above is what
-    // zooming back restores.
-    if let screen = self.screen ?? NSScreen.main {
-      self.setFrame(screen.visibleFrame, display: true)
-    }
+    // Later launches open where, and as big as, the user left the window.
+    _ = self.setFrameUsingName(Self.frameName)
+    self.setFrameAutosaveName(Self.frameName)
 
     RegisterGeneratedPlugins(registry: flutterViewController)
 

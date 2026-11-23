@@ -10,6 +10,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:bloc_test/bloc_test.dart';
+import 'package:bodega/app/bloc/app_games/app_games_bloc.dart';
 import 'package:bodega/app/bloc/backends/backends_bloc.dart';
 import 'package:bodega/app/bloc/bottle_detail/bottle_detail_bloc.dart';
 import 'package:bodega/app/bloc/bottles/bottles_bloc.dart';
@@ -42,8 +43,10 @@ import 'package:bodega/app/shared/text/catalog_text.dart';
 import 'package:bodega/app/shared/text/error_text.dart';
 import 'package:bodega/app/shared/text/hint_text.dart';
 import 'package:bodega/app/shared/text/issue_text.dart';
+import 'package:bodega/app/shared/text/native_text.dart';
 import 'package:bodega/app/shared/text/problem_text.dart';
 import 'package:bodega/app/shared/text/progress_text.dart';
+import 'package:bodega/app/shared/text/runtime_text.dart';
 import 'package:bodega/app/shared/text/step_text.dart';
 import 'package:bodega/app/shared/text/switch_text.dart';
 import 'package:bodega/app/shared/widgets/copy_details_button.dart';
@@ -53,6 +56,7 @@ import 'package:bodega/domain/entities/app_error.dart';
 import 'package:bodega/domain/entities/backend_info.dart';
 import 'package:bodega/domain/entities/backend_role.dart';
 import 'package:bodega/domain/entities/bottle_detail.dart';
+import 'package:bodega/domain/entities/bottle_step.dart';
 import 'package:bodega/domain/entities/catalog_app.dart';
 import 'package:bodega/domain/entities/exe_graphics.dart';
 import 'package:bodega/domain/entities/gamepad.dart';
@@ -62,14 +66,25 @@ import 'package:bodega/domain/entities/host_issue.dart';
 import 'package:bodega/domain/entities/install_step.dart';
 import 'package:bodega/domain/entities/library_app.dart';
 import 'package:bodega/domain/entities/log_hint.dart';
+import 'package:bodega/domain/entities/mach9_step.dart';
+import 'package:bodega/domain/entities/native_move_step.dart';
+import 'package:bodega/domain/entities/native_option.dart';
 import 'package:bodega/domain/entities/path_problem.dart';
+import 'package:bodega/domain/entities/retina_mode.dart';
 import 'package:bodega/domain/entities/run_hint.dart';
+import 'package:bodega/domain/entities/runtime_block.dart';
+import 'package:bodega/domain/entities/runtime_kind.dart';
 import 'package:bodega/domain/entities/user_name_problem.dart';
 import 'package:bodega/domain/entities/wine_tool.dart';
 import 'package:bodega/l10n/l10n.dart';
+import 'package:bodega/app/bloc/dependencies/dependencies_bloc.dart';
+import 'package:bodega/app/shared/text/dependency_text.dart';
+import 'package:bodega/domain/entities/dependency.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:bodega/app/shared/text/game_text.dart';
+import 'package:bodega/domain/entities/game.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
@@ -177,6 +192,9 @@ const _hintCases = <(RunHint, List<String>)>[
   (RunHint.log(LogHint.otherServer), []),
   (RunHint.log(LogHint.cannotOpen), ['<>:"|?*']),
   (RunHint.log(LogHint.fixNotApplied), ['Steam', 'Bodega']),
+  (RunHint.log(LogHint.monoMissing), ['Wine Mono']),
+  (RunHint.log(LogHint.rulesIgnored), ['Mach9']),
+  (RunHint.log(LogHint.loaderNotSigned), []),
   (RunHint.antiCheat(game: 'POLYGON'), ['POLYGON', 'Easy Anti-Cheat', '206']),
   (RunHint.antiCheat(), ['Easy Anti-Cheat', '206']),
 ];
@@ -348,6 +366,34 @@ List<String> _switchTextProblems(_Arb en, _Arb es, List<String> keys) => [
           if (pattern.firstMatch(text) case final match?)
             '$file: $key: its $part holds "${match[0]}"',
 ];
+
+class _MockAppGames extends MockBloc<AppGamesEvent, AppGamesState>
+    implements AppGamesBloc {}
+
+/// The bottle's Games section with nothing to show.
+_MockAppGames _quietAppGames() {
+  final bloc = _MockAppGames();
+  whenListen(
+    bloc,
+    const Stream<AppGamesState>.empty(),
+    initialState: const AppGamesState(isLoading: false),
+  );
+  return bloc;
+}
+
+class _MockDependencies extends MockBloc<DependenciesEvent, DependenciesState>
+    implements DependenciesBloc {}
+
+/// No runtimes read and no job: the dependencies stay quiet.
+_MockDependencies _quietDependencies() {
+  final bloc = _MockDependencies();
+  whenListen(
+    bloc,
+    const Stream<DependenciesState>.empty(),
+    initialState: const DependenciesState(),
+  );
+  return bloc;
+}
 
 void main() {
   final en = lookupAppL10n(const Locale('en'));
@@ -1189,6 +1235,8 @@ void main() {
               BlocProvider<SectionsBloc>.value(value: sections),
               BlocProvider<GraphicsBloc>.value(value: graphics),
               BlocProvider<GamepadsBloc>.value(value: gamepads),
+              BlocProvider<AppGamesBloc>.value(value: _quietAppGames()),
+              BlocProvider<DependenciesBloc>.value(value: _quietDependencies()),
             ],
             child: Scaffold(
               body: SingleChildScrollView(
@@ -1488,6 +1536,8 @@ void main() {
               BlocProvider<LibraryBloc>.value(value: library),
               BlocProvider<BottlesBloc>.value(value: bottles),
               BlocProvider<GamepadsBloc>.value(value: gamepads),
+              BlocProvider<AppGamesBloc>.value(value: _quietAppGames()),
+              BlocProvider<DependenciesBloc>.value(value: _quietDependencies()),
               BlocProvider<SectionsBloc>.value(value: sections),
               BlocProvider<SetupBloc>.value(value: setup),
               BlocProvider<ViewModeBloc>.value(value: viewMode),
@@ -1708,6 +1758,10 @@ void main() {
               MultiBlocProvider(
                 providers: [
                   BlocProvider<GamepadsBloc>.value(value: gamepads),
+                  BlocProvider<AppGamesBloc>.value(value: _quietAppGames()),
+                  BlocProvider<DependenciesBloc>.value(
+                    value: _quietDependencies(),
+                  ),
                   BlocProvider<SectionsBloc>.value(value: sections),
                 ],
                 child: const Scaffold(
@@ -1862,11 +1916,65 @@ void main() {
       ),
       (const AppError.licenseNotAccepted(detail: detail), []),
       (const AppError.cancelled(detail: detail), []),
+      (
+        const AppError.runtimeNotInstalled(RuntimeKind.mach9, detail: detail),
+        [],
+      ),
+      for (final reason in RuntimeBlock.values)
+        (
+          AppError.runtimeUnavailable(
+            RuntimeKind.mach9,
+            reason,
+            detail: detail,
+          ),
+          [],
+        ),
+      (
+        const AppError.runtimeNotTrusted(
+          '/Applications/Mach9.app',
+          detail: detail,
+        ),
+        ['Mach9'],
+      ),
+      (
+        const AppError.runtimeTooOld('0.3.2', '0.4.0', detail: detail),
+        ['0.3.2', '0.4.0'],
+      ),
+      for (final runtime in RuntimeKind.values)
+        (
+          AppError.backendNotForRuntime('dxvk', runtime, detail: detail),
+          ['dxvk'],
+        ),
       for (final tool in WineTool.values)
         (AppError.wineToolFailed(tool, 53, log, detail: detail), ['53', log]),
       (
         const AppError.installerNoExe('Steam/steam.exe', log, detail: detail),
         ['Steam/steam.exe', log],
+      ),
+      (
+        const AppError.dependencyNotInstalled(
+          'Visual C++ 2008',
+          Arch.x86,
+          log,
+          detail: detail,
+        ),
+        ['Visual C++ 2008', log],
+      ),
+      (
+        const AppError.installTimedOut(
+          '.NET Framework 4.8',
+          Arch.all,
+          log,
+          detail: detail,
+        ),
+        ['.NET Framework 4.8', log],
+      ),
+      (
+        const AppError.unexpectedLink(
+          '/b/prefix/drive_c/users/me/Documents/x.ini',
+          detail: detail,
+        ),
+        ['/b/prefix/drive_c/users/me/Documents/x.ini'],
       ),
       (
         const AppError.processFailed(
@@ -1927,7 +2035,7 @@ void main() {
     test('the cases hold every code', () {
       expect({
         for (final (error, _) in codes) error.runtimeType,
-      }, hasLength(36));
+      }, hasLength(44));
     });
 
     for (final (language, l10n) in [('en', en), ('es', es)]) {
@@ -2394,6 +2502,10 @@ void main() {
                   BlocProvider<SectionsBloc>.value(value: sections),
                   BlocProvider<GraphicsBloc>.value(value: graphics),
                   BlocProvider<GamepadsBloc>.value(value: gamepads),
+                  BlocProvider<AppGamesBloc>.value(value: _quietAppGames()),
+                  BlocProvider<DependenciesBloc>.value(
+                    value: _quietDependencies(),
+                  ),
                 ],
                 child: const Scaffold(
                   body: SingleChildScrollView(
@@ -2457,6 +2569,10 @@ void main() {
                 BlocProvider<UpdateBloc>.value(value: updates),
                 BlocProvider<InstallBloc>.value(value: install),
                 BlocProvider<SwitchBloc>.value(value: switchGames),
+                BlocProvider<AppGamesBloc>.value(value: _quietAppGames()),
+                BlocProvider<DependenciesBloc>.value(
+                  value: _quietDependencies(),
+                ),
               ],
               child: wrapApp(
                 const ShellBody(child: SizedBox.expand()),
@@ -2510,6 +2626,11 @@ void main() {
           'Writing ServicesPipeTimeout to the Windows registry',
           ['ServicesPipeTimeout'],
         ),
+        (
+          InstallStep.installingMono(),
+          'Installing Wine Mono in the bottle',
+          ['Wine Mono'],
+        ),
         (InstallStep.runningInstaller(), 'Running the installer', []),
         (InstallStep.waiting(), 'Waiting for the installation to finish', []),
       ];
@@ -2517,7 +2638,7 @@ void main() {
       test('the cases hold every step', () {
         expect({
           for (final (step, _, _) in steps) step.runtimeType,
-        }, hasLength(7));
+        }, hasLength(8));
       });
 
       test('in English, each step reads as written', () {
@@ -2589,6 +2710,143 @@ void main() {
             _steamApp,
           ),
           es.stepSyncMismatch('none', 'Steam', 'msync'),
+        );
+      });
+    });
+
+    group('the native engine (MA9)', () {
+      test('in English, each runtime word reads as written', () {
+        expect(
+          {
+            for (final kind in RuntimeKind.values)
+              kind: runtimeKindText(en, kind),
+          },
+          {RuntimeKind.bodega: 'Rosetta', RuntimeKind.mach9: 'Native (Mach9)'},
+        );
+        expect(
+          {
+            for (final kind in RuntimeKind.values)
+              kind: runtimeChipText(en, kind),
+          },
+          {RuntimeKind.bodega: 'Rosetta', RuntimeKind.mach9: 'Native'},
+        );
+        expect(
+          {
+            for (final step in BottleStep.values)
+              step: bottleStepText(en, step),
+          },
+          {
+            BottleStep.prefix: 'Creating the bottle…',
+            BottleStep.mono: 'Installing Wine Mono…',
+          },
+        );
+        expect(en.engineNativeTitle, 'Native engine (Mach9)');
+        expect(en.backendsRosettaGraphics, 'Graphics for the Rosetta engine');
+      });
+
+      test("each of Mach9's steps has words of its own, and Spanish ones", () {
+        for (final l10n in [en, es]) {
+          final texts = [
+            for (final step in Mach9Step.values) mach9StepText(l10n, step),
+          ];
+          expect(texts, everyElement(isNotEmpty), reason: l10n.localeName);
+          expect(texts, everyElement(isNot(contains(_command))));
+          expect(texts.toSet(), hasLength(Mach9Step.values.length));
+        }
+        for (final step in Mach9Step.values) {
+          expect(
+            mach9StepText(es, step),
+            isNot(mach9StepText(en, step)),
+            reason: '$step',
+          );
+        }
+      });
+
+      test('PA6 each retina mode and native option has words, in both', () {
+        for (final l10n in [en, es]) {
+          final modes = [
+            for (final mode in RetinaMode.values) retinaModeText(l10n, mode),
+          ];
+          expect(modes.toSet(), hasLength(RetinaMode.values.length));
+          final names = [
+            for (final option in NativeOption.values)
+              nativeOptionText(l10n, option),
+          ];
+          final hints = [
+            for (final option in NativeOption.values)
+              nativeOptionHintText(l10n, option),
+          ];
+          for (final words in [modes, names, hints]) {
+            expect(words, everyElement(isNotEmpty), reason: l10n.localeName);
+            expect(words, everyElement(isNot(contains(_command))));
+          }
+          expect(names.toSet(), hasLength(NativeOption.values.length));
+        }
+        for (final mode in RetinaMode.values) {
+          expect(retinaModeText(es, mode), isNot(retinaModeText(en, mode)));
+        }
+        for (final option in NativeOption.values) {
+          expect(
+            nativeOptionHintText(es, option),
+            isNot(nativeOptionHintText(en, option)),
+            reason: '$option',
+          );
+        }
+        for (final step in NativeMoveStep.values) {
+          expect(
+            nativeMoveStepText(es, step),
+            isNot(nativeMoveStepText(en, step)),
+          );
+        }
+        expect({
+          for (final step in NativeMoveStep.values)
+            nativeMoveStepText(en, step),
+        }, hasLength(NativeMoveStep.values.length));
+        expect(retinaModeText(en, RetinaMode.auto), 'Follow the display');
+        expect(
+          nativeOptionText(en, NativeOption.largeAddressAware),
+          '4 GB of memory',
+        );
+      });
+
+      test('the native words are translated, and Rosetta stays a name', () {
+        expect(runtimeKindText(es, RuntimeKind.mach9), isNot(en.engineNative));
+        expect(
+          runtimeChipText(es, RuntimeKind.mach9),
+          isNot(en.engineNativeChip),
+        );
+        expect(es.engineRosetta, 'Rosetta');
+        expect(es.bottleMonoMissing, isNot(en.bottleMonoMissing));
+        expect(es.bottleInstallMono, isNot(en.bottleInstallMono));
+      });
+
+      test('an engine mismatch names the engine of the bottle (select)', () {
+        expect(
+          const AppError.backendNotForRuntime(
+            'dxvk',
+            RuntimeKind.mach9,
+          ).localized(en),
+          "dxvk doesn't work with the native engine. Choose another option in "
+          'Graphics.',
+        );
+        expect(
+          const AppError.backendNotForRuntime(
+            'mtld3d',
+            RuntimeKind.bodega,
+          ).localized(en),
+          contains('Rosetta'),
+        );
+      });
+
+      test('Wine Mono failing has words of its own (the wine-tool word)', () {
+        expect(
+          const AppError.wineToolFailed(
+            WineTool.mono,
+            1603,
+            '/l/m.log',
+          ).localized(en),
+          "Couldn't install Wine Mono: its installer exited with code 1603. "
+          'Log: /l/m.log',
         );
       });
     });
@@ -2945,6 +3203,7 @@ void main() {
           {
             BackendRole.dx11to12x64: 'DirectX 11 and 12, 64 bits only',
             BackendRole.dx10to11: 'DirectX 10 and 11, 32 and 64 bits',
+            BackendRole.dx9to11: 'DirectX 9 with DXVK, and 10 and 11 with DXMT',
             BackendRole.everythingElse: "Everything: DirectX 9 and older, and what the others can't run",
             BackendRole.dx8to12: 'DirectX 8 to 12 (DXVK and vkd3d-proton)',
             BackendRole.everythingSlower: 'Everything, slower than dxvk',
@@ -3551,5 +3810,133 @@ void main() {
     expect(en.catalogAppInstalled, 'Installed');
     expect(en.backendInstalled, en.catalogAppInstalled);
     expect(es.backendInstalled, isNot(es.catalogAppInstalled));
+  });
+
+  group('the words of the dependencies (DA8)', () {
+    final en = lookupAppL10n(const Locale('en'));
+    final es = lookupAppL10n(const Locale('es'));
+    const vc = Dependency(
+      id: 'vcrun2008',
+      name: 'Visual C++ 2008',
+      arch: Arch.x86,
+      bytes: 4483040,
+      status: DependencyStatus.notInstalled,
+    );
+
+    test(
+      'each code has words, distinct within its kind, in both languages',
+      () {
+        for (final l10n in [en, es]) {
+          for (final words in [
+            [for (final arch in Arch.values) l10n.archOf(arch)],
+            [for (final need in Need.values) l10n.needOf(need)],
+            [
+              for (final state in SettingState.values)
+                l10n.settingStateOf(state),
+            ],
+            [
+              for (final reason in NeedReason.values)
+                l10n.reasonOf(
+                  DependencyNeed(
+                    dependency: vc,
+                    need: Need.optional,
+                    reason: reason,
+                    dll: 'msvcr90.dll',
+                    fix: 'blur',
+                  ),
+                ),
+            ],
+            [
+              for (final fix in [
+                'blur',
+                'need-for-speed-most-wanted-2012',
+                'x',
+              ])
+                l10n.fixReason(fix),
+            ],
+          ]) {
+            expect(words, everyElement(isNotEmpty), reason: l10n.localeName);
+            expect(words.toSet(), hasLength(words.length), reason: '$words');
+          }
+        }
+        expect(en.archOf(Arch.x86), isNot(es.archOf(Arch.x86)));
+      },
+    );
+
+    test(
+      'each status, both arches at once, and each runtime\'s line (RA8)',
+      () {
+        for (final l10n in [en, es]) {
+          final statuses = [
+            for (final status in DependencyStatus.values) l10n.statusOf(status),
+          ];
+          expect(statuses.toSet(), hasLength(3), reason: l10n.localeName);
+          expect(l10n.archOf(Arch.all), isNotEmpty);
+          final lines = {
+            for (final id in [
+              'vcrun2005',
+              'vcrun2022',
+              'dotnet48',
+              'd3dx9',
+              'd3dcompiler_47',
+              'xact',
+              'physx',
+              'corefonts',
+              'x',
+            ])
+              l10n.runtimeLine(id),
+          };
+          // The old Visual C++ share a line, as the three D3DX do.
+          expect(lines, hasLength(9), reason: l10n.localeName);
+          expect(l10n.runtimeLine('d3dx10'), l10n.runtimeLine('d3dx9'));
+          expect(l10n.runtimeLine('vcrun2013'), l10n.runtimeLine('vcrun2005'));
+        }
+        expect(en.archOf(Arch.all), isNot(es.archOf(Arch.all)));
+        expect(en.depsUnknown, isNot(es.depsUnknown));
+      },
+    );
+
+    test('a runtime shows its name as is, and its size in each language', () {
+      expect(en.dependencyLine(vc), 'Visual C++ 2008 · 32-bit · 4.5 MB');
+      expect(es.dependencyLine(vc), 'Visual C++ 2008 · 32 bits · 4,5 MB');
+      const setting = SettingNeed(
+        fix: 'need-for-speed-most-wanted-2012',
+        game: 'Need for Speed: Most Wanted (2012)',
+        section: 'Sound',
+        name: 'Reverb',
+        value: '0',
+        state: SettingState.notApplied,
+      );
+      expect(en.settingLine(setting), 'Game setting: [Sound] Reverb = 0');
+      expect(es.settingLine(setting), 'Ajuste del juego: [Sound] Reverb = 0');
+    });
+  });
+
+  // A6: every code of the game configurations has its words, in both
+  // languages.
+  test('every game code is worded, in English and in Spanish (A6)', () {
+    for (final l10n in [en, es]) {
+      final words = [
+        for (final status in GameStatus.values) l10n.gameStatusOf(status),
+        for (final rating in [...GameRating.values, null])
+          l10n.ratingOf(rating),
+        for (final verdict in GameVerdict.values) l10n.verdictOf(verdict),
+        for (final kind in GameMatchKind.values) l10n.matchOf(kind, 'Game'),
+        for (final origin in BackendOrigin.values) l10n.originOf(origin),
+        for (final verdict in AntiCheatVerdict.values)
+          l10n.antiCheatOf(verdict, ['VAC']),
+        for (final kind in GameStepKind.values)
+          l10n.stepOf(GameStep(kind: kind, name: 'N', value: 'V')),
+      ];
+      for (final word in words) {
+        expect(word.trim(), isNotEmpty);
+      }
+      expect(words.toSet().length, greaterThan(words.length - 4));
+    }
+    expect(es.gamesMatchTitle('Portal 2'), contains('Portal 2'));
+    expect(
+      es.gamesReports(1, es.gamesRatingWorks, '2026-11-11'),
+      isNot(contains('reports')),
+    );
   });
 }

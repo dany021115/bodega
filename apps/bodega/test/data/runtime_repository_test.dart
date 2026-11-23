@@ -31,6 +31,7 @@ class _Host extends engine.MacPlatform {
       gameMode: mac.gameMode,
       syncModes: mac.syncModes,
       switchGames: switchGames,
+      dxvkAsync: mac.dxvkAsync,
     );
   }
 }

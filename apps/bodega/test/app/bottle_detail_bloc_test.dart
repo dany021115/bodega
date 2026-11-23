@@ -2,6 +2,8 @@ import 'package:bloc_test/bloc_test.dart';
 import 'package:bodega/app/bloc/bottle_detail/bottle_detail_bloc.dart';
 import 'package:bodega/domain/entities/app_error.dart';
 import 'package:bodega/domain/entities/bottle_detail.dart';
+import 'package:bodega/domain/entities/native_move_step.dart';
+import 'package:bodega/domain/entities/retina_mode.dart';
 import 'package:bodega/domain/entities/wine_tool.dart';
 import 'package:bodega/domain/repository/bottle_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -18,6 +20,7 @@ const _detail = BottleDetail(
 );
 
 void main() {
+  setUpAll(() => registerFallbackValue((NativeMoveStep _) {}));
   late _MockBottles repository;
 
   setUp(() {
@@ -99,6 +102,51 @@ void main() {
   );
 
   blocTest<BottleDetailBloc, BottleDetailState>(
+    'PA8 a move shows its steps, counts once and reloads',
+    build: () {
+      when(() => repository.moveToNative('steam', any()))
+          .thenAnswer((call) async {
+            final onStep =
+                call.positionalArguments[1] as void Function(NativeMoveStep);
+            NativeMoveStep.values.forEach(onStep);
+            return right(const ['vcrun2008 x86']);
+          });
+      return build();
+    },
+    act: (bloc) async {
+      bloc.add(load);
+      await bloc.stream.first;
+      bloc.add(const BottleDetailEvent.moveToNative());
+    },
+    wait: const Duration(milliseconds: 20),
+    verify: (bloc) {
+      expect(bloc.state.moveStep, isNull);
+      expect(bloc.state.moves, 1);
+      expect(bloc.state.reinstall, ['vcrun2008 x86']);
+      verify(() => repository.detail('steam')).called(2);
+    },
+  );
+
+  blocTest<BottleDetailBloc, BottleDetailState>(
+    'PA8 a failed move says why and counts nothing',
+    build: () {
+      when(() => repository.moveToNative('steam', any()))
+          .thenAnswer((_) async => left(const AppError.bottleOpen('steam')));
+      return build();
+    },
+    act: (bloc) async {
+      bloc.add(load);
+      await bloc.stream.first;
+      bloc.add(const BottleDetailEvent.moveToNative());
+    },
+    wait: const Duration(milliseconds: 20),
+    verify: (bloc) {
+      expect(bloc.state.moves, 0);
+      expect(bloc.state.error, const AppError.bottleOpen('steam'));
+    },
+  );
+
+  blocTest<BottleDetailBloc, BottleDetailState>(
     'each setting goes to the repository and reloads',
     build: () {
       when(() => repository.setHighRes('steam', true))
@@ -109,7 +157,11 @@ void main() {
           .thenAnswer((_) async => right(unit));
       when(() => repository.setOptions('steam', avx: false))
           .thenAnswer((_) async => right(unit));
+      when(() => repository.setOptions('steam', dxvkAsync: true))
+          .thenAnswer((_) async => right(unit));
       when(() => repository.setUser('steam', 'Dany'))
+          .thenAnswer((_) async => right(unit));
+      when(() => repository.setRetina('steam', RetinaMode.off))
           .thenAnswer((_) async => right(unit));
       return build();
     },
@@ -121,7 +173,9 @@ void main() {
         ..add(const BottleDetailEvent.setWindows('win7'))
         ..add(const BottleDetailEvent.setDlss(true))
         ..add(const BottleDetailEvent.setAvx(false))
-        ..add(const BottleDetailEvent.setUser('Dany'));
+        ..add(const BottleDetailEvent.setDxvkAsync(true))
+        ..add(const BottleDetailEvent.setUser('Dany'))
+        ..add(const BottleDetailEvent.setRetina(RetinaMode.off));
     },
     wait: const Duration(milliseconds: 20),
     verify: (bloc) {
@@ -129,8 +183,10 @@ void main() {
       verify(() => repository.setWindowsVersion('steam', 'win7')).called(1);
       verify(() => repository.setOptions('steam', dlss: true)).called(1);
       verify(() => repository.setOptions('steam', avx: false)).called(1);
+      verify(() => repository.setOptions('steam', dxvkAsync: true)).called(1);
       verify(() => repository.setUser('steam', 'Dany')).called(1);
-      verify(() => repository.detail('steam')).called(6);
+      verify(() => repository.setRetina('steam', RetinaMode.off)).called(1);
+      verify(() => repository.detail('steam')).called(8);
       expect(bloc.state.isBusy, isFalse);
     },
   );
@@ -318,4 +374,54 @@ void main() {
       verify(() => repository.detail('steam')).called(2);
     },
   );
+
+  group('Wine Mono (MA7)', () {
+    blocTest<BottleDetailBloc, BottleDetailState>(
+      'installing it reloads the bottle',
+      build: () {
+        when(() => repository.installMono('steam'))
+            .thenAnswer((_) async => right(unit));
+        return build();
+      },
+      act: (bloc) async {
+        bloc.add(load);
+        await bloc.stream.first;
+        bloc.add(const BottleDetailEvent.installMono());
+      },
+      wait: const Duration(milliseconds: 10),
+      verify: (bloc) {
+        verify(() => repository.installMono('steam')).called(1);
+        verify(() => repository.detail('steam')).called(2);
+        expect(bloc.state.installingMono, isFalse);
+        expect(bloc.state.isBusy, isFalse);
+        expect(bloc.state.error, isNull);
+      },
+    );
+
+    blocTest<BottleDetailBloc, BottleDetailState>(
+      'a failure is kept, and the bottle is not reloaded',
+      build: () {
+        when(() => repository.installMono('steam')).thenAnswer(
+          (_) async => left(
+            const AppError.wineToolFailed(WineTool.mono, 1603, '/l/m.log'),
+          ),
+        );
+        return build();
+      },
+      act: (bloc) async {
+        bloc.add(load);
+        await bloc.stream.first;
+        bloc.add(const BottleDetailEvent.installMono());
+      },
+      wait: const Duration(milliseconds: 10),
+      verify: (bloc) {
+        verify(() => repository.detail('steam')).called(1);
+        expect(bloc.state.installingMono, isFalse);
+        expect(
+          bloc.state.error,
+          const AppError.wineToolFailed(WineTool.mono, 1603, '/l/m.log'),
+        );
+      },
+    );
+  });
 }

@@ -6,6 +6,7 @@ import 'package:bodega/data/service/engine_home.dart';
 import 'package:bodega/data/service/repository_call.dart';
 import 'package:bodega/domain/entities/app_error.dart';
 import 'package:bodega/domain/entities/install_step.dart';
+import 'package:bodega/domain/entities/runtime_kind.dart';
 import 'package:bodega/domain/repository/install_repository.dart';
 import 'package:dio/dio.dart';
 import 'package:engine/engine.dart' as engine;
@@ -46,12 +47,14 @@ class InstallRepositoryImpl implements InstallRepository {
     String setup,
     void Function(InstallStep step) onStep, {
     String? bottle,
+    RuntimeKind runtime = RuntimeKind.bodega,
   }) => repositoryCall(() async {
     await engine.installEntry(
       _home.path,
       engine.catalogEntry(id),
       bottle: bottle,
       intoExisting: bottle != null,
+      runtime: engineRuntimeOf(runtime),
       setup: setup,
       onStep: (step) => onStep(installStepOf(step)),
     );

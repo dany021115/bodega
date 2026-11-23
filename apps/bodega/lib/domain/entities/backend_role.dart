@@ -7,6 +7,9 @@ enum BackendRole {
   /// DXMT and DXVK on the Mac: DirectX 10 and 11, 32 and 64 bits.
   dx10to11,
 
+  /// dxvk9 on the Mac: DirectX 9 with DXVK, and 10 and 11 with DXMT.
+  dx9to11,
+
   /// Wine on the Mac: DirectX 9 and older, and what the others cannot run.
   everythingElse,
 

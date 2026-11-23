@@ -68,6 +68,7 @@ final failures = <EngineFailure>[
   const MissingFile('/games/game.exe'),
   const ChecksumMissing('/downloads/engine-11.0.tar.gz.sha256'),
   const ChecksumMismatch('/downloads/engine-11.0.tar.gz'),
+  ...dependencyFailures.keys,
   const IncompleteArchive('engine-11.0.tar.gz', 'engine/bin/wine'),
   const CorruptData('/h/bottles/steam/apps.json', 'Unexpected end of input'),
   const NoRuntime(),
@@ -89,8 +90,35 @@ final failures = <EngineFailure>[
   const InstallerNoExe('Program Files (x86)/Steam/steam.exe', _log),
   const ProcessFailed('/usr/bin/tar -xzf x.tar.gz', 2, 'tar: bad archive\n'),
   const ProcessFailed('wine --version', null, ''),
+  for (final runtime in RuntimeKind.values) RuntimeNotInstalled(runtime),
+  for (final reason in RuntimeBlock.values)
+    RuntimeUnavailable(RuntimeKind.mach9, reason),
+  const RuntimeNotTrusted(
+    '/Applications/Mach9.app',
+    'a sealed resource is '
+        'missing or invalid',
+  ),
+  const RuntimeTooOld('0.3.1', '0.4.0'),
+  const BackendNotForRuntime('dxvk', RuntimeKind.mach9),
+  const BackendNotForRuntime('mtld3d', RuntimeKind.bodega),
+  const BadChoice(ChoiceKind.backend, 'foo', ['wine', 'dxmt', 'mtld3d']),
   ...switchFailures.keys,
 ];
+
+/// The failures of the dependencies, each with its message as DE10 and RE5
+/// give it.
+final dependencyFailures = <EngineFailure, String>{
+  const DependencyNotInstalled('vcrun2008', 'x86', _log):
+      "the install of vcrun2008 (x86) finished, but the vendor's files are "
+      'not in the bottle: see $_log',
+  const InstallTimedOut('dotnet48', 'all', _log):
+      'the install of dotnet48 (all) ran past its time limit, so the bottle '
+      'was stopped: see $_log',
+  const UnexpectedLink(
+    '/h/bottles/steam/prefix/drive_c/users/q/Documents/x.ini',
+  ): 'a link in /h/bottles/steam/prefix/drive_c/users/q/Documents/x.ini '
+      'leads outside the bottle and the home folder',
+};
 
 /// The six Switch failures, each with its message as SE20 gives it.
 final switchFailures = <EngineFailure, String>{
@@ -130,8 +158,12 @@ String? hintOf(EngineFailure failure) => switch (failure) {
   BackendNotInstalled(:final backend) => 'bodega backend install $backend',
   BadChoice(kind: ChoiceKind.catalogApp) => 'bodega catalog list',
   BadChoice(kind: ChoiceKind.fix) => 'bodega fix list',
+  BadChoice(kind: ChoiceKind.dependency) => 'bodega deps list <bottle>',
   AppNotFound(:final bottle, key: null) => 'bodega run $bottle',
   AlreadyInstalled(:final path) => 'rm -rf "$path"',
+  RuntimeNotInstalled(runtime: RuntimeKind.mach9) =>
+    'bodega runtime install mach9',
+  RuntimeNotInstalled() => 'bodega install <engine.tar.gz>',
   NoEmulator() => 'bodega switch emulator <path>',
   SwitchGameNotFound() => 'bodega switch list',
   SwitchGameRunning(:final path) => 'bodega switch stop "$path"',
@@ -144,6 +176,9 @@ String? hintOf(EngineFailure failure) => switch (failure) {
   AppAlreadyAdded() ||
   MissingFile() ||
   ChecksumMismatch() ||
+  DependencyNotInstalled() ||
+  InstallTimedOut() ||
+  UnexpectedLink() ||
   IncompleteArchive() ||
   CorruptData() ||
   NotAvailable() ||
@@ -161,6 +196,10 @@ String? hintOf(EngineFailure failure) => switch (failure) {
   ProcessFailed() ||
   NotAnEmulator() ||
   NotASwitchGame() ||
+  RuntimeUnavailable() ||
+  RuntimeNotTrusted() ||
+  RuntimeTooOld() ||
+  BackendNotForRuntime() ||
   NoSwitchKeys() => null,
 };
 
@@ -197,11 +236,37 @@ void main() {
     }
   });
 
-  test('the list holds each of the 37 failures', () {
+  test('the list holds each of the 45 failures', () {
     expect(
       failures.map((failure) => failure.runtimeType).toSet(),
-      hasLength(37),
+      hasLength(45),
     );
+  });
+
+  test('a choice with its own list names that list, and without it the '
+      "kind's", () {
+    expect(
+      const BadChoice(ChoiceKind.backend, 'foo', [
+        'wine',
+        'dxmt',
+        'mtld3d',
+      ]).message,
+      'unknown backend: foo (wine, dxmt, mtld3d)',
+    );
+    expect(
+      const BadChoice(ChoiceKind.runtime, 'arm').message,
+      'unknown runtime: arm (bodega, mach9)',
+    );
+  });
+
+  test('each failure of the dependencies reads as DE10 says', () {
+    for (final MapEntry(key: failure, value: text)
+        in dependencyFailures.entries) {
+      final name = '${failure.runtimeType}';
+      expect(failure.message, text, reason: name);
+      expect('$failure', text, reason: name);
+    }
+    expect(ChoiceKind.dependency.english, 'dependency');
   });
 
   test('each Switch failure reads as SE20 says, with no link', () {
@@ -258,7 +323,13 @@ void main() {
     final markers = [for (final hint in LogHint.values) hint.marker];
     expect(markers, everyElement(isNotEmpty));
     expect(markers.toSet(), hasLength(LogHint.values.length));
+    expect(markers, hasLength(8));
     expect(LogHint.fixNotApplied.marker, fixNotApplied);
+    expect(LogHint.monoMissing.english, contains('bodega mono install'));
+    expect(
+      LogHint.loaderNotSigned.english,
+      contains('bodega runtime install mach9'),
+    );
   });
 
   test('each code is in English', () {
@@ -267,6 +338,8 @@ void main() {
       for (final value in UserNameProblem.values) '$value': value.english,
       for (final value in WineTool.values) '$value': value.english,
       for (final value in ChoiceKind.values) '$value': value.english,
+      for (final value in RuntimeKind.values) '$value': value.english,
+      for (final value in RuntimeBlock.values) '$value': value.english,
       'describePathProblem': describePathProblem(path),
     };
     for (final MapEntry(:key, :value) in texts.entries) {
@@ -280,9 +353,13 @@ void main() {
   });
 
   test('each step is in English, and names its subject', () {
-    for (final step in GptkStep.values) {
-      expect(step.english, isNotEmpty, reason: '$step');
-      expect(step.english, isNot(matches(spanish)), reason: '$step');
+    for (final (step, english) in [
+      for (final step in GptkStep.values) (step, step.english),
+      for (final step in Mach9Step.values) (step, step.english),
+      for (final step in BottleStep.values) (step, step.english),
+    ]) {
+      expect(english, isNotEmpty, reason: '$step');
+      expect(english, isNot(matches(spanish)), reason: '$step');
     }
     // What each kind names, as installEntry gives it; null for the others.
     const subjects = {

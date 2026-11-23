@@ -1,6 +1,8 @@
 import 'package:bodega/data/service/repository_call.dart';
 import 'package:bodega/domain/entities/app_error.dart';
 import 'package:bodega/domain/entities/path_problem.dart';
+import 'package:bodega/domain/entities/runtime_block.dart';
+import 'package:bodega/domain/entities/runtime_kind.dart';
 import 'package:bodega/domain/entities/user_name_problem.dart';
 import 'package:bodega/domain/entities/wine_tool.dart';
 import 'package:dio/dio.dart';
@@ -270,6 +272,33 @@ void main() {
         const engine.SwitchGameRunning('/g/a.nsp'),
         const AppError.switchGameRunning('/g/a.nsp'),
       ),
+      // Runtimes (mach9-runtime MA3).
+      (
+        const engine.RuntimeNotInstalled(engine.RuntimeKind.mach9),
+        const AppError.runtimeNotInstalled(RuntimeKind.mach9),
+      ),
+      (
+        const engine.RuntimeUnavailable(
+          engine.RuntimeKind.mach9,
+          engine.RuntimeBlock.macosTooOld,
+        ),
+        const AppError.runtimeUnavailable(
+          RuntimeKind.mach9,
+          RuntimeBlock.macosTooOld,
+        ),
+      ),
+      (
+        const engine.RuntimeNotTrusted('/Applications/Mach9.app', 'not signed'),
+        const AppError.runtimeNotTrusted('/Applications/Mach9.app'),
+      ),
+      (
+        const engine.RuntimeTooOld('0.3.1', '0.4.0'),
+        const AppError.runtimeTooOld('0.3.1', '0.4.0'),
+      ),
+      (
+        const engine.BackendNotForRuntime('dxvk', engine.RuntimeKind.mach9),
+        const AppError.backendNotForRuntime('dxvk', RuntimeKind.mach9),
+      ),
       (
         const engine.NoSwitchKeys('/g/notes.txt'),
         const AppError.noSwitchKeys('/g/notes.txt'),
@@ -301,7 +330,7 @@ void main() {
     test('the cases hold every failure of the engine', () {
       expect({
         for (final (failure, _) in cases) failure.runtimeType,
-      }, hasLength(37));
+      }, hasLength(42));
     });
   });
 

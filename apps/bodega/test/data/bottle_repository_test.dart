@@ -4,9 +4,16 @@ import 'dart:io';
 import 'package:bodega/data/repository/bottle_repository_impl.dart';
 import 'package:bodega/domain/entities/app_error.dart';
 import 'package:bodega/domain/entities/bottle_detail.dart';
+import 'package:bodega/domain/entities/bottle_step.dart';
+import 'package:bodega/domain/entities/native_move_step.dart';
+import 'package:bodega/domain/entities/native_option.dart';
+import 'package:bodega/domain/entities/retina_mode.dart';
+import 'package:bodega/domain/entities/runtime_kind.dart';
+import 'package:engine/engine.dart' as engine;
 import 'package:flutter_test/flutter_test.dart';
 
 import '_home.dart';
+import '_mach9.dart';
 
 void main() {
   late Directory home;
@@ -158,5 +165,147 @@ void main() {
         .getOrElse((error) => fail('$error'));
     expect(detail.name, 'games');
     expect(Directory('${home.path}/bottles/steam').existsSync(), isFalse);
+  });
+
+  group('MA4 Mach9 bottles', () {
+    useHost(() => const Mach9Mac());
+
+    test('the list and the detail say the runtime; Mono and the graphics '
+        'follow it', () async {
+      readyBottle(home.path, 'native', mach9: true);
+
+      final bottles = (await repository.list()).getOrElse((e) => fail('$e'));
+      expect(
+        {for (final b in bottles) b.name: b.runtime},
+        {'steam': RuntimeKind.bodega, 'native': RuntimeKind.mach9},
+      );
+
+      var detail = (await repository.detail('native'))
+          .getOrElse((error) => fail('$error'));
+      expect(detail.runtime, RuntimeKind.mach9);
+      expect(detail.monoMissing, isTrue);
+      expect(detail.installedBackends, isEmpty);
+
+      fakeMach9Runtime(home.path);
+      detail = (await repository.detail('native'))
+          .getOrElse((error) => fail('$error'));
+      expect(detail.installedBackends, ['wine', 'dxmt', 'mtld3d']);
+
+      final steam = (await repository.detail('steam'))
+          .getOrElse((error) => fail('$error'));
+      expect(steam.runtime, RuntimeKind.bodega);
+      expect(steam.monoMissing, isFalse);
+    });
+
+    // MA11: end to end on a fake Mach9 runtime.
+    test('create(runtime: mach9) makes the prefix, then Windows, graphics '
+        'and Mono, in that order', () async {
+      final rt = fakeMach9Runtime(home.path);
+      final steps = <BottleStep>[];
+
+      final made = await repository.create(
+        'native',
+        windows: 'win10',
+        backend: 'dxmt',
+        runtime: RuntimeKind.mach9,
+        onStep: steps.add,
+      );
+
+      expect(made.isRight(), isTrue, reason: '$made');
+      expect(steps, [BottleStep.prefix, BottleStep.mono]);
+      final prefix = '${home.path}/bottles/native/prefix';
+      expect(File('$prefix/winecfg.log').readAsStringSync(), contains('win10'));
+      expect(
+        File('$prefix/msi-args').readAsStringSync().trim(),
+        'msiexec /i ${Directory(rt).resolveSymbolicLinksSync()}'
+        '/wine-mono-11.3.0-x86.msi /qn',
+      );
+      final detail = (await repository.detail('native'))
+          .getOrElse((error) => fail('$error'));
+      expect(detail.runtime, RuntimeKind.mach9);
+      expect(detail.backend, 'dxmt');
+      expect(detail.windows, 'win10');
+      expect(detail.monoMissing, isFalse);
+      expect(detail.ready, isTrue);
+    });
+
+    test('PA1 the retina mode is kept and read back', () async {
+      fakeMach9Runtime(home.path);
+      readyBottle(home.path, 'native', mach9: true);
+      Future<RetinaMode> retina() async =>
+          (await repository.detail('native'))
+              .getOrElse((error) => fail('$error'))
+              .retina;
+      expect(await retina(), RetinaMode.auto);
+      expect(
+        (await repository.setRetina('native', RetinaMode.off)).isRight(),
+        isTrue,
+      );
+      expect(await retina(), RetinaMode.off);
+    });
+
+    test('PA2 an app\'s native options reach its library entry', () async {
+      fakeMach9Runtime(home.path);
+      final dir = readyBottle(home.path, 'native', mach9: true);
+      File('$dir/prefix/drive_c/G/game.exe').createSync(recursive: true);
+      engine.addApp(home.path, 'native', 'Game', 'G/game.exe');
+      final key = engine.bottleApps(home.path, 'native').single.key;
+      expect(
+        (await repository.setNativeOption(
+          'native',
+          key,
+          NativeOption.largeAddressAware,
+          true,
+        )).isRight(),
+        isTrue,
+      );
+      final app = (await repository.detail('native'))
+          .getOrElse((error) => fail('$error'))
+          .apps
+          .single;
+      expect(app.nativeEngine, isTrue);
+      expect(app.nativeOptions, {NativeOption.largeAddressAware});
+    });
+
+    test('PA8 a Rosetta bottle moves to the Native engine', () async {
+      readyBottle(home.path, 'Games');
+      final before = (await repository.detail('Games'))
+          .getOrElse((error) => fail('$error'));
+      expect(before.nativeInstalled, isFalse);
+      fakeMach9Runtime(home.path);
+      final steps = <NativeMoveStep>[];
+      final again = await repository.moveToNative('Games', steps.add);
+      expect(again.isRight(), isTrue, reason: '$again');
+      expect(steps, NativeMoveStep.values);
+      final after = (await repository.detail('Games'))
+          .getOrElse((error) => fail('$error'));
+      expect(after.runtime, RuntimeKind.mach9);
+      expect(after.nativeInstalled, isTrue);
+      expect(after.monoMissing, isFalse);
+    });
+
+    test('installMono puts Mono back in a Mach9 bottle', () async {
+      fakeMach9Runtime(home.path);
+      readyBottle(home.path, 'native', mach9: true);
+
+      expect((await repository.installMono('native')).isRight(), isTrue);
+      final detail = (await repository.detail('native'))
+          .getOrElse((error) => fail('$error'));
+      expect(detail.monoMissing, isFalse);
+    });
+
+    test(
+      'create(runtime: mach9) without the runtime is runtimeNotInstalled',
+      () async {
+        expect(
+          (await repository.create(
+            'native',
+            runtime: RuntimeKind.mach9,
+          )).getLeft().toNullable(),
+          isA<RuntimeNotInstalledError>(),
+        );
+        expect(Directory('${home.path}/bottles/native').existsSync(), isFalse);
+      },
+    );
   });
 }

@@ -8,9 +8,16 @@ String _layer(String home, String name) => '$home/backends/$name/wine';
 bool _installed(String home, String name) =>
     name == 'wine' || Directory(_layer(home, name)).existsSync();
 
-/// Which backends are installed (B3).
-Map<String, bool> listBackends(String home) => {
-  for (final name in backendNames) name: _installed(home, name),
+/// Which backends are installed (B3): Bodega's layers, or with [runtime]
+/// mach9 the graphics of the Mach9 runtime (MG2).
+Map<String, bool> listBackends(
+  String home, {
+  RuntimeKind runtime = RuntimeKind.bodega,
+}) => switch (runtime) {
+  RuntimeKind.bodega => {
+    for (final name in backendNames) name: _installed(home, name),
+  },
+  RuntimeKind.mach9 => _mach9Backends(home),
 };
 
 /// What [wineEnv] gains for [backend] (S4).
@@ -137,27 +144,7 @@ Future<String?> installD3DMetalDmg(
   }
   final mounted = <String>[];
   Future<String> attach(String image) async {
-    final mount = Directory.systemTemp.createTempSync('bodega-gptk').path;
-    for (var tries = 1; ; tries++) {
-      final result = await Process.run('/usr/bin/hdiutil', [
-        'attach',
-        '-nobrowse',
-        '-readonly',
-        '-mountpoint',
-        mount,
-        image,
-      ]);
-      if (result.exitCode == 0) break;
-      final why = '${result.stdout}${result.stderr}'.trim().split('\n').last;
-      // A dmg just downloaded stays busy for some seconds, held by the
-      // browser or by macOS's malware check.
-      if (why.contains('Resource busy') && tries < 15) {
-        await Future<void>.delayed(const Duration(seconds: 2));
-        continue;
-      }
-      Directory(mount).deleteSync();
-      throw MountFailed(image, why);
-    }
+    final mount = await _attach(image);
     mounted.add(mount);
     return mount;
   }
@@ -223,15 +210,46 @@ Future<String?> installD3DMetalDmg(
   } finally {
     // The inner volume first: its image lives in the outer one.
     for (final mount in mounted.reversed) {
-      await Process.run('/usr/bin/hdiutil', ['detach', mount]);
-      try {
-        Directory(mount).deleteSync();
-      } on FileSystemException {
-        // A volume in /Volumes goes away with the detach.
-      }
+      await _detach(mount);
     }
   }
   return d3dmetalVersion(home);
+}
+
+/// Mounts [image] read-only and hidden at a new temporary folder, which it
+/// returns; [_detach] undoes it. A dmg just downloaded stays busy for some
+/// seconds, held by the browser or by macOS's malware check, so a busy one is
+/// tried again.
+Future<String> _attach(String image, {String prefix = 'bodega-gptk'}) async {
+  final mount = Directory.systemTemp.createTempSync(prefix).path;
+  for (var tries = 1; ; tries++) {
+    final result = await Process.run('/usr/bin/hdiutil', [
+      'attach',
+      '-nobrowse',
+      '-readonly',
+      '-mountpoint',
+      mount,
+      image,
+    ]);
+    if (result.exitCode == 0) return mount;
+    final why = '${result.stdout}${result.stderr}'.trim().split('\n').last;
+    if (why.contains('Resource busy') && tries < 15) {
+      await Future<void>.delayed(const Duration(seconds: 2));
+      continue;
+    }
+    Directory(mount).deleteSync();
+    throw MountFailed(image, why);
+  }
+}
+
+/// Detaches what [_attach] mounted, and removes its folder.
+Future<void> _detach(String mount) async {
+  await Process.run('/usr/bin/hdiutil', ['detach', mount]);
+  try {
+    Directory(mount).deleteSync();
+  } on FileSystemException {
+    // A volume in /Volumes goes away with the detach.
+  }
 }
 
 /// Copies D3DMetal from a folder the user provides (B2). Its unix modules are
@@ -378,8 +396,30 @@ String _exeKey(String program) {
   return name.endsWith('.exe') ? name : '$name.exe';
 }
 
-void _checkChoice(String backend) {
-  if (backend != 'auto' && !backendNames.contains(backend)) {
+/// A graphics choice for a bottle of [kind] (MG3): `auto` or one of its
+/// names; a name of the other kind is [BackendNotForRuntime], anything else
+/// [BadChoice] with the kind's list (the host's own list for bodega).
+void _checkChoiceFor(RuntimeKind kind, String backend) {
+  if (backend == 'auto' || backendNamesFor(kind).contains(backend)) return;
+  if (RuntimeKind.values.any(
+    (other) => other != kind && backendNamesFor(other).contains(backend),
+  )) {
+    throw BackendNotForRuntime(backend, kind);
+  }
+  throw BadChoice(
+    ChoiceKind.backend,
+    backend,
+    kind == RuntimeKind.bodega ? null : backendNamesFor(kind),
+  );
+}
+
+/// A backend stored in settings.json: a name of either runtime kind (D24),
+/// so that a bottle whose settings were edited by hand can still be read.
+void _checkStored(String backend) {
+  if (backend != 'auto' &&
+      !RuntimeKind.values.any(
+        (kind) => backendNamesFor(kind).contains(backend),
+      )) {
     throw BadChoice(ChoiceKind.backend, backend);
   }
 }
@@ -408,6 +448,10 @@ typedef BottleSettings = ({
 
   /// False takes `ROSETTA_ADVERTISE_AVX` out of every launch (M8).
   bool avx,
+
+  /// DXVK compiles shaders in the background: `DXVK_ASYNC=1` on the Mac,
+  /// whose DXVK reads it (RE8).
+  bool dxvkAsync,
   String windows,
   Map<String, String> env,
 
@@ -417,7 +461,29 @@ typedef BottleSettings = ({
 
   /// The Windows user name its games see (U1); empty for the host's.
   String user,
+
+  /// The stored kind (MB1); [bottleRuntime] gives the effective one.
+  RuntimeKind runtime,
+
+  /// The app keys whose game configuration is off (G6).
+  Set<String> configOff,
+
+  /// What the user said of each app: `works`, `playable` or `broken` (G6).
+  Map<String, String> verdicts,
+
+  /// A Mach9 bottle's retina mode, one of [retinaModes] (PE2); Rosetta
+  /// bottles use [highRes].
+  String retina,
+
+  /// The [NativeOption] names each app key has on, sorted (PE7).
+  Map<String, List<String>> native,
 });
+
+/// What [setRetina] admits: `auto` follows the main display (PE3).
+const retinaModes = ['auto', 'on', 'off'];
+
+/// What [setGameVerdict] admits.
+const gameVerdicts = ['works', 'playable', 'broken'];
 
 /// What [setWindowsVersion] admits, newest first.
 const windowsVersions = ['win11', 'win10', 'win81', 'win7'];
@@ -433,11 +499,17 @@ BottleSettings get _defaults => (
   highRes: false,
   dlss: false,
   avx: true,
+  dxvkAsync: false,
   windows: 'win10',
   env: {},
   gpu: 'auto',
   gamemode: hostPlatform.defaultGamemode,
   user: '',
+  runtime: RuntimeKind.bodega,
+  configOff: {},
+  verdicts: {},
+  retina: 'auto',
+  native: {},
 );
 
 /// [settings] with these fields changed: records have no `copyWith`.
@@ -450,11 +522,17 @@ BottleSettings _with(
   bool? highRes,
   bool? dlss,
   bool? avx,
+  bool? dxvkAsync,
   String? windows,
   Map<String, String>? env,
   String? gpu,
   bool? gamemode,
   String? user,
+  RuntimeKind? runtime,
+  Set<String>? configOff,
+  Map<String, String>? verdicts,
+  String? retina,
+  Map<String, List<String>>? native,
 }) => (
   backend: backend ?? settings.backend,
   sync: sync ?? settings.sync,
@@ -463,18 +541,33 @@ BottleSettings _with(
   highRes: highRes ?? settings.highRes,
   dlss: dlss ?? settings.dlss,
   avx: avx ?? settings.avx,
+  dxvkAsync: dxvkAsync ?? settings.dxvkAsync,
   windows: windows ?? settings.windows,
   env: env ?? settings.env,
   gpu: gpu ?? settings.gpu,
   gamemode: gamemode ?? settings.gamemode,
   user: user ?? settings.user,
+  runtime: runtime ?? settings.runtime,
+  configOff: configOff ?? settings.configOff,
+  verdicts: verdicts ?? settings.verdicts,
+  retina: retina ?? settings.retina,
+  native: native ?? settings.native,
 );
 
 /// `bottles/<b>/settings.json` (S1, A1, A2, M8). A missing file or field means
 /// its default; a broken one is an error, never ignored.
 BottleSettings _settings(String dir) {
   final file = File('$dir/settings.json');
-  if (!file.existsSync()) return _with(_defaults, programs: {}, env: {});
+  if (!file.existsSync()) {
+    return _with(
+      _defaults,
+      programs: {},
+      env: {},
+      configOff: {},
+      verdicts: {},
+      native: {},
+    );
+  }
   try {
     final json = jsonDecode(file.readAsStringSync()) as Map<String, dynamic>;
     final programs = (json['programs'] ?? <String, dynamic>{}) as Map;
@@ -493,23 +586,50 @@ BottleSettings _settings(String dir) {
       highRes: (json['highRes'] ?? false) as bool,
       dlss: (json['dlss'] ?? false) as bool,
       avx: (json['avx'] ?? true) as bool,
+      dxvkAsync: (json['dxvkAsync'] ?? false) as bool,
       windows: (json['windows'] ?? 'win10') as String,
       env: Map<String, String>.from((json['env'] ?? const {}) as Map),
       gpu: (json['gpu'] ?? 'auto') as String,
       gamemode: (json['gamemode'] ?? hostPlatform.defaultGamemode) as bool,
       user: (json['user'] ?? '') as String,
+      runtime: _runtimeNamed(json['runtime'] as String?),
+      configOff: Set<String>.from((json['configOff'] ?? const []) as List),
+      verdicts: Map<String, String>.from(
+        (json['verdicts'] ?? const {}) as Map,
+      ),
+      retina: (json['retina'] ?? 'auto') as String,
+      native: {
+        for (final MapEntry(:key, :value)
+            in ((json['native'] ?? const {}) as Map).entries)
+          key as String: List<String>.from(value as List),
+      },
     );
-    _checkChoice(settings.backend);
+    _checkStored(settings.backend);
     _checkSync(settings.sync);
     _checkGpu(settings.gpu);
     _checkWindows(settings.windows);
+    settings.verdicts.values.forEach(_checkVerdict);
+    _checkRetina(settings.retina);
+    for (final names in settings.native.values) {
+      names.forEach(NativeOption.values.byName);
+    }
     for (final program in settings.programs.values) {
-      if (program.backend case final backend?) _checkChoice(backend);
+      if (program.backend case final backend?) _checkStored(backend);
     }
     return settings;
   } on Object catch (e) {
     throw CorruptData(file.path, '$e');
   }
+}
+
+void _checkVerdict(String verdict) {
+  if (!gameVerdicts.contains(verdict)) {
+    throw BadChoice(ChoiceKind.verdict, verdict);
+  }
+}
+
+void _checkRetina(String mode) {
+  if (!retinaModes.contains(mode)) throw BadChoice(ChoiceKind.retina, mode);
 }
 
 void _checkWindows(String version) {
@@ -525,9 +645,12 @@ void _writeJson(String path, Object value) {
     ..renameSync(path);
 }
 
-/// Only what differs from the defaults, besides backend and sync.
+/// Only what differs from the defaults, besides backend and sync. The
+/// runtime only for Mach9 bottles, so an older file keeps its bytes (I1).
 void _saveSettings(String dir, BottleSettings settings) {
   _writeJson('$dir/settings.json', {
+    if (settings.runtime != RuntimeKind.bodega)
+      'runtime': settings.runtime.name,
     'backend': settings.backend,
     'sync': settings.sync,
     'programs': {
@@ -542,12 +665,22 @@ void _saveSettings(String dir, BottleSettings settings) {
     if (settings.highRes) 'highRes': true,
     if (settings.dlss) 'dlss': true,
     if (!settings.avx) 'avx': false,
+    if (settings.dxvkAsync) 'dxvkAsync': true,
     if (settings.windows != _defaults.windows) 'windows': settings.windows,
     if (settings.env.isNotEmpty) 'env': settings.env,
     if (settings.gpu != _defaults.gpu) 'gpu': settings.gpu,
     if (settings.gamemode != hostPlatform.defaultGamemode)
       'gamemode': settings.gamemode,
     if (settings.user.isNotEmpty) 'user': settings.user,
+    if (settings.configOff.isNotEmpty)
+      'configOff': [...settings.configOff]..sort(),
+    if (settings.verdicts.isNotEmpty) 'verdicts': settings.verdicts,
+    if (settings.retina != 'auto') 'retina': settings.retina,
+    if (settings.native.isNotEmpty)
+      'native': {
+        for (final key in settings.native.keys.toList()..sort())
+          key: settings.native[key],
+      },
   });
 }
 
@@ -555,7 +688,7 @@ void _saveSettings(String dir, BottleSettings settings) {
 /// removes the exception and keeps the program's variables (S1, A2).
 void setBackend(String home, String name, String backend, {String? exe}) {
   final dir = _existing(home, name);
-  _checkChoice(backend);
+  _checkChoiceFor(_bottleRuntimeIn(dir), backend);
   final settings = _settings(dir);
   final programs = settings.programs;
   if (exe != null) {
@@ -593,13 +726,14 @@ Future<bool> setSync(String home, String name, String sync) async {
   return true;
 }
 
-/// DLSS, AVX, GPU, GameMode and the bottle's own variables (M8): they apply
-/// from the next launch, so nothing is stopped.
+/// DLSS, AVX, DXVK's async compiling, GPU, GameMode and the bottle's own
+/// variables (M8): they apply from the next launch, so nothing is stopped.
 void setBottleOptions(
   String home,
   String name, {
   bool? dlss,
   bool? avx,
+  bool? dxvkAsync,
   String? gpu,
   bool? gamemode,
   Map<String, String>? env,
@@ -612,6 +746,7 @@ void setBottleOptions(
       _settings(dir),
       dlss: dlss,
       avx: avx,
+      dxvkAsync: dxvkAsync,
       gpu: gpu,
       gamemode: gamemode,
       env: env,
@@ -696,6 +831,9 @@ Future<bool> setBottleUser(String home, String name, String? user) async {
 /// the bottle first. Returns whether it did.
 Future<bool> setHighRes(String home, String name, bool value) async {
   final dir = _existing(home, name);
+  if (_bottleRuntimeIn(dir) == RuntimeKind.mach9) {
+    return setRetina(home, name, value ? 'on' : 'off');
+  }
   if (_settings(dir).highRes == value) return false;
   await stopBottle(home, name);
   for (final args in hostPlatform.highResRegistry(value)) {
@@ -711,6 +849,25 @@ Future<bool> setHighRes(String home, String name, bool value) async {
     if (code != 0) throw WineToolFailed(WineTool.reg, code, log);
   }
   _saveSettings(dir, _with(_settings(dir), highRes: value));
+  return true;
+}
+
+/// A bottle's retina mode (PE2). A Mach9 bottle keeps it, and its next launch
+/// puts the values in place (PE4), so nothing stops. A Rosetta bottle has
+/// [setHighRes]: `on` and `off` are that, and `auto` is not offered. Returns
+/// whether it changed.
+Future<bool> setRetina(String home, String name, String mode) async {
+  final dir = _existing(home, name);
+  _checkRetina(mode);
+  if (_bottleRuntimeIn(dir) != RuntimeKind.mach9) {
+    if (mode == 'auto') {
+      throw BadChoice(ChoiceKind.retina, mode, const ['on', 'off']);
+    }
+    return setHighRes(home, name, mode == 'on');
+  }
+  final settings = _settings(dir);
+  if (settings.retina == mode) return false;
+  _saveSettings(dir, _with(settings, retina: mode));
   return true;
 }
 
@@ -732,17 +889,25 @@ Future<void> setWindowsVersion(String home, String name, String version) async {
 }
 
 /// Applies S2: option, then the program's exception, then the bottle, then
-/// auto. [dir] is the bottle; [exePath] is null for a program without a path.
-/// Throws if the choice is not installed (S5): it never falls back silently.
+/// the game's [config] (G5), then auto. [dir] is the bottle; [exePath] is null
+/// for a program without a path. Throws if a choice the user made is not
+/// installed (S5): it never falls back silently, and [BackendNotForRuntime]
+/// for a name of the other runtime kind (MG3). A [config] that is not
+/// installed is only a suggestion, so auto decides. On Mach9, [config] is not
+/// used and auto stays `auto`, leaving the choice to Mach9.
 Future<({String name, String origin})> resolveBackend(
   String home,
   String dir,
   String program,
   String? exePath, {
   String? option,
+  String? config,
 }) async {
-  if (option != null) _checkChoice(option);
   final settings = _settings(dir);
+  if (_bottleRuntimeIn(dir) == RuntimeKind.mach9) {
+    return _mach9Choice(home, settings, _exeKey(program), option);
+  }
+  if (option != null) _checkChoiceFor(RuntimeKind.bodega, option);
   final exception = settings.programs[_exeKey(program)]?.backend;
   final bottle = settings.backend == 'auto' ? null : settings.backend;
   final (name, origin) = option == 'auto'
@@ -753,6 +918,8 @@ Future<({String name, String origin})> resolveBackend(
       ? (exception, 'exe')
       : bottle != null
       ? (bottle, 'bottle')
+      : config != null && _installed(home, config)
+      ? (config, 'config')
       : (null, 'auto');
   if (name == null) {
     return (
@@ -760,6 +927,7 @@ Future<({String name, String origin})> resolveBackend(
       origin: origin,
     );
   }
+  _checkChoiceFor(RuntimeKind.bodega, name);
   if (!_installed(home, name)) throw BackendNotInstalled(name);
   return (name: name, origin: origin);
 }
@@ -812,7 +980,15 @@ Future<ExeGraphics?> _readGraphics(String path) async {
 }
 
 /// 64 or 32 from the PE header, or null if [path] is not a PE on x86.
-int? _peBits(String path) {
+int? _peBits(String path) => switch (_peMachine(path)) {
+  0x8664 => 64,
+  0x14C => 32,
+  _ => null,
+};
+
+/// The machine field of a PE header (0x8664, 0x14C, 0xAA64...), or null if
+/// [path] is not a PE or is too short to say.
+int? _peMachine(String path) {
   final file = File(path).openSync();
   try {
     final dos = file.readSync(64);
@@ -821,11 +997,7 @@ int? _peBits(String path) {
     file.setPositionSync(offset);
     final pe = file.readSync(6);
     if (pe.length < 6 || pe[0] != 0x50 || pe[1] != 0x45) return null;
-    return switch (ByteData.sublistView(pe).getUint16(4, Endian.little)) {
-      0x8664 => 64,
-      0x14C => 32,
-      _ => null,
-    };
+    return ByteData.sublistView(pe).getUint16(4, Endian.little);
   } finally {
     file.closeSync();
   }
@@ -897,12 +1069,21 @@ Future<List<({int bits, String d3d, bool ok, String log})>> backendTest(
   String name,
   String backend,
 ) async {
-  _existing(home, name);
-  if (!backendNames.contains(backend)) {
-    throw BadChoice(ChoiceKind.testBackend, backend);
+  final dir = _existing(home, name);
+  final kind = _bottleRuntimeIn(dir);
+  final mach9 = kind == RuntimeKind.mach9;
+  if (!backendNamesFor(kind).contains(backend)) {
+    if (RuntimeKind.values.any((k) => backendNamesFor(k).contains(backend))) {
+      throw BackendNotForRuntime(backend, kind);
+    }
+    throw BadChoice(
+      ChoiceKind.testBackend,
+      backend,
+      mach9 ? backendNamesFor(kind) : null,
+    );
   }
   // Throws with the install order if it is missing (S5).
-  await resolveBackend(home, bottleDir(home, name), 'x', null, option: backend);
+  await resolveBackend(home, dir, 'x', null, option: backend);
   final probes = Directory('$home/backends/probe')..createSync(recursive: true);
   final files = {
     64: File('${probes.path}/probe-64.exe')
@@ -910,8 +1091,11 @@ Future<List<({int bits, String d3d, bool ok, String log})>> backendTest(
     32: File('${probes.path}/probe-32.exe')
       ..writeAsBytesSync(base64.decode(probe32Base64)),
   };
-  final cases = hostPlatform.probeCases(home, backend);
-  // A crash must end the run, not wait on a debugger nobody can see.
+  final cases = mach9
+      ? _mach9ProbeCases(backend)
+      : hostPlatform.probeCases(home, backend);
+  // A crash must end the run, not wait on a debugger nobody can see. On
+  // Mach9 that is a rule, as every override there (MG10).
   final overrides = backendEnv(home, backend)['WINEDLLOVERRIDES'] ?? _overrides;
   await stopBottle(home, name);
   return [
@@ -923,7 +1107,10 @@ Future<List<({int bits, String d3d, bool ok, String log})>> backendTest(
           files[bits]!.path,
           [d3d],
           backend: backend,
-          extra: {'WINEDLLOVERRIDES': '$overrides;winedbg.exe=d'},
+          extra: mach9
+              ? const {}
+              : {'WINEDLLOVERRIDES': '$overrides;winedbg.exe=d'},
+          dllOverrides: mach9 ? const ['winedbg.exe='] : const [],
         );
         final code = await exitOf(log).timeout(
           const Duration(seconds: 90),
