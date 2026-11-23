@@ -3,6 +3,7 @@
 library;
 
 import 'dart:convert';
+import 'dart:ffi';
 import 'dart:io';
 import 'dart:isolate';
 import 'dart:typed_data';
@@ -259,6 +260,9 @@ Future<String> createBottle(
       final code = await exitOf(reg);
       if (code != 0) throw WineToolFailed(WineTool.reg, code, reg);
     }
+    // PE5: the values reach user.reg when the session ends, and the next one
+    // boots with them in place.
+    await _wineserver(rt, prefix, '-w');
     if (mono) {
       onStep?.call(BottleStep.mono);
       await installMono(home, name);
@@ -380,9 +384,19 @@ Future<String> _launchIn(
   final argv = [exe, ...args];
   final settings = _settings(dir);
   final key = _exeKey(program);
+  final more = [
+    if (mach9 && !_ownRuns.contains(key))
+      ...await _syncRetina(home, name, dir, rt, settings.retina),
+  ];
   // The HUD saved for the program, or else asked for by this launch.
   final hudOn = hud || (settings.programs[key]?.hud ?? false);
-  final steps = fix?.active ?? const <FixStep>[];
+  final allSteps = fix?.active ?? const <FixStep>[];
+  final steps = _stepsFor(kind, allSteps);
+  final skipped = [
+    for (final step in allSteps)
+      if (!steps.contains(step)) step.name!,
+  ]..sort();
+  if (skipped.isNotEmpty) more.add('skipped ${skipped.join(', ')}');
   final overrides = [
     for (final step in steps)
       if (step.type == 'dlloverride') step.value!,
@@ -396,6 +410,7 @@ Future<String> _launchIn(
           optionGiven: backend != null,
           hud: hudOn,
           overrides: [...overrides, ...dllOverrides],
+          appKey: appKey,
         )
       : null;
   final log = _newLog(
@@ -407,6 +422,7 @@ Future<String> _launchIn(
     backend: '${choice.name} (${choice.origin})',
     note: note,
     rules: rules?.join(' | '),
+    more: more,
   );
   final programEnv = settings.programs[key]?.env ?? const <String, String>{};
   final userEnv = {...settings.env, ...programEnv, ...env};
@@ -456,6 +472,80 @@ Future<String> _launchIn(
         .writeAsStringSync('${process.pid}\n$appKey\n');
   }
   return log;
+}
+
+/// Bodega's own headless runs, which never wait for the retina values (PE4):
+/// the `reg add` that writes them is one.
+const _ownRuns = {
+  'reg.exe',
+  'wineboot.exe',
+  'msiexec.exe',
+  'regsvr32.exe',
+  'extrac32.exe',
+  'cmd.exe',
+  'winecfg.exe',
+};
+
+/// PE4: `RetinaMode` and `LogPixels` as the bottle's retina [mode] wants them,
+/// written before the session boots, since Wine reads them only then (Mach9's
+/// `registry.rs`, `session.rs`). A running session keeps its own: stopping it
+/// would stop a game. Returns the log header's lines.
+Future<List<String>> _syncRetina(
+  String home,
+  String name,
+  String dir,
+  String rt,
+  String mode,
+) async {
+  final on = switch (mode) {
+    'on' => true,
+    'off' => false,
+    _ => hostPlatform.mainDisplayHiDpi(),
+  };
+  final header = 'retina ${on ? 'on' : 'off'} ($mode)';
+  final (:retina, :dpi) = _userRegRetina('$dir/prefix/user.reg');
+  if (retina == on && dpi == (on ? 192 : 96)) return [header];
+  if (await _serverRunning(rt, dir)) {
+    return [header, 'retina waits for the next session'];
+  }
+  for (final args in hostPlatform.highResRegistry(on)) {
+    final log = await _launchIn(
+      home,
+      name,
+      'reg',
+      ['add', args[0], '/v', args[1], '/t', args[2], '/d', args[3], '/f'],
+      backend: 'wine',
+      label: 'retina',
+    );
+    final code = await exitOf(log);
+    if (code != 0) throw WineToolFailed(WineTool.reg, code, log);
+  }
+  // The `reg add` booted a session with the old values: end it.
+  await _wineserver(rt, '$dir/prefix', '-k');
+  await _wineserver(rt, '$dir/prefix', '-w');
+  return [header];
+}
+
+/// What `user.reg` holds for retina mode and the system DPI; Wine's defaults,
+/// off and 96, where a value is missing (design §2).
+({bool retina, int dpi}) _userRegRetina(String path) {
+  final file = File(path);
+  if (!file.existsSync()) return (retina: false, dpi: 96);
+  var retina = false;
+  var dpi = 96;
+  String? section;
+  for (final line in file.readAsLinesSync()) {
+    if (line.startsWith('[')) {
+      section = line.substring(1, line.indexOf(']')).toLowerCase();
+    } else if (section == r'software\\wine\\mac driver' &&
+        line.startsWith('"RetinaMode"=')) {
+      retina = line.toLowerCase().contains('"y');
+    } else if (section == r'control panel\\desktop' &&
+        line.startsWith('"LogPixels"=dword:')) {
+      dpi = int.tryParse(line.split(':').last.trim(), radix: 16) ?? 96;
+    }
+  }
+  return (retina: retina, dpi: dpi);
 }
 
 /// `wineserver -w`: returns when the bottle's last process is gone, or at
@@ -758,6 +848,7 @@ String _newLog(
   String? backend,
   String? note,
   String? rules,
+  List<String> more = const [],
 }) {
   final now = DateTime.now().toUtc();
   final iso = now.toIso8601String();
@@ -774,6 +865,7 @@ String _newLog(
       '# cwd $cwd\n'
       '# argv ${argv.join(' ')}\n'
       '${note == null ? '' : '# note $note\n'}'
+      '${[for (final line in more) '# $line\n'].join()}'
       '${rules == null ? '' : '# rules $rules\n'}',
     );
   return log.path;

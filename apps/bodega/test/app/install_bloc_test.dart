@@ -5,6 +5,7 @@ import 'package:bodega/app/bloc/install/install_bloc.dart';
 import 'package:bodega/domain/entities/app_error.dart';
 import 'package:bodega/domain/entities/catalog_app.dart';
 import 'package:bodega/domain/entities/install_step.dart';
+import 'package:bodega/domain/entities/runtime_kind.dart';
 import 'package:bodega/domain/entities/wine_tool.dart';
 import 'package:bodega/domain/repository/install_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -30,6 +31,7 @@ void main() {
   setUpAll(() {
     registerFallbackValue((int _, int? _) {});
     registerFallbackValue((InstallStep _) {});
+    registerFallbackValue(RuntimeKind.bodega);
   });
 
   /// install() reports [steps], then ends with [result].
@@ -38,8 +40,13 @@ void main() {
     Either<AppError, Unit> result = const Right(unit),
   ]) {
     when(
-      () =>
-          repository.install(any(), any(), any(), bottle: any(named: 'bottle')),
+      () => repository.install(
+        any(),
+        any(),
+        any(),
+        bottle: any(named: 'bottle'),
+        runtime: any(named: 'runtime'),
+      ),
     ).thenAnswer((call) async {
       final onStep = call.positionalArguments[2] as void Function(InstallStep);
       steps.forEach(onStep);
@@ -196,9 +203,34 @@ void main() {
           any(),
           any(),
           bottle: any(named: 'bottle'),
+          runtime: any(named: 'runtime'),
         ),
       );
     },
+  );
+
+  blocTest<InstallBloc, InstallState>(
+    'PA3 the engine of a bottle of its own reaches the install',
+    build: () {
+      installs(const []);
+      return InstallBloc(repository);
+    },
+    act: (bloc) => bloc.add(
+      const InstallEvent.start(
+        _app,
+        setup: '/d/local.exe',
+        runtime: RuntimeKind.mach9,
+      ),
+    ),
+    verify: (_) => verify(
+      () => repository.install(
+        any(),
+        any(),
+        any(),
+        bottle: any(named: 'bottle'),
+        runtime: RuntimeKind.mach9,
+      ),
+    ).called(1),
   );
 
   blocTest<InstallBloc, InstallState>(
@@ -221,6 +253,7 @@ void main() {
           any(),
           any(),
           bottle: any(named: 'bottle'),
+          runtime: any(named: 'runtime'),
         ),
       );
     },
@@ -236,6 +269,7 @@ void main() {
           any(),
           any(),
           bottle: any(named: 'bottle'),
+          runtime: any(named: 'runtime'),
         ),
       ).thenAnswer(
         (_) async => left(
@@ -272,6 +306,7 @@ void main() {
           any(),
           any(),
           bottle: any(named: 'bottle'),
+          runtime: any(named: 'runtime'),
         ),
       ).thenAnswer((_) async => right(unit));
       return InstallBloc(repository);
@@ -310,6 +345,7 @@ void main() {
           any(),
           any(),
           bottle: any(named: 'bottle'),
+          runtime: any(named: 'runtime'),
         ),
       ).thenAnswer(
         (_) async => left(

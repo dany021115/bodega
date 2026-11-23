@@ -1,5 +1,6 @@
 import 'package:bodega/domain/entities/anti_cheat_game.dart';
 import 'package:bodega/domain/entities/exe_graphics.dart';
+import 'package:bodega/domain/entities/runtime_kind.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 // The catalog's anti-cheat list and a game's configuration share highball-db's
@@ -96,5 +97,8 @@ abstract class AppGame with _$AppGame {
     @Default([]) List<GameStep> steps,
     @Default([]) List<String> requires,
     GameVerdict? verdict,
+
+    /// The engine of the app's bottle, for a report (PA5).
+    @Default(RuntimeKind.bodega) RuntimeKind runtime,
   }) = _AppGame;
 }

@@ -291,6 +291,9 @@ class MacPlatform extends HostPlatform {
       _ensureGamepads(home, name);
 
   @override
+  bool mainDisplayHiDpi() => _mainDisplayHiDpi();
+
+  @override
   List<List<String>> highResRegistry(bool value) => [
     [
       r'HKCU\Software\Wine\Mac Driver',
@@ -474,4 +477,39 @@ bool _sameBytes(List<int> a, List<int> b) {
     if (a[i] != b[i]) return false;
   }
   return true;
+}
+
+/// Mach9.app's rule (`retina.rs`): the main display's current mode has more
+/// pixels than points. CoreGraphics' C API through `dart:ffi`; false without
+/// a display or the library (PE3).
+bool _mainDisplayHiDpi() {
+  try {
+    final cg = DynamicLibrary.open(
+      '/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics',
+    );
+    final display = cg.lookupFunction<Uint32 Function(), int Function()>(
+      'CGMainDisplayID',
+    )();
+    final mode = cg
+        .lookupFunction<
+          Pointer<Void> Function(Uint32),
+          Pointer<Void> Function(int)
+        >('CGDisplayCopyDisplayMode')(display);
+    if (mode == nullptr) return false;
+    int size(String function) =>
+        cg.lookupFunction<
+          Size Function(Pointer<Void>),
+          int Function(Pointer<Void>)
+        >(function)(mode);
+    try {
+      return size('CGDisplayModeGetPixelWidth') > size('CGDisplayModeGetWidth');
+    } finally {
+      cg.lookupFunction<
+        Void Function(Pointer<Void>),
+        void Function(Pointer<Void>)
+      >('CGDisplayModeRelease')(mode);
+    }
+  } on Object {
+    return false;
+  }
 }

@@ -22,6 +22,19 @@ class Mach9Mac extends engine.MacPlatform {
   @override
   String get defaultSync => 'none';
 
+  // Not this machine's display: a launch's retina step stays the same (PE3).
+  @override
+  bool mainDisplayHiDpi() => false;
+
+  // ditto is the Mac's; cp -a keeps links as links on Linux CI too (PE12).
+  @override
+  Future<void> copyTree(String from, String to) async {
+    final result = await Process.run('cp', ['-a', from, to]);
+    if (result.exitCode != 0) {
+      throw engine.ProcessFailed('cp -a', result.exitCode, '${result.stderr}');
+    }
+  }
+
   @override
   List<String> get applicationDirs => [?applications];
 

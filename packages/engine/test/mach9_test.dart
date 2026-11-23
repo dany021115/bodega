@@ -187,8 +187,94 @@ void main() {
       expect(lines[0], '# runtime mach9-0.4.0');
       expect(lines[1], '# backend auto (auto)');
       expect(backendOf(log), 'backend auto (auto)');
-      expect(lines[4], '# rules exe=*;$menu');
-      expect(lines[5], isNot(startsWith('# ')));
+      // PE4's line comes before the rules, which stay last (MG11).
+      expect(lines[4], '# retina off (auto)');
+      expect(lines[5], '# rules exe=*;$menu');
+      expect(lines[6], isNot(startsWith('# ')));
+    });
+  });
+
+  group('PE4 retina before the session boots', () {
+    String calls(String bottle) =>
+        File('$home/bottles/$bottle/mach9-calls').readAsStringSync();
+    String regLog(String dir) => File('$dir/prefix/reg.log').existsSync()
+        ? File('$dir/prefix/reg.log').readAsStringSync()
+        : '';
+    String userReg({required bool retina}) =>
+        'WINE REGISTRY Version 2\n\n'
+        '[Control Panel\\\\Desktop] 1700000000\n'
+        '#time=1da0000000000000\n'
+        '"LogPixels"=dword:${retina ? '000000c0' : '00000060'}\n\n'
+        '[Software\\\\Wine\\\\Mac Driver] 1700000000\n'
+        '#time=1da0000000000000\n'
+        '"RetinaMode"="${retina ? 'y' : 'n'}"\n';
+
+    test('values that differ are written, then the session ends', () async {
+      fakeMach9Wine(home);
+      final dir = mach9Bottle(home, 'm9', '{"retina": "on"}');
+      final log = await runInBottle(home, 'm9', 'game.exe', []);
+      await exitOf(log);
+      expect(regLog(dir), contains('RetinaMode /t REG_SZ /d y'));
+      expect(regLog(dir), contains('LogPixels /t REG_DWORD /d 192'));
+      final lines = calls('m9').trim().split('\n');
+      final kill = lines.indexOf('wineserver -k');
+      expect(kill, greaterThan(0));
+      expect(lines[kill + 1], 'wineserver -w');
+      expect(
+        lines.indexWhere((l) => l.contains('game.exe')),
+        greaterThan(kill),
+      );
+      expect(File(log).readAsLinesSync(), contains('# retina on (on)'));
+    });
+
+    test('values already in user.reg cost nothing', () async {
+      fakeMach9Wine(home);
+      final dir = mach9Bottle(home, 'm9', '{"retina": "on"}');
+      File('$dir/prefix/user.reg').writeAsStringSync(userReg(retina: true));
+      await exitOf(await runInBottle(home, 'm9', 'game.exe', []));
+      expect(regLog(dir), isEmpty);
+      expect(calls('m9'), isNot(contains('wineserver -k')));
+    });
+
+    test('auto follows the display: on with a HiDPI main display', () async {
+      hostPlatform = const TestMac(hiDpi: true);
+      fakeMach9Wine(home);
+      mach9Bottle(home, 'm9');
+      final log = await runInBottle(home, 'm9', 'game.exe', []);
+      await exitOf(log);
+      expect(File(log).readAsLinesSync(), contains('# retina on (auto)'));
+    });
+
+    test('a running session keeps its own until the next', () async {
+      fakeMach9Wine(home);
+      final dir = mach9Bottle(home, 'm9', '{"retina": "on"}');
+      File('$dir/prefix/hang').createSync();
+      final log = await runInBottle(home, 'm9', 'game.exe', []);
+      File('$dir/prefix/hang').deleteSync();
+      await exitOf(log);
+      expect(regLog(dir), isEmpty);
+      expect(
+        File(log).readAsLinesSync(),
+        containsAll([
+          '# retina on (on)',
+          '# retina waits for the next session',
+        ]),
+      );
+    });
+
+    test('a Rosetta bottle has no such step', () async {
+      fakeCurrent(home);
+      final dir = '$home/bottles/x86';
+      File('$dir/settings.json')
+        ..createSync(recursive: true)
+        ..writeAsStringSync('{}');
+      File('$dir/prefix/drive_c/windows/syswow64/kernel32.dll')
+          .createSync(recursive: true);
+      File('$dir/prefix/system.reg').createSync();
+      Directory('$dir/logs').createSync();
+      final log = await runInBottle(home, 'x86', 'game.exe', []);
+      await exitOf(log);
+      expect(File(log).readAsStringSync(), isNot(contains('# retina')));
     });
   });
 
@@ -220,9 +306,34 @@ void main() {
         compatdb('b'),
         'exe=*;dxgi=dxmt;$menu;'
         'dll_overrides=gameoverlayrenderer64,gameoverlayrenderer=d\n'
-        'exe=steam.exe;dxgi=dxmt',
+        // PE8: the Steam game's own line names its app id.
+        'exe=steam:9;dxgi=dxmt',
       );
     });
+
+    test(
+      'PE6 Rosetta-only variables stay out, and the log names them',
+      () async {
+        fixesSource = fixes([
+          env('D3DM_ENABLE_METALFX', '1'),
+          env('DXVK_ASYNC', '1'),
+          env('VKD3D_CONFIG', 'dxr'),
+        ]);
+        final log = await openApp(home, 'b', key: 'steam:9');
+        await exitOf(log);
+        final seen = lastEnv('b');
+        expect(seen['VKD3D_CONFIG'], 'dxr');
+        expect(seen.keys, isNot(contains('D3DM_ENABLE_METALFX')));
+        expect(seen.keys, isNot(contains('DXVK_ASYNC')));
+        expect(
+          File(log).readAsLinesSync(),
+          contains('# skipped D3DM_ENABLE_METALFX, DXVK_ASYNC'),
+        );
+        expect((await gamePlan(home, 'b', 'steam:9')).env, {
+          'VKD3D_CONFIG': 'dxr',
+        });
+      },
+    );
 
     test('an open Steam is asked through the Mach9 runtime', () async {
       final prefix = '$home/bottles/b/prefix';
@@ -875,6 +986,13 @@ void installTests(({String tmp, String home}) Function() paths) {
       );
       expect(monoMissing(home, 'm9'), isFalse);
       expect(File('$dir/mach9-calls').readAsStringSync(), contains('reg add'));
+      // PE5: the session the registry values booted ends before Mono, and
+      // Mono's own ends last.
+      final calls = File('$dir/mach9-calls').readAsLinesSync();
+      final lastReg = calls.lastIndexWhere((c) => c.startsWith('wine reg'));
+      final msi = calls.indexWhere((c) => c.startsWith('wine msiexec'));
+      expect(calls.sublist(lastReg, msi), contains('wineserver -w'));
+      expect(calls.last, 'wineserver -w');
     });
 
     test('MB3 wineboot and Mono run on Mach9, never current', () async {
@@ -966,6 +1084,156 @@ void installTests(({String tmp, String home}) Function() paths) {
       await createBottle(home, 'm9', runtime: RuntimeKind.mach9);
       await exitOf(await runInBottle(home, 'm9', 'game.exe', []));
       expect(monoMissing(home, 'm9'), isFalse);
+    });
+  });
+
+  group('PE12 moving a bottle to Native', () {
+    /// A Rosetta bottle as the app leaves one, with what a user's programs
+    /// write in it.
+    String rosetta(String name) {
+      fakeCurrent(home);
+      final dir = '$home/bottles/$name';
+      final c = '$dir/prefix/drive_c';
+      File('$c/windows/syswow64/kernel32.dll').createSync(recursive: true);
+      File('$c/windows/system32/old.dll').createSync(recursive: true);
+      File('$dir/prefix/system.reg').createSync();
+      Directory('$dir/logs').createSync();
+      File('$c/Program Files (x86)/Steam/steamapps/common/G/g.exe')
+          .createSync(recursive: true);
+      File('$c/Program Files (x86)/Steam/steam.exe').createSync();
+      File('$c/users/$hostUser/AppData/Roaming/Game/save.dat')
+        ..createSync(recursive: true)
+        ..writeAsStringSync('level 9');
+      File('$c/Games/x.exe').createSync(recursive: true);
+      File('$dir/settings.json').writeAsStringSync(
+        jsonEncode({
+          'backend': 'auto',
+          'sync': 'none',
+          'programs': {
+            'g.exe': {'backend': 'dxvk'},
+            'steam.exe': {'backend': 'dxmt', 'hud': true},
+          },
+          'highRes': true,
+          'avx': false,
+          'verdicts': {'program files (x86)/steam/steam.exe': 'works'},
+        }),
+      );
+      addApp(home, name, 'Steam', 'Program Files (x86)/Steam/steam.exe');
+      return dir;
+    }
+
+    List<String> bottles() => [
+      for (final entry in Directory('$home/bottles').listSync())
+        entry.path.split('/').last,
+    ];
+
+    test('the bottle keeps its name on Mach9, with its files and '
+        'settings, and the old one is gone', () async {
+      mach9Runtime();
+      final dir = rosetta('Games');
+      final steps = <NativeMoveStep>[];
+      final again = await moveToNative(home, 'Games', onStep: steps.add);
+      expect(steps, NativeMoveStep.values);
+      expect(bottleRuntime(home, 'Games'), RuntimeKind.mach9);
+      final c = '$dir/prefix/drive_c';
+      expect(
+        File('$c/Program Files (x86)/Steam/steamapps/common/G/g.exe')
+            .existsSync(),
+        isTrue,
+      );
+      expect(
+        File('$c/users/$hostUser/AppData/Roaming/Game/save.dat')
+            .readAsStringSync(),
+        'level 9',
+      );
+      expect(File('$c/Games/x.exe').existsSync(), isTrue);
+      // Its Windows is the old one's, which never moves (P17).
+      expect(File('$c/windows/system32/old.dll').existsSync(), isFalse);
+      expect(
+        bottleApps(home, 'Games').map((app) => app.title),
+        contains('Steam'),
+      );
+      final settings = bottleSettings(home, 'Games');
+      expect(settings.sync, 'msync');
+      expect(settings.programs['steam.exe']?.backend, 'dxmt');
+      expect(settings.programs['steam.exe']?.hud, isTrue);
+      expect(settings.programs['g.exe']?.backend, isNull);
+      expect(settings.retina, 'on');
+      expect(settings.avx, isTrue);
+      expect(settings.verdicts, {
+        'program files (x86)/steam/steam.exe': 'works',
+      });
+      expect(monoMissing(home, 'Games'), isFalse);
+      expect(bottles(), ['Games']);
+      expect(again, isEmpty);
+    });
+
+    test('a link of the new prefix is never written through', () async {
+      final rt = mach9Runtime();
+      final outside = Directory('$tmp/mac-documents')..createSync();
+      final wine = File('$rt/engine/bin/wine');
+      wine.writeAsStringSync(
+        wine.readAsStringSync().replaceFirst(
+          '#!/bin/sh\n',
+          '#!/bin/sh\n'
+              '[ "\$1" = wineboot ] && '
+              'mkdir -p "\$WINEPREFIX/drive_c/users/$hostUser" && '
+              'ln -sfn "${outside.path}" '
+              '"\$WINEPREFIX/drive_c/users/$hostUser/Documents"\n',
+        ),
+      );
+      final dir = rosetta('Games');
+      File('$dir/prefix/drive_c/users/$hostUser/Documents/notes.txt')
+        ..createSync(recursive: true)
+        ..writeAsStringSync('old');
+      await moveToNative(home, 'Games');
+      expect(outside.listSync(), isEmpty);
+      expect(
+        FileSystemEntity.isLinkSync(
+          '$dir/prefix/drive_c/users/$hostUser/Documents',
+        ),
+        isTrue,
+      );
+    });
+
+    test('a failed copy leaves the old bottle as it was', () async {
+      mach9Runtime();
+      final dir = rosetta('Games');
+      final before = File('$dir/settings.json').readAsStringSync();
+      hostPlatform = const _NoCopyMac();
+      await expectLater(
+        moveToNative(home, 'Games'),
+        throwsA(isA<ProcessFailed>()),
+      );
+      expect(bottleRuntime(home, 'Games'), RuntimeKind.bodega);
+      expect(File('$dir/settings.json').readAsStringSync(), before);
+      expect(bottles(), ['Games']);
+    });
+
+    test('a Native bottle, or no Mach9 runtime, is refused', () async {
+      rosetta('Games');
+      await expectLater(
+        moveToNative(home, 'Games'),
+        throwsA(isA<RuntimeNotInstalled>()),
+      );
+      mach9Runtime();
+      mach9Bottle(home, 'm9');
+      await expectLater(moveToNative(home, 'm9'), throwsA(isA<BadChoice>()));
+      expect(bottles()..sort(), ['Games', 'm9']);
+    });
+
+    test('native-move prints its steps', () async {
+      mach9Runtime();
+      rosetta('Games');
+      final out = StringBuffer();
+      expect(await runtimeVerb(['native-move', 'Games'], out)!(home), 0);
+      expect(
+        '$out',
+        'Making the Native engine bottle\n'
+            'Copying programs, files and settings\n'
+            'Deleting the Rosetta bottle\n'
+            'Games runs on the Native engine now\n',
+      );
     });
   });
 
@@ -1079,8 +1347,23 @@ void installTests(({String tmp, String home}) Function() paths) {
         expect(settings.runtime, RuntimeKind.mach9);
         expect(settings.programs['x.exe']?.backend, 'wine');
         expect(monoMissing(home, 'm9'), isFalse);
+        // PE1: the entry's `none` is Rosetta's; Mach9 keeps msync.
+        expect(settings.sync, 'msync');
+        expect(hostPlatform.syncEnv(settings.sync), isEmpty);
       },
     );
+
+    test('PE1 a new Rosetta bottle still takes the entry\'s sync', () async {
+      fakeCurrent(home);
+      await installEntry(
+        home,
+        entry('wine'),
+        bottle: 'x86',
+        setup: '$tmp/x-setup.exe',
+        grace: Duration.zero,
+      );
+      expect(bottleSettings(home, 'x86').sync, 'none');
+    });
   });
 
   group('MC1–MC8 the CLI', () {
@@ -1229,8 +1512,36 @@ void installTests(({String tmp, String home}) Function() paths) {
       );
     });
 
+    test('PE11 option retina and native', () async {
+      final dir = mach9Bottle(home, 'm9');
+      File('$dir/prefix/drive_c/g/game.exe').createSync(recursive: true);
+      addApp(home, 'm9', 'Game', 'g/game.exe');
+      expect((await cli(['option', 'm9', 'retina', 'off'])).$1, 0);
+      expect(bottleSettings(home, 'm9').retina, 'off');
+      expect((await cli(['option', 'm9', 'retina', 'max'])).$1, 64);
+      expect(await cli(['native', 'm9', 'g/game.exe', 'cgl-opengl', 'on']), (
+        0,
+        'cgl-opengl: on\n',
+      ));
+      expect(
+        (await cli(['native', 'm9', 'g/game.exe'])).$2,
+        'no-force-nx: off\n'
+        'large-address-aware: off\n'
+        'not-dpi-aware: off\n'
+        'cgl-opengl: on\n'
+        'vulkan-wined3d: off\n',
+      );
+      expect((await cli(['native', 'm9', 'g/game.exe', 'turbo', 'on'])).$1, 64);
+      expect(
+        (await cli(['native', 'm9', 'g/game.exe', 'cgl-opengl', 'yes'])).$1,
+        64,
+      );
+    });
+
     test('the usage lists every new verb', () {
       for (final verb in [
+        'bodega option <bottle> retina auto|on|off',
+        'bodega native <bottle> <key> [<option> on|off]',
         'bodega runtime list',
         'bodega runtime install mach9',
         'bodega create [--runtime bodega|mach9] <bottle>',
@@ -1243,4 +1554,13 @@ void installTests(({String tmp, String home}) Function() paths) {
       }
     });
   });
+}
+
+/// A Mac whose copies fail, as a full disk makes them (PE12).
+class _NoCopyMac extends TestMac {
+  const _NoCopyMac();
+
+  @core.override
+  Future<void> copyTree(String from, String to) async =>
+      throw const ProcessFailed('cp -a', 1, 'No space left on device');
 }

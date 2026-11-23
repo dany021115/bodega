@@ -530,9 +530,136 @@ Future<String?> installMono(
 bool monoMissing(String home, String name) {
   final dir = _existing(home, name);
   if (_bottleRuntimeIn(dir) != RuntimeKind.mach9) return false;
+  // PE9: .NET Framework 4 replaces Mono on purpose (dotnet48's marker, S3).
+  if (File(
+    '$dir/prefix/drive_c/windows/Microsoft.NET/Framework/v4.0.30319/clr.dll',
+  ).existsSync()) {
+    return false;
+  }
   return FileSystemEntity.typeSync(
         '$dir/prefix/drive_c/windows/mono/mono-2.0',
         followLinks: false,
       ) !=
       FileSystemEntityType.directory;
+}
+
+/// What [moveToNative] is doing, for a UI (PE12).
+enum NativeMoveStep { creating, copying, finishing }
+
+/// Turns the Rosetta bottle [name] into a Native engine one under the same
+/// name (PE12, P17–P19). A new Mach9 bottle is made under a free temporary
+/// name and filled with what the old one's user and programs wrote; only
+/// then is the old one deleted and the new one renamed, so a failure leaves
+/// the old one as it was. Returns the runtimes (`<id> <arch>`) the old bottle
+/// had installed, which do not move.
+Future<List<String>> moveToNative(
+  String home,
+  String name, {
+  void Function(NativeMoveStep step)? onStep,
+}) async {
+  final dir = _existing(home, name);
+  if (_bottleRuntimeIn(dir) == RuntimeKind.mach9) {
+    throw const BadChoice(ChoiceKind.runtime, 'mach9', ['bodega']);
+  }
+  if (hostPlatform.mach9Block case final block?) {
+    throw RuntimeUnavailable(RuntimeKind.mach9, block);
+  }
+  runtimeDir(home, RuntimeKind.mach9);
+  if (_installedRuntime(home, dir) case final rt?
+      when await _serverRunning(rt, dir)) {
+    throw BottleOpen(name);
+  }
+  final settings = _settings(dir);
+  final runtimes = [
+    for (final row in dependencyTable)
+      for (final arch in row.files.keys)
+        if (dependencyStatus(home, name, row.id, arch) == true)
+          '${row.id} $arch',
+  ];
+  final base = name.length > 56 ? name.substring(0, 56) : name;
+  var temp = '$base-native';
+  for (var n = 2; Directory(bottleDir(home, temp)).existsSync(); n++) {
+    temp = '$base-native$n';
+  }
+
+  try {
+    onStep?.call(NativeMoveStep.creating);
+    await createBottle(home, temp, runtime: RuntimeKind.mach9);
+    if (settings.user.isNotEmpty) {
+      await setBottleUser(home, temp, settings.user);
+    }
+    if (settings.windows != _defaults.windows) {
+      await setWindowsVersion(home, temp, settings.windows);
+    }
+    onStep?.call(NativeMoveStep.copying);
+    final to = bottleDir(home, temp);
+    await stopBottle(home, temp);
+    await _mergeInto(
+      '$dir/prefix/drive_c',
+      '$to/prefix/drive_c',
+      skip: const {'windows'},
+    );
+    for (final entry in const ['apps.json', 'icons']) {
+      if (FileSystemEntity.typeSync('$dir/$entry', followLinks: false) !=
+          FileSystemEntityType.notFound) {
+        await hostPlatform.copyTree('$dir/$entry', '$to/$entry');
+      }
+    }
+    String? kept(String? backend) =>
+        backend != null && backendNamesFor(RuntimeKind.mach9).contains(backend)
+        ? backend
+        : null;
+    final now = _settings(to);
+    _saveSettings(
+      to,
+      _with(
+        now,
+        backend: kept(settings.backend) ?? 'auto',
+        programs: {
+          for (final MapEntry(:key, :value) in settings.programs.entries)
+            key: (backend: kept(value.backend), env: value.env, hud: value.hud),
+        },
+        env: settings.env,
+        gpu: settings.gpu,
+        gamemode: settings.gamemode,
+        configOff: settings.configOff,
+        verdicts: settings.verdicts,
+        retina: settings.highRes ? 'on' : now.retina,
+      ),
+    );
+  } on Object {
+    if (Directory(bottleDir(home, temp)).existsSync()) {
+      await removeBottle(home, temp);
+    }
+    rethrow;
+  }
+  onStep?.call(NativeMoveStep.finishing);
+  await removeBottle(home, name);
+  await renameBottle(home, temp, name);
+  return runtimes;
+}
+
+/// Copies [from]'s entries into [to] (P17): one [to] lacks is copied whole
+/// with [HostPlatform.copyTree], which keeps links as links; a folder both
+/// have is merged the same way; any other entry [to] has stays as it is. A
+/// link in [to] is never followed, so nothing is written through the links a
+/// prefix keeps to the Mac's own folders. [skip] is matched without case.
+Future<void> _mergeInto(
+  String from,
+  String to, {
+  Set<String> skip = const {},
+}) async {
+  for (final entry in Directory(from).listSync(followLinks: false)) {
+    final name = entry.path.split('/').last;
+    if (skip.contains(name.toLowerCase())) continue;
+    final target = '$to/$name';
+    final there = FileSystemEntity.typeSync(target, followLinks: false);
+    if (there == FileSystemEntityType.notFound) {
+      await hostPlatform.copyTree(entry.path, target);
+    } else if (there == FileSystemEntityType.directory &&
+        FileSystemEntity.typeSync(entry.path, followLinks: false) ==
+            FileSystemEntityType.directory) {
+      await _mergeInto(entry.path, target);
+    }
+  }
 }

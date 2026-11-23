@@ -63,6 +63,8 @@ void main() {
         .thenAnswer((_) async => right(const [missing]));
     when(() => repository.readyBottles())
         .thenAnswer((_) async => right(const ['sample']));
+    when(() => repository.readyBottles(runtime: RuntimeKind.mach9))
+        .thenAnswer((_) async => right(const ['native']));
     when(() => repository.runtimes()).thenAnswer((_) async => right(const []));
   });
 
@@ -105,6 +107,7 @@ void main() {
         isLoading: false,
         backends: [installed],
         bottles: ['sample'],
+        nativeBottles: ['native'],
         received: 50,
         total: 100,
       ),
@@ -230,6 +233,39 @@ void main() {
         },
       ),
     ],
+  );
+
+  blocTest<BackendsBloc, BackendsState>(
+    'PA4 the engine check probes mtld3d, dxmt and wine in turn',
+    build: () {
+      for (final name in mach9Checks) {
+        when(() => repository.check('native', name))
+            .thenAnswer((_) async => right(const [result]));
+      }
+      return BackendsBloc(repository);
+    },
+    act: (bloc) => bloc.add(const BackendsEvent.checkEngine('native')),
+    verify: (bloc) {
+      expect(bloc.state.checking, isNull);
+      expect(bloc.state.results.keys, [
+        'mach9:mtld3d',
+        'mach9:dxmt',
+        'mach9:wine',
+      ]);
+      for (final name in mach9Checks) {
+        verify(() => repository.check('native', name)).called(1);
+      }
+    },
+  );
+
+  blocTest<BackendsBloc, BackendsState>(
+    'PA4 the ready Native engine bottles load apart',
+    build: () => BackendsBloc(repository),
+    act: (bloc) => bloc.add(const BackendsEvent.load()),
+    verify: (bloc) {
+      expect(bloc.state.bottles, ['sample']);
+      expect(bloc.state.nativeBottles, ['native']);
+    },
   );
 
   group('the native engine (MA5)', () {

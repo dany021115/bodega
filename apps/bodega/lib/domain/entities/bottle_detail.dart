@@ -1,4 +1,5 @@
 import 'package:bodega/domain/entities/library_app.dart';
+import 'package:bodega/domain/entities/retina_mode.dart';
 import 'package:bodega/domain/entities/runtime_kind.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
@@ -28,6 +29,13 @@ abstract class BottleDetail with _$BottleDetail {
     required String backend,
     required String sync,
     @Default(false) bool highRes,
+
+    /// A Native engine bottle's retina mode (PA1); Rosetta's is [highRes].
+    @Default(RetinaMode.auto) RetinaMode retina,
+
+    /// The Native engine is installed, so a Rosetta bottle can move to it
+    /// (PA8).
+    @Default(false) bool nativeInstalled,
     @Default(false) bool dlss,
     @Default(true) bool avx,
 

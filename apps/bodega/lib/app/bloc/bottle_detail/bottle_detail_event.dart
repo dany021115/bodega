@@ -7,6 +7,14 @@ sealed class BottleDetailEvent with _$BottleDetailEvent {
       BottleDetailSetBackendEvent;
   const factory BottleDetailEvent.setSync(String sync) =
       BottleDetailSetSyncEvent;
+
+  /// Moves the bottle to the Native engine (PA8).
+  const factory BottleDetailEvent.moveToNative() =
+      BottleDetailMoveToNativeEvent;
+
+  /// A Native engine bottle's retina mode (PA1).
+  const factory BottleDetailEvent.setRetina(RetinaMode mode) =
+      BottleDetailSetRetinaEvent;
   const factory BottleDetailEvent.setHighRes(bool value) =
       BottleDetailSetHighResEvent;
   const factory BottleDetailEvent.setWindows(String version) =

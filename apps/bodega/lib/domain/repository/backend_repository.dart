@@ -24,8 +24,10 @@ abstract class BackendRepository {
     required void Function(Mach9Step step) onStep,
   });
 
-  /// The ready Rosetta bottles, which can run a check.
-  Future<Either<AppError, List<String>>> readyBottles();
+  /// The ready bottles of [runtime], which can run a check (PA4).
+  Future<Either<AppError, List<String>>> readyBottles({
+    RuntimeKind runtime = RuntimeKind.bodega,
+  });
 
   /// Downloads and installs [name], checking its pinned SHA-256. False if it
   /// was cancelled with [cancelDownload].

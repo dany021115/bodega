@@ -6,6 +6,7 @@ import 'package:engine/engine.dart';
 import 'package:test/test.dart';
 
 import '_mac.dart';
+import 'runtimes_test.dart' show fakeMach9Runtime, mach9Bottle;
 import 'engine_test.dart' show fakeRuntime;
 
 /// A PE for the tests (T4): one section at RVA 0x1000, file offset 0x200, that
@@ -577,6 +578,24 @@ void main() {
         ),
       ]);
       expect(needs.settings, isEmpty);
+    });
+
+    test('PE10 a Mach9 bottle reads Mach9\'s own Wine, ARM64X for x64', () async {
+      fakeMach9Runtime(home);
+      mach9Bottle(home, 'm9');
+      final exe = File('$tmp/m9/tool64.exe')
+        ..createSync(recursive: true)
+        ..writeAsBytesSync(pe(bits: 64, imports: ['MFC140.dll']));
+      addApp(home, 'm9', 'tool64.exe', exe.path);
+      final key = appKey(exe.path);
+      Future<Need> need() async =>
+          (await appNeeds(home, 'm9', key)).dependencies.single.need;
+      // Rosetta's Wine (wineShips) has no MFC: only Mach9's own counts.
+      expect(await need(), Need.recommended);
+      File(
+        '$home/runtimes/mach9-0.4.0/engine/lib/wine/aarch64-windows/mfc140.dll',
+      ).createSync(recursive: true);
+      expect(await need(), Need.optional);
     });
 
     test('an MFC import is recommended, a CRT import optional', () async {

@@ -2,6 +2,7 @@ import 'package:bloc/bloc.dart';
 import 'package:bodega/domain/entities/app_error.dart';
 import 'package:bodega/domain/entities/catalog_app.dart';
 import 'package:bodega/domain/entities/install_step.dart';
+import 'package:bodega/domain/entities/runtime_kind.dart';
 import 'package:bodega/domain/repository/install_repository.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:injectable/injectable.dart';
@@ -76,6 +77,7 @@ class InstallBloc extends Bloc<InstallEvent, InstallState> {
       setup,
       (step) => emit(state.copyWith(step: step)),
       bottle: existing,
+      runtime: event.runtime,
     );
     result.match(
       (error) => emit(

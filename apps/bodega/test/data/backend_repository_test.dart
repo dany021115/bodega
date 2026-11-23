@@ -171,6 +171,16 @@ void main() {
       ]);
     });
 
+    test('PA4 readyBottles of the Native engine gives its own', () async {
+      readyBottle(home, 'x86');
+      readyBottle(home, 'native', mach9: true);
+      expect(
+        (await repository().readyBottles(runtime: RuntimeKind.mach9))
+            .getOrElse((e) => fail('$e')),
+        ['native'],
+      );
+    });
+
     test('on a Mach9 bottle only wine misfits, with DX12', () async {
       final dir = readyBottle(home, 'native', mach9: true);
       exe('$dir/prefix/drive_c/G/g12.exe', 'd3d12.dll');

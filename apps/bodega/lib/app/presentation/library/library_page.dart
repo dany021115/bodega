@@ -3,6 +3,7 @@ import 'package:bodega/app/bloc/view_mode/view_mode_bloc.dart';
 import 'package:bodega/app/presentation/bottles/new_bottle_dialog.dart';
 import 'package:bodega/app/presentation/bottles/widgets/run_options_dialog.dart';
 import 'package:bodega/app/presentation/library/widgets/bottle_tag.dart';
+import 'package:bodega/app/presentation/library/widgets/native_options_dialog.dart';
 import 'package:bodega/app/shared/graphics_of.dart';
 import 'package:bodega/app/shared/text/backend_text.dart';
 import 'package:bodega/app/shared/text/error_text.dart';
@@ -51,6 +52,7 @@ class _LibraryPageState extends State<LibraryPage> {
       anchor,
       inLibrary: app.inLibrary,
       hud: app.hud,
+      native: app.nativeEngine,
     );
     if (action == null || !anchor.mounted) return;
     // Read now: the menu's awaits below may outlive the item.
@@ -78,6 +80,8 @@ class _LibraryPageState extends State<LibraryPage> {
         });
       case AppMenuAction.hud:
         bloc.add(LibraryEvent.setHud(app.bottle, app.key, !app.hud));
+      case AppMenuAction.native:
+        await showNativeOptions(anchor, app);
       case AppMenuAction.library:
         bloc.add(
           LibraryEvent.setInLibrary(app.bottle, app.key, !app.inLibrary),

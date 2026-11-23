@@ -4,6 +4,7 @@ import 'package:bloc_test/bloc_test.dart';
 import 'package:bodega/app/bloc/library/library_bloc.dart';
 import 'package:bodega/domain/entities/library_app.dart';
 import 'package:bodega/domain/entities/log_hint.dart';
+import 'package:bodega/domain/entities/native_option.dart';
 import 'package:bodega/domain/entities/run_hint.dart';
 import 'package:bodega/domain/repository/bottle_repository.dart';
 import 'package:bodega/domain/repository/library_repository.dart';
@@ -100,6 +101,42 @@ void main() {
     wait: const Duration(milliseconds: 10),
     verify: (_) {
       verify(() => bottles.setHud('steam', 'a/a.exe', true)).called(1);
+      verify(() => repository.apps()).called(1);
+    },
+  );
+
+  blocTest<LibraryBloc, LibraryState>(
+    'PA2 a native option is saved and the library reloads',
+    build: () {
+      when(() => repository.apps()).thenAnswer((_) async => right(const []));
+      when(
+        () => bottles.setNativeOption(
+          'steam',
+          'a/a.exe',
+          NativeOption.largeAddressAware,
+          true,
+        ),
+      ).thenAnswer((_) async => right(unit));
+      return LibraryBloc(repository, bottles);
+    },
+    act: (bloc) => bloc.add(
+      const LibraryEvent.setNativeOption(
+        'steam',
+        'a/a.exe',
+        NativeOption.largeAddressAware,
+        true,
+      ),
+    ),
+    wait: const Duration(milliseconds: 10),
+    verify: (_) {
+      verify(
+        () => bottles.setNativeOption(
+          'steam',
+          'a/a.exe',
+          NativeOption.largeAddressAware,
+          true,
+        ),
+      ).called(1);
       verify(() => repository.apps()).called(1);
     },
   );

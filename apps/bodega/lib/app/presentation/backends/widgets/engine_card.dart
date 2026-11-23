@@ -1,4 +1,5 @@
 import 'package:bodega/app/bloc/backends/backends_bloc.dart';
+import 'package:bodega/app/presentation/backends/widgets/probe_dialog.dart';
 import 'package:bodega/app/shared/text/progress_text.dart';
 import 'package:bodega/app/shared/text/runtime_text.dart';
 import 'package:bodega/app/shared/widgets/status_chip.dart';
@@ -79,6 +80,16 @@ class EngineCard extends StatelessWidget {
       if (runtime.appUntested) l10n.engineUntested(runtime.appVersion!),
       if (runtime.diskBytes > 0) l10n.engineSizeDownload(download, disk),
     ];
+  }
+
+  Future<void> _check(BuildContext context) async {
+    final bloc = context.read<BackendsBloc>();
+    final bottle = await chooseProbeBottle(
+      context,
+      context.l10n.engineNativeTitle,
+      state.nativeBottles,
+    );
+    if (bottle != null) bloc.add(BackendsEvent.checkEngine(bottle));
   }
 
   @override
@@ -188,8 +199,56 @@ class EngineCard extends StatelessWidget {
                             ),
                       child: Text(l10n.engineUpdate(runtime.pinnedVersion!)),
                     ),
+                  if (runtime.installed)
+                    OutlinedButton(
+                      onPressed: blocked || state.nativeBottles.isEmpty
+                          ? null
+                          : () => _check(context),
+                      child: Text(l10n.backendCheck),
+                    ),
                 ],
               ),
+              if (runtime.installed && state.nativeBottles.isEmpty) ...[
+                const SizedBox(height: AppSpacing.xs),
+                Text(l10n.engineCheckNoBottle, style: styles.caption),
+              ],
+              if (state.checking == mach9Check) ...[
+                const SizedBox(height: AppSpacing.xs),
+                Semantics(
+                  liveRegion: true,
+                  child: Text(l10n.backendChecking, style: styles.caption),
+                ),
+              ],
+              for (final name in mach9Checks)
+                if (state.results['$mach9Check:$name'] case final results?) ...[
+                  const SizedBox(height: AppSpacing.sm),
+                  Text(name, style: styles.body),
+                  for (final result in results) ...[
+                    const SizedBox(height: AppSpacing.xs),
+                    Row(
+                      children: [
+                        if (result.ok)
+                          StatusChip(
+                            label: l10n.backendCheckPassed,
+                            color: AppColor.statusTested,
+                          )
+                        else
+                          StatusChip(
+                            label: l10n.backendCheckFailed,
+                            color: AppColor.statusBlocked,
+                          ),
+                        const SizedBox(width: AppSpacing.sm),
+                        Flexible(
+                          child: Text(
+                            l10n.backendCheckCase(result.bits, result.d3d),
+                            style: styles.body,
+                          ),
+                        ),
+                      ],
+                    ),
+                    SelectableText(result.log, style: styles.caption),
+                  ],
+                ],
             ],
           ],
         ),

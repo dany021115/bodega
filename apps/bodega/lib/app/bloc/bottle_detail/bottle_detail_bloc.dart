@@ -1,6 +1,8 @@
 import 'package:bloc/bloc.dart';
 import 'package:bodega/domain/entities/app_error.dart';
 import 'package:bodega/domain/entities/bottle_detail.dart';
+import 'package:bodega/domain/entities/native_move_step.dart';
+import 'package:bodega/domain/entities/retina_mode.dart';
 import 'package:bodega/domain/entities/user_name_problem.dart';
 import 'package:bodega/domain/repository/bottle_repository.dart';
 import 'package:fpdart/fpdart.dart';
@@ -24,6 +26,10 @@ class BottleDetailBloc extends Bloc<BottleDetailEvent, BottleDetailState> {
     on<BottleDetailSetSyncEvent>(
       (event, emit) =>
           _change(emit, (name) => _repository.setSync(name, event.sync)),
+    );
+    on<BottleDetailSetRetinaEvent>(
+      (event, emit) =>
+          _change(emit, (name) => _repository.setRetina(name, event.mode)),
     );
     on<BottleDetailSetHighResEvent>(
       (event, emit) =>
@@ -117,6 +123,25 @@ class BottleDetailBloc extends Bloc<BottleDetailEvent, BottleDetailState> {
       emit(state.copyWith(installingMono: true));
       await _change(emit, _repository.installMono);
       emit(state.copyWith(installingMono: false));
+    });
+    on<BottleDetailMoveToNativeEvent>((event, emit) async {
+      final name = state.detail?.name;
+      if (name == null || state.moveStep != null) return;
+      emit(state.copyWith(moveStep: NativeMoveStep.creating, error: null));
+      final result = await _repository.moveToNative(
+        name,
+        (step) => emit(state.copyWith(moveStep: step)),
+      );
+      emit(state.copyWith(moveStep: null));
+      final failed = result.getLeft().toNullable();
+      if (failed != null) return emit(state.copyWith(error: failed));
+      emit(
+        state.copyWith(
+          moves: state.moves + 1,
+          reinstall: result.getRight().toNullable()!,
+        ),
+      );
+      await _load(name, emit);
     });
     on<BottleDetailOpenLogEvent>((event, emit) async {
       emit(state.copyWith(logPath: event.path, logLines: const []));

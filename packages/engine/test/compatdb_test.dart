@@ -210,4 +210,104 @@ void main() {
       );
     });
   });
+
+  group('PE7 and PE8 the app\'s own line', () {
+    const options =
+        '{"native": {"games/game.exe": ["largeAddressAware", "noForceNx"]}}';
+
+    test('the options go on the app\'s line, in Key::ALL order', () {
+      mach9Bottle(home, 'b', options);
+      expect(
+        compatdbRules(home, 'b', 'game.exe', appKey: 'games/game.exe'),
+        'exe=*;$menu\n'
+        'exe=game.exe;large_address_aware=true;force_nx=false',
+      );
+    });
+
+    test('with an exception they join its line', () {
+      mach9Bottle(
+        home,
+        'b',
+        '{"programs": {"game.exe": {"backend": "dxmt"}}, '
+            '"native": {"games/game.exe": ["noForceNx", "largeAddressAware"]}}',
+      );
+      expect(
+        compatdbRules(home, 'b', 'game.exe', appKey: 'games/game.exe'),
+        'exe=*;dxgi=dxmt;$menu\n'
+        'exe=game.exe;dxgi=dxmt;large_address_aware=true;force_nx=false',
+      );
+    });
+
+    test('a Steam game gets steam:<id>, with the HUD there', () {
+      mach9Bottle(home, 'b', '{"native": {"steam:220": ["cglOpenGl"]}}');
+      expect(
+        compatdbRules(
+          home,
+          'b',
+          r'C:\Program Files (x86)\Steam\steam.exe',
+          backend: 'wine',
+          hud: true,
+          appKey: 'steam:220',
+        ),
+        'exe=*;dxgi=wined3d;d3d9=wined3d;$menu\n'
+        'exe=steam:220;dxgi=wined3d;d3d9=wined3d;opengl=cgl;metal_hud=true',
+      );
+    });
+
+    test('a program that is no Steam app keeps its lines', () {
+      mach9Bottle(home, 'b');
+      expect(
+        compatdbRules(home, 'b', 'game.exe', backend: 'wine', hud: true),
+        'exe=*;dxgi=wined3d;d3d9=wined3d;metal_hud=true;$menu\n'
+        'exe=game.exe;dxgi=wined3d;d3d9=wined3d',
+      );
+    });
+
+    test('setNativeOption keeps them sorted, and off removes the app', () {
+      final dir = mach9Bottle(home, 'b');
+      File('$dir/prefix/drive_c/games/game.exe').createSync(recursive: true);
+      addApp(home, 'b', 'Game', 'games/game.exe');
+      for (final option in [
+        NativeOption.vulkanWined3d,
+        NativeOption.cglOpenGl,
+      ]) {
+        setNativeOption(home, 'b', 'games/game.exe', option, on: true);
+      }
+      expect(bottleSettings(home, 'b').native, {
+        'games/game.exe': ['cglOpenGl', 'vulkanWined3d'],
+      });
+      expect(nativeOptions(home, 'b', 'games/game.exe'), {
+        NativeOption.cglOpenGl,
+        NativeOption.vulkanWined3d,
+      });
+      for (final option in NativeOption.values) {
+        setNativeOption(home, 'b', 'games/game.exe', option, on: false);
+      }
+      expect(
+        File('$dir/settings.json').readAsStringSync(),
+        isNot(contains('native')),
+      );
+      expect(
+        () => setNativeOption(
+          home,
+          'b',
+          'nope',
+          NativeOption.cglOpenGl,
+          on: true,
+        ),
+        throwsA(isA<AppNotFound>()),
+      );
+    });
+
+    test('a Rosetta bottle sends no rules at all', () {
+      final dir = '$home/bottles/x86';
+      File('$dir/settings.json')
+        ..createSync(recursive: true)
+        ..writeAsStringSync(options);
+      expect(
+        compatdbRules(home, 'x86', 'game.exe', appKey: 'games/game.exe'),
+        isNull,
+      );
+    });
+  });
 }

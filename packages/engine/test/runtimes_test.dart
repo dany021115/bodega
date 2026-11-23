@@ -300,11 +300,12 @@ void main() {
         (
           settings.sync,
           settings.dlss,
-          settings.highRes,
+          // PE2: high-res on a Mach9 bottle is its retina mode.
+          settings.retina,
           settings.user,
           settings.windows,
         ),
-        ('none', true, true, 'player', 'win7'),
+        ('none', true, 'on', 'player', 'win7'),
       );
     });
 
@@ -414,6 +415,66 @@ void main() {
     });
   });
 
+  group('PE2 the retina setting', () {
+    test('a Mach9 bottle keeps off and on, and auto leaves the file', () async {
+      final m9 = bottle('m9', '{"runtime": "mach9"}');
+      String file() => File('$m9/settings.json').readAsStringSync();
+      expect(bottleSettings(home, 'm9').retina, 'auto');
+      expect(await setRetina(home, 'm9', 'off'), isTrue);
+      expect(jsonDecode(file())['retina'], 'off');
+      expect(await setRetina(home, 'm9', 'off'), isFalse);
+      expect(await setHighRes(home, 'm9', true), isTrue);
+      expect(bottleSettings(home, 'm9').retina, 'on');
+      expect(bottleSettings(home, 'm9').highRes, isFalse);
+      await setRetina(home, 'm9', 'auto');
+      expect(jsonDecode(file()), isNot(contains('retina')));
+    });
+
+    test('another mode is a bad choice, in the file too', () async {
+      bottle('m9', '{"runtime": "mach9"}');
+      expect(
+        () => setRetina(home, 'm9', 'max'),
+        throwsA(
+          isA<BadChoice>()
+              .having((f) => f.kind, 'kind', ChoiceKind.retina)
+              .having((f) => f.message, 'message', contains('auto, on, off')),
+        ),
+      );
+      bottle('bad', '{"runtime": "mach9", "retina": "max"}');
+      expect(() => bottleSettings(home, 'bad'), throwsA(isA<CorruptData>()));
+    });
+
+    test('a Rosetta bottle has no auto', () {
+      bottle('x86', '{}');
+      expect(
+        () => setRetina(home, 'x86', 'auto'),
+        throwsA(
+          isA<BadChoice>().having(
+            (f) => f.message,
+            'message',
+            'unknown retina mode: auto (on, off)',
+          ),
+        ),
+      );
+    });
+  });
+
+  group('PE7 the native options in settings.json', () {
+    test('they read back sorted by app, and an unknown one is corrupt', () {
+      bottle(
+        'm9',
+        '{"runtime": "mach9", "native": {"steam:220": ["noForceNx"], '
+            '"game.exe": ["largeAddressAware", "cglOpenGl"]}}',
+      );
+      expect(bottleSettings(home, 'm9').native, {
+        'steam:220': ['noForceNx'],
+        'game.exe': ['largeAddressAware', 'cglOpenGl'],
+      });
+      bottle('bad', '{"runtime": "mach9", "native": {"a.exe": ["turbo"]}}');
+      expect(() => bottleSettings(home, 'bad'), throwsA(isA<CorruptData>()));
+    });
+  });
+
   group('MB8 monoMissing', () {
     test('only a Mach9 bottle without mono-2.0', () {
       final m9 = bottle('m9', '{"runtime": "mach9"}');
@@ -423,6 +484,16 @@ void main() {
       expect(monoMissing(home, 'm9'), isFalse);
       bottle('x86');
       expect(monoMissing(home, 'x86'), isFalse);
+    });
+
+    test('PE9 .NET Framework 4 in the prefix is no missing Mono', () {
+      final m9 = bottle('m9', '{"runtime": "mach9"}');
+      final clr = File(
+        '$m9/prefix/drive_c/windows/Microsoft.NET/Framework/v4.0.30319/clr.dll',
+      );
+      expect(monoMissing(home, 'm9'), isTrue);
+      clr.createSync(recursive: true);
+      expect(monoMissing(home, 'm9'), isFalse);
     });
   });
 

@@ -403,6 +403,18 @@ void main() {
     Future<void> open({bool? avx}) async =>
         exitOf(await openApp(home, 'b', key: 'steam:9', avx: avx));
 
+    test('PE6 a Rosetta bottle keeps every variable', () async {
+      fixesSource = fixes([
+        env('D3DM_ENABLE_METALFX', '1'),
+        env('DXVK_ASYNC', '1'),
+      ]);
+      final log = await openApp(home, 'b', key: 'steam:9');
+      await exitOf(log);
+      expect(lastEnv(), containsPair('D3DM_ENABLE_METALFX', '1'));
+      expect(lastEnv(), containsPair('DXVK_ASYNC', '1'));
+      expect(File(log).readAsStringSync(), isNot(contains('# skipped')));
+    });
+
     test('the plan is what runs (E7)', () async {
       Directory('$home/backends/dxmt/wine').createSync(recursive: true);
       fixesSource = fixes(

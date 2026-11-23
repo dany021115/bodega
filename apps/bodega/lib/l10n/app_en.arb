@@ -3438,5 +3438,159 @@
         "example": "0.4.0"
       }
     }
+  },
+  "bottleRetina": "High resolution (Retina)",
+  "@bottleRetina": {
+    "description": "Label of the dropdown in a Native engine bottle's Settings that chooses Wine's retina mode: whether games draw at the display's full pixel density."
+  },
+  "bottleRetinaNote": "Follow the display turns it on when the main display is a Retina one, as Mach9 does. It applies from the next launch.",
+  "@bottleRetinaNote": {
+    "description": "Line under the retina dropdown of a Native engine bottle. 'Follow the display' is the dropdown's first option (retinaAuto), quoted as the user sees it. Mach9 is the engine's name."
+  },
+  "retinaAuto": "Follow the display",
+  "@retinaAuto": {
+    "description": "Option of the retina dropdown: the mode follows the main display's density, as Mach9 does."
+  },
+  "retinaOn": "On",
+  "@retinaOn": {
+    "description": "Option of the retina dropdown: always on."
+  },
+  "retinaOff": "Off",
+  "@retinaOff": {
+    "description": "Option of the retina dropdown: always off."
+  },
+  "appMenuNativeOptions": "Native engine options…",
+  "@appMenuNativeOptions": {
+    "description": "Item of an app's menu, for apps of a Native engine bottle: opens the dialog with the app's Native engine options."
+  },
+  "nativeOptionsTitle": "Native engine options for {title}",
+  "@nativeOptionsTitle": {
+    "description": "Title of the dialog with one app's Native engine options.",
+    "placeholders": {
+      "title": {
+        "type": "String",
+        "example": "Half-Life"
+      }
+    }
+  },
+  "nativeOptionsNote": "They apply from the game's next launch. Off leaves the choice to Mach9.",
+  "@nativeOptionsNote": {
+    "description": "Line at the bottom of the Native engine options dialog. Mach9 is the engine's name."
+  },
+  "nativeNoForceNx": "For old launchers",
+  "@nativeNoForceNx": {
+    "description": "Name of the option that turns off Mach9's forced no-execute for this app, a switch of the Native engine options dialog."
+  },
+  "nativeNoForceNxHint": "Turn it on when a launcher or a settings window closes as soon as it opens: many made with Visual Studio 2003 need it.",
+  "@nativeNoForceNxHint": {
+    "description": "Line under the switch named nativeNoForceNx: when to turn it on."
+  },
+  "nativeLargeAddressAware": "4 GB of memory",
+  "@nativeLargeAddressAware": {
+    "description": "Name of the option that gives a 32-bit game the 4 GB address space, a switch of the Native engine options dialog."
+  },
+  "nativeLargeAddressAwareHint": "Turn it on when a 32-bit game runs out of memory or closes after a while.",
+  "@nativeLargeAddressAwareHint": {
+    "description": "Line under the switch named nativeLargeAddressAware: when to turn it on."
+  },
+  "nativeNotDpiAware": "Ignore Windows scaling",
+  "@nativeNotDpiAware": {
+    "description": "Name of the option that turns Windows' scaling off for this app, a switch of the Native engine options dialog."
+  },
+  "nativeNotDpiAwareHint": "Turn it on when the game's menus come out tiny or cut off.",
+  "@nativeNotDpiAwareHint": {
+    "description": "Line under the switch named nativeNotDpiAware: when to turn it on."
+  },
+  "nativeCglOpenGl": "macOS's own OpenGL",
+  "@nativeCglOpenGl": {
+    "description": "Name of the option that uses macOS's OpenGL instead of EGL, a switch of the Native engine options dialog."
+  },
+  "nativeCglOpenGlHint": "Turn it on when an OpenGL game shows nothing or does not start.",
+  "@nativeCglOpenGlHint": {
+    "description": "Line under the switch named nativeCglOpenGl: when to turn it on."
+  },
+  "nativeVulkanWined3d": "wined3d with Vulkan",
+  "@nativeVulkanWined3d": {
+    "description": "Name of the option that makes wined3d draw with Vulkan, a switch of the Native engine options dialog."
+  },
+  "nativeVulkanWined3dHint": "For DirectX 8, DirectDraw and games on the wine graphics: wined3d draws with Vulkan instead of OpenGL.",
+  "@nativeVulkanWined3dHint": {
+    "description": "Line under the switch named nativeVulkanWined3d: when to turn it on."
+  },
+  "catalogEngine": "Engine",
+  "@catalogEngine": {
+    "description": "Label of the dropdown on a catalog app's page that chooses the engine of the bottle of its own the app installs into."
+  },
+  "engineCheckNoBottle": "Create a bottle on the Native engine to check it.",
+  "@engineCheckNoBottle": {
+    "description": "Line on the Native engine's card when no ready bottle uses it, so its check can't run."
+  },
+  "bottleMoveToNative": "Move to the Native engine…",
+  "@bottleMoveToNative": {
+    "description": "Button in a Rosetta bottle's panel, shown once the Native engine is installed: moves the bottle to it."
+  },
+  "bottleMoveToNativeNote": "Its games run without Rosetta, so they use less of the processor.",
+  "@bottleMoveToNativeNote": {
+    "description": "Line above the button that moves a Rosetta bottle to the Native engine: why one would."
+  },
+  "bottleMoveTitle": "Move {bottle} to the Native engine?",
+  "@bottleMoveTitle": {
+    "description": "Title of the confirmation before a bottle moves to the Native engine.",
+    "placeholders": {
+      "bottle": {
+        "type": "String",
+        "example": "Games"
+      }
+    }
+  },
+  "bottleMoveMessage": "Its programs, files and settings go to a new Native engine bottle named {bottle}, and the Rosetta one is deleted at the end. Its installed runtimes and its programs' registry don't move: install the runtimes again in Dependencies. If anything fails, the Rosetta bottle stays as it is.",
+  "@bottleMoveMessage": {
+    "description": "Body of the confirmation before a bottle moves to the Native engine: what moves, what is deleted and what is lost.",
+    "placeholders": {
+      "bottle": {
+        "type": "String",
+        "example": "Games"
+      }
+    }
+  },
+  "bottleMoveAction": "Move",
+  "@bottleMoveAction": {
+    "description": "Button of the confirmation that moves a bottle to the Native engine."
+  },
+  "moveStepCreating": "Making the Native engine bottle…",
+  "@moveStepCreating": {
+    "description": "Step of moving a bottle to the Native engine: its new bottle is being made, with Wine Mono."
+  },
+  "moveStepCopying": "Copying programs, files and settings…",
+  "@moveStepCopying": {
+    "description": "Step of moving a bottle to the Native engine: what its programs and user wrote is being copied."
+  },
+  "moveStepFinishing": "Deleting the Rosetta bottle…",
+  "@moveStepFinishing": {
+    "description": "Step of moving a bottle to the Native engine: the old Rosetta bottle is being deleted and the new one takes its name."
+  },
+  "bottleMoved": "{bottle} runs on the Native engine now.",
+  "@bottleMoved": {
+    "description": "Toast once a bottle has moved to the Native engine.",
+    "placeholders": {
+      "bottle": {
+        "type": "String",
+        "example": "Games"
+      }
+    }
+  },
+  "bottleMovedReinstall": "{bottle} runs on the Native engine now. Install again in Dependencies: {runtimes}.",
+  "@bottleMovedReinstall": {
+    "description": "Toast once a bottle has moved to the Native engine and it had runtimes installed, which don't move. runtimes lists them as Bodega names them, joined by commas.",
+    "placeholders": {
+      "bottle": {
+        "type": "String",
+        "example": "Games"
+      },
+      "runtimes": {
+        "type": "String",
+        "example": "vcrun2008 x86, dotnet48 all"
+      }
+    }
   }
 }

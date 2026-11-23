@@ -1,7 +1,7 @@
 import 'package:bodega/l10n/l10n.dart';
 import 'package:flutter/material.dart';
 
-enum AppMenuAction { open, options, hud, library, hide }
+enum AppMenuAction { open, options, hud, native, library, hide }
 
 /// The widest a popup menu gets.
 const double _menuWidth = 280;
@@ -29,6 +29,9 @@ Future<AppMenuAction?> showAppMenu(
   BuildContext anchor, {
   required bool inLibrary,
   required bool hud,
+
+  /// The app's bottle runs on the Native engine: its options get an item.
+  bool native = false,
 }) {
   final l10n = anchor.l10n;
 
@@ -53,6 +56,11 @@ Future<AppMenuAction?> showAppMenu(
           ],
         ),
       ),
+      if (native)
+        PopupMenuItem(
+          value: AppMenuAction.native,
+          child: Text(l10n.appMenuNativeOptions),
+        ),
       PopupMenuItem(
         value: AppMenuAction.library,
         child: Text(inLibrary ? l10n.libraryRemove : l10n.libraryAdd),

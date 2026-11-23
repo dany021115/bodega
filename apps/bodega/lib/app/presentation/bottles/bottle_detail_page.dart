@@ -10,6 +10,7 @@ import 'package:bodega/app/presentation/bottles/widgets/bottle_column.dart';
 import 'package:bodega/app/presentation/bottles/widgets/bottle_empty_apps.dart';
 import 'package:bodega/app/presentation/bottles/widgets/library_toggle.dart';
 import 'package:bodega/app/presentation/bottles/widgets/run_options_dialog.dart';
+import 'package:bodega/app/presentation/library/widgets/native_options_dialog.dart';
 import 'package:bodega/app/router.dart';
 import 'package:bodega/app/shared/graphics_of.dart';
 import 'package:bodega/app/shared/text/backend_text.dart';
@@ -86,6 +87,7 @@ class BottleDetailView extends StatelessWidget {
       anchor,
       inLibrary: app.inLibrary,
       hud: app.hud,
+      native: app.nativeEngine,
     );
     if (action == null || !anchor.mounted) return;
 
@@ -106,6 +108,11 @@ class BottleDetailView extends StatelessWidget {
         anchor.read<BottleDetailBloc>().add(
           BottleDetailEvent.setHud(app.key, !app.hud),
         );
+      case AppMenuAction.native:
+        final bloc = anchor.read<BottleDetailBloc>();
+        await showNativeOptions(anchor, app);
+        // The bottle's own list of apps holds the options too.
+        bloc.add(BottleDetailEvent.load(detail.name));
       case AppMenuAction.library:
         _setInLibrary(anchor, app);
       case AppMenuAction.hide:
@@ -324,84 +331,99 @@ class BottleDetailView extends StatelessWidget {
         context.read<BottleDetailBloc>().add(BottleDetailEvent.load(name));
         context.read<DependenciesBloc>().add(DependenciesEvent.load(name));
       },
-      child: Scaffold(
-        body: BlocConsumer<BottleDetailBloc, BottleDetailState>(
-          listenWhen: (previous, current) =>
-              previous.deleted != current.deleted ||
-              previous.renamedTo != current.renamedTo ||
-              (current.error != null && previous.error != current.error),
-          listener: (context, state) {
-            if (state.deleted) {
-              context.read<BottlesBloc>().add(const BottlesEvent.load());
-              context.read<LibraryBloc>().add(const LibraryEvent.load());
-              RouterManager.go(AppRoute.library, context: context);
-            } else if (state.renamedTo case final newName?) {
-              context.read<BottlesBloc>().add(const BottlesEvent.load());
-              context.read<LibraryBloc>().add(const LibraryEvent.load());
-              RouterManager.go(
-                AppRoute.bottleDetail,
-                params: {'name': newName},
-                context: context,
-              );
-            } else if (state.error case final error?) {
-              AppToast.error(context, error.localized(context.l10n));
-            }
-          },
-          builder: (context, state) {
-            if (state.isLoading) return const CustomLoading();
-            final detail = state.detail;
-            if (detail == null) {
-              return EmptyState(
-                icon: Icons.wine_bar_rounded,
-                title: context.l10n.bottleDetailOpenFailed,
-                message: state.error?.localized(context.l10n) ?? name,
-                actionLabel: context.l10n.navBackToLibrary,
-                onAction: () =>
-                    RouterManager.go(AppRoute.library, context: context),
-              );
-            }
+      child: BlocListener<BottleDetailBloc, BottleDetailState>(
+        // PA8: a move ended well; its bottle is another kind now.
+        listenWhen: (previous, current) => previous.moves != current.moves,
+        listener: (context, state) {
+          final l10n = context.l10n;
+          context.read<BottlesBloc>().add(const BottlesEvent.load());
+          context.read<LibraryBloc>().add(const LibraryEvent.load());
+          AppToast.success(
+            context,
+            state.reinstall.isEmpty
+                ? l10n.bottleMoved(name)
+                : l10n.bottleMovedReinstall(name, state.reinstall.join(', ')),
+          );
+        },
+        child: Scaffold(
+          body: BlocConsumer<BottleDetailBloc, BottleDetailState>(
+            listenWhen: (previous, current) =>
+                previous.deleted != current.deleted ||
+                previous.renamedTo != current.renamedTo ||
+                (current.error != null && previous.error != current.error),
+            listener: (context, state) {
+              if (state.deleted) {
+                context.read<BottlesBloc>().add(const BottlesEvent.load());
+                context.read<LibraryBloc>().add(const LibraryEvent.load());
+                RouterManager.go(AppRoute.library, context: context);
+              } else if (state.renamedTo case final newName?) {
+                context.read<BottlesBloc>().add(const BottlesEvent.load());
+                context.read<LibraryBloc>().add(const LibraryEvent.load());
+                RouterManager.go(
+                  AppRoute.bottleDetail,
+                  params: {'name': newName},
+                  context: context,
+                );
+              } else if (state.error case final error?) {
+                AppToast.error(context, error.localized(context.l10n));
+              }
+            },
+            builder: (context, state) {
+              if (state.isLoading) return const CustomLoading();
+              final detail = state.detail;
+              if (detail == null) {
+                return EmptyState(
+                  icon: Icons.wine_bar_rounded,
+                  title: context.l10n.bottleDetailOpenFailed,
+                  message: state.error?.localized(context.l10n) ?? name,
+                  actionLabel: context.l10n.navBackToLibrary,
+                  onAction: () =>
+                      RouterManager.go(AppRoute.library, context: context),
+                );
+              }
 
-            final column = BottleColumn(
-              detail: detail,
-              isBusy: state.isBusy,
-              isOpen: isOpen,
-              hints: hints,
-            );
+              final column = BottleColumn(
+                detail: detail,
+                isBusy: state.isBusy,
+                isOpen: isOpen,
+                hints: hints,
+              );
 
-            return LayoutBuilder(
-              builder: (context, constraints) {
-                if (constraints.maxWidth < wideFrom) {
-                  return ListView(
+              return LayoutBuilder(
+                builder: (context, constraints) {
+                  if (constraints.maxWidth < wideFrom) {
+                    return ListView(
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.all(AppSpacing.xxl),
+                          child: _center(context, detail, isBusy: state.isBusy),
+                        ),
+                        const SizedBox(height: AppSpacing.xl),
+                        _panel(context, column, wide: false),
+                        const SizedBox(height: AppSpacing.xxl),
+                      ],
+                    );
+                  }
+
+                  return Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Padding(
-                        padding: const EdgeInsets.all(AppSpacing.xxl),
-                        child: _center(context, detail, isBusy: state.isBusy),
+                      Expanded(
+                        child: SingleChildScrollView(
+                          padding: const EdgeInsets.all(AppSpacing.xxl),
+                          child: _center(context, detail, isBusy: state.isBusy),
+                        ),
                       ),
-                      const SizedBox(height: AppSpacing.xl),
-                      _panel(context, column, wide: false),
-                      const SizedBox(height: AppSpacing.xxl),
+                      SizedBox(
+                        width: panelWidth,
+                        child: _panel(context, column, wide: true),
+                      ),
                     ],
                   );
-                }
-
-                return Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Expanded(
-                      child: SingleChildScrollView(
-                        padding: const EdgeInsets.all(AppSpacing.xxl),
-                        child: _center(context, detail, isBusy: state.isBusy),
-                      ),
-                    ),
-                    SizedBox(
-                      width: panelWidth,
-                      child: _panel(context, column, wide: true),
-                    ),
-                  ],
-                );
-              },
-            );
-          },
+                },
+              );
+            },
+          ),
         ),
       ),
     );

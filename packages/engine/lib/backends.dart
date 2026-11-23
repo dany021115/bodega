@@ -470,7 +470,17 @@ typedef BottleSettings = ({
 
   /// What the user said of each app: `works`, `playable` or `broken` (G6).
   Map<String, String> verdicts,
+
+  /// A Mach9 bottle's retina mode, one of [retinaModes] (PE2); Rosetta
+  /// bottles use [highRes].
+  String retina,
+
+  /// The [NativeOption] names each app key has on, sorted (PE7).
+  Map<String, List<String>> native,
 });
+
+/// What [setRetina] admits: `auto` follows the main display (PE3).
+const retinaModes = ['auto', 'on', 'off'];
 
 /// What [setGameVerdict] admits.
 const gameVerdicts = ['works', 'playable', 'broken'];
@@ -498,6 +508,8 @@ BottleSettings get _defaults => (
   runtime: RuntimeKind.bodega,
   configOff: {},
   verdicts: {},
+  retina: 'auto',
+  native: {},
 );
 
 /// [settings] with these fields changed: records have no `copyWith`.
@@ -519,6 +531,8 @@ BottleSettings _with(
   RuntimeKind? runtime,
   Set<String>? configOff,
   Map<String, String>? verdicts,
+  String? retina,
+  Map<String, List<String>>? native,
 }) => (
   backend: backend ?? settings.backend,
   sync: sync ?? settings.sync,
@@ -536,6 +550,8 @@ BottleSettings _with(
   runtime: runtime ?? settings.runtime,
   configOff: configOff ?? settings.configOff,
   verdicts: verdicts ?? settings.verdicts,
+  retina: retina ?? settings.retina,
+  native: native ?? settings.native,
 );
 
 /// `bottles/<b>/settings.json` (S1, A1, A2, M8). A missing file or field means
@@ -549,6 +565,7 @@ BottleSettings _settings(String dir) {
       env: {},
       configOff: {},
       verdicts: {},
+      native: {},
     );
   }
   try {
@@ -580,12 +597,22 @@ BottleSettings _settings(String dir) {
       verdicts: Map<String, String>.from(
         (json['verdicts'] ?? const {}) as Map,
       ),
+      retina: (json['retina'] ?? 'auto') as String,
+      native: {
+        for (final MapEntry(:key, :value)
+            in ((json['native'] ?? const {}) as Map).entries)
+          key as String: List<String>.from(value as List),
+      },
     );
     _checkStored(settings.backend);
     _checkSync(settings.sync);
     _checkGpu(settings.gpu);
     _checkWindows(settings.windows);
     settings.verdicts.values.forEach(_checkVerdict);
+    _checkRetina(settings.retina);
+    for (final names in settings.native.values) {
+      names.forEach(NativeOption.values.byName);
+    }
     for (final program in settings.programs.values) {
       if (program.backend case final backend?) _checkStored(backend);
     }
@@ -599,6 +626,10 @@ void _checkVerdict(String verdict) {
   if (!gameVerdicts.contains(verdict)) {
     throw BadChoice(ChoiceKind.verdict, verdict);
   }
+}
+
+void _checkRetina(String mode) {
+  if (!retinaModes.contains(mode)) throw BadChoice(ChoiceKind.retina, mode);
 }
 
 void _checkWindows(String version) {
@@ -644,6 +675,12 @@ void _saveSettings(String dir, BottleSettings settings) {
     if (settings.configOff.isNotEmpty)
       'configOff': [...settings.configOff]..sort(),
     if (settings.verdicts.isNotEmpty) 'verdicts': settings.verdicts,
+    if (settings.retina != 'auto') 'retina': settings.retina,
+    if (settings.native.isNotEmpty)
+      'native': {
+        for (final key in settings.native.keys.toList()..sort())
+          key: settings.native[key],
+      },
   });
 }
 
@@ -794,6 +831,9 @@ Future<bool> setBottleUser(String home, String name, String? user) async {
 /// the bottle first. Returns whether it did.
 Future<bool> setHighRes(String home, String name, bool value) async {
   final dir = _existing(home, name);
+  if (_bottleRuntimeIn(dir) == RuntimeKind.mach9) {
+    return setRetina(home, name, value ? 'on' : 'off');
+  }
   if (_settings(dir).highRes == value) return false;
   await stopBottle(home, name);
   for (final args in hostPlatform.highResRegistry(value)) {
@@ -809,6 +849,25 @@ Future<bool> setHighRes(String home, String name, bool value) async {
     if (code != 0) throw WineToolFailed(WineTool.reg, code, log);
   }
   _saveSettings(dir, _with(_settings(dir), highRes: value));
+  return true;
+}
+
+/// A bottle's retina mode (PE2). A Mach9 bottle keeps it, and its next launch
+/// puts the values in place (PE4), so nothing stops. A Rosetta bottle has
+/// [setHighRes]: `on` and `off` are that, and `auto` is not offered. Returns
+/// whether it changed.
+Future<bool> setRetina(String home, String name, String mode) async {
+  final dir = _existing(home, name);
+  _checkRetina(mode);
+  if (_bottleRuntimeIn(dir) != RuntimeKind.mach9) {
+    if (mode == 'auto') {
+      throw BadChoice(ChoiceKind.retina, mode, const ['on', 'off']);
+    }
+    return setHighRes(home, name, mode == 'on');
+  }
+  final settings = _settings(dir);
+  if (settings.retina == mode) return false;
+  _saveSettings(dir, _with(settings, retina: mode));
   return true;
 }
 
