@@ -147,6 +147,9 @@ LogHint logHintOf(engine.LogHint hint) => switch (hint) {
   engine.LogHint.otherServer => LogHint.otherServer,
   engine.LogHint.cannotOpen => LogHint.cannotOpen,
   engine.LogHint.fixNotApplied => LogHint.fixNotApplied,
+  engine.LogHint.monoMissing => LogHint.monoMissing,
+  engine.LogHint.rulesIgnored => LogHint.rulesIgnored,
+  engine.LogHint.loaderNotSigned => LogHint.loaderNotSigned,
 };
 
 /// How the engine keeps [program]: `C:\\X\\a.exe` and a path inside the

@@ -105,6 +105,12 @@ class _SideBarState extends State<SideBar> {
                 AppRoute.library,
                 '/library',
               ),
+              _section(
+                Icons.tune_rounded,
+                l10n.navGames,
+                AppRoute.games,
+                '/games',
+              ),
               // The other place that holds games, on a host that opens them.
               // A generic gamepad: never a Nintendo mark.
               if (caps.switchGames)

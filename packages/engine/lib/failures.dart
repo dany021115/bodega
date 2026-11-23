@@ -46,7 +46,8 @@ final class BottleNotReady extends EngineFailure {
       'folder (bottles/$bottle) and bodega create $bottle';
 }
 
-/// The bottle runs, so it cannot be renamed.
+/// The bottle runs, so it cannot be renamed, nor take a runtime or a change to
+/// a game's settings file.
 final class BottleOpen extends EngineFailure {
   const BottleOpen(this.bottle);
 
@@ -180,6 +181,52 @@ final class ChecksumMismatch extends EngineFailure {
   String get message => 'wrong checksum for $file';
 }
 
+/// A runtime's installer exited well, but Microsoft's DLL is not in the
+/// bottle (D6).
+final class DependencyNotInstalled extends EngineFailure {
+  const DependencyNotInstalled(this.id, this.arch, this.log);
+
+  final String id;
+
+  /// `x86`, `x64` or `all`.
+  final String arch;
+  final String log;
+
+  @override
+  String get message =>
+      "the install of $id ($arch) finished, but the vendor's files are not "
+      'in the bottle: see $log';
+}
+
+/// The install of runtime [id] for [arch] ran past its time limit, so the
+/// bottle was stopped (design §4).
+final class InstallTimedOut extends EngineFailure {
+  const InstallTimedOut(this.id, this.arch, this.log);
+
+  final String id;
+
+  /// `x86`, `x64` or `all`.
+  final String arch;
+  final String log;
+
+  @override
+  String get message =>
+      'the install of $id ($arch) ran past its time limit, so the bottle was '
+      'stopped: see $log';
+}
+
+/// A link on the way to a game's settings file leads outside the bottle and
+/// the home folder, so Bodega does not write there (D9).
+final class UnexpectedLink extends EngineFailure {
+  const UnexpectedLink(this.path);
+
+  final String path;
+
+  @override
+  String get message =>
+      'a link in $path leads outside the bottle and the home folder';
+}
+
 /// An archive or image without a file it must hold.
 final class IncompleteArchive extends EngineFailure {
   const IncompleteArchive(this.archive, this.missing);
@@ -272,24 +319,104 @@ final class BackendNotInstalled extends EngineFailure {
 
 /// A [value] outside what [kind] admits.
 final class BadChoice extends EngineFailure {
-  const BadChoice(this.kind, this.value);
+  const BadChoice(this.kind, this.value, [this.choices]);
 
   final ChoiceKind kind;
   final String value;
+
+  /// What was admitted where that depends on more than [kind], such as the
+  /// graphics names of a bottle's runtime; null for [kind]'s own list.
+  final List<String>? choices;
 
   @override
   String get message => 'unknown ${kind.english}: $value ($_choices)';
 
   /// What [kind] admits on this host, or the command that lists it.
-  String get _choices => switch (kind) {
-    ChoiceKind.backend => ['auto', ...backendNames].join(', '),
-    ChoiceKind.testBackend => backendNames.join(', '),
-    ChoiceKind.gpu => 'auto, discrete',
-    ChoiceKind.sync => hostPlatform.capabilities.syncModes.join(', '),
-    ChoiceKind.windows => windowsVersions.join(', '),
-    ChoiceKind.catalogApp => 'bodega catalog list',
-    ChoiceKind.fix => 'bodega fix list',
+  String get _choices =>
+      choices?.join(', ') ??
+      switch (kind) {
+        ChoiceKind.backend => ['auto', ...backendNames].join(', '),
+        ChoiceKind.testBackend => backendNames.join(', '),
+        ChoiceKind.gpu => 'auto, discrete',
+        ChoiceKind.sync => hostPlatform.capabilities.syncModes.join(', '),
+        ChoiceKind.windows => windowsVersions.join(', '),
+        ChoiceKind.catalogApp => 'bodega catalog list',
+        ChoiceKind.fix => 'bodega fix list',
+        ChoiceKind.runtime => RuntimeKind.values.map((k) => k.name).join(', '),
+        ChoiceKind.dependency => 'bodega deps list <bottle>',
+        ChoiceKind.verdict => gameVerdicts.join(', '),
+        ChoiceKind.retina => retinaModes.join(', '),
+      };
+}
+
+/// A Mach9 bottle, or a Mach9 install or creation, while `runtimes/mach9` is
+/// missing or dangling (MR10).
+final class RuntimeNotInstalled extends EngineFailure {
+  const RuntimeNotInstalled(this.runtime);
+
+  final RuntimeKind runtime;
+
+  @override
+  String get message => switch (runtime) {
+    RuntimeKind.mach9 =>
+      'the native engine (Mach9) is not installed: bodega runtime install '
+          'mach9',
+    RuntimeKind.bodega =>
+      'no runtime installed: bodega install <engine.tar.gz> <hostlibs.tar.gz>',
   };
+}
+
+/// [runtime] cannot run on this host (MR2).
+final class RuntimeUnavailable extends EngineFailure {
+  const RuntimeUnavailable(this.runtime, this.reason);
+
+  final RuntimeKind runtime;
+  final RuntimeBlock reason;
+
+  @override
+  String get message =>
+      '${runtime.english} is not available: ${reason.english}';
+}
+
+/// A copy of Mach9 whose signature, team or bundle id is not its
+/// developer's, or that changed during the copy (MR5, MR6).
+final class RuntimeNotTrusted extends EngineFailure {
+  const RuntimeNotTrusted(this.source, this.reason);
+
+  final String source;
+
+  /// What failed, as the check or codesign put it.
+  final String reason;
+
+  @override
+  String get message =>
+      '$source is not signed by the developer of Mach9, so Bodega will not '
+      'use it: $reason';
+}
+
+/// A Mach9 older than the first version Bodega works with (MR5).
+final class RuntimeTooOld extends EngineFailure {
+  const RuntimeTooOld(this.version, this.minimum);
+
+  final String version, minimum;
+
+  @override
+  String get message =>
+      'Mach9 $version is older than $minimum, the first version Bodega works '
+      'with';
+}
+
+/// A graphics name of the other runtime kind (MG3).
+final class BackendNotForRuntime extends EngineFailure {
+  const BackendNotForRuntime(this.backend, this.runtime);
+
+  final String backend;
+  final RuntimeKind runtime;
+
+  @override
+  String get message =>
+      '$backend does not work with ${runtime.english}: choose auto, '
+      '${backendNamesFor(runtime).join(', ')}';
 }
 
 /// No D3DMetal at [source]: a Game Porting Toolkit dmg or a folder.
@@ -440,7 +567,10 @@ enum WineTool {
 
   /// A catalog entry's installer, or msiexec for an MSI.
   installer('the installer'),
-  winecfg('winecfg');
+  winecfg('winecfg'),
+
+  /// msiexec installing Wine Mono into a Mach9 bottle.
+  mono("Wine Mono's installer");
 
   const WineTool(this.english);
 
@@ -462,7 +592,19 @@ enum ChoiceKind {
   catalogApp('catalog app'),
 
   /// A fix's id or its Steam app id.
-  fix('fix');
+  fix('fix'),
+
+  /// A bottle's runtime kind: `bodega` or `mach9`.
+  runtime('runtime'),
+
+  /// A runtime of [dependencyTable] and an arch, `x86` or `x64`.
+  dependency('dependency'),
+
+  /// What the user said of a game: one of [gameVerdicts].
+  verdict('verdict'),
+
+  /// A Mach9 bottle's retina mode: one of [retinaModes].
+  retina('retina mode');
 
   const ChoiceKind(this.english);
 

@@ -13,4 +13,7 @@ enum WineTool {
 
   /// Sets a bottle's Windows version.
   winecfg,
+
+  /// Wine Mono's installer, msiexec in a native bottle.
+  mono,
 }

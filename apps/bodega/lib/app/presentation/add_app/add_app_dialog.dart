@@ -27,16 +27,19 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 XTypeGroup _programs(AppL10n l10n) =>
     XTypeGroup(label: l10n.commonProgramsFileType, extensions: ['exe', 'EXE']);
 
-Future<void> showAddAppDialog(BuildContext context, {required String bottle}) =>
-    showDialog<void>(
-      context: context,
-      // An installer may be running: only the dialog's own buttons close it.
-      barrierDismissible: false,
-      builder: (_) => BlocProvider(
-        create: (_) => getIt<AddAppBloc>()..add(AddAppEvent.load(bottle)),
-        child: const AddAppDialog(),
-      ),
-    );
+/// Returns the key of the app it added, or null.
+Future<String?> showAddAppDialog(
+  BuildContext context, {
+  required String bottle,
+}) => showDialog<String>(
+  context: context,
+  // An installer may be running: only the dialog's own buttons close it.
+  barrierDismissible: false,
+  builder: (_) => BlocProvider(
+    create: (_) => getIt<AddAppBloc>()..add(AddAppEvent.load(bottle)),
+    child: const AddAppDialog(),
+  ),
+);
 
 enum _Tab { popular, file }
 
@@ -100,7 +103,7 @@ class _AddAppDialogState extends State<AddAppDialog> {
           : l10n.addAppAddedToBottle(title),
     );
     // Stays in the bottle: no navigation.
-    Navigator.of(context).pop();
+    Navigator.of(context).pop(state.addedKey);
   }
 
   @override

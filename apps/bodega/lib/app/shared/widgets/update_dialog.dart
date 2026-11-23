@@ -98,7 +98,7 @@ class UpdateDialog extends StatelessWidget {
               TextButton(
                 onPressed: () {
                   Navigator.of(context).pop();
-                  bloc.add(const UpdateEvent.skip());
+                  bloc.add(const UpdateEvent.dismiss());
                 },
                 child: Text(l10n.updateNotNow),
               ),

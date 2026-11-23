@@ -628,6 +628,90 @@ void main() {
     );
 
     blocTest<SwitchBloc, SwitchState>(
+      'keys the user picked are copied, the status is read again, and a '
+      'notice counts them',
+      build: () {
+        when(() => repository.installKeys(['/k/prod.keys', '/k/title.keys']))
+            .thenAnswer((_) async => right(['prod.keys', 'title.keys']));
+        when(() => repository.status()).thenAnswer((_) async => right(_status));
+        return SwitchBloc(repository);
+      },
+      seed: () => const SwitchState(isLoading: false, status: _missing),
+      act: (bloc) => bloc.add(
+        const SwitchEvent.installKeys(['/k/prod.keys', '/k/title.keys']),
+      ),
+      expect: () => [
+        const SwitchState(
+          isLoading: false,
+          status: _status,
+          notice: SwitchNotice.keysAdded('Ryubing', 2),
+          noticeId: 1,
+        ),
+      ],
+    );
+
+    blocTest<SwitchBloc, SwitchState>(
+      'keys with no .keys file say why, and the status stays',
+      build: () {
+        when(() => repository.installKeys(['/k/notes.txt'])).thenAnswer(
+          (_) async => left(const AppError.noSwitchKeys('/k/notes.txt')),
+        );
+        return SwitchBloc(repository);
+      },
+      seed: () => const SwitchState(isLoading: false, status: _missing),
+      act: (bloc) => bloc.add(const SwitchEvent.installKeys(['/k/notes.txt'])),
+      expect: () => [
+        const SwitchState(
+          isLoading: false,
+          status: _missing,
+          error: AppError.noSwitchKeys('/k/notes.txt'),
+        ),
+      ],
+      verify: (_) => verifyNever(() => repository.status()),
+    );
+
+    blocTest<SwitchBloc, SwitchState>(
+      "the firmware opens the emulator's installer and a notice says so; the "
+      'status is read when Bodega comes back',
+      build: () {
+        when(() => repository.installFirmware('/f/fw.zip'))
+            .thenAnswer((_) async => right(unit));
+        return SwitchBloc(repository);
+      },
+      seed: () => const SwitchState(isLoading: false, status: _picked),
+      act: (bloc) => bloc.add(const SwitchEvent.installFirmware('/f/fw.zip')),
+      expect: () => [
+        const SwitchState(
+          isLoading: false,
+          status: _picked,
+          notice: SwitchNotice.firmwareOpened('Ryubing'),
+          noticeId: 1,
+        ),
+      ],
+      verify: (_) => verifyNever(() => repository.status()),
+    );
+
+    blocTest<SwitchBloc, SwitchState>(
+      'a firmware with no emulator says why',
+      build: () {
+        when(() => repository.installFirmware('/f/fw.zip')).thenAnswer(
+          (_) async =>
+              left(const AppError.noEmulator('Ryubing', 'Ryujinx.app')),
+        );
+        return SwitchBloc(repository);
+      },
+      seed: () => const SwitchState(isLoading: false, status: _missing),
+      act: (bloc) => bloc.add(const SwitchEvent.installFirmware('/f/fw.zip')),
+      expect: () => [
+        const SwitchState(
+          isLoading: false,
+          status: _missing,
+          error: AppError.noEmulator('Ryubing', 'Ryujinx.app'),
+        ),
+      ],
+    );
+
+    blocTest<SwitchBloc, SwitchState>(
       'full screen off is saved, and the status shows it',
       build: () {
         when(() => repository.setFullscreen(false))

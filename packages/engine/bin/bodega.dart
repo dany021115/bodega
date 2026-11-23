@@ -3,41 +3,6 @@ import 'dart:io';
 
 import 'package:engine/engine.dart';
 
-const _usage = '''
-usage: bodega install <engine.tar.gz> <hostlibs.tar.gz>
-       bodega create <bottle>
-       bodega run [--backend <b>] [--hud] <bottle> <program> [args…]
-       bodega wait <bottle>
-       bodega stop <bottle>
-       bodega rename <bottle> <new-name>
-       bodega library <bottle> <key> on|off
-       bodega hud <bottle> <key> on|off
-       bodega backend list
-       bodega backend install <dxmt|dxvk> [tarball]
-       bodega backend import d3dmetal <folder>
-       bodega backend set <bottle> <backend> [--exe <name.exe>]
-       bodega backend test <bottle> <backend>
-       bodega sync <bottle> <msync|none>
-       bodega option <bottle> gpu auto|discrete
-       bodega option <bottle> gamemode on|off
-       bodega sdl install [file.dmg]
-       bodega pads
-       bodega catalog list [text]
-       bodega catalog show <id>
-       bodega catalog install <id> [bottle]
-       bodega fix list [text]
-       bodega fix show <id|steam-appid>
-       bodega apps
-       bodega open [--backend <b>] [--hud] <bottle> [key]
-       bodega switch status
-       bodega switch emulator <Ryujinx.app>|auto
-       bodega switch option fullscreen|headless on|off
-       bodega switch add <file|app|folder>…
-       bodega switch list
-       bodega switch remove <game>
-       bodega switch open <game>
-       bodega switch stop <game>''';
-
 Future<void> main(List<String> args) async {
   final Future<int> Function(String home)? verb = switch (args) {
     ['install', final engine, final hostlibs] => (home) async {
@@ -73,11 +38,20 @@ Future<void> main(List<String> args) async {
       }
       return report.issues.isEmpty ? 0 : 1;
     },
-    ['create', final bottle] => (home) async {
+    ['create', ...final rest] when parseCreate(rest) != null => (home) async {
+      final (:runtime, :bottle) = parseCreate(rest)!;
       final logs = Directory('${bottleDir(home, bottle)}/logs');
       final fresh = !logs.existsSync();
       try {
-        stdout.writeln('log: ${await createBottle(home, bottle)}');
+        final log = await createBottle(
+          home,
+          bottle,
+          runtime: runtime,
+          onStep: runtime == RuntimeKind.mach9
+              ? (step) => stdout.writeln(step.english)
+              : null,
+        );
+        stdout.writeln('log: $log');
         return 0;
       } finally {
         // Also when create fails: a new bottle has just its wineboot log.
@@ -110,7 +84,7 @@ Future<void> main(List<String> args) async {
               home,
               open.bottle,
             ).where((app) => app.key == open.key).firstOrNull;
-      final fix = app == null ? null : fixForApp(app.key);
+      final fix = app == null ? null : gameFor(app)?.fix;
       if (fix != null) {
         stdout.writeln(
           'fix: ${fix.title}, ${_stepsHere(fix)}'
@@ -172,12 +146,31 @@ Future<void> main(List<String> args) async {
       _showFix(gameFix(id));
       return 0;
     },
-    ['catalog', 'install', final id, ...final rest] when rest.length < 2 =>
+    ['fix', 'apply', final bottle, final id] => (home) async {
+      await applyFixSettings(home, bottle, id);
+      stdout.writeln('applied: ${gameFix(id).title}');
+      return 0;
+    },
+    ['game', 'show', final bottle, final key] => (home) async {
+      _showPlan(await gamePlan(home, bottle, key));
+      return 0;
+    },
+    ['game', 'use', final bottle, final key, final state]
+        when state == 'on' || state == 'off' =>
       (home) async {
+        await setGameConfig(home, bottle, key, on: state == 'on');
+        stdout.writeln('$state: $key');
+        return 0;
+      },
+    ['deps', ...final rest] => depsVerb(rest, stdout),
+    ['catalog', 'install', final id, ...final rest]
+        when parseCatalogInstall(rest) != null =>
+      (home) async {
+        final options = parseCatalogInstall(rest)!;
         final entry = catalogEntry(id);
-        final bottle = rest.firstOrNull ?? id;
+        final bottle = options.bottle ?? id;
         stdout.writeln(
-          'installed in: ${await installEntry(home, entry, bottle: bottle, onStep: (step) => stdout.writeln(describeInstallStep(step)))}',
+          'installed in: ${await installEntry(home, entry, bottle: bottle, runtime: options.runtime, onStep: (step) => stdout.writeln(describeInstallStep(step)))}',
         );
         entry.notes.forEach((note) => stdout.writeln('note: $note'));
         stdout.writeln('open it with: bodega open $bottle');
@@ -245,10 +238,10 @@ Future<void> main(List<String> args) async {
       return results.every((r) => r.ok) ? 0 : 1;
     },
     ['switch', ...final rest] => switchVerb(rest, stdout),
-    _ => null,
+    _ => runtimeVerb(args, stdout),
   };
   if (verb == null) {
-    stderr.writeln(_usage);
+    stderr.writeln(bodegaUsage);
     exitCode = 64;
     return;
   }
@@ -344,7 +337,7 @@ String _stepsHere(GameFix fix) {
 void _listFixes(List<GameFix> fixes) {
   for (final fix in fixes) {
     stdout.writeln(
-      '${fix.id.padRight(34)}  ${fix.steam.toString().padRight(8)}  '
+      '${fix.id.padRight(34)}  ${(fix.steam?.toString() ?? '-').padRight(8)}  '
       '${fix.title.padRight(34)}  '
       '${fix.steps.where((step) => step.applies).length}/${fix.steps.length}'
       '${fix.optIn ? '  opt-in' : ''}',
@@ -354,13 +347,34 @@ void _listFixes(List<GameFix> fixes) {
 
 void _showFix(GameFix fix) {
   stdout
-    ..writeln('${fix.title} (${fix.id}), Steam ${fix.steam}')
-    ..writeln(_stepsHere(fix) + (fix.optIn ? '; $_optIn' : ''));
+    ..writeln(
+      '${fix.title} (${fix.id}), '
+      '${fix.steam == null ? 'exe ${fix.exes.join(', ')}' : 'Steam ${fix.steam}'}',
+    )
+    ..writeln(_stepsHere(fix) + (fix.optIn ? '; $_optIn' : ''))
+    ..writeln('status: ${fix.status}')
+    ..writeln(
+      'backend: ${fix.backend ?? 'none here'}'
+      '${fix.backends.isEmpty ? '' : ' (${fix.backends.entries.map((e) => '${e.key} ${e.value}').join(', ')})'}',
+    );
+  if (fix.antiCheat case (:final names, :final verdict)) {
+    stdout.writeln('anti-cheat: ${names.join(', ')}, $verdict on the Mac');
+  }
+  if (fix.reports case (:final count, :final median, :final last)) {
+    stdout.writeln('reports: $count, median $median/5, last $last');
+  }
+  if (fix.nativeMac) stdout.writeln('native mac: yes');
+  if (fix.requires.isNotEmpty) {
+    stdout.writeln('needs: ${fix.requires.join(', ')}');
+  }
   for (final step in fix.steps) {
     final what = switch (step.type) {
       'env' => 'variable ${step.name}=${step.value}',
       'registry' =>
         'registry ${step.key} ${step.name} (${step.valueType}) = ${step.data}',
+      'ini' =>
+        'setting [${step.section}] ${step.name}=${step.data} in ${step.file} '
+            '(bodega fix apply <bottle> ${fix.id})',
       _ => 'dlloverride ${step.value}',
     };
     stdout.writeln(
@@ -374,11 +388,51 @@ void _showFix(GameFix fix) {
     stdout.writeln('issue: ${issue.symptom} -> ${issue.fix}');
   }
   final verified = fix.verified;
+  final source = fix.source == 'bodega'
+      ? "Bodega's own fixes (bodega_fixes_data.dart)"
+      : 'gauthierpiarrette/highball-db ${fixesSourceCommit.substring(0, 7)}, '
+            '${fix.source} (CC0-1.0)';
   stdout.writeln(
-    'source: gauthierpiarrette/highball-db ${fixesSourceCommit.substring(0, 7)}, '
-    '${fix.source} (CC0-1.0); '
+    'source: $source; '
     'verified: ${verified == null ? 'no' : '${verified['date']} on ${verified['chip']}'}',
   );
+}
+
+/// What a launch of the app gets (G7), one line per thing.
+void _showPlan(GamePlan plan) {
+  final match = plan.match;
+  stdout
+    ..writeln(
+      !plan.on
+          ? 'match: off'
+          : match == null
+          ? 'match: none (automatic)'
+          : 'match: ${match.fix.title} (${match.fix.id}), '
+                'by ${match.by.name}, ${match.fix.status}',
+    )
+    ..writeln('backend: ${plan.backend.name} (${plan.backend.origin})');
+  if (plan.graphics case final graphics?) {
+    stdout.writeln(
+      'graphics: ${graphics.directx.isEmpty ? 'no DirectX' : graphics.directx}'
+      ', ${graphics.bits}-bit',
+    );
+  }
+  plan.env.forEach((name, value) => stdout.writeln('env: $name=$value'));
+  for (final value in plan.overrides) {
+    stdout.writeln('override: $value');
+  }
+  for (final step in plan.registry) {
+    stdout.writeln('registry: ${step.key} ${step.name} = ${step.data}');
+  }
+  for (final step in plan.ini) {
+    stdout.writeln(
+      'ini: [${step.section}] ${step.name}=${step.data} in ${step.file}',
+    );
+  }
+  if (plan.requires.isNotEmpty) {
+    stdout.writeln('requires: ${plan.requires.join(', ')}');
+  }
+  if (plan.verdict case final verdict?) stdout.writeln('you said: $verdict');
 }
 
 Future<void> _hints(String log) async {

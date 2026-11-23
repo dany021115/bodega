@@ -1,5 +1,6 @@
 import 'package:bodega/app/bloc/bottles/bottles_bloc.dart';
 import 'package:bodega/app/bloc/catalog/catalog_bloc.dart';
+import 'package:bodega/app/bloc/dependencies/dependencies_bloc.dart';
 import 'package:bodega/app/bloc/install/install_bloc.dart';
 import 'package:bodega/app/bloc/library/library_bloc.dart';
 import 'package:bodega/app/bloc/switch/switch_bloc.dart';
@@ -8,6 +9,7 @@ import 'package:bodega/app/shared/text/error_text.dart';
 import 'package:bodega/app/shared/text/hint_text.dart';
 import 'package:bodega/app/shared/text/switch_text.dart';
 import 'package:bodega/app/shared/widgets/install_panel.dart';
+import 'package:bodega/app/shared/widgets/needs_dialog.dart';
 import 'package:bodega/app/shared/widgets/update_dialog.dart';
 import 'package:bodega/device/helpers/app_toast.dart';
 import 'package:bodega/l10n/l10n.dart';
@@ -15,24 +17,46 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 /// The section, the installation panel, and what the global blocs announce.
-class ShellBody extends StatelessWidget {
+class ShellBody extends StatefulWidget {
   final Widget child;
 
   const ShellBody({super.key, required this.child});
 
   @override
+  State<ShellBody> createState() => _ShellBodyState();
+}
+
+class _ShellBodyState extends State<ShellBody> {
+  @override
+  void initState() {
+    super.initState();
+    // A3: a check that ended before the shell showed, as on the setup page,
+    // opens its dialog now: the listener below sees only what comes after.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final state = context.read<UpdateBloc>().state;
+      if (state.update != null && state.phase == UpdatePhase.available) {
+        _showUpdate(context);
+      }
+    });
+  }
+
+  static Future<void> _showUpdate(BuildContext context) => showDialog<void>(
+    context: context,
+    barrierDismissible: false,
+    builder: (_) => const UpdateDialog(),
+  );
+
+  @override
   Widget build(BuildContext context) {
+    final child = widget.child;
     return MultiBlocListener(
       listeners: [
-        // A3: a newer version opens its dialog once.
+        // A3: a newer version opens its dialog once per start.
         BlocListener<UpdateBloc, UpdateState>(
           listenWhen: (previous, current) =>
               previous.update == null && current.update != null,
-          listener: (context, state) => showDialog<void>(
-            context: context,
-            barrierDismissible: false,
-            builder: (_) => const UpdateDialog(),
-          ),
+          listener: (context, state) => _showUpdate(context),
         ),
         BlocListener<LibraryBloc, LibraryState>(
           listenWhen: (previous, current) =>
@@ -58,7 +82,9 @@ class ShellBody extends StatelessWidget {
             if (state.notice case final notice?) {
               final text = switchNoticeText(context.l10n, notice);
               switch (notice) {
-                case SwitchAddedNotice():
+                case SwitchAddedNotice() ||
+                    SwitchKeysAddedNotice() ||
+                    SwitchFirmwareOpenedNotice():
                   AppToast.success(context, text);
                 case SwitchExitedNotice():
                   AppToast.warning(context, text);
@@ -83,7 +109,37 @@ class ShellBody extends StatelessWidget {
             context.read<BottlesBloc>().add(const BottlesEvent.load());
             context.read<CatalogBloc>().add(const CatalogEvent.load());
             context.read<LibraryBloc>().add(const LibraryEvent.load());
+            // What the app just installed may need a runtime (DA6).
+            if ((state.phase, state.bottle, state.app) case (
+              InstallPhase.done,
+              final bottle?,
+              final app?,
+            )) {
+              context.read<DependenciesBloc>().add(
+                DependenciesEvent.offerCatalogApp(bottle, app.id),
+              );
+            }
           },
+        ),
+        // A proposal opens its dialog over whatever page is showing, once.
+        BlocListener<DependenciesBloc, DependenciesState>(
+          listenWhen: (previous, current) =>
+              current.offer != null && previous.offer != current.offer,
+          listener: (context, state) async {
+            final bloc = context.read<DependenciesBloc>();
+            bloc.add(const DependenciesEvent.offerShown());
+            await showNeedsDialog(
+              context,
+              bottle: state.offerBottle!,
+              needs: state.offer!,
+            );
+          },
+        ),
+        BlocListener<DependenciesBloc, DependenciesState>(
+          listenWhen: (previous, current) =>
+              current.error != null && previous.error != current.error,
+          listener: (context, state) =>
+              AppToast.error(context, state.error!.localized(context.l10n)),
         ),
       ],
       child: Column(

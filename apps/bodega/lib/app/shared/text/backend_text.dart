@@ -10,6 +10,7 @@ String? backendDescriptionText(AppL10n l10n, String backend) =>
       'wine' => l10n.backendDescriptionWine,
       'dxmt' => l10n.backendDescriptionDxmt,
       'dxvk' => l10n.backendDescriptionDxvk,
+      'dxvk9' => l10n.backendDescriptionDxvk9,
       'd3dmetal' => l10n.backendDescriptionD3dMetal,
       _ => null,
     };
@@ -20,6 +21,7 @@ String? backendDescriptionText(AppL10n l10n, String backend) =>
 String backendRoleText(AppL10n l10n, BackendRole role) => switch (role) {
   BackendRole.dx11to12x64 => l10n.backendRoleDx11to12x64,
   BackendRole.dx10to11 => l10n.backendRoleDx10to11,
+  BackendRole.dx9to11 => l10n.backendRoleDx9to11,
   BackendRole.everythingElse => l10n.backendRoleEverythingElse,
   BackendRole.dx8to12 => l10n.backendRoleDx8to12,
   BackendRole.everythingSlower => l10n.backendRoleEverythingSlower,

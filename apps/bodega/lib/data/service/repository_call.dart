@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:bodega/data/service/code_mapper.dart';
 import 'package:bodega/domain/entities/app_error.dart';
+import 'package:bodega/domain/entities/dependency.dart';
 import 'package:bodega/domain/entities/path_problem.dart';
 import 'package:dio/dio.dart';
 import 'package:engine/engine.dart' as engine;
@@ -121,9 +122,49 @@ AppError appErrorOf(engine.EngineFailure failure) {
       detail: detail,
     ),
     engine.Cancelled() => AppError.cancelled(detail: detail),
+    engine.RuntimeNotInstalled(:final runtime) => AppError.runtimeNotInstalled(
+      runtimeKindOf(runtime),
+      detail: detail,
+    ),
+    engine.RuntimeUnavailable(:final runtime, :final reason) =>
+      AppError.runtimeUnavailable(
+        runtimeKindOf(runtime),
+        runtimeBlockOf(reason),
+        detail: detail,
+      ),
+    engine.RuntimeNotTrusted(:final source) => AppError.runtimeNotTrusted(
+      source,
+      detail: detail,
+    ),
+    engine.RuntimeTooOld(:final version, :final minimum) =>
+      AppError.runtimeTooOld(version, minimum, detail: detail),
+    engine.BackendNotForRuntime(:final backend, :final runtime) =>
+      AppError.backendNotForRuntime(
+        backend,
+        runtimeKindOf(runtime),
+        detail: detail,
+      ),
     engine.LicenseNotAccepted() => AppError.licenseNotAccepted(detail: detail),
     engine.WineToolFailed(:final tool, :final exitCode, :final log) =>
       AppError.wineToolFailed(wineToolOf(tool), exitCode, log, detail: detail),
+    engine.DependencyNotInstalled(:final id, :final arch, :final log) =>
+      AppError.dependencyNotInstalled(
+        _dependencyName(id),
+        archOf(arch),
+        log,
+        detail: detail,
+      ),
+    engine.InstallTimedOut(:final id, :final arch, :final log) =>
+      AppError.installTimedOut(
+        _dependencyName(id),
+        archOf(arch),
+        log,
+        detail: detail,
+      ),
+    engine.UnexpectedLink(:final path) => AppError.unexpectedLink(
+      path,
+      detail: detail,
+    ),
     engine.InstallerNoExe(:final exe, :final log) => AppError.installerNoExe(
       exe,
       log,
@@ -155,5 +196,20 @@ AppError appErrorOf(engine.EngineFailure failure) {
       path,
       detail: detail,
     ),
+    engine.NoSwitchKeys(:final source) => AppError.noSwitchKeys(
+      source,
+      detail: detail,
+    ),
   };
 }
+
+/// A runtime's product name, or its id when the table lacks it.
+String _dependencyName(String id) =>
+    engine.dependencyTable.where((row) => row.id == id).firstOrNull?.name ?? id;
+
+/// The engine's `x86`, `x64` or `all`.
+Arch archOf(String arch) => switch (arch) {
+  'x64' => Arch.x64,
+  'all' => Arch.all,
+  _ => Arch.x86,
+};

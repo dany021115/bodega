@@ -1,6 +1,7 @@
 import 'package:bodega/app/bloc/backends/backends_bloc.dart';
 import 'package:bodega/app/bloc/bottles/bottles_bloc.dart';
 import 'package:bodega/app/bloc/catalog/catalog_bloc.dart';
+import 'package:bodega/app/bloc/dependencies/dependencies_bloc.dart';
 import 'package:bodega/app/bloc/graphics/graphics_bloc.dart';
 import 'package:bodega/app/bloc/install/install_bloc.dart';
 import 'package:bodega/app/bloc/library/library_bloc.dart';
@@ -54,6 +55,7 @@ class _BodegaAppState extends State<BodegaApp> {
         BlocProvider.value(value: getIt<BackendsBloc>()),
         BlocProvider.value(value: getIt<BottlesBloc>()),
         BlocProvider.value(value: getIt<CatalogBloc>()),
+        BlocProvider.value(value: getIt<DependenciesBloc>()),
         BlocProvider.value(value: getIt<GraphicsBloc>()),
         BlocProvider.value(value: getIt<InstallBloc>()),
         BlocProvider.value(value: _updates),

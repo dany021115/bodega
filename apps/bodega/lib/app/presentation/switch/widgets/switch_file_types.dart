@@ -18,3 +18,10 @@ XTypeGroup gameFileTypes(List<String> extensions) => XTypeGroup(
   extensions: extensions,
   uniformTypeIdentifiers: const [appBundleType],
 );
+
+/// The user's own keys files, which Bodega copies where the emulator reads
+/// them.
+XTypeGroup keysFileTypes() => const XTypeGroup(extensions: ['keys']);
+
+/// A firmware file the emulator's own installer takes.
+XTypeGroup firmwareFileTypes() => const XTypeGroup(extensions: ['zip', 'xci']);

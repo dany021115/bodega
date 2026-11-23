@@ -3,7 +3,10 @@ import 'package:bodega/app/bloc/catalog/catalog_bloc.dart';
 import 'package:bodega/domain/entities/anti_cheat_game.dart';
 import 'package:bodega/domain/entities/app_error.dart';
 import 'package:bodega/domain/entities/catalog_app.dart';
+import 'package:bodega/domain/entities/runtime_info.dart';
+import 'package:bodega/domain/entities/runtime_kind.dart';
 import 'package:bodega/domain/repository/anti_cheat_repository.dart';
+import 'package:bodega/domain/repository/backend_repository.dart';
 import 'package:bodega/domain/repository/catalog_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fpdart/fpdart.dart';
@@ -12,6 +15,8 @@ import 'package:mocktail/mocktail.dart';
 class _MockCatalog extends Mock implements CatalogRepository {}
 
 class _MockAntiCheat extends Mock implements AntiCheatRepository {}
+
+class _MockBackends extends Mock implements BackendRepository {}
 
 CatalogApp _app(String id, String title, {String? bottle}) => CatalogApp(
   id: id,
@@ -28,6 +33,7 @@ CatalogApp _app(String id, String title, {String? bottle}) => CatalogApp(
 void main() {
   late _MockCatalog catalog;
   late _MockAntiCheat antiCheat;
+  late _MockBackends backends;
   final apps = [
     _app('steam', 'Steam', bottle: 'steam'),
     _app('ea-app', 'EA app'),
@@ -41,13 +47,15 @@ void main() {
   setUp(() {
     catalog = _MockCatalog();
     antiCheat = _MockAntiCheat();
+    backends = _MockBackends();
+    when(() => backends.runtimes()).thenAnswer((_) async => right(const []));
     when(() => catalog.apps()).thenAnswer((_) async => right(apps));
     when(() => antiCheat.games()).thenAnswer((_) async => right(const [game]));
   });
 
   blocTest<CatalogBloc, CatalogState>(
     'loads the apps and marks the installed ones',
-    build: () => CatalogBloc(catalog, antiCheat),
+    build: () => CatalogBloc(catalog, antiCheat, backends),
     act: (bloc) => bloc.add(const CatalogEvent.load()),
     verify: (bloc) {
       expect(bloc.state.isLoading, isFalse);
@@ -58,8 +66,19 @@ void main() {
   );
 
   blocTest<CatalogBloc, CatalogState>(
+    'PA3 knows when the Native engine can take a bottle of its own',
+    setUp: () => when(() => backends.runtimes()).thenAnswer(
+      (_) async =>
+          right(const [RuntimeInfo(kind: RuntimeKind.mach9, installed: true)]),
+    ),
+    build: () => CatalogBloc(catalog, antiCheat, backends),
+    act: (bloc) => bloc.add(const CatalogEvent.load()),
+    verify: (bloc) => expect(bloc.state.nativeUsable, isTrue),
+  );
+
+  blocTest<CatalogBloc, CatalogState>(
     'remembers the bottle to install into',
-    build: () => CatalogBloc(catalog, antiCheat),
+    build: () => CatalogBloc(catalog, antiCheat, backends),
     act: (bloc) => bloc
       ..add(const CatalogEvent.target('steam'))
       ..add(const CatalogEvent.target(null)),
@@ -68,7 +87,7 @@ void main() {
 
   blocTest<CatalogBloc, CatalogState>(
     'filters without minding case',
-    build: () => CatalogBloc(catalog, antiCheat),
+    build: () => CatalogBloc(catalog, antiCheat, backends),
     act: (bloc) => bloc
       ..add(const CatalogEvent.load())
       ..add(const CatalogEvent.search('sTeAm')),
@@ -78,7 +97,7 @@ void main() {
 
   blocTest<CatalogBloc, CatalogState>(
     'a search finds the game in the anti-cheat list, asking for it once',
-    build: () => CatalogBloc(catalog, antiCheat),
+    build: () => CatalogBloc(catalog, antiCheat, backends),
     act: (bloc) => bloc
       ..add(const CatalogEvent.search('fort'))
       ..add(const CatalogEvent.search('fortn')),
@@ -94,7 +113,7 @@ void main() {
       when(() => antiCheat.games()).thenAnswer(
         (_) async => left(const AppError.network(detail: 'no network')),
       );
-      return CatalogBloc(catalog, antiCheat);
+      return CatalogBloc(catalog, antiCheat, backends);
     },
     act: (bloc) => bloc
       ..add(const CatalogEvent.load())

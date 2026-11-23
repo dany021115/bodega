@@ -1,4 +1,5 @@
 import 'package:bodega/app/bloc/switch/switch_bloc.dart';
+import 'package:bodega/app/presentation/switch/widgets/install_firmware_button.dart';
 import 'package:bodega/app/presentation/switch/widgets/switch_file_types.dart';
 import 'package:bodega/app/shared/widgets/status_chip.dart';
 import 'package:bodega/device/theme/color.dart';
@@ -12,13 +13,15 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 /// What a Switch game file needs to open, as Bodega finds it: the emulator,
-/// and the keys and firmware the user brings (switch-support design §9). A
-/// native game needs none of them, so the rows say nothing of it, but one in
-/// quarantine gets the note the emulator gets. Bodega only checks that these
-/// are there: the panel tells what it found and, while the emulator is
-/// missing, offers a button that opens its official download page in the
-/// browser, as D3DMetal's section opens Apple's. Bodega never downloads the
-/// emulator.
+/// and the keys and firmware the user brings from their own console
+/// (switch-support design §9). A native game needs none of them, so the rows
+/// say nothing of it, but one in quarantine gets the note the emulator gets.
+/// The panel tells what it found and offers the next step: while the
+/// emulator is missing, a button that opens its official download page in
+/// the browser, as D3DMetal's section opens Apple's; while the keys are, a
+/// picker whose files Bodega copies where the emulator reads them; and while
+/// the firmware is, a picker whose pick the emulator's own installer takes.
+/// Bodega never downloads any of them.
 class SwitchStatusPanel extends StatelessWidget {
   /// Where the picker for the emulator's app opens.
   static const applications = '/Applications';
@@ -44,6 +47,15 @@ class SwitchStatusPanel extends StatelessWidget {
       initialDirectory: applications,
     );
     if (app != null) bloc.add(SwitchEvent.chooseEmulator(app.path));
+  }
+
+  Future<void> _addKeys(BuildContext context) async {
+    final bloc = context.read<SwitchBloc>();
+    final keys = keysFileTypes();
+    final files = await openFiles(acceptedTypeGroups: [keys]);
+    if (files.isNotEmpty) {
+      bloc.add(SwitchEvent.installKeys([for (final file in files) file.path]));
+    }
   }
 
   /// The emulator, its keys and its firmware: green when found, amber when
@@ -109,6 +121,14 @@ class SwitchStatusPanel extends StatelessWidget {
     final status = this.status;
     // The status while no emulator is found, when the panel offers its page.
     final missing = status?.install == null ? status : null;
+    // What the user brings, one step at a time: the keys, then the firmware,
+    // which the emulator installs only with them.
+    final noKeys = status != null && !status.keys;
+    final noFirmware =
+        status != null &&
+        status.keys &&
+        status.install != null &&
+        !status.firmware;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -130,6 +150,13 @@ class SwitchStatusPanel extends StatelessWidget {
                 icon: const Icon(Icons.open_in_new_rounded, size: 18),
                 label: Text(l10n.switchDownloadEmulator(missing.emulator)),
               ),
+            if (noKeys)
+              FilledButton.icon(
+                onPressed: () => _addKeys(context),
+                icon: const Icon(Icons.key_rounded, size: 18),
+                label: Text(l10n.switchAddKeys),
+              ),
+            if (noFirmware) const InstallFirmwareButton(),
             // While none is found, or the one in use is the pick: a copy in
             // Applications always comes first (design §2).
             if (status != null && (status.install?.picked ?? true))
@@ -149,6 +176,15 @@ class SwitchStatusPanel extends StatelessWidget {
           const SizedBox(height: AppSpacing.sm),
           Text(
             l10n.switchAfterDownload(missing.emulator, missing.appName),
+            style: AppTextStyle(context).bodySecondary,
+          ),
+        ],
+        if (status != null && (noKeys || noFirmware)) ...[
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            noKeys
+                ? l10n.switchKeysHelp(status.emulator)
+                : l10n.switchFirmwareHelp(status.emulator),
             style: AppTextStyle(context).bodySecondary,
           ),
         ],
