@@ -131,7 +131,7 @@ class _ShellBodyState extends State<ShellBody> {
             await showNeedsDialog(
               context,
               bottle: state.offerBottle!,
-              needs: state.offer,
+              needs: state.offer!,
             );
           },
         ),

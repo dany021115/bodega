@@ -8,6 +8,31 @@ extension DependencyText on AppL10n {
   String archOf(Arch arch) => switch (arch) {
     Arch.x86 => depsArch32,
     Arch.x64 => depsArch64,
+    Arch.all => depsArchAll,
+  };
+
+  String statusOf(DependencyStatus status) => switch (status) {
+    DependencyStatus.installed => depsInstalled,
+    DependencyStatus.notInstalled => depsNotInstalled,
+    DependencyStatus.unknown => depsUnknown,
+  };
+
+  /// What needs a runtime, in one line (RA5). Keyed by the runtime's id, so
+  /// it keeps a default for an id with no line of its own.
+  String runtimeLine(String id) => switch (id) {
+    'vcrun2022' => depsLineVcNew,
+    'vcrun2005' ||
+    'vcrun2008' ||
+    'vcrun2010' ||
+    'vcrun2012' ||
+    'vcrun2013' => depsLineVcOld,
+    'dotnet48' => depsLineDotnet,
+    'd3dx9' || 'd3dx10' || 'd3dx11_43' => depsLineD3dx,
+    'd3dcompiler_47' => depsLineD3dcompiler,
+    'xact' => depsLineXact,
+    'physx' => depsLinePhysx,
+    'corefonts' => depsLineCorefonts,
+    _ => depsLineOther,
   };
 
   String needOf(Need need) => switch (need) {

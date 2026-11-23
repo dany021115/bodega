@@ -44,6 +44,7 @@ void main() {
       expect(settings.highRes, isFalse);
       expect(settings.dlss, isFalse);
       expect(settings.avx, isTrue);
+      expect(settings.dxvkAsync, isFalse);
       expect(settings.windows, 'win10');
       expect(settings.env, isEmpty);
     });
@@ -107,6 +108,49 @@ void main() {
       await exitOf(await runInBottle(home, 'b', r'C:\P\a.exe', [], avx: true));
       expect(lastEnv('b'), contains('ROSETTA_ADVERTISE_AVX'));
     });
+
+    test(
+      'DXVK on the Mac: its cache folder, and async when on (RE8)',
+      () async {
+        await createBottle(home, 'b');
+        await program('b');
+        addApp(home, 'b', 'A', 'P/a.exe');
+        for (final arch in ['x86_64-windows', 'i386-windows']) {
+          File('$home/backends/dxvk/wine/$arch/d3d11.dll')
+              .createSync(recursive: true);
+        }
+        final cache = '$home/bottles/b/dxvk-cache';
+
+        await exitOf(await openApp(home, 'b', backend: 'dxvk'));
+        expect(
+          lastEnv('b')['DXVK_STATE_CACHE_PATH'],
+          'Z:${cache.replaceAll('/', r'\')}',
+        );
+        expect(Directory(cache).existsSync(), isTrue);
+        expect(lastEnv('b'), isNot(contains('DXVK_ASYNC')));
+
+        setBottleOptions(home, 'b', dxvkAsync: true);
+        expect(bottleSettings(home, 'b').dxvkAsync, isTrue);
+        await exitOf(await openApp(home, 'b', backend: 'dxvk'));
+        expect(lastEnv('b')['DXVK_ASYNC'], '1');
+
+        await exitOf(await openApp(home, 'b', backend: 'wine'));
+        expect(lastEnv('b'), isNot(contains('DXVK_ASYNC')));
+        expect(lastEnv('b'), isNot(contains('DXVK_STATE_CACHE_PATH')));
+
+        setBottleOptions(home, 'b', dxvkAsync: false);
+        expect(
+          File('$home/bottles/b/settings.json').readAsStringSync(),
+          isNot(contains('dxvkAsync')),
+        );
+        // Linux's DXVK 3.1.1 reads neither.
+        expect(
+          const LinuxPlatform().dxvkEnv('$home/bottles/b', async: true),
+          isEmpty,
+        );
+        expect(const LinuxPlatform().capabilities.dxvkAsync, isFalse);
+      },
+    );
 
     test('a launcher keeps its arguments', () async {
       await createBottle(home, 'b');

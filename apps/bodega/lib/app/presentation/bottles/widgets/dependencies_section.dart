@@ -1,9 +1,9 @@
 import 'package:bodega/app/bloc/dependencies/dependencies_bloc.dart';
+import 'package:bodega/app/presentation/bottles/widgets/log_dialog.dart';
 import 'package:bodega/app/shared/text/dependency_text.dart';
 import 'package:bodega/app/shared/text/error_text.dart';
 import 'package:bodega/app/shared/widgets/collapsible_section.dart';
 import 'package:bodega/app/shared/widgets/copy_details_button.dart';
-import 'package:bodega/app/shared/widgets/needs_dialog.dart';
 import 'package:bodega/app/shared/widgets/status_chip.dart';
 import 'package:bodega/device/theme/color.dart';
 import 'package:bodega/device/theme/spacing.dart';
@@ -14,10 +14,11 @@ import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-/// What the bottle's programs need and what it has (DA7): each app with its
-/// runtimes and its game settings, each with its state and its button, the
-/// job's progress, and the dialog with every runtime. While the bottle is
-/// open, nothing can start.
+/// What the bottle's programs need and what it has (DA7, RA5): each app with
+/// its runtimes and its game settings, each with its state and its button;
+/// every runtime with its state per architecture and its button; when the
+/// bottle was read, with "Check again"; the job's progress; a failure with its
+/// log. While the bottle is open, nothing can start.
 class DependenciesSection extends StatefulWidget {
   final String bottle;
   final bool isOpen;
@@ -70,15 +71,51 @@ class _DependenciesSectionState extends State<DependenciesSection> {
     final data = state.bottles[widget.bottle];
     final canAct = !widget.isOpen && !state.isBusy;
     final failed = state.failedBottle == widget.bottle ? state.failed : null;
-    final installed = [
-      for (final dependency in data?.all ?? const <Dependency>[])
-        if (dependency.installed) dependency,
-    ];
+    // The table's rows, each with its architectures, in the table's order.
+    final runtimes = <String, List<Dependency>>{};
+    for (final dependency in data?.all ?? const <Dependency>[]) {
+      (runtimes[dependency.id] ??= []).add(dependency);
+    }
+    void install(Dependency dependency) => bloc.add(
+      DependenciesEvent.install(widget.bottle, [
+        NeedItem.runtime(dependency.id, dependency.arch),
+      ]),
+    );
+    // A file of the user's stands for a runtime with one download only.
+    final pickable = switch (failed) {
+      RuntimeItem(:final id, :final arch) =>
+        data?.all
+                .where((d) => d.id == id && d.arch == arch)
+                .firstOrNull
+                ?.files ==
+            1,
+      _ => false,
+    };
 
     return CollapsibleSection(
       id: 'dependencies',
       title: l10n.depsTitle,
       children: [
+        if (data?.checkedAt case final checked?)
+          Wrap(
+            spacing: AppSpacing.sm,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              Text(
+                l10n.depsCheckedAt(
+                  MaterialLocalizations.of(context)
+                      .formatTimeOfDay(TimeOfDay.fromDateTime(checked)),
+                ),
+                style: styles.caption,
+              ),
+              TextButton(
+                onPressed: state.isBusy
+                    ? null
+                    : () => bloc.add(DependenciesEvent.load(widget.bottle)),
+                child: Text(l10n.depsCheckAgain),
+              ),
+            ],
+          ),
         if (data == null)
           Text(l10n.depsLoading, style: styles.bodySecondary)
         else if (data.apps.isEmpty)
@@ -100,16 +137,7 @@ class _DependenciesSectionState extends State<DependenciesSection> {
               action: need.dependency.installed
                   ? null
                   : TextButton(
-                      onPressed: canAct
-                          ? () => bloc.add(
-                              DependenciesEvent.install(widget.bottle, [
-                                NeedItem.runtime(
-                                  need.dependency.id,
-                                  need.dependency.arch,
-                                ),
-                              ]),
-                            )
-                          : null,
+                      onPressed: canAct ? () => install(need.dependency) : null,
                       child: Text(l10n.commonInstall),
                     ),
             ),
@@ -143,17 +171,11 @@ class _DependenciesSectionState extends State<DependenciesSection> {
                   : null,
             ),
         ],
-        if (installed.isNotEmpty) ...[
+        if (runtimes.isNotEmpty) ...[
           const SizedBox(height: AppSpacing.md),
-          Text(l10n.depsInstalledHeader, style: styles.caption),
-          for (final dependency in installed)
-            Text(
-              l10n.depsInstalledItem(
-                dependency.name,
-                l10n.archOf(dependency.arch),
-              ),
-              style: styles.bodySecondary,
-            ),
+          Text(l10n.depsAllRuntimes, style: styles.label),
+          for (final archs in runtimes.values)
+            _RuntimeRow(archs: archs, canAct: canAct, onInstall: install),
         ],
         if (widget.isOpen) ...[
           const SizedBox(height: AppSpacing.sm),
@@ -174,7 +196,13 @@ class _DependenciesSectionState extends State<DependenciesSection> {
           Wrap(
             spacing: AppSpacing.sm,
             children: [
-              if (failed case final RuntimeItem item)
+              if (state.failedLog case final log?)
+                OutlinedButton(
+                  onPressed: () =>
+                      showLogDialog(context, log.split('/').last, log),
+                  child: Text(l10n.depsDetails),
+                ),
+              if (failed case final RuntimeItem item when pickable)
                 OutlinedButton(
                   onPressed: canAct ? () => _pickInstaller(item) : null,
                   child: Text(l10n.depsChooseFile),
@@ -183,21 +211,6 @@ class _DependenciesSectionState extends State<DependenciesSection> {
             ],
           ),
         ],
-        const SizedBox(height: AppSpacing.md),
-        Align(
-          alignment: Alignment.centerLeft,
-          child: OutlinedButton.icon(
-            onPressed: canAct && data != null
-                ? () => showNeedsDialog(
-                    context,
-                    bottle: widget.bottle,
-                    all: data.all,
-                  )
-                : null,
-            icon: const Icon(Icons.add_rounded, size: 18),
-            label: Text(l10n.depsInstallOther),
-          ),
-        ),
       ],
     );
   }
@@ -264,6 +277,73 @@ class _Item extends StatelessWidget {
             shown,
           ],
           ?action,
+        ],
+      ),
+    );
+  }
+}
+
+/// One runtime of the table: its name, what needs it, and per architecture
+/// its state and, when it is not there, its button with the download's size.
+class _RuntimeRow extends StatelessWidget {
+  final List<Dependency> archs;
+  final bool canAct;
+  final ValueChanged<Dependency> onInstall;
+
+  const _RuntimeRow({
+    required this.archs,
+    required this.canAct,
+    required this.onInstall,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final styles = AppTextStyle(context);
+    final first = archs.first;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(first.name, style: styles.body),
+          Text(l10n.runtimeLine(first.id), style: styles.caption),
+          const SizedBox(height: AppSpacing.xs),
+          Wrap(
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.xs,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              for (final dependency in archs) ...[
+                StatusChip(
+                  label: dependency.arch == Arch.all
+                      ? l10n.statusOf(dependency.status)
+                      : l10n.depsArchStatus(
+                          l10n.archOf(dependency.arch),
+                          l10n.statusOf(dependency.status),
+                        ),
+                  color: switch (dependency.status) {
+                    DependencyStatus.installed => AppColor.statusTested,
+                    DependencyStatus.notInstalled => AppColor.statusUntested,
+                    DependencyStatus.unknown => AppColor.statusFlaky,
+                  },
+                ),
+                if (dependency.status == DependencyStatus.notInstalled)
+                  TextButton(
+                    onPressed: canAct ? () => onInstall(dependency) : null,
+                    child: Text(
+                      dependency.arch == Arch.all
+                          ? l10n.depsInstallSize(l10n.sizeOf(dependency.bytes))
+                          : l10n.depsInstallArch(
+                              l10n.archOf(dependency.arch),
+                              l10n.sizeOf(dependency.bytes),
+                            ),
+                    ),
+                  ),
+              ],
+            ],
+          ),
         ],
       ),
     );

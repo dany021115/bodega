@@ -146,4 +146,44 @@ void main() {
       isTrue,
     );
   });
+
+  test('Mach9 runtimes are never touched by the bundle (MR12)', () {
+    hostPlatform = MacPlatform(bundle: bundle);
+    final dir = bodegaHome(env);
+    _write('$dir/runtimes/mach9-0.4.0/runtime.json', '{"version":"0.4.0"}');
+    Link('$dir/runtimes/mach9').createSync('mach9-0.4.0');
+    final before = {
+      for (final file in Directory(
+        '$dir/runtimes/mach9-0.4.0',
+      ).listSync(recursive: true))
+        if (file is File) file.path: file.readAsStringSync(),
+    };
+
+    bodegaHome(env);
+
+    expect(Link('$dir/runtimes/mach9').targetSync(), 'mach9-0.4.0');
+    for (final MapEntry(:key, :value) in before.entries) {
+      expect(File(key).readAsStringSync(), value, reason: key);
+    }
+    expect(
+      Directory('$dir/runtimes/current').resolveSymbolicLinksSync(),
+      Directory('$dir/runtimes/wine-x').resolveSymbolicLinksSync(),
+    );
+  });
+
+  test('a current without x86_64 unix modules takes no SDL2 (MB4)', () async {
+    const sdl = 'engine/lib/wine/x86_64-unix/libSDL2-2.0.0.dylib';
+    _write('$bundle/runtime/wine-x/$sdl', 'sdl 2.30.12');
+    // current points at a runtime of the user's, without x86_64-unix.
+    _write('$home/runtimes/mine/engine/bin/wine', 'wine');
+    Link('$home/runtimes/current').createSync('mine');
+    hostPlatform = MacPlatform(bundle: bundle);
+
+    final dir = bodegaHome(env);
+
+    expect(Directory('$dir/runtimes/mine/engine/lib').existsSync(), isFalse);
+    expect(hasSdl(dir), isFalse);
+    expect(await installSdl(dir, dmg: '$tmp/none.dmg'), endsWith(sdl));
+    expect(Directory('$dir/runtimes/mine/engine/lib').existsSync(), isFalse);
+  });
 }

@@ -7,6 +7,14 @@ sealed class BottleDetailEvent with _$BottleDetailEvent {
       BottleDetailSetBackendEvent;
   const factory BottleDetailEvent.setSync(String sync) =
       BottleDetailSetSyncEvent;
+
+  /// Moves the bottle to the Native engine (PA8).
+  const factory BottleDetailEvent.moveToNative() =
+      BottleDetailMoveToNativeEvent;
+
+  /// A Native engine bottle's retina mode (PA1).
+  const factory BottleDetailEvent.setRetina(RetinaMode mode) =
+      BottleDetailSetRetinaEvent;
   const factory BottleDetailEvent.setHighRes(bool value) =
       BottleDetailSetHighResEvent;
   const factory BottleDetailEvent.setWindows(String version) =
@@ -14,6 +22,8 @@ sealed class BottleDetailEvent with _$BottleDetailEvent {
   const factory BottleDetailEvent.setDlss(bool value) =
       BottleDetailSetDlssEvent;
   const factory BottleDetailEvent.setAvx(bool value) = BottleDetailSetAvxEvent;
+  const factory BottleDetailEvent.setDxvkAsync(bool value) =
+      BottleDetailSetDxvkAsyncEvent;
 
   /// U4: null goes back to the host's user name.
   const factory BottleDetailEvent.setUser(String? user) =
@@ -34,4 +44,7 @@ sealed class BottleDetailEvent with _$BottleDetailEvent {
       BottleDetailSetHudEvent;
   const factory BottleDetailEvent.openLog(String path) =
       BottleDetailOpenLogEvent;
+
+  /// MB7: installs Wine Mono into the native bottle.
+  const factory BottleDetailEvent.installMono() = BottleDetailInstallMonoEvent;
 }

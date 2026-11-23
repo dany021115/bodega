@@ -11,6 +11,8 @@ class RouterManager {
     AppRoute.switchGames: (_) => '/switch',
     AppRoute.catalog: (_) => '/catalog',
     AppRoute.catalogDetail: (p) => '/catalog/${p['id']}',
+    AppRoute.games: (_) => '/games',
+    AppRoute.gameDetail: (p) => '/games/${p['id']}',
     AppRoute.bottles: (_) => '/bottles',
     AppRoute.bottleDetail: (p) => '/bottles/${p['name']}',
     AppRoute.backends: (_) => '/backends',

@@ -4,6 +4,7 @@ import 'package:bloc_test/bloc_test.dart';
 import 'package:bodega/app/bloc/dependencies/dependencies_bloc.dart';
 import 'package:bodega/domain/entities/app_error.dart';
 import 'package:bodega/domain/entities/dependency.dart';
+import 'package:bodega/domain/entities/wine_tool.dart';
 import 'package:bodega/domain/repository/dependency_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fpdart/fpdart.dart';
@@ -26,7 +27,7 @@ AppNeeds _needs({required bool recommended}) => AppNeeds(
         name: 'Visual C++ 2008',
         arch: Arch.x86,
         bytes: 4483040,
-        installed: false,
+        status: DependencyStatus.notInstalled,
       ),
       need: recommended ? Need.recommended : Need.optional,
       reason: recommended ? NeedReason.knownFix : NeedReason.imported,
@@ -52,7 +53,7 @@ void main() {
           onProgress(50, 100);
           onProgress(50, 100);
           onProgress(100, 100);
-          return right('/h/downloads/${call.positionalArguments[0]}.exe');
+          return right(['/h/downloads/${call.positionalArguments[0]}.exe']);
         });
     when(() => repository.install(any(), any(), any(), any()))
         .thenAnswer((_) async => right(unit));
@@ -134,18 +135,12 @@ void main() {
     ],
     verify: (_) {
       verifyInOrder([
-        () => repository.install(
-          'b',
-          'vcrun2008',
-          Arch.x86,
+        () => repository.install('b', 'vcrun2008', Arch.x86, [
           '/h/downloads/vcrun2008.exe',
-        ),
-        () => repository.install(
-          'b',
-          'vcrun2022',
-          Arch.x64,
+        ]),
+        () => repository.install('b', 'vcrun2022', Arch.x64, [
           '/h/downloads/vcrun2022.exe',
-        ),
+        ]),
         () => repository.applySettings('b', 'need-for-speed-most-wanted-2012'),
       ]);
     },
@@ -206,12 +201,9 @@ void main() {
     verify: (_) {
       verifyNever(() => repository.download(any(), any(), any()));
       verify(
-        () => repository.install(
-          'b',
-          'vcrun2008',
-          Arch.x86,
+        () => repository.install('b', 'vcrun2008', Arch.x86, [
           '/Users/me/vcredist_x86.exe',
-        ),
+        ]),
       ).called(1);
     },
   );
@@ -294,5 +286,29 @@ void main() {
     expect: () => [
       DependenciesState(offer: _needs(recommended: true), offerBottle: 'b'),
     ],
+  );
+
+  test("a failure's log is there for Details (RA4, RA6)", () {
+    const log = '/h/bottles/b/logs/x-dotnet48-all.log';
+    for (final error in [
+      const AppError.wineToolFailed(WineTool.installer, 1, log),
+      const AppError.dependencyNotInstalled('PhysX', Arch.all, log),
+      const AppError.installTimedOut('.NET Framework 4.8', Arch.all, log),
+    ]) {
+      expect(DependenciesState(error: error).failedLog, log);
+    }
+    expect(
+      const DependenciesState(error: AppError.network()).failedLog,
+      isNull,
+    );
+  });
+
+  blocTest<DependenciesBloc, DependenciesState>(
+    'Check again reads the bottle again (RA4)',
+    build: build,
+    act: (bloc) => bloc
+      ..add(const DependenciesEvent.load('b'))
+      ..add(const DependenciesEvent.load('b')),
+    verify: (_) => verify(() => repository.bottle('b')).called(2),
   );
 }

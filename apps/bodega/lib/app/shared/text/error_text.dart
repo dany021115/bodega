@@ -58,15 +58,29 @@ extension AppErrorText on AppError {
     MountFailedError(:final image) => l10n.errMountFailed(image),
     LicenseNotAcceptedError() => l10n.errLicenseNotAccepted,
     CancelledError() => l10n.errCancelled,
+    RuntimeNotInstalledError() => l10n.errRuntimeNotInstalled(l10n.navBackends),
+    RuntimeUnavailableError(:final reason) => l10n.errRuntimeUnavailable(
+      reason.name,
+    ),
+    RuntimeNotTrustedError() => l10n.errRuntimeNotTrusted,
+    RuntimeTooOldError(:final version, :final minimum) => l10n.errRuntimeTooOld(
+      version,
+      minimum,
+    ),
+    BackendNotForRuntimeError(:final backend, :final runtime) =>
+      l10n.errBackendNotForRuntime(backend, runtime.name),
     WineToolFailedError(:final tool, :final exitCode, :final log) =>
       switch (tool) {
         WineTool.wineboot => l10n.errWinebootFailed(exitCode, log),
         WineTool.reg => l10n.errRegFailed(exitCode, log),
         WineTool.installer => l10n.errInstallerFailed(exitCode, log),
         WineTool.winecfg => l10n.errWinecfgFailed(exitCode, log),
+        WineTool.mono => l10n.errMonoFailed(exitCode, log),
       },
     DependencyNotInstalledError(:final name, :final arch, :final log) =>
       l10n.errDependencyNotInstalled(name, l10n.archOf(arch), log),
+    InstallTimedOutError(:final name, :final arch, :final log) =>
+      l10n.errInstallTimedOut(name, l10n.archOf(arch), log),
     UnexpectedLinkError(:final path) => l10n.errUnexpectedLink(path),
     InstallerNoExeError(:final exe, :final log) => l10n.errInstallerNoExe(
       exe,

@@ -32,6 +32,15 @@ abstract class DependenciesState with _$DependenciesState {
 
   bool get isBusy => phase != DependencyPhase.idle;
 
+  /// The log of the step that failed, for "Details" (RA6), when the failure
+  /// has one.
+  String? get failedLog => switch (error) {
+    WineToolFailedError(:final log) ||
+    DependencyNotInstalledError(:final log) ||
+    InstallTimedOutError(:final log) => log,
+    _ => null,
+  };
+
   double? get fraction {
     final size = total;
     return size == null || size == 0 ? null : received / size;

@@ -3,6 +3,10 @@ import 'package:bodega/app/bloc/backends/backends_bloc.dart';
 import 'package:bodega/domain/entities/app_error.dart';
 import 'package:bodega/domain/entities/backend_info.dart';
 import 'package:bodega/domain/entities/gptk_step.dart';
+import 'package:bodega/domain/entities/mach9_step.dart';
+import 'package:bodega/domain/entities/runtime_block.dart';
+import 'package:bodega/domain/entities/runtime_info.dart';
+import 'package:bodega/domain/entities/runtime_kind.dart';
 import 'package:bodega/domain/repository/backend_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fpdart/fpdart.dart';
@@ -28,6 +32,8 @@ void main() {
   setUpAll(() {
     registerFallbackValue((int _, int? _) {});
     registerFallbackValue((GptkStep _) {});
+    registerFallbackValue((Mach9Step _) {});
+    registerFallbackValue(RuntimeKind.mach9);
     registerFallbackValue(() => false);
   });
 
@@ -57,6 +63,9 @@ void main() {
         .thenAnswer((_) async => right(const [missing]));
     when(() => repository.readyBottles())
         .thenAnswer((_) async => right(const ['sample']));
+    when(() => repository.readyBottles(runtime: RuntimeKind.mach9))
+        .thenAnswer((_) async => right(const ['native']));
+    when(() => repository.runtimes()).thenAnswer((_) async => right(const []));
   });
 
   blocTest<BackendsBloc, BackendsState>(
@@ -98,6 +107,7 @@ void main() {
         isLoading: false,
         backends: [installed],
         bottles: ['sample'],
+        nativeBottles: ['native'],
         received: 50,
         total: 100,
       ),
@@ -224,4 +234,264 @@ void main() {
       ),
     ],
   );
+
+  blocTest<BackendsBloc, BackendsState>(
+    'PA4 the engine check probes mtld3d, dxmt and wine in turn',
+    build: () {
+      for (final name in mach9Checks) {
+        when(() => repository.check('native', name))
+            .thenAnswer((_) async => right(const [result]));
+      }
+      return BackendsBloc(repository);
+    },
+    act: (bloc) => bloc.add(const BackendsEvent.checkEngine('native')),
+    verify: (bloc) {
+      expect(bloc.state.checking, isNull);
+      expect(bloc.state.results.keys, [
+        'mach9:mtld3d',
+        'mach9:dxmt',
+        'mach9:wine',
+      ]);
+      for (final name in mach9Checks) {
+        verify(() => repository.check('native', name)).called(1);
+      }
+    },
+  );
+
+  blocTest<BackendsBloc, BackendsState>(
+    'PA4 the ready Native engine bottles load apart',
+    build: () => BackendsBloc(repository),
+    act: (bloc) => bloc.add(const BackendsEvent.load()),
+    verify: (bloc) {
+      expect(bloc.state.bottles, ['sample']);
+      expect(bloc.state.nativeBottles, ['native']);
+    },
+  );
+
+  group('the native engine (MA5)', () {
+    const bodega = RuntimeInfo(kind: RuntimeKind.bodega, installed: true);
+    const notInstalled = RuntimeInfo(
+      kind: RuntimeKind.mach9,
+      installed: false,
+      pinnedVersion: '0.4.0',
+    );
+    const installedMach9 = RuntimeInfo(
+      kind: RuntimeKind.mach9,
+      installed: true,
+      version: '0.4.0',
+      pinnedVersion: '0.4.0',
+    );
+
+    /// Installing reports [steps] and progress, then ends with [result]; on
+    /// success the runtime lists as installed.
+    void installs(
+      List<Mach9Step> steps,
+      Either<AppError, bool> result, {
+      String? file,
+    }) {
+      when(() => repository.runtimes())
+          .thenAnswer((_) async => right(const [bodega, notInstalled]));
+      when(
+        () => repository.installRuntime(
+          RuntimeKind.mach9,
+          file: file,
+          onProgress: any(named: 'onProgress'),
+          onStep: any(named: 'onStep'),
+        ),
+      ).thenAnswer((call) async {
+        final onStep = call.namedArguments[#onStep] as void Function(Mach9Step);
+        final onProgress =
+            call.namedArguments[#onProgress] as void Function(int, int?);
+        for (final step in steps) {
+          onStep(step);
+          if (step == Mach9Step.downloading) onProgress(50, 100);
+        }
+        if (result case Right(value: true)) {
+          when(() => repository.runtimes())
+              .thenAnswer((_) async => right(const [bodega, installedMach9]));
+        }
+        return result;
+      });
+    }
+
+    Matcher runtimeState({Mach9Step? step, String? busy}) =>
+        isA<BackendsState>()
+            .having((s) => s.runtimeStep, 'runtimeStep', step)
+            .having((s) => s.busy, 'busy', busy);
+
+    blocTest<BackendsBloc, BackendsState>(
+      'loads the runtimes with the backends',
+      build: () {
+        when(() => repository.runtimes())
+            .thenAnswer((_) async => right(const [bodega, notInstalled]));
+        return BackendsBloc(repository);
+      },
+      act: (bloc) => bloc.add(const BackendsEvent.load()),
+      verify: (bloc) {
+        expect(bloc.state.runtimes, const [bodega, notInstalled]);
+        expect(bloc.state.mach9, notInstalled);
+        expect(bloc.state.nativeUsable, isFalse);
+      },
+    );
+
+    blocTest<BackendsBloc, BackendsState>(
+      'downloaded: marks mach9 busy, shows each step and the download, and '
+      'ends installed',
+      build: () {
+        installs(const [
+          Mach9Step.downloadingMono,
+          Mach9Step.downloading,
+          Mach9Step.mounting,
+          Mach9Step.checkingSignature,
+          Mach9Step.copying,
+          Mach9Step.checking,
+          Mach9Step.switching,
+        ], right(true));
+        return BackendsBloc(repository);
+      },
+      act: (bloc) =>
+          bloc.add(const BackendsEvent.installRuntime(RuntimeKind.mach9)),
+      expect: () => containsAllInOrder([
+        runtimeState(busy: 'mach9'),
+        runtimeState(step: Mach9Step.downloadingMono, busy: 'mach9'),
+        isA<BackendsState>()
+            .having((s) => s.runtimeStep, 'step', Mach9Step.downloading)
+            .having((s) => s.isDownloading, 'isDownloading', true),
+        isA<BackendsState>().having((s) => s.fraction, 'fraction', 0.5),
+        runtimeState(step: Mach9Step.copying, busy: 'mach9'),
+        runtimeState(step: Mach9Step.switching, busy: 'mach9'),
+      ]),
+      verify: (bloc) {
+        expect(bloc.state.busy, isNull);
+        expect(bloc.state.runtimeStep, isNull);
+        expect(bloc.state.error, isNull);
+        expect(bloc.state.nativeUsable, isTrue);
+      },
+    );
+
+    blocTest<BackendsBloc, BackendsState>(
+      'from the Mach9 app found: copies it, with no download',
+      build: () {
+        installs(const [
+          Mach9Step.checkingSignature,
+          Mach9Step.copying,
+          Mach9Step.checking,
+          Mach9Step.switching,
+        ], right(true));
+        return BackendsBloc(repository);
+      },
+      act: (bloc) =>
+          bloc.add(const BackendsEvent.installRuntime(RuntimeKind.mach9)),
+      verify: (bloc) {
+        expect(bloc.state.nativeUsable, isTrue);
+        expect(bloc.state.received, 0);
+      },
+    );
+
+    blocTest<BackendsBloc, BackendsState>(
+      'from a file: passes it on',
+      build: () {
+        installs(
+          const [Mach9Step.mounting, Mach9Step.copying],
+          right(true),
+          file: '/d/Mach9.dmg',
+        );
+        return BackendsBloc(repository);
+      },
+      act: (bloc) => bloc.add(
+        const BackendsEvent.installRuntime(
+          RuntimeKind.mach9,
+          file: '/d/Mach9.dmg',
+        ),
+      ),
+      verify: (bloc) {
+        verify(
+          () => repository.installRuntime(
+            RuntimeKind.mach9,
+            file: '/d/Mach9.dmg',
+            onProgress: any(named: 'onProgress'),
+            onStep: any(named: 'onStep'),
+          ),
+        ).called(1);
+        expect(bloc.state.nativeUsable, isTrue);
+      },
+    );
+
+    blocTest<BackendsBloc, BackendsState>(
+      'cancel stops the download, and nothing is installed',
+      build: () {
+        when(() => repository.runtimes())
+            .thenAnswer((_) async => right(const [bodega, notInstalled]));
+        when(
+          () => repository.installRuntime(
+            RuntimeKind.mach9,
+            onProgress: any(named: 'onProgress'),
+            onStep: any(named: 'onStep'),
+          ),
+        ).thenAnswer((call) async {
+          (call.namedArguments[#onStep] as void Function(Mach9Step))(
+            Mach9Step.downloading,
+          );
+          await Future<void>.delayed(const Duration(milliseconds: 5));
+          return right(false);
+        });
+        return BackendsBloc(repository);
+      },
+      act: (bloc) async {
+        bloc.add(const BackendsEvent.installRuntime(RuntimeKind.mach9));
+        await Future<void>.delayed(Duration.zero);
+        bloc.add(const BackendsEvent.cancel());
+      },
+      wait: const Duration(milliseconds: 20),
+      verify: (bloc) {
+        verify(() => repository.cancelDownload()).called(1);
+        expect(bloc.state.busy, isNull);
+        expect(bloc.state.error, isNull);
+        expect(bloc.state.nativeUsable, isFalse);
+      },
+    );
+
+    blocTest<BackendsBloc, BackendsState>(
+      'a failure is shown, and the engine stays not installed',
+      build: () {
+        installs(const [
+          Mach9Step.checkingSignature,
+        ], left(const AppError.runtimeNotTrusted('/Applications/Mach9.app')));
+        return BackendsBloc(repository);
+      },
+      act: (bloc) =>
+          bloc.add(const BackendsEvent.installRuntime(RuntimeKind.mach9)),
+      verify: (bloc) {
+        expect(
+          bloc.state.error,
+          const AppError.runtimeNotTrusted('/Applications/Mach9.app'),
+        );
+        expect(bloc.state.busy, isNull);
+        expect(bloc.state.runtimeStep, isNull);
+        expect(bloc.state.nativeUsable, isFalse);
+      },
+    );
+
+    test('a Mac that cannot run it at all shows no card; a too-old macOS '
+        'does', () {
+      for (final block in RuntimeBlock.values) {
+        final state = BackendsState(
+          runtimes: [
+            bodega,
+            RuntimeInfo(
+              kind: RuntimeKind.mach9,
+              installed: false,
+              blocked: block,
+            ),
+          ],
+        );
+        expect(
+          state.mach9 != null,
+          block == RuntimeBlock.macosTooOld,
+          reason: '$block',
+        );
+        expect(state.nativeUsable, isFalse);
+      }
+    });
+  });
 }

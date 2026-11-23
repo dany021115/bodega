@@ -18,5 +18,8 @@ abstract class HostCapabilities with _$HostCapabilities {
     /// Switch games, through an emulator the user installs or as the Mac
     /// apps users make of them: the Mac only, for now.
     @Default(true) bool switchGames,
+
+    /// DXVK's async compiling: only the Mac's DXVK reads it (RE8).
+    @Default(false) bool dxvkAsync,
   }) = _HostCapabilities;
 }
