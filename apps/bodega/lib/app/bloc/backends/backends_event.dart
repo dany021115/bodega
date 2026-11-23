@@ -28,6 +28,10 @@ sealed class BackendsEvent with _$BackendsEvent {
 
   /// Looks in Downloads again while waiting.
   const factory BackendsEvent.pollGptk() = BackendsPollGptkEvent;
+
+  /// The probe for each of Mach9's graphics in [bottle] (PA4).
+  const factory BackendsEvent.checkEngine(String bottle) =
+      BackendsCheckEngineEvent;
   const factory BackendsEvent.check(String bottle, String backend) =
       BackendsCheckEvent;
 }

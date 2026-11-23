@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:bloc/bloc.dart';
 import 'package:bodega/domain/entities/app_error.dart';
 import 'package:bodega/domain/entities/library_app.dart';
+import 'package:bodega/domain/entities/native_option.dart';
 import 'package:bodega/domain/entities/run_hint.dart';
 import 'package:bodega/domain/repository/bottle_repository.dart';
 import 'package:bodega/domain/repository/library_repository.dart';
@@ -126,6 +127,19 @@ class LibraryBloc extends Bloc<LibraryEvent, LibraryState> {
       );
     });
 
+    on<LibrarySetNativeOptionEvent>((event, emit) async {
+      final result = await _bottles.setNativeOption(
+        event.bottle,
+        event.key,
+        event.option,
+        event.on,
+      );
+      result.match(
+        (error) => emit(state.copyWith(error: error)),
+        (_) => add(const LibraryEvent.load()),
+      );
+    });
+
     on<LibraryDetectedEvent>((event, emit) async {
       final bottle = event.bottle;
       if (_runs.containsKey(bottle)) return;
@@ -144,7 +158,10 @@ class LibraryBloc extends Bloc<LibraryEvent, LibraryState> {
           open: {...state.open, bottle},
           running: apps.isEmpty
               ? state.running
-              : {...state.running, bottle: {for (final app in apps) app.key}},
+              : {
+                  ...state.running,
+                  bottle: {for (final app in apps) app.key},
+                },
         ),
       );
     });

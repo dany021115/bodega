@@ -34,6 +34,16 @@ body:
     attributes:
       label: Backend
       description: The graphics backend it ran with, and where that choice came from.
+  - type: dropdown
+    id: engine
+    attributes:
+      label: Engine
+      description: Bodega's engine for the bottle the game ran in.
+      options:
+        - Rosetta
+        - Native (Mach9)
+    validations:
+      required: true
   - type: input
     id: bodega
     attributes:

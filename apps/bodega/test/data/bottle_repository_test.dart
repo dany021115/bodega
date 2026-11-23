@@ -5,7 +5,11 @@ import 'package:bodega/data/repository/bottle_repository_impl.dart';
 import 'package:bodega/domain/entities/app_error.dart';
 import 'package:bodega/domain/entities/bottle_detail.dart';
 import 'package:bodega/domain/entities/bottle_step.dart';
+import 'package:bodega/domain/entities/native_move_step.dart';
+import 'package:bodega/domain/entities/native_option.dart';
+import 'package:bodega/domain/entities/retina_mode.dart';
 import 'package:bodega/domain/entities/runtime_kind.dart';
+import 'package:engine/engine.dart' as engine;
 import 'package:flutter_test/flutter_test.dart';
 
 import '_home.dart';
@@ -223,6 +227,61 @@ void main() {
       expect(detail.windows, 'win10');
       expect(detail.monoMissing, isFalse);
       expect(detail.ready, isTrue);
+    });
+
+    test('PA1 the retina mode is kept and read back', () async {
+      fakeMach9Runtime(home.path);
+      readyBottle(home.path, 'native', mach9: true);
+      Future<RetinaMode> retina() async =>
+          (await repository.detail('native'))
+              .getOrElse((error) => fail('$error'))
+              .retina;
+      expect(await retina(), RetinaMode.auto);
+      expect(
+        (await repository.setRetina('native', RetinaMode.off)).isRight(),
+        isTrue,
+      );
+      expect(await retina(), RetinaMode.off);
+    });
+
+    test('PA2 an app\'s native options reach its library entry', () async {
+      fakeMach9Runtime(home.path);
+      final dir = readyBottle(home.path, 'native', mach9: true);
+      File('$dir/prefix/drive_c/G/game.exe').createSync(recursive: true);
+      engine.addApp(home.path, 'native', 'Game', 'G/game.exe');
+      final key = engine.bottleApps(home.path, 'native').single.key;
+      expect(
+        (await repository.setNativeOption(
+          'native',
+          key,
+          NativeOption.largeAddressAware,
+          true,
+        )).isRight(),
+        isTrue,
+      );
+      final app = (await repository.detail('native'))
+          .getOrElse((error) => fail('$error'))
+          .apps
+          .single;
+      expect(app.nativeEngine, isTrue);
+      expect(app.nativeOptions, {NativeOption.largeAddressAware});
+    });
+
+    test('PA8 a Rosetta bottle moves to the Native engine', () async {
+      readyBottle(home.path, 'Games');
+      final before = (await repository.detail('Games'))
+          .getOrElse((error) => fail('$error'));
+      expect(before.nativeInstalled, isFalse);
+      fakeMach9Runtime(home.path);
+      final steps = <NativeMoveStep>[];
+      final again = await repository.moveToNative('Games', steps.add);
+      expect(again.isRight(), isTrue, reason: '$again');
+      expect(steps, NativeMoveStep.values);
+      final after = (await repository.detail('Games'))
+          .getOrElse((error) => fail('$error'));
+      expect(after.runtime, RuntimeKind.mach9);
+      expect(after.nativeInstalled, isTrue);
+      expect(after.monoMissing, isFalse);
     });
 
     test('installMono puts Mono back in a Mach9 bottle', () async {

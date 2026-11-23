@@ -1,10 +1,12 @@
 import 'dart:io';
 
+import 'package:bodega/data/service/code_mapper.dart';
 import 'package:bodega/data/service/engine_home.dart';
 import 'package:bodega/data/service/repository_call.dart';
 import 'package:bodega/domain/entities/app_error.dart';
 import 'package:bodega/domain/entities/exe_graphics.dart';
 import 'package:bodega/domain/entities/game.dart';
+import 'package:bodega/domain/entities/runtime_kind.dart';
 import 'package:bodega/domain/repository/game_repository.dart';
 import 'package:engine/engine.dart' as engine;
 import 'package:fpdart/fpdart.dart';
@@ -33,9 +35,10 @@ class GameRepositoryImpl implements GameRepository {
   Future<Either<AppError, List<AppGame>>> appGames(String bottle) =>
       repositoryCall(() async {
         final home = _home.path;
+        final runtime = runtimeKindOf(engine.bottleRuntime(home, bottle));
         return [
           for (final app in engine.bottleApps(home, bottle))
-            _appGame(await engine.gamePlan(home, bottle, app.key)),
+            _appGame(await engine.gamePlan(home, bottle, app.key), runtime),
         ];
       });
 
@@ -72,6 +75,10 @@ class GameRepositoryImpl implements GameRepository {
         if (config?.steam case final steam?) 'steam_appid': '$steam',
         'rating': verdict.name,
         'backend': '${game.backend} (${game.origin.name})',
+        'engine': switch (game.runtime) {
+          RuntimeKind.bodega => 'Rosetta',
+          RuntimeKind.mach9 => 'Native (Mach9)',
+        },
         'bodega': (await PackageInfo.fromPlatform()).version,
         'os': '${Platform.operatingSystem} ${Platform.operatingSystemVersion}',
         'cpu': await _cpu(),
@@ -162,9 +169,10 @@ class GameRepositoryImpl implements GameRepository {
     _ => null,
   };
 
-  static AppGame _appGame(engine.GamePlan plan) {
+  static AppGame _appGame(engine.GamePlan plan, RuntimeKind runtime) {
     final match = plan.match;
     return AppGame(
+      runtime: runtime,
       key: plan.app.key,
       title: plan.app.title,
       config: match == null ? null : _config(match.fix),

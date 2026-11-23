@@ -137,10 +137,12 @@ class BackendRepositoryImpl implements BackendRepository {
 
   /// MA4: Mach9 bottles cannot run the Rosetta check.
   @override
-  Future<Either<AppError, List<String>>> readyBottles() => repositoryCall(
+  Future<Either<AppError, List<String>>> readyBottles({
+    RuntimeKind runtime = RuntimeKind.bodega,
+  }) => repositoryCall(
     () => [
       for (final bottle in engine.listBottles(_home.path))
-        if (bottle.ready && bottle.runtime == engine.RuntimeKind.bodega)
+        if (bottle.ready && bottle.runtime == engineRuntimeOf(runtime))
           bottle.name,
     ],
   );

@@ -11,9 +11,11 @@ import 'package:bodega/app/presentation/bottles/widgets/windows_user_dialog.dart
 import 'package:bodega/app/shared/graphics_of.dart';
 import 'package:bodega/app/shared/text/backend_text.dart';
 import 'package:bodega/app/shared/text/hint_text.dart';
+import 'package:bodega/app/shared/text/native_text.dart';
 import 'package:bodega/app/shared/text/runtime_text.dart';
 import 'package:bodega/app/shared/widgets/collapsible_section.dart';
 import 'package:bodega/app/shared/widgets/confirm_dialog.dart';
+import 'package:bodega/app/shared/widgets/custom_loading.dart';
 import 'package:bodega/app/shared/widgets/status_chip.dart';
 import 'package:bodega/app/shared/widgets/stop_bottle.dart';
 import 'package:bodega/device/theme/color.dart';
@@ -22,6 +24,8 @@ import 'package:bodega/device/theme/radius.dart';
 import 'package:bodega/device/theme/spacing.dart';
 import 'package:bodega/device/theme/typography.dart';
 import 'package:bodega/domain/entities/bottle_detail.dart';
+import 'package:bodega/domain/entities/native_move_step.dart';
+import 'package:bodega/domain/entities/retina_mode.dart';
 import 'package:bodega/domain/entities/run_hint.dart';
 import 'package:bodega/domain/entities/runtime_kind.dart';
 import 'package:bodega/l10n/l10n.dart';
@@ -267,6 +271,53 @@ class BottleColumn extends StatelessWidget {
     );
   }
 
+  /// PA8: a Rosetta bottle can move to the installed Native engine; while it
+  /// moves, the step.
+  Widget _moveToNative(BuildContext context) {
+    final l10n = context.l10n;
+    final styles = AppTextStyle(context);
+    final bloc = context.read<BottleDetailBloc>();
+    final step = context.select<BottleDetailBloc, NativeMoveStep?>(
+      (bloc) => bloc.state.moveStep,
+    );
+    if (step != null) {
+      return Row(
+        children: [
+          const CustomLoading(size: 16),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Semantics(
+              liveRegion: true,
+              child: Text(nativeMoveStepText(l10n, step), style: styles.body),
+            ),
+          ),
+        ],
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(l10n.bottleMoveToNativeNote, style: styles.caption),
+        const SizedBox(height: AppSpacing.sm),
+        OutlinedButton(
+          onPressed: isBusy || !detail.ready
+              ? null
+              : () async {
+                  if (await confirm(
+                    context,
+                    title: l10n.bottleMoveTitle(detail.name),
+                    message: l10n.bottleMoveMessage(detail.name),
+                    action: l10n.bottleMoveAction,
+                  )) {
+                    bloc.add(const BottleDetailEvent.moveToNative());
+                  }
+                },
+          child: Text(l10n.bottleMoveToNative),
+        ),
+      ],
+    );
+  }
+
   /// MB7: a native bottle without Wine Mono, and the button that installs it.
   Widget _monoWarning(BuildContext context) {
     final l10n = context.l10n;
@@ -431,6 +482,10 @@ class BottleColumn extends StatelessWidget {
           const SizedBox(height: AppSpacing.md),
           _monoWarning(context),
         ],
+        if (!_native && detail.nativeInstalled) ...[
+          const SizedBox(height: AppSpacing.md),
+          _moveToNative(context),
+        ],
         const SizedBox(height: AppSpacing.lg),
         _quickActions(context),
         CollapsibleSection(
@@ -518,7 +573,33 @@ class BottleColumn extends StatelessWidget {
                   }
                 },
               ),
-            if (caps.highRes)
+            if (caps.highRes && _native) ...[
+              const SizedBox(height: AppSpacing.md),
+              DropdownButtonFormField<RetinaMode>(
+                key: ValueKey('retina ${detail.retina.name}'),
+                initialValue: detail.retina,
+                isExpanded: true,
+                decoration: InputDecoration(
+                  labelText: l10n.bottleRetina,
+                  helperText: l10n.bottleRetinaNote,
+                  helperMaxLines: 4,
+                ),
+                items: [
+                  for (final mode in RetinaMode.values)
+                    DropdownMenuItem(
+                      value: mode,
+                      child: Text(retinaModeText(l10n, mode)),
+                    ),
+                ],
+                onChanged: isBusy
+                    ? null
+                    : (mode) {
+                        if (mode != null) {
+                          bloc.add(BottleDetailEvent.setRetina(mode));
+                        }
+                      },
+              ),
+            ] else if (caps.highRes)
               _switch(
                 context,
                 l10n.bottleHighRes,

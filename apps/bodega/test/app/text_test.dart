@@ -43,6 +43,7 @@ import 'package:bodega/app/shared/text/catalog_text.dart';
 import 'package:bodega/app/shared/text/error_text.dart';
 import 'package:bodega/app/shared/text/hint_text.dart';
 import 'package:bodega/app/shared/text/issue_text.dart';
+import 'package:bodega/app/shared/text/native_text.dart';
 import 'package:bodega/app/shared/text/problem_text.dart';
 import 'package:bodega/app/shared/text/progress_text.dart';
 import 'package:bodega/app/shared/text/runtime_text.dart';
@@ -66,7 +67,10 @@ import 'package:bodega/domain/entities/install_step.dart';
 import 'package:bodega/domain/entities/library_app.dart';
 import 'package:bodega/domain/entities/log_hint.dart';
 import 'package:bodega/domain/entities/mach9_step.dart';
+import 'package:bodega/domain/entities/native_move_step.dart';
+import 'package:bodega/domain/entities/native_option.dart';
 import 'package:bodega/domain/entities/path_problem.dart';
+import 'package:bodega/domain/entities/retina_mode.dart';
 import 'package:bodega/domain/entities/run_hint.dart';
 import 'package:bodega/domain/entities/runtime_block.dart';
 import 'package:bodega/domain/entities/runtime_kind.dart';
@@ -2756,6 +2760,53 @@ void main() {
             reason: '$step',
           );
         }
+      });
+
+      test('PA6 each retina mode and native option has words, in both', () {
+        for (final l10n in [en, es]) {
+          final modes = [
+            for (final mode in RetinaMode.values) retinaModeText(l10n, mode),
+          ];
+          expect(modes.toSet(), hasLength(RetinaMode.values.length));
+          final names = [
+            for (final option in NativeOption.values)
+              nativeOptionText(l10n, option),
+          ];
+          final hints = [
+            for (final option in NativeOption.values)
+              nativeOptionHintText(l10n, option),
+          ];
+          for (final words in [modes, names, hints]) {
+            expect(words, everyElement(isNotEmpty), reason: l10n.localeName);
+            expect(words, everyElement(isNot(contains(_command))));
+          }
+          expect(names.toSet(), hasLength(NativeOption.values.length));
+        }
+        for (final mode in RetinaMode.values) {
+          expect(retinaModeText(es, mode), isNot(retinaModeText(en, mode)));
+        }
+        for (final option in NativeOption.values) {
+          expect(
+            nativeOptionHintText(es, option),
+            isNot(nativeOptionHintText(en, option)),
+            reason: '$option',
+          );
+        }
+        for (final step in NativeMoveStep.values) {
+          expect(
+            nativeMoveStepText(es, step),
+            isNot(nativeMoveStepText(en, step)),
+          );
+        }
+        expect({
+          for (final step in NativeMoveStep.values)
+            nativeMoveStepText(en, step),
+        }, hasLength(NativeMoveStep.values.length));
+        expect(retinaModeText(en, RetinaMode.auto), 'Follow the display');
+        expect(
+          nativeOptionText(en, NativeOption.largeAddressAware),
+          '4 GB of memory',
+        );
       });
 
       test('the native words are translated, and Rosetta stays a name', () {

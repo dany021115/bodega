@@ -17,6 +17,13 @@ part 'backends_event.dart';
 part 'backends_state.dart';
 part 'backends_bloc.freezed.dart';
 
+/// The engine card's check: [BackendsState.checking] while it runs, and the
+/// prefix of its results' keys (PA4).
+const mach9Check = 'mach9';
+
+/// What the engine card's check probes, in order (P14).
+const mach9Checks = ['mtld3d', 'dxmt', 'wine'];
+
 @lazySingleton
 class BackendsBloc extends Bloc<BackendsEvent, BackendsState> {
   final BackendRepository _repository;
@@ -129,6 +136,26 @@ class BackendsBloc extends Bloc<BackendsEvent, BackendsState> {
       _cancelled = true;
       _stopWaiting(emit);
     });
+    on<BackendsCheckEngineEvent>((event, emit) async {
+      if (state.busy != null || state.checking != null) return;
+      emit(state.copyWith(checking: mach9Check, error: null));
+      for (final name in mach9Checks) {
+        final result = await _repository.check(event.bottle, name);
+        final failed = result.getLeft().toNullable();
+        if (failed != null) {
+          return emit(state.copyWith(checking: null, error: failed));
+        }
+        emit(
+          state.copyWith(
+            results: {
+              ...state.results,
+              '$mach9Check:$name': result.getRight().toNullable()!,
+            },
+          ),
+        );
+      }
+      emit(state.copyWith(checking: null));
+    });
     on<BackendsCheckEvent>((event, emit) async {
       if (state.busy != null || state.checking != null) return;
       emit(state.copyWith(checking: event.backend, error: null));
@@ -205,12 +232,14 @@ class BackendsBloc extends Bloc<BackendsEvent, BackendsState> {
   Future<void> _load(Emitter<BackendsState> emit) async {
     final backends = await _repository.list();
     final bottles = await _repository.readyBottles();
+    final native = await _repository.readyBottles(runtime: RuntimeKind.mach9);
     final runtimes = await _repository.runtimes();
     emit(
       state.copyWith(
         isLoading: false,
         backends: backends.getOrElse((_) => state.backends),
         bottles: bottles.getOrElse((_) => state.bottles),
+        nativeBottles: native.getOrElse((_) => state.nativeBottles),
         runtimes: runtimes.getOrElse((_) => state.runtimes),
         error:
             state.error ??

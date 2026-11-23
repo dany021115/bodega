@@ -11,6 +11,9 @@ import 'package:bodega/domain/entities/app_error.dart';
 import 'package:bodega/domain/entities/bottle.dart';
 import 'package:bodega/domain/entities/bottle_detail.dart';
 import 'package:bodega/domain/entities/bottle_step.dart';
+import 'package:bodega/domain/entities/native_move_step.dart';
+import 'package:bodega/domain/entities/native_option.dart';
+import 'package:bodega/domain/entities/retina_mode.dart';
 import 'package:bodega/domain/entities/runtime_kind.dart';
 import 'package:bodega/domain/entities/user_name_problem.dart';
 import 'package:bodega/domain/repository/bottle_repository.dart';
@@ -178,6 +181,42 @@ class BottleRepositoryImpl implements BottleRepository {
       });
 
   @override
+  Future<Either<AppError, Unit>> setRetina(String name, RetinaMode mode) =>
+      repositoryCall(() async {
+        await engine.setRetina(_home.path, name, mode.name);
+        return unit;
+      });
+
+  @override
+  Future<Either<AppError, List<String>>> moveToNative(
+    String name,
+    void Function(NativeMoveStep step) onStep,
+  ) => repositoryCall(
+    () => engine.moveToNative(
+      _home.path,
+      name,
+      onStep: (step) => onStep(NativeMoveStep.values.byName(step.name)),
+    ),
+  );
+
+  @override
+  Future<Either<AppError, Unit>> setNativeOption(
+    String name,
+    String key,
+    NativeOption option,
+    bool on,
+  ) => repositoryCall(() {
+    engine.setNativeOption(
+      _home.path,
+      name,
+      key,
+      engine.NativeOption.values.byName(option.name),
+      on: on,
+    );
+    return unit;
+  });
+
+  @override
   Future<Either<AppError, List<String>>> logLines(String path) =>
       repositoryCall(() async {
         final lines = ListQueue<String>();
@@ -205,6 +244,8 @@ BottleDetail _detail(String home, String name) {
     backend: settings.backend,
     sync: settings.sync,
     highRes: settings.highRes,
+    retina: RetinaMode.values.byName(settings.retina),
+    nativeInstalled: _nativeInstalled(home),
     dlss: settings.dlss,
     avx: settings.avx,
     dxvkAsync: settings.dxvkAsync,
@@ -235,4 +276,15 @@ BottleDetail _detail(String home, String name) {
         if (value) key,
     ],
   );
+}
+
+/// Whether the Native engine's runtime is there: files only, as [_detail]
+/// runs in another isolate (PA8).
+bool _nativeInstalled(String home) {
+  try {
+    engine.runtimeDir(home, engine.RuntimeKind.mach9);
+    return true;
+  } on engine.RuntimeNotInstalled {
+    return false;
+  }
 }

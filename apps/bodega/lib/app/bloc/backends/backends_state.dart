@@ -9,6 +9,9 @@ abstract class BackendsState with _$BackendsState {
     @Default([]) List<BackendInfo> backends,
     @Default([]) List<String> bottles,
 
+    /// The ready Native engine bottles, which can run its check (PA4).
+    @Default([]) List<String> nativeBottles,
+
     /// The backend, or the runtime (`mach9`), being installed.
     String? busy,
     @Default(false) bool isDownloading,

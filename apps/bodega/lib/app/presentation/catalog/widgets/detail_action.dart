@@ -3,10 +3,12 @@ import 'package:bodega/app/bloc/catalog/catalog_bloc.dart';
 import 'package:bodega/app/bloc/install/install_bloc.dart';
 import 'package:bodega/app/bloc/library/library_bloc.dart';
 import 'package:bodega/app/router.dart';
+import 'package:bodega/app/shared/text/runtime_text.dart';
 import 'package:bodega/device/router/manager.dart';
 import 'package:bodega/device/theme/spacing.dart';
 import 'package:bodega/device/theme/typography.dart';
 import 'package:bodega/domain/entities/catalog_app.dart';
+import 'package:bodega/domain/entities/runtime_kind.dart';
 import 'package:bodega/l10n/l10n.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
@@ -26,6 +28,9 @@ class _DetailActionState extends State<DetailAction> {
   /// Null is a bottle of its own; null [_setup] downloads the installer.
   String? _bottle;
   String? _setup;
+
+  /// The engine of a bottle of its own; null follows the default (PA3).
+  RuntimeKind? _engine;
 
   @override
   void initState() {
@@ -54,6 +59,9 @@ class _DetailActionState extends State<DetailAction> {
         if (bottle.ready) bottle.name,
     ];
     final bottle = ready.contains(_bottle) ? _bottle : null;
+    // Native by default once it runs here, as new bottles are (Q1).
+    final native = context.watch<CatalogBloc>().state.nativeUsable;
+    final engine = _engine ?? (native ? RuntimeKind.mach9 : RuntimeKind.bodega);
 
     final installed = app.bottle;
     if (installed != null) {
@@ -107,6 +115,27 @@ class _DetailActionState extends State<DetailAction> {
           if (bottle != null) ...[
             const SizedBox(height: AppSpacing.xs),
             Text(l10n.catalogExistingBottleNote, style: styles.caption),
+          ] else if (native) ...[
+            const SizedBox(height: AppSpacing.md),
+            DropdownButtonFormField<RuntimeKind>(
+              key: ValueKey('engine ${engine.name}'),
+              initialValue: engine,
+              isExpanded: true,
+              decoration: InputDecoration(labelText: l10n.catalogEngine),
+              items: [
+                for (final kind in const [
+                  RuntimeKind.mach9,
+                  RuntimeKind.bodega,
+                ])
+                  DropdownMenuItem(
+                    value: kind,
+                    child: Text(runtimeKindText(l10n, kind)),
+                  ),
+              ],
+              onChanged: install.isRunning
+                  ? null
+                  : (kind) => setState(() => _engine = kind),
+            ),
           ],
           const SizedBox(height: AppSpacing.md),
           Row(
@@ -139,7 +168,12 @@ class _DetailActionState extends State<DetailAction> {
               onPressed: install.isRunning
                   ? null
                   : () => context.read<InstallBloc>().add(
-                      InstallEvent.start(app, bottle: bottle, setup: _setup),
+                      InstallEvent.start(
+                        app,
+                        bottle: bottle,
+                        setup: _setup,
+                        runtime: bottle == null ? engine : RuntimeKind.bodega,
+                      ),
                     ),
               child: Text(l10n.commonInstall),
             ),

@@ -13,6 +13,10 @@ abstract class CatalogState with _$CatalogState {
     @Default([]) List<AntiCheatGame> antiCheat,
     AppError? antiCheatError,
     String? targetBottle,
+
+    /// The Native engine is installed and runs here, so a bottle of its own
+    /// may use it (PA3).
+    @Default(false) bool nativeUsable,
     AppError? error,
   }) = _CatalogState;
 
