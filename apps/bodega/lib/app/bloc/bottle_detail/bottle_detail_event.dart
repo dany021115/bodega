@@ -14,6 +14,8 @@ sealed class BottleDetailEvent with _$BottleDetailEvent {
   const factory BottleDetailEvent.setDlss(bool value) =
       BottleDetailSetDlssEvent;
   const factory BottleDetailEvent.setAvx(bool value) = BottleDetailSetAvxEvent;
+  const factory BottleDetailEvent.setDxvkAsync(bool value) =
+      BottleDetailSetDxvkAsyncEvent;
 
   /// U4: null goes back to the host's user name.
   const factory BottleDetailEvent.setUser(String? user) =

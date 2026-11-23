@@ -4,6 +4,9 @@ import 'dart:io';
 
 import 'package:bloc_test/bloc_test.dart';
 import 'package:bodega/app/bloc/add_app/add_app_bloc.dart';
+import 'package:bodega/app/bloc/app_games/app_games_bloc.dart';
+import 'package:bodega/app/bloc/game_detail/game_detail_bloc.dart';
+import 'package:bodega/app/bloc/games/games_bloc.dart';
 import 'package:bodega/app/bloc/backends/backends_bloc.dart';
 import 'package:bodega/app/bloc/bottle_detail/bottle_detail_bloc.dart';
 import 'package:bodega/app/bloc/bottles/bottles_bloc.dart';
@@ -29,6 +32,8 @@ import 'package:bodega/app/presentation/bottles/widgets/bottle_empty_apps.dart';
 import 'package:bodega/app/presentation/bottles/widgets/run_options_dialog.dart';
 import 'package:bodega/app/presentation/catalog/catalog_detail_page.dart';
 import 'package:bodega/app/presentation/catalog/catalog_page.dart';
+import 'package:bodega/app/presentation/games/game_detail_page.dart';
+import 'package:bodega/app/presentation/games/games_page.dart';
 import 'package:bodega/app/presentation/library/library_page.dart';
 import 'package:bodega/app/presentation/library/widgets/bottle_tag.dart';
 import 'package:bodega/app/shared/widgets/language_menu.dart';
@@ -52,6 +57,8 @@ import 'package:bodega/domain/entities/backend_role.dart';
 import 'package:bodega/domain/entities/bottle.dart';
 import 'package:bodega/domain/entities/bottle_detail.dart';
 import 'package:bodega/domain/entities/catalog_app.dart';
+import 'package:bodega/domain/entities/exe_graphics.dart';
+import 'package:bodega/domain/entities/game.dart';
 import 'package:bodega/domain/entities/gamepad.dart';
 import 'package:bodega/domain/entities/gptk_step.dart';
 import 'package:bodega/domain/entities/host_capabilities.dart';
@@ -67,6 +74,9 @@ import 'package:bodega/domain/entities/runtime_kind.dart';
 import 'package:bodega/domain/entities/switch_game.dart';
 import 'package:bodega/domain/entities/switch_status.dart';
 import 'package:bodega/l10n/l10n.dart';
+import 'package:bodega/app/bloc/dependencies/dependencies_bloc.dart';
+import 'package:bodega/domain/entities/dependency.dart';
+import 'package:bodega/app/shared/widgets/needs_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -124,6 +134,56 @@ class _MockLocale extends MockBloc<LocaleEvent, LocaleState>
 
 class _MockSwitch extends MockBloc<SwitchEvent, SwitchState>
     implements SwitchBloc {}
+
+class _MockDependencies extends MockBloc<DependenciesEvent, DependenciesState>
+    implements DependenciesBloc {}
+
+class _MockAppGames extends MockBloc<AppGamesEvent, AppGamesState>
+    implements AppGamesBloc {}
+
+class _MockGames extends MockBloc<GamesEvent, GamesState>
+    implements GamesBloc {}
+
+class _MockGameDetail extends MockBloc<GameDetailEvent, GameDetailState>
+    implements GameDetailBloc {}
+
+/// A game with the longest texts and every part of its page and its row.
+final _longGame = GameConfig(
+  id: 'long',
+  title: 'A Game With A Very Long Title: The Definitive Edition Remastered',
+  status: GameStatus.community,
+  rating: GameRating.playable,
+  backend: 'd3dmetal',
+  antiCheat: const ['Easy Anti-Cheat', 'BattlEye', 'Denuvo Anti-Cheat'],
+  antiCheatVerdict: AntiCheatVerdict.blocked,
+  reports: 12,
+  lastReport: '2026-11-11',
+  nativeMac: true,
+  steps: const [
+    GameStep(
+      kind: GameStepKind.variable,
+      name: 'D3DM_DEVICE_DESCRIPTION',
+      value: 'AMD Radeon RX 6800 XT with a long description',
+    ),
+    GameStep(kind: GameStepKind.override, value: 'xaudio2_7,xaudio2_9=n,b'),
+    GameStep(
+      kind: GameStepKind.registry,
+      name: 'EmulateModeset',
+      value: 'y',
+      where: r'HKCU\Software\Wine\AppDefaults\Game.exe\X11 Driver',
+    ),
+    GameStep(
+      kind: GameStepKind.settingsFile,
+      name: '[Sound] ReverbWithALongName',
+      value: '0',
+      where: r'%USERPROFILE%\Documents\Game\config.ini',
+    ),
+  ],
+  requires: const ['vcrun2022', 'dotnet48'],
+  notes: [_long],
+  knownIssues: [GameIssue(symptom: _long, cause: '', fix: _long)],
+  sourceUrl: 'https://github.com/gauthierpiarrette/highball-db/blob/x/a.json',
+);
 
 // The longest texts and every chip at once: what would overflow first.
 final _long = 'A long note that takes up several lines on the screen. ' * 6;
@@ -331,6 +391,76 @@ void _expectNoEnglishLiterals(WidgetTester tester) {
   );
 }
 
+/// Every kind of line of the Dependencies section, with long names.
+final _dependencies = BottleDependencies(
+  all: [
+    const Dependency(
+      id: 'vcrun2008',
+      name: 'Visual C++ 2008',
+      arch: Arch.x86,
+      bytes: 4483040,
+      status: DependencyStatus.installed,
+    ),
+    const Dependency(
+      id: 'vcrun2022',
+      name: 'Visual C++ 2015–2026',
+      arch: Arch.x64,
+      bytes: 18731856,
+      status: DependencyStatus.notInstalled,
+    ),
+  ],
+  apps: [
+    AppNeeds(
+      key: 'b',
+      title: _longName,
+      dependencies: [
+        const DependencyNeed(
+          dependency: Dependency(
+            id: 'vcrun2022',
+            name: 'Visual C++ 2015–2026',
+            arch: Arch.x64,
+            bytes: 18731856,
+            status: DependencyStatus.notInstalled,
+          ),
+          need: Need.optional,
+          reason: NeedReason.imported,
+          dll: 'vcruntime140_1.dll',
+        ),
+        const DependencyNeed(
+          dependency: Dependency(
+            id: 'vcrun2008',
+            name: 'Visual C++ 2008',
+            arch: Arch.x86,
+            bytes: 4483040,
+            status: DependencyStatus.installed,
+          ),
+          need: Need.recommended,
+          reason: NeedReason.knownFix,
+          fix: 'blur',
+        ),
+      ],
+      settings: [
+        const SettingNeed(
+          fix: 'need-for-speed-most-wanted-2012',
+          game: 'Need for Speed: Most Wanted (2012)',
+          section: 'Sound',
+          name: 'Reverb',
+          value: '0',
+          state: SettingState.notApplied,
+        ),
+        const SettingNeed(
+          fix: 'other',
+          game: 'Other',
+          section: 'Video',
+          name: 'Quality',
+          value: '1',
+          state: SettingState.noFile,
+        ),
+      ],
+    ),
+  ],
+);
+
 BottleDetailState _bottle({bool ready = true, List<LibraryApp>? apps}) =>
     BottleDetailState(
       isLoading: false,
@@ -469,6 +599,10 @@ void main() {
   late _MockLocale language;
   late _MockSetup setup;
   late _MockSwitch switchGames;
+  late _MockDependencies dependencies;
+  late _MockAppGames appGames;
+  late _MockGames games;
+  late _MockGameDetail gameDetail;
 
   void showBottle(BottleDetailState state) => whenListen(
     bottle,
@@ -492,6 +626,47 @@ void main() {
   );
 
   setUp(() {
+    appGames = _MockAppGames();
+    whenListen(
+      appGames,
+      const Stream<AppGamesState>.empty(),
+      initialState: AppGamesState(
+        bottle: _longName,
+        isLoading: false,
+        apps: [
+          AppGame(
+            key: 'steam:1',
+            title: _longGame.title,
+            config: _longGame,
+            by: GameMatchKind.title,
+            backend: 'd3dmetal',
+            origin: BackendOrigin.config,
+            steps: _longGame.steps,
+            requires: _longGame.requires,
+            verdict: GameVerdict.playable,
+          ),
+          const AppGame(
+            key: 'other.exe',
+            title: 'Other',
+            backend: 'wine',
+            origin: BackendOrigin.auto,
+            graphics: ExeGraphics(bits: 32, directx: 'DX9'),
+          ),
+        ],
+      ),
+    );
+    games = _MockGames();
+    whenListen(
+      games,
+      const Stream<GamesState>.empty(),
+      initialState: GamesState(isLoading: false, games: [_longGame]),
+    );
+    gameDetail = _MockGameDetail();
+    whenListen(
+      gameDetail,
+      const Stream<GameDetailState>.empty(),
+      initialState: GameDetailState(isLoading: false, game: _longGame),
+    );
     backends = _MockBackends();
     bottles = _MockBottles();
     bottle = _MockBottle();
@@ -547,6 +722,21 @@ void main() {
       const Stream<InstallState>.empty(),
       initialState: const InstallState(),
     );
+    // The bottle's runtimes and needs, with the longest names and a job in
+    // progress: what would overflow first in its section (DA7).
+    dependencies = _MockDependencies();
+    whenListen(
+      dependencies,
+      const Stream<DependenciesState>.empty(),
+      initialState: DependenciesState(
+        bottles: {_longName: _dependencies},
+        phase: DependencyPhase.downloading,
+        bottle: _longName,
+        item: const NeedItem.runtime('vcrun2022', Arch.x64),
+        received: 9000000,
+        total: 18731856,
+      ),
+    );
     // Loaded, with nothing in it: no spinner keeps a frame waiting.
     switchGames = _MockSwitch();
     showSwitch(const SwitchState(isLoading: false));
@@ -593,6 +783,10 @@ void main() {
     BlocProvider<LocaleBloc>.value(value: language),
     BlocProvider<SetupBloc>.value(value: setup),
     BlocProvider<SwitchBloc>.value(value: switchGames),
+    BlocProvider<DependenciesBloc>.value(value: dependencies),
+    BlocProvider<AppGamesBloc>.value(value: appGames),
+    BlocProvider<GamesBloc>.value(value: games),
+    BlocProvider<GameDetailBloc>.value(value: gameDetail),
   ];
 
   // [width] is the window's: the sidebar takes its part, as in the app. In
@@ -659,6 +853,8 @@ void main() {
         await pumpAt(tester, const LibraryPage());
         await pumpAt(tester, bottleView());
         await pumpAt(tester, const BackendsPage());
+        await pumpAt(tester, const GamesView());
+        await pumpAt(tester, GameDetailView(id: _longGame.id));
       });
 
       testWidgets('an empty or incomplete bottle fits at $width px $lang', (
@@ -688,6 +884,50 @@ void main() {
           ),
         );
         await pumpAt(tester, bottleView());
+      });
+
+      testWidgets("a bottle's dependencies fit at $width px $lang", (
+        tester,
+      ) async {
+        await pumpAt(tester, bottleView());
+        final title = find.text(lookupAppL10n(locale).depsTitle);
+        // The page's own width, beside the side bar, decides its layout.
+        if (width - (width > 800 ? 220 : 68) < BottleDetailView.wideFrom) {
+          // Narrow, the panel goes under the apps, built once it scrolls near.
+          await tester.scrollUntilVisible(
+            title,
+            300,
+            scrollable: find.byType(Scrollable).first,
+          );
+        } else {
+          await tester.ensureVisible(title);
+        }
+        await tester.pump();
+        expect(
+          find.text(lookupAppL10n(locale).depsAllRuntimes),
+          findsOneWidget,
+        );
+      });
+
+      testWidgets('the dialog of what an app needs fits at $width px $lang', (
+        tester,
+      ) async {
+        await pumpAt(
+          tester,
+          Builder(
+            builder: (context) => IconButton(
+              icon: const Icon(Icons.add_rounded),
+              onPressed: () => showNeedsDialog(
+                context,
+                bottle: _longName,
+                needs: _dependencies.apps.single,
+              ),
+            ),
+          ),
+        );
+        await tester.tap(find.byIcon(Icons.add_rounded));
+        await tester.pumpAndSettle();
+        expect(find.byType(NeedsDialog), findsOneWidget);
       });
 
       testWidgets("a bottle's controller issues fit at $width px $lang", (
@@ -1252,9 +1492,15 @@ void main() {
 
     testWidgets('each control panel runs its program', (tester) async {
       await pump(tester, 1150, bottleView(), height: _tall);
-      await tester.tap(find.text('Game controllers'));
-      await tester.tap(find.text('Wine configuration'));
-      await tester.tap(find.text('Terminal'));
+      // Tools sit below the Dependencies section: scroll each into view.
+      for (final label in [
+        'Game controllers',
+        'Wine configuration',
+        'Terminal',
+      ]) {
+        await tester.ensureVisible(find.text(label));
+        await tester.tap(find.text(label));
+      }
       await tester.pump();
       verify(
         () => library.add(LibraryEvent.run(_longName, 'control', ['joy.cpl'])),
@@ -1294,6 +1540,20 @@ void main() {
       await pump(tester, 1150, bottleView(), height: _tall);
       expect(find.text(en.bottleAvx), findsNothing);
       expect(find.text('DLSS'), findsNothing);
+      expect(find.text(en.bottleDxvkAsync), findsNothing);
+    });
+
+    testWidgets('the Mac offers DXVK\'s async compiling (RA7)', (tester) async {
+      showSetup(
+        const SetupState(
+          isChecking: false,
+          runtime: true,
+          capabilities: HostCapabilities(dxvkAsync: true),
+        ),
+      );
+      await pump(tester, 1150, bottleView(), height: 2400);
+      expect(find.text(en.bottleDxvkAsync), findsOneWidget);
+      expect(find.text(en.bottleDxvkAsyncNote), findsOneWidget);
     });
 
     testWidgets('a host with one sync mode does not offer msync', (
@@ -1741,6 +2001,8 @@ void main() {
       addTearDown(() => getIt.unregister<BottleDetailBloc>());
       getIt.registerFactory<GamepadsBloc>(() => gamepads);
       addTearDown(() => getIt.unregister<GamepadsBloc>());
+      getIt.registerFactory<AppGamesBloc>(() => appGames);
+      addTearDown(() => getIt.unregister<AppGamesBloc>());
       final router = await pumpRouter(tester);
       await tester.tap(find.text(_longName));
       await tester.pumpAndSettle();

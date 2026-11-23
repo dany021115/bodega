@@ -362,6 +362,36 @@ void main() {
     );
   });
 
+  test("a game's backend comes after the bottle's and before auto (E5)", () async {
+    final dir = '$home/bottles/t';
+    Directory(dir).createSync();
+    install(home, 'dxmt');
+    install(home, 'dxvk');
+    final x = fakePe('$tmp/x.exe', 0x8664, 'nothing').path;
+    Future<String> pick({String? option, String? config = 'dxmt'}) async {
+      final c = await resolveBackend(
+        home,
+        dir,
+        x,
+        x,
+        option: option,
+        config: config,
+      );
+      return '${c.name} ${c.origin}';
+    }
+
+    expect(await pick(), 'dxmt config');
+    expect(await pick(config: null), 'wine auto');
+    expect(await pick(config: 'd3dmetal'), 'wine auto'); // not installed
+    expect(await pick(option: 'auto'), 'wine auto');
+    setBackend(home, 't', 'wine', exe: 'x.exe');
+    expect(await pick(), 'wine exe');
+    expect(await pick(option: 'dxvk'), 'dxvk option');
+    setBackend(home, 't', 'auto', exe: 'x.exe');
+    setBackend(home, 't', 'dxvk');
+    expect(await pick(), 'dxvk bottle');
+  });
+
   test('resolve', () async {
     final dir = '$home/bottles/t';
     Directory(dir).createSync();

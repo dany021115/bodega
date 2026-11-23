@@ -35,6 +35,15 @@ abstract class SwitchRepository {
   /// launch needs: the emulator for a game file, nothing for a native game.
   Future<Either<AppError, String>> open(String path);
 
+  /// Copies the user's own keys where the emulator reads them: each of
+  /// [sources] is a `.keys` file or a folder that holds some. It gives the
+  /// names copied.
+  Future<Either<AppError, List<String>>> installKeys(List<String> sources);
+
+  /// Opens the emulator's own installer on the firmware the user picked, a
+  /// file or a folder: the emulator asks and installs it in its window.
+  Future<Either<AppError, Unit>> installFirmware(String source);
+
   /// Ends the run of [path]; a listed game that does not run is left as it
   /// is.
   Future<Either<AppError, Unit>> stop(String path);

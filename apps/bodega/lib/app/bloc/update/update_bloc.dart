@@ -19,11 +19,7 @@ class UpdateBloc extends Bloc<UpdateEvent, UpdateState> {
       final update = (await _repository.check()).toNullable();
       if (update != null) emit(UpdateState(update: update));
     });
-    on<UpdateSkipEvent>((event, emit) async {
-      final update = state.update;
-      if (update != null) await _repository.skip(update.version);
-      emit(const UpdateState());
-    });
+    on<UpdateDismissEvent>((event, emit) => emit(const UpdateState()));
     on<UpdateInstallEvent>(_install);
     on<UpdateCancelEvent>((event, emit) => _repository.cancel());
   }

@@ -1,3 +1,4 @@
+import 'package:bodega/app/shared/text/dependency_text.dart';
 import 'package:bodega/app/shared/text/problem_text.dart';
 import 'package:bodega/app/shared/text/progress_text.dart';
 import 'package:bodega/domain/entities/app_error.dart';
@@ -76,6 +77,11 @@ extension AppErrorText on AppError {
         WineTool.winecfg => l10n.errWinecfgFailed(exitCode, log),
         WineTool.mono => l10n.errMonoFailed(exitCode, log),
       },
+    DependencyNotInstalledError(:final name, :final arch, :final log) =>
+      l10n.errDependencyNotInstalled(name, l10n.archOf(arch), log),
+    InstallTimedOutError(:final name, :final arch, :final log) =>
+      l10n.errInstallTimedOut(name, l10n.archOf(arch), log),
+    UnexpectedLinkError(:final path) => l10n.errUnexpectedLink(path),
     InstallerNoExeError(:final exe, :final log) => l10n.errInstallerNoExe(
       exe,
       log,
@@ -92,6 +98,7 @@ extension AppErrorText on AppError {
     NotASwitchGameError(:final path) => l10n.errNotASwitchGame(path),
     SwitchGameNotFoundError(:final path) => l10n.errSwitchGameNotFound(path),
     SwitchGameRunningError(:final path) => l10n.errSwitchGameRunning(path),
+    NoSwitchKeysError(:final source) => l10n.errNoSwitchKeys(source),
     DownloadCutError(:final received, :final total) => l10n.errDownloadCut(
       megabytes(received),
       megabytes(total),

@@ -68,6 +68,7 @@ final failures = <EngineFailure>[
   const MissingFile('/games/game.exe'),
   const ChecksumMissing('/downloads/engine-11.0.tar.gz.sha256'),
   const ChecksumMismatch('/downloads/engine-11.0.tar.gz'),
+  ...dependencyFailures.keys,
   const IncompleteArchive('engine-11.0.tar.gz', 'engine/bin/wine'),
   const CorruptData('/h/bottles/steam/apps.json', 'Unexpected end of input'),
   const NoRuntime(),
@@ -104,7 +105,22 @@ final failures = <EngineFailure>[
   ...switchFailures.keys,
 ];
 
-/// The five Switch failures, each with its message as SE20 gives it.
+/// The failures of the dependencies, each with its message as DE10 and RE5
+/// give it.
+final dependencyFailures = <EngineFailure, String>{
+  const DependencyNotInstalled('vcrun2008', 'x86', _log):
+      "the install of vcrun2008 (x86) finished, but the vendor's files are "
+      'not in the bottle: see $_log',
+  const InstallTimedOut('dotnet48', 'all', _log):
+      'the install of dotnet48 (all) ran past its time limit, so the bottle '
+      'was stopped: see $_log',
+  const UnexpectedLink(
+    '/h/bottles/steam/prefix/drive_c/users/q/Documents/x.ini',
+  ): 'a link in /h/bottles/steam/prefix/drive_c/users/q/Documents/x.ini '
+      'leads outside the bottle and the home folder',
+};
+
+/// The six Switch failures, each with its message as SE20 gives it.
 final switchFailures = <EngineFailure, String>{
   const NoEmulator('Ryubing', 'Ryujinx.app'):
       'Ryubing not found: Bodega looks for Ryujinx.app in /Applications and '
@@ -125,6 +141,8 @@ final switchFailures = <EngineFailure, String>{
   const SwitchGameRunning('/Users/q/a b.nsp'):
       '/Users/q/a b.nsp is already running: bodega switch stop '
       '"/Users/q/a b.nsp"',
+  const NoSwitchKeys('/Users/q/Downloads'):
+      'no .keys file at /Users/q/Downloads',
 };
 
 /// The command a message keeps from today's text (E4), or null. Exhaustive,
@@ -140,6 +158,7 @@ String? hintOf(EngineFailure failure) => switch (failure) {
   BackendNotInstalled(:final backend) => 'bodega backend install $backend',
   BadChoice(kind: ChoiceKind.catalogApp) => 'bodega catalog list',
   BadChoice(kind: ChoiceKind.fix) => 'bodega fix list',
+  BadChoice(kind: ChoiceKind.dependency) => 'bodega deps list <bottle>',
   AppNotFound(:final bottle, key: null) => 'bodega run $bottle',
   AlreadyInstalled(:final path) => 'rm -rf "$path"',
   RuntimeNotInstalled(runtime: RuntimeKind.mach9) =>
@@ -157,6 +176,9 @@ String? hintOf(EngineFailure failure) => switch (failure) {
   AppAlreadyAdded() ||
   MissingFile() ||
   ChecksumMismatch() ||
+  DependencyNotInstalled() ||
+  InstallTimedOut() ||
+  UnexpectedLink() ||
   IncompleteArchive() ||
   CorruptData() ||
   NotAvailable() ||
@@ -177,7 +199,8 @@ String? hintOf(EngineFailure failure) => switch (failure) {
   RuntimeUnavailable() ||
   RuntimeNotTrusted() ||
   RuntimeTooOld() ||
-  BackendNotForRuntime() => null,
+  BackendNotForRuntime() ||
+  NoSwitchKeys() => null,
 };
 
 void main() {
@@ -213,10 +236,10 @@ void main() {
     }
   });
 
-  test('the list holds each of the 41 failures', () {
+  test('the list holds each of the 45 failures', () {
     expect(
       failures.map((failure) => failure.runtimeType).toSet(),
-      hasLength(41),
+      hasLength(45),
     );
   });
 
@@ -236,8 +259,18 @@ void main() {
     );
   });
 
+  test('each failure of the dependencies reads as DE10 says', () {
+    for (final MapEntry(key: failure, value: text)
+        in dependencyFailures.entries) {
+      final name = '${failure.runtimeType}';
+      expect(failure.message, text, reason: name);
+      expect('$failure', text, reason: name);
+    }
+    expect(ChoiceKind.dependency.english, 'dependency');
+  });
+
   test('each Switch failure reads as SE20 says, with no link', () {
-    expect(switchFailures, hasLength(5));
+    expect(switchFailures, hasLength(6));
     for (final MapEntry(key: failure, value: text) in switchFailures.entries) {
       final name = '${failure.runtimeType}';
       expect(failure.message, text, reason: name);

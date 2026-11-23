@@ -27,7 +27,6 @@ void main() {
   setUp(() {
     repository = _MockUpdates();
     when(() => repository.check()).thenAnswer((_) async => right(update));
-    when(() => repository.skip(any())).thenAnswer((_) async => right(unit));
   });
 
   blocTest<UpdateBloc, UpdateState>(
@@ -38,12 +37,13 @@ void main() {
   );
 
   blocTest<UpdateBloc, UpdateState>(
-    '"Not now" remembers the version and hides it',
+    '"Not now" only closes it for this session: nothing is saved, so the '
+    'next start shows it again (issue #19)',
     build: () => UpdateBloc(repository),
     seed: () => const UpdateState(update: update),
-    act: (bloc) => bloc.add(const UpdateEvent.skip()),
+    act: (bloc) => bloc.add(const UpdateEvent.dismiss()),
     expect: () => const [UpdateState()],
-    verify: (_) => verify(() => repository.skip('1.4.0')).called(1),
+    verify: (_) => verifyNever(() => repository.check()),
   );
 
   blocTest<UpdateBloc, UpdateState>(

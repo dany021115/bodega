@@ -10,6 +10,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:bloc_test/bloc_test.dart';
+import 'package:bodega/app/bloc/app_games/app_games_bloc.dart';
 import 'package:bodega/app/bloc/backends/backends_bloc.dart';
 import 'package:bodega/app/bloc/bottle_detail/bottle_detail_bloc.dart';
 import 'package:bodega/app/bloc/bottles/bottles_bloc.dart';
@@ -72,9 +73,14 @@ import 'package:bodega/domain/entities/runtime_kind.dart';
 import 'package:bodega/domain/entities/user_name_problem.dart';
 import 'package:bodega/domain/entities/wine_tool.dart';
 import 'package:bodega/l10n/l10n.dart';
+import 'package:bodega/app/bloc/dependencies/dependencies_bloc.dart';
+import 'package:bodega/app/shared/text/dependency_text.dart';
+import 'package:bodega/domain/entities/dependency.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:bodega/app/shared/text/game_text.dart';
+import 'package:bodega/domain/entities/game.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
@@ -245,17 +251,20 @@ const _blurGraphics = ExeGraphics(
 /// An ARB file as JSON: messages, their `@key` metadata, `@@` attributes.
 typedef _Arb = Map<String, Object?>;
 
-/// The Switch section's five errors (SA1).
+/// The Switch section's six errors (SA1), the last one for keys the user
+/// picked that hold none.
 const _switchErrorKeys = [
   'errNoEmulator',
   'errNotAnEmulator',
   'errNotASwitchGame',
   'errSwitchGameNotFound',
   'errSwitchGameRunning',
+  'errNoSwitchKeys',
 ];
 
-/// SA19's 27 keys, in its table's order: the sidebar item, which also titles
-/// the page, the switch… keys and the five errors.
+/// SA19's 36 keys, in its table's order: the sidebar item, which also titles
+/// the page, the switch… keys, with those that put the user's own keys and
+/// firmware in place, and the six errors.
 const _switchKeys = [
   'navSwitch',
   'switchAddGames',
@@ -271,6 +280,14 @@ const _switchKeys = [
   'switchAfterDownload',
   'switchKeys',
   'switchFirmware',
+  'switchAddKeys',
+  'switchKeysHelp',
+  'switchInstallFirmware',
+  'switchFirmwareFile',
+  'switchFirmwareFolder',
+  'switchFirmwareHelp',
+  'switchKeysAdded',
+  'switchFirmwareOpened',
   'switchQuarantineNote',
   'switchFullScreen',
   'switchNative',
@@ -283,7 +300,7 @@ const _switchKeys = [
 ];
 
 /// Whether [key] names a Switch text, by the rule T27's count follows:
-/// navSwitch, a switch… key, or one of the five errors.
+/// navSwitch, a switch… key, or one of the six errors.
 bool _isSwitchKey(String key) =>
     key == 'navSwitch' ||
     key.startsWith(RegExp('switch[A-Z]')) ||
@@ -345,6 +362,34 @@ List<String> _switchTextProblems(_Arb en, _Arb es, List<String> keys) => [
           if (pattern.firstMatch(text) case final match?)
             '$file: $key: its $part holds "${match[0]}"',
 ];
+
+class _MockAppGames extends MockBloc<AppGamesEvent, AppGamesState>
+    implements AppGamesBloc {}
+
+/// The bottle's Games section with nothing to show.
+_MockAppGames _quietAppGames() {
+  final bloc = _MockAppGames();
+  whenListen(
+    bloc,
+    const Stream<AppGamesState>.empty(),
+    initialState: const AppGamesState(isLoading: false),
+  );
+  return bloc;
+}
+
+class _MockDependencies extends MockBloc<DependenciesEvent, DependenciesState>
+    implements DependenciesBloc {}
+
+/// No runtimes read and no job: the dependencies stay quiet.
+_MockDependencies _quietDependencies() {
+  final bloc = _MockDependencies();
+  whenListen(
+    bloc,
+    const Stream<DependenciesState>.empty(),
+    initialState: const DependenciesState(),
+  );
+  return bloc;
+}
 
 void main() {
   final en = lookupAppL10n(const Locale('en'));
@@ -1186,6 +1231,8 @@ void main() {
               BlocProvider<SectionsBloc>.value(value: sections),
               BlocProvider<GraphicsBloc>.value(value: graphics),
               BlocProvider<GamepadsBloc>.value(value: gamepads),
+              BlocProvider<AppGamesBloc>.value(value: _quietAppGames()),
+              BlocProvider<DependenciesBloc>.value(value: _quietDependencies()),
             ],
             child: Scaffold(
               body: SingleChildScrollView(
@@ -1485,6 +1532,8 @@ void main() {
               BlocProvider<LibraryBloc>.value(value: library),
               BlocProvider<BottlesBloc>.value(value: bottles),
               BlocProvider<GamepadsBloc>.value(value: gamepads),
+              BlocProvider<AppGamesBloc>.value(value: _quietAppGames()),
+              BlocProvider<DependenciesBloc>.value(value: _quietDependencies()),
               BlocProvider<SectionsBloc>.value(value: sections),
               BlocProvider<SetupBloc>.value(value: setup),
               BlocProvider<ViewModeBloc>.value(value: viewMode),
@@ -1705,6 +1754,10 @@ void main() {
               MultiBlocProvider(
                 providers: [
                   BlocProvider<GamepadsBloc>.value(value: gamepads),
+                  BlocProvider<AppGamesBloc>.value(value: _quietAppGames()),
+                  BlocProvider<DependenciesBloc>.value(
+                    value: _quietDependencies(),
+                  ),
                   BlocProvider<SectionsBloc>.value(value: sections),
                 ],
                 child: const Scaffold(
@@ -1895,6 +1948,31 @@ void main() {
         ['Steam/steam.exe', log],
       ),
       (
+        const AppError.dependencyNotInstalled(
+          'Visual C++ 2008',
+          Arch.x86,
+          log,
+          detail: detail,
+        ),
+        ['Visual C++ 2008', log],
+      ),
+      (
+        const AppError.installTimedOut(
+          '.NET Framework 4.8',
+          Arch.all,
+          log,
+          detail: detail,
+        ),
+        ['.NET Framework 4.8', log],
+      ),
+      (
+        const AppError.unexpectedLink(
+          '/b/prefix/drive_c/users/me/Documents/x.ini',
+          detail: detail,
+        ),
+        ['/b/prefix/drive_c/users/me/Documents/x.ini'],
+      ),
+      (
         const AppError.processFailed(
           '/usr/bin/hdiutil attach',
           2,
@@ -1953,7 +2031,7 @@ void main() {
     test('the cases hold every code', () {
       expect({
         for (final (error, _) in codes) error.runtimeType,
-      }, hasLength(41));
+      }, hasLength(44));
     });
 
     for (final (language, l10n) in [('en', en), ('es', es)]) {
@@ -2420,6 +2498,10 @@ void main() {
                   BlocProvider<SectionsBloc>.value(value: sections),
                   BlocProvider<GraphicsBloc>.value(value: graphics),
                   BlocProvider<GamepadsBloc>.value(value: gamepads),
+                  BlocProvider<AppGamesBloc>.value(value: _quietAppGames()),
+                  BlocProvider<DependenciesBloc>.value(
+                    value: _quietDependencies(),
+                  ),
                 ],
                 child: const Scaffold(
                   body: SingleChildScrollView(
@@ -2483,6 +2565,10 @@ void main() {
                 BlocProvider<UpdateBloc>.value(value: updates),
                 BlocProvider<InstallBloc>.value(value: install),
                 BlocProvider<SwitchBloc>.value(value: switchGames),
+                BlocProvider<AppGamesBloc>.value(value: _quietAppGames()),
+                BlocProvider<DependenciesBloc>.value(
+                  value: _quietDependencies(),
+                ),
               ],
               child: wrapApp(
                 const ShellBody(child: SizedBox.expand()),
@@ -3418,8 +3504,8 @@ void main() {
       _ => '',
     };
 
-    test("both files hold SA19's 27 keys, and no other Switch key", () {
-      expect(_switchKeys.toSet(), hasLength(27));
+    test("both files hold SA19's 36 keys, and no other Switch key", () {
+      expect(_switchKeys.toSet(), hasLength(36));
       for (final (file, arb) in arbs) {
         expect(
           arb.keys.where(_isSwitchKey).toSet(),
@@ -3673,5 +3759,133 @@ void main() {
     expect(en.catalogAppInstalled, 'Installed');
     expect(en.backendInstalled, en.catalogAppInstalled);
     expect(es.backendInstalled, isNot(es.catalogAppInstalled));
+  });
+
+  group('the words of the dependencies (DA8)', () {
+    final en = lookupAppL10n(const Locale('en'));
+    final es = lookupAppL10n(const Locale('es'));
+    const vc = Dependency(
+      id: 'vcrun2008',
+      name: 'Visual C++ 2008',
+      arch: Arch.x86,
+      bytes: 4483040,
+      status: DependencyStatus.notInstalled,
+    );
+
+    test(
+      'each code has words, distinct within its kind, in both languages',
+      () {
+        for (final l10n in [en, es]) {
+          for (final words in [
+            [for (final arch in Arch.values) l10n.archOf(arch)],
+            [for (final need in Need.values) l10n.needOf(need)],
+            [
+              for (final state in SettingState.values)
+                l10n.settingStateOf(state),
+            ],
+            [
+              for (final reason in NeedReason.values)
+                l10n.reasonOf(
+                  DependencyNeed(
+                    dependency: vc,
+                    need: Need.optional,
+                    reason: reason,
+                    dll: 'msvcr90.dll',
+                    fix: 'blur',
+                  ),
+                ),
+            ],
+            [
+              for (final fix in [
+                'blur',
+                'need-for-speed-most-wanted-2012',
+                'x',
+              ])
+                l10n.fixReason(fix),
+            ],
+          ]) {
+            expect(words, everyElement(isNotEmpty), reason: l10n.localeName);
+            expect(words.toSet(), hasLength(words.length), reason: '$words');
+          }
+        }
+        expect(en.archOf(Arch.x86), isNot(es.archOf(Arch.x86)));
+      },
+    );
+
+    test(
+      'each status, both arches at once, and each runtime\'s line (RA8)',
+      () {
+        for (final l10n in [en, es]) {
+          final statuses = [
+            for (final status in DependencyStatus.values) l10n.statusOf(status),
+          ];
+          expect(statuses.toSet(), hasLength(3), reason: l10n.localeName);
+          expect(l10n.archOf(Arch.all), isNotEmpty);
+          final lines = {
+            for (final id in [
+              'vcrun2005',
+              'vcrun2022',
+              'dotnet48',
+              'd3dx9',
+              'd3dcompiler_47',
+              'xact',
+              'physx',
+              'corefonts',
+              'x',
+            ])
+              l10n.runtimeLine(id),
+          };
+          // The old Visual C++ share a line, as the three D3DX do.
+          expect(lines, hasLength(9), reason: l10n.localeName);
+          expect(l10n.runtimeLine('d3dx10'), l10n.runtimeLine('d3dx9'));
+          expect(l10n.runtimeLine('vcrun2013'), l10n.runtimeLine('vcrun2005'));
+        }
+        expect(en.archOf(Arch.all), isNot(es.archOf(Arch.all)));
+        expect(en.depsUnknown, isNot(es.depsUnknown));
+      },
+    );
+
+    test('a runtime shows its name as is, and its size in each language', () {
+      expect(en.dependencyLine(vc), 'Visual C++ 2008 · 32-bit · 4.5 MB');
+      expect(es.dependencyLine(vc), 'Visual C++ 2008 · 32 bits · 4,5 MB');
+      const setting = SettingNeed(
+        fix: 'need-for-speed-most-wanted-2012',
+        game: 'Need for Speed: Most Wanted (2012)',
+        section: 'Sound',
+        name: 'Reverb',
+        value: '0',
+        state: SettingState.notApplied,
+      );
+      expect(en.settingLine(setting), 'Game setting: [Sound] Reverb = 0');
+      expect(es.settingLine(setting), 'Ajuste del juego: [Sound] Reverb = 0');
+    });
+  });
+
+  // A6: every code of the game configurations has its words, in both
+  // languages.
+  test('every game code is worded, in English and in Spanish (A6)', () {
+    for (final l10n in [en, es]) {
+      final words = [
+        for (final status in GameStatus.values) l10n.gameStatusOf(status),
+        for (final rating in [...GameRating.values, null])
+          l10n.ratingOf(rating),
+        for (final verdict in GameVerdict.values) l10n.verdictOf(verdict),
+        for (final kind in GameMatchKind.values) l10n.matchOf(kind, 'Game'),
+        for (final origin in BackendOrigin.values) l10n.originOf(origin),
+        for (final verdict in AntiCheatVerdict.values)
+          l10n.antiCheatOf(verdict, ['VAC']),
+        for (final kind in GameStepKind.values)
+          l10n.stepOf(GameStep(kind: kind, name: 'N', value: 'V')),
+      ];
+      for (final word in words) {
+        expect(word.trim(), isNotEmpty);
+      }
+      expect(words.toSet().length, greaterThan(words.length - 4));
+    }
+    expect(es.gamesMatchTitle('Portal 2'), contains('Portal 2'));
+    expect(
+      es.gamesReports(1, es.gamesRatingWorks, '2026-11-11'),
+      isNot(contains('reports')),
+    );
   });
 }

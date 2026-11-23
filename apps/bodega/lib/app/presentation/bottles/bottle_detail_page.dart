@@ -1,4 +1,6 @@
+import 'package:bodega/app/bloc/app_games/app_games_bloc.dart';
 import 'package:bodega/app/bloc/bottle_detail/bottle_detail_bloc.dart';
+import 'package:bodega/app/bloc/dependencies/dependencies_bloc.dart';
 import 'package:bodega/app/bloc/bottles/bottles_bloc.dart';
 import 'package:bodega/app/bloc/gamepads/gamepads_bloc.dart';
 import 'package:bodega/app/bloc/library/library_bloc.dart';
@@ -50,6 +52,7 @@ class BottleDetailPage extends StatelessWidget {
         BlocProvider(
           create: (_) => getIt<GamepadsBloc>()..add(const GamepadsEvent.load()),
         ),
+        BlocProvider(create: (_) => getIt<AppGamesBloc>()),
       ],
       child: BottleDetailView(name: name),
     );
@@ -178,7 +181,14 @@ class BottleDetailView extends StatelessWidget {
     );
     final inLibrary = detail.apps.where((app) => app.inLibrary).length;
     final canAdd = detail.ready && !isBusy;
-    void add() => showAddAppDialog(context, bottle: detail.name);
+    Future<void> add() async {
+      final key = await showAddAppDialog(context, bottle: detail.name);
+      if (key != null && context.mounted) {
+        context.read<DependenciesBloc>().add(
+          DependenciesEvent.offer(detail.name, key),
+        );
+      }
+    }
 
     final apps = detail.apps.isEmpty
         ? BottleEmptyApps(onAdd: canAdd ? add : null)
@@ -310,8 +320,10 @@ class BottleDetailView extends StatelessWidget {
     // makes a shortcut) goes through LibraryBloc: this page follows it.
     return BlocListener<LibraryBloc, LibraryState>(
       listenWhen: (previous, current) => previous.apps != current.apps,
-      listener: (context, _) =>
-          context.read<BottleDetailBloc>().add(BottleDetailEvent.load(name)),
+      listener: (context, _) {
+        context.read<BottleDetailBloc>().add(BottleDetailEvent.load(name));
+        context.read<DependenciesBloc>().add(DependenciesEvent.load(name));
+      },
       child: Scaffold(
         body: BlocConsumer<BottleDetailBloc, BottleDetailState>(
           listenWhen: (previous, current) =>

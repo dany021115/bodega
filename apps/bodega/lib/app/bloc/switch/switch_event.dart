@@ -22,6 +22,14 @@ sealed class SwitchEvent with _$SwitchEvent {
   const factory SwitchEvent.setFullscreen(bool value) =
       SwitchSetFullscreenEvent;
 
+  /// Copies the keys the user picked where the emulator reads them.
+  const factory SwitchEvent.installKeys(List<String> paths) =
+      SwitchInstallKeysEvent;
+
+  /// Opens the emulator's own installer on the firmware the user picked.
+  const factory SwitchEvent.installFirmware(String path) =
+      SwitchInstallFirmwareEvent;
+
   const factory SwitchEvent.open(String path) = SwitchOpenEvent;
   const factory SwitchEvent.stop(String path) = SwitchStopEvent;
 

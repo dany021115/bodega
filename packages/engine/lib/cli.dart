@@ -29,6 +29,12 @@ usage: bodega install <engine.tar.gz> <hostlibs.tar.gz>
        bodega catalog install <id> [bottle] [--runtime mach9]
        bodega fix list [text]
        bodega fix show <id|steam-appid>
+       bodega fix apply <bottle> <id>
+       bodega game show <bottle> <key>
+       bodega game use <bottle> <key> on|off
+       bodega deps list <bottle>
+       bodega deps check <bottle> <key>
+       bodega deps install <bottle> <id> <x86|x64|all> [file…]
        bodega apps
        bodega open [--backend <b>] [--hud] <bottle> [key]
        bodega switch status
@@ -38,7 +44,9 @@ usage: bodega install <engine.tar.gz> <hostlibs.tar.gz>
        bodega switch list
        bodega switch remove <game>
        bodega switch open <game>
-       bodega switch stop <game>''';
+       bodega switch stop <game>
+       bodega switch keys <file.keys|folder>…
+       bodega switch firmware <file|folder>''';
 
 /// A runtime kind named on the command line, or null for an unknown one.
 RuntimeKind? _kindNamed(String name) =>

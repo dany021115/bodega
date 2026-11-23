@@ -448,6 +448,10 @@ typedef BottleSettings = ({
 
   /// False takes `ROSETTA_ADVERTISE_AVX` out of every launch (M8).
   bool avx,
+
+  /// DXVK compiles shaders in the background: `DXVK_ASYNC=1` on the Mac,
+  /// whose DXVK reads it (RE8).
+  bool dxvkAsync,
   String windows,
   Map<String, String> env,
 
@@ -460,7 +464,16 @@ typedef BottleSettings = ({
 
   /// The stored kind (MB1); [bottleRuntime] gives the effective one.
   RuntimeKind runtime,
+
+  /// The app keys whose game configuration is off (G6).
+  Set<String> configOff,
+
+  /// What the user said of each app: `works`, `playable` or `broken` (G6).
+  Map<String, String> verdicts,
 });
+
+/// What [setGameVerdict] admits.
+const gameVerdicts = ['works', 'playable', 'broken'];
 
 /// What [setWindowsVersion] admits, newest first.
 const windowsVersions = ['win11', 'win10', 'win81', 'win7'];
@@ -476,12 +489,15 @@ BottleSettings get _defaults => (
   highRes: false,
   dlss: false,
   avx: true,
+  dxvkAsync: false,
   windows: 'win10',
   env: {},
   gpu: 'auto',
   gamemode: hostPlatform.defaultGamemode,
   user: '',
   runtime: RuntimeKind.bodega,
+  configOff: {},
+  verdicts: {},
 );
 
 /// [settings] with these fields changed: records have no `copyWith`.
@@ -494,12 +510,15 @@ BottleSettings _with(
   bool? highRes,
   bool? dlss,
   bool? avx,
+  bool? dxvkAsync,
   String? windows,
   Map<String, String>? env,
   String? gpu,
   bool? gamemode,
   String? user,
   RuntimeKind? runtime,
+  Set<String>? configOff,
+  Map<String, String>? verdicts,
 }) => (
   backend: backend ?? settings.backend,
   sync: sync ?? settings.sync,
@@ -508,19 +527,30 @@ BottleSettings _with(
   highRes: highRes ?? settings.highRes,
   dlss: dlss ?? settings.dlss,
   avx: avx ?? settings.avx,
+  dxvkAsync: dxvkAsync ?? settings.dxvkAsync,
   windows: windows ?? settings.windows,
   env: env ?? settings.env,
   gpu: gpu ?? settings.gpu,
   gamemode: gamemode ?? settings.gamemode,
   user: user ?? settings.user,
   runtime: runtime ?? settings.runtime,
+  configOff: configOff ?? settings.configOff,
+  verdicts: verdicts ?? settings.verdicts,
 );
 
 /// `bottles/<b>/settings.json` (S1, A1, A2, M8). A missing file or field means
 /// its default; a broken one is an error, never ignored.
 BottleSettings _settings(String dir) {
   final file = File('$dir/settings.json');
-  if (!file.existsSync()) return _with(_defaults, programs: {}, env: {});
+  if (!file.existsSync()) {
+    return _with(
+      _defaults,
+      programs: {},
+      env: {},
+      configOff: {},
+      verdicts: {},
+    );
+  }
   try {
     final json = jsonDecode(file.readAsStringSync()) as Map<String, dynamic>;
     final programs = (json['programs'] ?? <String, dynamic>{}) as Map;
@@ -539,23 +569,35 @@ BottleSettings _settings(String dir) {
       highRes: (json['highRes'] ?? false) as bool,
       dlss: (json['dlss'] ?? false) as bool,
       avx: (json['avx'] ?? true) as bool,
+      dxvkAsync: (json['dxvkAsync'] ?? false) as bool,
       windows: (json['windows'] ?? 'win10') as String,
       env: Map<String, String>.from((json['env'] ?? const {}) as Map),
       gpu: (json['gpu'] ?? 'auto') as String,
       gamemode: (json['gamemode'] ?? hostPlatform.defaultGamemode) as bool,
       user: (json['user'] ?? '') as String,
       runtime: _runtimeNamed(json['runtime'] as String?),
+      configOff: Set<String>.from((json['configOff'] ?? const []) as List),
+      verdicts: Map<String, String>.from(
+        (json['verdicts'] ?? const {}) as Map,
+      ),
     );
     _checkStored(settings.backend);
     _checkSync(settings.sync);
     _checkGpu(settings.gpu);
     _checkWindows(settings.windows);
+    settings.verdicts.values.forEach(_checkVerdict);
     for (final program in settings.programs.values) {
       if (program.backend case final backend?) _checkStored(backend);
     }
     return settings;
   } on Object catch (e) {
     throw CorruptData(file.path, '$e');
+  }
+}
+
+void _checkVerdict(String verdict) {
+  if (!gameVerdicts.contains(verdict)) {
+    throw BadChoice(ChoiceKind.verdict, verdict);
   }
 }
 
@@ -592,12 +634,16 @@ void _saveSettings(String dir, BottleSettings settings) {
     if (settings.highRes) 'highRes': true,
     if (settings.dlss) 'dlss': true,
     if (!settings.avx) 'avx': false,
+    if (settings.dxvkAsync) 'dxvkAsync': true,
     if (settings.windows != _defaults.windows) 'windows': settings.windows,
     if (settings.env.isNotEmpty) 'env': settings.env,
     if (settings.gpu != _defaults.gpu) 'gpu': settings.gpu,
     if (settings.gamemode != hostPlatform.defaultGamemode)
       'gamemode': settings.gamemode,
     if (settings.user.isNotEmpty) 'user': settings.user,
+    if (settings.configOff.isNotEmpty)
+      'configOff': [...settings.configOff]..sort(),
+    if (settings.verdicts.isNotEmpty) 'verdicts': settings.verdicts,
   });
 }
 
@@ -643,13 +689,14 @@ Future<bool> setSync(String home, String name, String sync) async {
   return true;
 }
 
-/// DLSS, AVX, GPU, GameMode and the bottle's own variables (M8): they apply
-/// from the next launch, so nothing is stopped.
+/// DLSS, AVX, DXVK's async compiling, GPU, GameMode and the bottle's own
+/// variables (M8): they apply from the next launch, so nothing is stopped.
 void setBottleOptions(
   String home,
   String name, {
   bool? dlss,
   bool? avx,
+  bool? dxvkAsync,
   String? gpu,
   bool? gamemode,
   Map<String, String>? env,
@@ -662,6 +709,7 @@ void setBottleOptions(
       _settings(dir),
       dlss: dlss,
       avx: avx,
+      dxvkAsync: dxvkAsync,
       gpu: gpu,
       gamemode: gamemode,
       env: env,
@@ -782,16 +830,19 @@ Future<void> setWindowsVersion(String home, String name, String version) async {
 }
 
 /// Applies S2: option, then the program's exception, then the bottle, then
-/// auto. [dir] is the bottle; [exePath] is null for a program without a path.
-/// Throws if the choice is not installed (S5): it never falls back silently,
-/// and [BackendNotForRuntime] for a name of the other runtime kind (MG3). On
-/// Mach9, auto stays `auto` and leaves the choice to Mach9.
+/// the game's [config] (G5), then auto. [dir] is the bottle; [exePath] is null
+/// for a program without a path. Throws if a choice the user made is not
+/// installed (S5): it never falls back silently, and [BackendNotForRuntime]
+/// for a name of the other runtime kind (MG3). A [config] that is not
+/// installed is only a suggestion, so auto decides. On Mach9, [config] is not
+/// used and auto stays `auto`, leaving the choice to Mach9.
 Future<({String name, String origin})> resolveBackend(
   String home,
   String dir,
   String program,
   String? exePath, {
   String? option,
+  String? config,
 }) async {
   final settings = _settings(dir);
   if (_bottleRuntimeIn(dir) == RuntimeKind.mach9) {
@@ -808,6 +859,8 @@ Future<({String name, String origin})> resolveBackend(
       ? (exception, 'exe')
       : bottle != null
       ? (bottle, 'bottle')
+      : config != null && _installed(home, config)
+      ? (config, 'config')
       : (null, 'auto');
   if (name == null) {
     return (

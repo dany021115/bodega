@@ -34,10 +34,32 @@ class SwitchPage extends StatefulWidget {
 }
 
 class _SwitchPageState extends State<SwitchPage> {
+  late final AppLifecycleListener _lifecycle;
+
   @override
   void initState() {
     super.initState();
-    context.read<SwitchBloc>().add(const SwitchEvent.load());
+    final bloc = context.read<SwitchBloc>()..add(const SwitchEvent.load());
+    // The user may have installed the emulator, or confirmed the firmware in
+    // its window, meanwhile: while something is missing, coming back to
+    // Bodega checks again.
+    _lifecycle = AppLifecycleListener(
+      onResume: () {
+        final status = bloc.state.status;
+        if (status == null ||
+            status.install == null ||
+            !status.keys ||
+            !status.firmware) {
+          bloc.add(const SwitchEvent.load());
+        }
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    _lifecycle.dispose();
+    super.dispose();
   }
 
   /// Asks first: stopping a game closes it, and what it has not saved is

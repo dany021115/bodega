@@ -299,6 +299,10 @@ void main() {
         const engine.BackendNotForRuntime('dxvk', engine.RuntimeKind.mach9),
         const AppError.backendNotForRuntime('dxvk', RuntimeKind.mach9),
       ),
+      (
+        const engine.NoSwitchKeys('/g/notes.txt'),
+        const AppError.noSwitchKeys('/g/notes.txt'),
+      ),
       // What the app never triggers (design §5).
       (const engine.NotAvailable('SDL', 'Linux'), const AppError.unknown()),
       (const engine.NotDownloadable('d3dmetal'), const AppError.unknown()),
@@ -326,7 +330,7 @@ void main() {
     test('the cases hold every failure of the engine', () {
       expect({
         for (final (failure, _) in cases) failure.runtimeType,
-      }, hasLength(41));
+      }, hasLength(42));
     });
   });
 

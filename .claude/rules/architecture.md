@@ -25,10 +25,11 @@ paths:
 - `EngineHome` holds the data root; never call `bodegaHome` elsewhere
 - Name clashes with the engine's functions: `import 'package:engine/engine.dart' as engine;`
 - Downloads go through `Downloader`: HTTPS only, resumable, with progress. Don't use `dio.download`
+- A runtime's files go to `downloads/<file>` (`engine.dependencyDownload` lists them in order) and the engine checks them: `engine.installDependency(..., files:)`, as backends go to `engine.installBackend(..., tarball:)`
 
 ## BLoCs
 - All in `app/bloc/{name}/`, with Freezed events and one state with `@Default` fields and `copyWith`
-- What must outlive a page (an install, what's open) is `@lazySingleton` and provided in `main.dart`
+- What must outlive a page (an install, what's open) is `@lazySingleton` and provided in `main.dart`: `InstallBloc`, `DependenciesBloc` (a runtime's install) and the others
 - What belongs to one page is `@injectable` and provided by that page
 - Errors, steps and hints go in the state as codes (`AppError?`, `InstallStep`, `RunHint`); the page words them
 
@@ -39,6 +40,7 @@ paths:
 - Errors are codes: an `AppError` is worded by `error.localized(l10n)` (`app/shared/text/error_text.dart`). Its `detail` (the engine's English message, a tool's stderr) is never rendered; `CopyDetailsButton` copies it
 - No user-facing copy in `domain/` or `data/`: they return codes, and the page phrases them
 - Only `app/` and `main.dart` import `package:bodega/l10n/` (`tool/check_layers.sh`)
+- Third-party prose (highball-db's notes and known issues on a game's page) is shown as it is, under a label that names its source and its language (`gamesNotesHighball`). It is data, never an ARB key, and never Bodega's own copy
 - Words for codes live in `app/shared/text/`, one file per family, in exhaustive switches without `_ =>`, so a new code fails analysis until it is worded. Only tables keyed by a `String` (backend names, catalog ids and source fields) keep a default
 
 ## Repositories

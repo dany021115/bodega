@@ -1,3 +1,4 @@
+import 'package:bodega/domain/entities/dependency.dart';
 import 'package:bodega/domain/entities/path_problem.dart';
 import 'package:bodega/domain/entities/runtime_block.dart';
 import 'package:bodega/domain/entities/runtime_kind.dart';
@@ -162,6 +163,31 @@ sealed class AppError with _$AppError implements Exception {
     String? detail,
   }) = InstallerNoExeError;
 
+  // Dependencies.
+
+  /// The install of runtime [name] for [arch] ended well, but the vendor's
+  /// files are not in the bottle; [log] is the last step's log.
+  const factory AppError.dependencyNotInstalled(
+    String name,
+    Arch arch,
+    String log, {
+    String? detail,
+  }) = DependencyNotInstalledError;
+
+  /// The install of runtime [name] for [arch] ran past its time limit, so the
+  /// bottle was stopped; [log] is the last step's log.
+  const factory AppError.installTimedOut(
+    String name,
+    Arch arch,
+    String log, {
+    String? detail,
+  }) = InstallTimedOutError;
+
+  /// A link on the way to a game's settings file at [path] leads outside the
+  /// bottle and the home folder, so Bodega did not write there.
+  const factory AppError.unexpectedLink(String path, {String? detail}) =
+      UnexpectedLinkError;
+
   /// A host program failed: [exitCode] is null when it ran but did not answer
   /// as expected. What it printed is in [detail].
   const factory AppError.processFailed(
@@ -196,6 +222,10 @@ sealed class AppError with _$AppError implements Exception {
   /// [path] already runs.
   const factory AppError.switchGameRunning(String path, {String? detail}) =
       SwitchGameRunningError;
+
+  /// [source], picked as keys, is no `.keys` file and holds none.
+  const factory AppError.noSwitchKeys(String source, {String? detail}) =
+      NoSwitchKeysError;
 
   // Downloads and updates.
 

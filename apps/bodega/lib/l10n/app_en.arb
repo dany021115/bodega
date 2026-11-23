@@ -6,7 +6,7 @@
   },
   "commonInstall": "Install",
   "@commonInstall": {
-    "description": "Button that installs: a catalog app (on its page and in the add-app dialog), a backend (on its card, and a Game Porting Toolkit version on D3DMetal's card) or the engine (on the setup page)."
+    "description": "Button that installs: a catalog app (on its page and in the add-app dialog), a backend (on its card, and a Game Porting Toolkit version on D3DMetal's card) or the engine (on the setup page), and a runtime or what is checked in the dialog of runtimes (in a bottle's Dependencies section)."
   },
   "commonInstalling": "Installing",
   "@commonInstalling": {
@@ -116,7 +116,7 @@
   },
   "downloadProgress": "Downloading · {percent} · {received} MB of {total} MB",
   "@downloadProgress": {
-    "description": "Under the progress bar of a download (an app's installer, an update, a backend). Sizes are MB of 10^6 bytes.",
+    "description": "Under the progress bar of a download (an app's installer, an update, a backend, a runtime). Sizes are MB of 10^6 bytes.",
     "placeholders": {
       "percent": {
         "type": "double",
@@ -718,10 +718,6 @@
   "backendDescriptionDxvk": "D3D10 and D3D11 on Vulkan, through MoltenVK.",
   "@backendDescriptionDxvk": {
     "description": "On the card of the dxvk backend, under its name: what it is."
-  },
-  "backendDescriptionDxvk9": "D3D9 on Vulkan, through MoltenVK. D3D10 and D3D11 go to DXMT.",
-  "@backendDescriptionDxvk9": {
-    "description": "On the card of the dxvk9 backend, under its name: what it is. It draws DirectX 9 games with DXVK and leaves DirectX 10 and 11 to the DXMT backend."
   },
   "backendDescriptionD3dMetal": "D3D11 and D3D12 on Metal, by Apple. You import it yourself.",
   "@backendDescriptionD3dMetal": {
@@ -1542,6 +1538,34 @@
       }
     }
   },
+  "errDependencyNotInstalled": "The install of {name} ({arch}) finished, but the vendor's files are not in the bottle. Log: {log}",
+  "@errDependencyNotInstalled": {
+    "description": "Error, in a toast and in the Dependencies section: a runtime's install ended well, but its file is not where it should be. name is the runtime, arch its bits (depsArch32, depsArch64 or depsArchAll), log the last step's log.",
+    "placeholders": {
+      "name": {
+        "type": "String",
+        "example": "Visual C++ 2008"
+      },
+      "arch": {
+        "type": "String",
+        "example": "32-bit"
+      },
+      "log": {
+        "type": "String",
+        "example": "/Users/me/Library/Application Support/Bodega/bottles/games/logs/vcrun2008-x86.log"
+      }
+    }
+  },
+  "errUnexpectedLink": "Bodega didn't change {path}: a link on the way leads outside the bottle and your home folder.",
+  "@errUnexpectedLink": {
+    "description": "Error, in a toast: Bodega refused to write a game's settings file, because a link on its path points somewhere else.",
+    "placeholders": {
+      "path": {
+        "type": "String",
+        "example": "/Users/me/Library/Application Support/Bodega/bottles/games/prefix/drive_c/users/me/Documents/game.ini"
+      }
+    }
+  },
   "errProcessFailed": "{command} exited with code {code}.",
   "@errProcessFailed": {
     "description": "Error, in the error panel of the screen that failed or in a toast: a program of the computer's that Bodega runs failed. command is what was run; code is its exit code.",
@@ -1621,6 +1645,16 @@
       "path": {
         "type": "String",
         "example": "/Users/me/Games/Bodega Test.nsp"
+      }
+    }
+  },
+  "errNoSwitchKeys": "{source} has no keys: pick a .keys file, or a folder that holds one.",
+  "@errNoSwitchKeys": {
+    "description": "Error on the Switch page when what the user picked as keys is no .keys file and holds none. source is the path, kept as it is; .keys is a file type, kept as it is.",
+    "placeholders": {
+      "source": {
+        "type": "String",
+        "example": "/Users/ana/Desktop/notes.txt"
       }
     }
   },
@@ -1892,10 +1926,6 @@
   "backendRoleDx10to11": "DirectX 10 and 11, 32 and 64 bits",
   "@backendRoleDx10to11": {
     "description": "What DXMT and DXVK are for on the Mac, after backendUsedFor on their cards: games that draw with DirectX 10 or 11, built for 32 or 64 bits."
-  },
-  "backendRoleDx9to11": "DirectX 9 with DXVK, and 10 and 11 with DXMT",
-  "@backendRoleDx9to11": {
-    "description": "What dxvk9 is for on the Mac, after backendUsedFor on its card: games that draw with DirectX 9 go through DXVK, and DirectX 10 or 11 through DXMT, at 32 or 64 bits."
   },
   "backendRoleEverythingElse": "Everything: DirectX 9 and older, and what the others can't run",
   "@backendRoleEverythingElse": {
@@ -2329,6 +2359,66 @@
       }
     }
   },
+  "switchAddKeys": "Add keys…",
+  "@switchAddKeys": {
+    "description": "Button in the status panel on the Switch page, shown while the emulator has no keys: it opens a file picker for the user's own keys files (.keys), which Bodega copies where the emulator reads them. 'keys' is the word Switch users use; keep it as it is if the language has no better one. Never say where or how to get them."
+  },
+  "switchKeysHelp": "{name} needs the keys of your own Switch (prod.keys). Click Add keys… and pick them: Bodega puts them where {name} reads them.",
+  "@switchKeysHelp": {
+    "description": "Line under the buttons of the status panel on the Switch page, shown while the emulator has no keys. name is the emulator, a brand kept as it is; prod.keys is the file's name, kept as it is; Add keys… is the button beside it (switchAddKeys): use its translation. Say only that they come from the user's own console and what Bodega does, never where or how to get them.",
+    "placeholders": {
+      "name": {
+        "type": "String",
+        "example": "Ryubing"
+      }
+    }
+  },
+  "switchInstallFirmware": "Install firmware…",
+  "@switchInstallFirmware": {
+    "description": "Button in the status panel on the Switch page, shown while the emulator is found and has its keys but no firmware: it opens a short menu to pick the user's own firmware, a file (switchFirmwareFile) or a folder (switchFirmwareFolder). The emulator then opens its own installer."
+  },
+  "switchFirmwareFile": "A file (.zip or .xci)…",
+  "@switchFirmwareFile": {
+    "description": "Item of the menu of switchInstallFirmware on the Switch page: it opens a file picker for a firmware file. .zip and .xci are file types, kept as they are."
+  },
+  "switchFirmwareFolder": "A folder…",
+  "@switchFirmwareFolder": {
+    "description": "Item of the menu of switchInstallFirmware on the Switch page: it opens a folder picker for a firmware folder."
+  },
+  "switchFirmwareHelp": "{name} also needs the firmware of your own Switch. Click Install firmware… and pick it: {name} opens to install it. Confirm there, and Bodega checks again when you come back.",
+  "@switchFirmwareHelp": {
+    "description": "Line under the buttons of the status panel on the Switch page, shown while the emulator is found and has its keys but no firmware. name is the emulator, a brand kept as it is; Install firmware… is the button beside it (switchInstallFirmware): use its translation. Say only that it comes from the user's own console and what happens, never where or how to get it.",
+    "placeholders": {
+      "name": {
+        "type": "String",
+        "example": "Ryubing"
+      }
+    }
+  },
+  "switchKeysAdded": "{count, plural, =1{1 keys file added for {name}} other{{count} keys files added for {name}}}",
+  "@switchKeysAdded": {
+    "description": "Toast, on whatever page shows, when the keys the user picked on the Switch page were copied where the emulator reads them. count is how many files; name is the emulator, a brand kept as it is.",
+    "placeholders": {
+      "name": {
+        "type": "String",
+        "example": "Ryubing"
+      },
+      "count": {
+        "type": "int",
+        "example": "1"
+      }
+    }
+  },
+  "switchFirmwareOpened": "{name} opened to install the firmware: confirm there.",
+  "@switchFirmwareOpened": {
+    "description": "Toast, on whatever page shows, when the emulator opened its own firmware installer for the firmware the user picked on the Switch page. name is the emulator, a brand kept as it is.",
+    "placeholders": {
+      "name": {
+        "type": "String",
+        "example": "Ryubing"
+      }
+    }
+  },
   "switchQuarantineNote": "If {name} doesn't start, open it once from the Finder. If macOS blocks it, allow it in System Settings > Privacy & Security.",
   "@switchQuarantineNote": {
     "description": "Note in the status panel on the Switch page, for an app that macOS keeps in quarantine since it was never opened: the emulator, or a Switch game made into a Mac app. name is that app's name: the emulator, a brand kept as it is, or the game's title. Finder, System Settings and Privacy & Security are macOS's own names: use the ones macOS shows in the translation's language.",
@@ -2394,6 +2484,668 @@
         "example": "Bodega Test"
       }
     }
+  },
+  "depsTitle": "Dependencies",
+  "@depsTitle": {
+    "description": "Title of the section of a bottle's panel that lists the Windows runtimes its programs need, and the changes known fixes make to games' own settings files."
+  },
+  "depsLoading": "Checking what the programs here need…",
+  "@depsLoading": {
+    "description": "In the Dependencies section, while Bodega reads the bottle's programs."
+  },
+  "depsNothing": "No program here needs anything Bodega can install.",
+  "@depsNothing": {
+    "description": "In the Dependencies section, when no program of the bottle needs a runtime or a setting."
+  },
+  "depsArch32": "32-bit",
+  "@depsArch32": {
+    "description": "A runtime for 32-bit programs, beside its name."
+  },
+  "depsArch64": "64-bit",
+  "@depsArch64": {
+    "description": "A runtime for 64-bit programs, beside its name."
+  },
+  "depsSize": "{size} MB",
+  "@depsSize": {
+    "description": "The size of a runtime's installer, shown before anything downloads. MB of 10^6 bytes.",
+    "placeholders": {
+      "size": {
+        "type": "double",
+        "format": "decimalPatternDigits",
+        "optionalParameters": {
+          "decimalDigits": 1
+        },
+        "example": "4.5"
+      }
+    }
+  },
+  "depsItem": "{name} · {arch} · {size}",
+  "@depsItem": {
+    "description": "One runtime in the Dependencies section and its dialog: its product name (shown as is, such as Visual C++ 2008), its bits (depsArch32 or depsArch64) and its size (depsSize).",
+    "placeholders": {
+      "name": {
+        "type": "String",
+        "example": "Visual C++ 2008"
+      },
+      "arch": {
+        "type": "String",
+        "example": "32-bit"
+      },
+      "size": {
+        "type": "String",
+        "example": "4.5 MB"
+      }
+    }
+  },
+  "depsNeedRecommended": "Recommended",
+  "@depsNeedRecommended": {
+    "description": "Chip on a runtime or a setting that a known fix asks for, or that a program cannot run without."
+  },
+  "depsNeedOptional": "Optional",
+  "@depsNeedOptional": {
+    "description": "Chip on a runtime a program uses, which Wine also provides: usually not needed."
+  },
+  "depsReasonNotInWine": "Uses {dll}, which Wine doesn't have",
+  "@depsReasonNotInWine": {
+    "description": "Why a runtime is recommended: the program imports this DLL and Wine has no copy of it.",
+    "placeholders": {
+      "dll": {
+        "type": "String",
+        "example": "mfc90.dll"
+      }
+    }
+  },
+  "depsReasonImported": "Uses {dll}; Wine's own copy usually works",
+  "@depsReasonImported": {
+    "description": "Why a runtime is optional: the program imports this DLL and Wine has its own copy.",
+    "placeholders": {
+      "dll": {
+        "type": "String",
+        "example": "msvcr100.dll"
+      }
+    }
+  },
+  "depsFixBlur": "Stops Blur's random crashes in Wine's own C++ runtime.",
+  "@depsFixBlur": {
+    "description": "Why Bodega recommends Microsoft's Visual C++ 2008 for the game Blur."
+  },
+  "depsFixNfsMostWanted2012": "Stops the stuttering sound: the game's reverb is too heavy under Rosetta.",
+  "@depsFixNfsMostWanted2012": {
+    "description": "Why Bodega recommends turning reverb off in Need for Speed: Most Wanted (2012)'s own settings. Rosetta is Apple's translation layer for Intel programs."
+  },
+  "depsFixOther": "A known fix for this game.",
+  "@depsFixOther": {
+    "description": "Why Bodega recommends something for a game whose fix has no sentence of its own."
+  },
+  "depsInstalled": "Installed",
+  "@depsInstalled": {
+    "description": "State of a runtime that is in the bottle."
+  },
+  "depsNotInstalled": "Not installed",
+  "@depsNotInstalled": {
+    "description": "State of a runtime that is not in the bottle."
+  },
+  "depsSettingApplied": "Applied",
+  "@depsSettingApplied": {
+    "description": "State of a change to a game's settings file that is already there."
+  },
+  "depsSettingNotApplied": "Not applied",
+  "@depsSettingNotApplied": {
+    "description": "State of a change to a game's settings file that is not made yet."
+  },
+  "depsSettingNoFile": "Open the game once first",
+  "@depsSettingNoFile": {
+    "description": "State of a change to a game's settings file when the game has not made its file yet: it does on its first run."
+  },
+  "depsSetting": "Game setting: {setting}",
+  "@depsSetting": {
+    "description": "A change a known fix makes to a game's own settings file. setting is the section, key and value, shown as is.",
+    "placeholders": {
+      "setting": {
+        "type": "String",
+        "example": "[Sound] Reverb = 0"
+      }
+    }
+  },
+  "depsApply": "Apply",
+  "@depsApply": {
+    "description": "Button that makes a known fix's change in a game's settings file."
+  },
+  "depsStopFirst": "Stop the bottle to install or apply anything.",
+  "@depsStopFirst": {
+    "description": "In the Dependencies section while a program of the bottle runs: installs and settings wait for the bottle to stop."
+  },
+  "depsWholeBottle": "Runtimes install for every program in this bottle.",
+  "@depsWholeBottle": {
+    "description": "Note in the dialog: a runtime is not for one program only."
+  },
+  "depsDialogFor": "Bodega suggests for {game}",
+  "@depsDialogFor": {
+    "description": "Title of the dialog that opens after a program is added, with what it needs.",
+    "placeholders": {
+      "game": {
+        "type": "String",
+        "example": "Blur"
+      }
+    }
+  },
+  "depsDialogNone": "Every runtime is installed in this bottle.",
+  "@depsDialogNone": {
+    "description": "In the dialog with every runtime, when none is left to install."
+  },
+  "depsNotNow": "Not now",
+  "@depsNotNow": {
+    "description": "Button that closes the dialog of suggestions without doing anything."
+  },
+  "depsInstalling": "Installing {name}…",
+  "@depsInstalling": {
+    "description": "Progress line while a runtime's installer runs in the bottle.",
+    "placeholders": {
+      "name": {
+        "type": "String",
+        "example": "Visual C++ 2008"
+      }
+    }
+  },
+  "depsApplying": "Changing {game}'s settings…",
+  "@depsApplying": {
+    "description": "Progress line while Bodega changes a game's settings file.",
+    "placeholders": {
+      "game": {
+        "type": "String",
+        "example": "Need for Speed: Most Wanted (2012)"
+      }
+    }
+  },
+  "depsChooseFile": "Choose the installer file…",
+  "@depsChooseFile": {
+    "description": "Button after a runtime failed to download: the user picks the installer they already have, which Bodega checks before using."
+  },
+  "depsInstalledItem": "{name} ({arch})",
+  "@depsInstalledItem": {
+    "description": "One runtime the bottle has: its product name, shown as is, and its bits (depsArch32 or depsArch64).",
+    "placeholders": {
+      "name": {
+        "type": "String",
+        "example": "Visual C++ 2008"
+      },
+      "arch": {
+        "type": "String",
+        "example": "32-bit"
+      }
+    }
+  },
+  "depsArchAll": "32 and 64-bit",
+  "@depsArchAll": {
+    "description": "A runtime with one install for both architectures, such as .NET or PhysX."
+  },
+  "depsUnknown": "Unknown",
+  "@depsUnknown": {
+    "description": "State of a runtime when Bodega can't read the bottle's files."
+  },
+  "depsCheckedAt": "Checked at {time}",
+  "@depsCheckedAt": {
+    "description": "When Bodega last read which runtimes the bottle has. time is a time of day, in the user's format.",
+    "placeholders": {
+      "time": {
+        "type": "String",
+        "example": "15:04"
+      }
+    }
+  },
+  "depsCheckAgain": "Check again",
+  "@depsCheckAgain": {
+    "description": "Button: read the bottle again to see which runtimes it has."
+  },
+  "depsAllRuntimes": "All runtimes",
+  "@depsAllRuntimes": {
+    "description": "Header of the list of every Windows runtime Bodega can install in the bottle."
+  },
+  "depsArchStatus": "{arch}: {status}",
+  "@depsArchStatus": {
+    "description": "One architecture of a runtime and its state. arch is depsArch32 or depsArch64, status depsInstalled, depsNotInstalled or depsUnknown.",
+    "placeholders": {
+      "arch": {
+        "type": "String",
+        "example": "32-bit"
+      },
+      "status": {
+        "type": "String",
+        "example": "Installed"
+      }
+    }
+  },
+  "depsInstallArch": "Install {arch} · {size}",
+  "@depsInstallArch": {
+    "description": "Button: download and install a runtime for one architecture. arch is depsArch32 or depsArch64, size its download size (depsSize).",
+    "placeholders": {
+      "arch": {
+        "type": "String",
+        "example": "32-bit"
+      },
+      "size": {
+        "type": "String",
+        "example": "100.3 MB"
+      }
+    }
+  },
+  "depsInstallSize": "Install · {size}",
+  "@depsInstallSize": {
+    "description": "Button: download and install a runtime with one install for both architectures. size is its download size (depsSize).",
+    "placeholders": {
+      "size": {
+        "type": "String",
+        "example": "29.4 MB"
+      }
+    }
+  },
+  "depsDetails": "Details",
+  "@depsDetails": {
+    "description": "Button after a failed install: shows the install's log."
+  },
+  "depsLineVcNew": "Most modern games and launchers",
+  "@depsLineVcNew": {
+    "description": "What needs Visual C++ 2015–2026, in one line."
+  },
+  "depsLineVcOld": "Older games",
+  "@depsLineVcOld": {
+    "description": "What needs an older Visual C++ (2005 to 2013), in one line."
+  },
+  "depsLineDotnet": ".NET apps and some launchers. It can take up to an hour.",
+  "@depsLineDotnet": {
+    "description": "What needs .NET Framework 4.8, in one line, and how long its install takes on a Mac."
+  },
+  "depsLineD3dx": "Older DirectX 9 to 11 games",
+  "@depsLineD3dx": {
+    "description": "What needs D3DX9, D3DX10 or D3DX11, in one line."
+  },
+  "depsLineD3dcompiler": "Games that compile their shaders while they run",
+  "@depsLineD3dcompiler": {
+    "description": "What needs D3DCompiler 47, in one line."
+  },
+  "depsLineXact": "Games that use XACT or XAudio for their sound",
+  "@depsLineXact": {
+    "description": "What needs XACT, in one line."
+  },
+  "depsLinePhysx": "Games that use NVIDIA PhysX",
+  "@depsLinePhysx": {
+    "description": "What needs PhysX, in one line."
+  },
+  "depsLineCorefonts": "Launchers and games that expect Arial and other common fonts",
+  "@depsLineCorefonts": {
+    "description": "What needs the core fonts, in one line."
+  },
+  "depsLineOther": "A Windows runtime",
+  "@depsLineOther": {
+    "description": "What a runtime with no line of its own is, in one line."
+  },
+  "errInstallTimedOut": "Installing {name} ({arch}) took too long, so Bodega stopped the bottle. Log: {log}",
+  "@errInstallTimedOut": {
+    "description": "Error, in the Dependencies section: a runtime's install ran past its time limit. name is the runtime, arch its bits (depsArch32, depsArch64 or depsArchAll), log the last step's log.",
+    "placeholders": {
+      "name": {
+        "type": "String",
+        "example": ".NET Framework 4.8"
+      },
+      "arch": {
+        "type": "String",
+        "example": "32 and 64-bit"
+      },
+      "log": {
+        "type": "String",
+        "example": "/Users/me/Library/Application Support/Bodega/bottles/Games/logs/dotnet48-all.log"
+      }
+    }
+  },
+  "bottleDxvkAsync": "Async shader compilation",
+  "@bottleDxvkAsync": {
+    "description": "Switch in a bottle's settings, on the Mac: DXVK compiles shaders in the background."
+  },
+  "bottleDxvkAsyncNote": "With DXVK: less stutter, though some objects may show a moment late.",
+  "@bottleDxvkAsyncNote": {
+    "description": "Under the async shader switch: what it changes."
+  },
+  "navGames": "Games",
+  "@navGames": {
+    "description": "Sidebar entry: the game configurations page."
+  },
+  "gamesTitle": "Game configurations",
+  "@gamesTitle": {
+    "description": "Title of the Games page."
+  },
+  "gamesIntro": "What Bodega knows about each game: the backend that worked, its anti-cheat, and how players rated it. A game in one of your bottles gets its configuration when it starts, unless you set something else by hand.",
+  "@gamesIntro": {
+    "description": "Under the Games page's title."
+  },
+  "gamesSearchHint": "Search games",
+  "@gamesSearchHint": {
+    "description": "Hint of the Games page's search field."
+  },
+  "gamesNoMatch": "No game matches.",
+  "@gamesNoMatch": {
+    "description": "On the Games page when the search and filters leave nothing."
+  },
+  "gamesRatingWorks": "Works",
+  "@gamesRatingWorks": {
+    "description": "How a game runs: most players said it works well. Also a choice of the report dialog."
+  },
+  "gamesRatingPlayable": "Playable",
+  "@gamesRatingPlayable": {
+    "description": "How a game runs: it can be played, with problems. Also a choice of the report dialog."
+  },
+  "gamesRatingBroken": "Broken",
+  "@gamesRatingBroken": {
+    "description": "How a game runs: it does not get far enough to play. Also a choice of the report dialog."
+  },
+  "gamesRatingBlocked": "Blocked",
+  "@gamesRatingBlocked": {
+    "description": "How a game runs: its anti-cheat or its publisher keeps it from working."
+  },
+  "gamesRatingNone": "No reports",
+  "@gamesRatingNone": {
+    "description": "Filter chip and chip: no player has rated the game yet."
+  },
+  "gamesStatusVerified": "Tested on Bodega",
+  "@gamesStatusVerified": {
+    "description": "Chip: Bodega's own configuration, tested on Bodega."
+  },
+  "gamesStatusCommunity": "Community",
+  "@gamesStatusCommunity": {
+    "description": "Chip: a configuration from highball-db's players, not tested on Bodega."
+  },
+  "gamesStatusBlocked": "Won't run",
+  "@gamesStatusBlocked": {
+    "description": "Chip: anti-cheat or the publisher keeps the game from running under Wine."
+  },
+  "gamesAntiCheatBlocked": "{names}: online play won't work on the Mac.",
+  "@gamesAntiCheatBlocked": {
+    "description": "Banner on a game's page and row: its anti-cheat blocks it on the Mac. names are the anti-cheats, as they are named.",
+    "placeholders": {
+      "names": {
+        "type": "String",
+        "example": "Easy Anti-Cheat"
+      }
+    }
+  },
+  "gamesAntiCheatWarning": "{names}: online play may not work on the Mac.",
+  "@gamesAntiCheatWarning": {
+    "description": "Banner on a game's page and row: its anti-cheat may get in the way on the Mac. names are the anti-cheats, as they are named.",
+    "placeholders": {
+      "names": {
+        "type": "String",
+        "example": "VAC"
+      }
+    }
+  },
+  "gamesReports": "{count, plural, =1{1 report, rated {rating}} other{{count} reports, mostly {rating}}}; the last on {date}.",
+  "@gamesReports": {
+    "description": "On a game's page: how many players reported it, the median of their ratings (gamesRatingWorks and the others, lowercase is not needed), and the day of the last report.",
+    "placeholders": {
+      "count": {
+        "type": "int",
+        "example": "3"
+      },
+      "rating": {
+        "type": "String",
+        "example": "Playable"
+      },
+      "date": {
+        "type": "String",
+        "example": "2026-11-11"
+      }
+    }
+  },
+  "gamesReportsSource": "From Highball's players, on other Wine builds than Bodega's.",
+  "@gamesReportsSource": {
+    "description": "Under the reports line: where those reports come from."
+  },
+  "gamesNoReports": "No player has reported this game yet.",
+  "@gamesNoReports": {
+    "description": "On a game's page with no reports."
+  },
+  "gamesNativeMac": "It also has a native Mac version, which needs no Wine.",
+  "@gamesNativeMac": {
+    "description": "On a game's page."
+  },
+  "gamesChangesTitle": "What it changes here",
+  "@gamesChangesTitle": {
+    "description": "Heading on a game's page: what its configuration does on this computer."
+  },
+  "gamesChangesNone": "Nothing on this computer.",
+  "@gamesChangesNone": {
+    "description": "Under gamesChangesTitle when the configuration has nothing for this host."
+  },
+  "gamesStepBackend": "Backend: {name}",
+  "@gamesStepBackend": {
+    "description": "One change of a configuration: the graphics backend. name is its name, as Bodega names it.",
+    "placeholders": {
+      "name": {
+        "type": "String",
+        "example": "dxmt"
+      }
+    }
+  },
+  "gamesStepVariable": "Variable {name}={value}",
+  "@gamesStepVariable": {
+    "description": "One change of a configuration: an environment variable.",
+    "placeholders": {
+      "name": {
+        "type": "String",
+        "example": "DXVK_CONFIG"
+      },
+      "value": {
+        "type": "String",
+        "example": "dxgi.maxFrameRate=60"
+      }
+    }
+  },
+  "gamesStepOverride": "DLL override {value}",
+  "@gamesStepOverride": {
+    "description": "One change of a configuration: a DLL override, as Wine writes it.",
+    "placeholders": {
+      "value": {
+        "type": "String",
+        "example": "xaudio2_7=n,b"
+      }
+    }
+  },
+  "gamesStepRegistry": "Registry: {name} = {value}",
+  "@gamesStepRegistry": {
+    "description": "One change of a configuration: a registry value. name is the value's name, value its data.",
+    "placeholders": {
+      "name": {
+        "type": "String",
+        "example": "EmulateModeset"
+      },
+      "value": {
+        "type": "String",
+        "example": "y"
+      }
+    }
+  },
+  "gamesStepSettingsFile": "Game setting {name} = {value}, applied when you ask",
+  "@gamesStepSettingsFile": {
+    "description": "One change of a configuration: a line of the game's own settings file, which Bodega changes only when the user asks.",
+    "placeholders": {
+      "name": {
+        "type": "String",
+        "example": "[Sound] Reverb"
+      },
+      "value": {
+        "type": "String",
+        "example": "0"
+      }
+    }
+  },
+  "gamesStepRuntime": "Runtime: {name}",
+  "@gamesStepRuntime": {
+    "description": "One change of a configuration: a Windows runtime it needs, offered in the Dependencies section. name is the runtime's id.",
+    "placeholders": {
+      "name": {
+        "type": "String",
+        "example": "vcrun2022"
+      }
+    }
+  },
+  "gamesNotesHighball": "From highball-db, in English",
+  "@gamesNotesHighball": {
+    "description": "Label over a game's notes and known issues, which are shown as highball-db wrote them, in English."
+  },
+  "gamesNotesBodega": "From Bodega, in English",
+  "@gamesNotesBodega": {
+    "description": "Label over the notes of Bodega's own configurations, kept in English."
+  },
+  "gamesKnownIssues": "Known issues",
+  "@gamesKnownIssues": {
+    "description": "Heading on a game's page."
+  },
+  "gamesSourceHighball": "Source: highball-db (CC0-1.0).",
+  "@gamesSourceHighball": {
+    "description": "On a game's page: where its configuration comes from, and its license."
+  },
+  "gamesSourceBodega": "Source: Bodega's own configurations, tested on Bodega.",
+  "@gamesSourceBodega": {
+    "description": "On a game's page, for Bodega's own entries."
+  },
+  "gamesSourceOpen": "Open its entry",
+  "@gamesSourceOpen": {
+    "description": "Button on a game's page: opens the game's file in highball-db, in the browser."
+  },
+  "gamesAllGames": "All games",
+  "@gamesAllGames": {
+    "description": "Back button on a game's page."
+  },
+  "gamesSectionTitle": "Games",
+  "@gamesSectionTitle": {
+    "description": "Section of a bottle's page: what each app gets when it starts."
+  },
+  "gamesSectionIntro": "What each app gets when it starts: its game's configuration, or what Bodega reads in its exe.",
+  "@gamesSectionIntro": {
+    "description": "Under the bottle's Games section title."
+  },
+  "gamesMatchSteam": "{game} · by its Steam app",
+  "@gamesMatchSteam": {
+    "description": "Under an app in the bottle's Games section: the game it was matched to, by its Steam app id.",
+    "placeholders": {
+      "game": {
+        "type": "String",
+        "example": "Hogwarts Legacy"
+      }
+    }
+  },
+  "gamesMatchExe": "{game} · by its exe's name",
+  "@gamesMatchExe": {
+    "description": "Under an app in the bottle's Games section: the game it was matched to, by the name of its exe.",
+    "placeholders": {
+      "game": {
+        "type": "String",
+        "example": "Blur"
+      }
+    }
+  },
+  "gamesMatchTitle": "{game} · by its name: check it's the right game",
+  "@gamesMatchTitle": {
+    "description": "Under an app in the bottle's Games section: the game it was matched to, by its title only.",
+    "placeholders": {
+      "game": {
+        "type": "String",
+        "example": "Portal 2"
+      }
+    }
+  },
+  "gamesAutomatic": "Automatic configuration",
+  "@gamesAutomatic": {
+    "description": "Under an app in the bottle's Games section that no configuration matches."
+  },
+  "gamesBackendFrom": "{backend}, {origin}",
+  "@gamesBackendFrom": {
+    "description": "An app's backend at launch and where it comes from (gamesOrigin…).",
+    "placeholders": {
+      "backend": {
+        "type": "String",
+        "example": "dxmt"
+      },
+      "origin": {
+        "type": "String",
+        "example": "from the game's configuration"
+      }
+    }
+  },
+  "gamesOriginOption": "for this launch",
+  "@gamesOriginOption": {
+    "description": "Where an app's backend comes from: the launch's own option."
+  },
+  "gamesOriginExe": "set for this program",
+  "@gamesOriginExe": {
+    "description": "Where an app's backend comes from: the program's exception."
+  },
+  "gamesOriginBottle": "set for the bottle",
+  "@gamesOriginBottle": {
+    "description": "Where an app's backend comes from: the bottle's own backend."
+  },
+  "gamesOriginConfig": "from the game's configuration",
+  "@gamesOriginConfig": {
+    "description": "Where an app's backend comes from: the game's configuration."
+  },
+  "gamesOriginAuto": "chosen from the exe",
+  "@gamesOriginAuto": {
+    "description": "Where an app's backend comes from: what Bodega reads in the exe."
+  },
+  "gamesUseConfig": "Use this game's configuration",
+  "@gamesUseConfig": {
+    "description": "Switch on an app in the bottle's Games section. Off, the app gets nothing from it, and the registry values it wrote are removed."
+  },
+  "gamesOpenPage": "Open page",
+  "@gamesOpenPage": {
+    "description": "Button on an app in the bottle's Games section: opens its game's page."
+  },
+  "gamesReport": "Report how it ran",
+  "@gamesReport": {
+    "description": "Button on an app in the bottle's Games section: opens the report dialog."
+  },
+  "gamesYouSaid": "You said: {verdict}",
+  "@gamesYouSaid": {
+    "description": "On an app in the bottle's Games section: what the user reported (gamesRatingWorks and the others).",
+    "placeholders": {
+      "verdict": {
+        "type": "String",
+        "example": "Playable"
+      }
+    }
+  },
+  "gamesNoApps": "This bottle has no apps yet.",
+  "@gamesNoApps": {
+    "description": "In the bottle's Games section when it has no apps."
+  },
+  "gamesReportTitle": "How did {game} run?",
+  "@gamesReportTitle": {
+    "description": "Title of the report dialog.",
+    "placeholders": {
+      "game": {
+        "type": "String",
+        "example": "Hogwarts Legacy"
+      }
+    }
+  },
+  "gamesReportNote": "Anything worth saying (optional)",
+  "@gamesReportNote": {
+    "description": "Field of the report dialog."
+  },
+  "gamesReportExplain": "Bodega saves your answer and opens a GitHub form in your browser, filled in with it, the backend and your system's versions. Nothing is sent until you submit it there, with your own account.",
+  "@gamesReportExplain": {
+    "description": "In the report dialog: what Send does."
+  },
+  "gamesReportSend": "Open the form",
+  "@gamesReportSend": {
+    "description": "Button of the report dialog: saves the answer and opens the form in the browser."
+  },
+  "backendDescriptionDxvk9": "D3D9 on Vulkan, through MoltenVK. D3D10 and D3D11 go to DXMT.",
+  "@backendDescriptionDxvk9": {
+    "description": "On the card of the dxvk9 backend, under its name: what it is. It draws DirectX 9 games with DXVK and leaves DirectX 10 and 11 to the DXMT backend."
+  },
+  "backendRoleDx9to11": "DirectX 9 with DXVK, and 10 and 11 with DXMT",
+  "@backendRoleDx9to11": {
+    "description": "What dxvk9 is for on the Mac, after backendUsedFor on its card: games that draw with DirectX 9 go through DXVK, and DirectX 10 or 11 through DXMT, at 32 or 64 bits."
   },
   "backendsRosettaGraphics": "Graphics for the Rosetta engine",
   "@backendsRosettaGraphics": {

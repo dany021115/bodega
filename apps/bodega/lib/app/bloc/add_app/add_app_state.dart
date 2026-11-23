@@ -17,6 +17,9 @@ abstract class AddAppState with _$AddAppState {
     @Default(true) bool addToLibrary,
     String? driveC,
     AppError? error,
+
+    /// The key of the app once it is added, for what follows (DA6).
+    String? addedKey,
   }) = _AddAppState;
 
   bool get canSubmit =>

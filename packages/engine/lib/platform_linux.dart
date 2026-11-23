@@ -169,6 +169,7 @@ class LinuxPlatform extends HostPlatform {
     gameMode: _onPath('gamemoderun'),
     syncModes: const ['none'],
     switchGames: emulators.supported,
+    dxvkAsync: false,
   );
 
   // The bundled Wine has no esync or fsync variable, so nothing is set per
@@ -178,6 +179,11 @@ class LinuxPlatform extends HostPlatform {
 
   @override
   Map<String, String> syncEnv(String mode) => const {};
+
+  /// DXVK 3.1.1, which Linux ships, reads neither `DXVK_ASYNC` nor a state
+  /// cache (exploration, "Proposed options").
+  @override
+  Map<String, String> dxvkEnv(String dir, {required bool async}) => const {};
 
   @override
   List<String> get backendNames => const ['wine', 'dxvk'];
