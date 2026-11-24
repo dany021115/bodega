@@ -21,6 +21,8 @@ String nativeOptionText(AppL10n l10n, NativeOption option) => switch (option) {
   NativeOption.notDpiAware => l10n.nativeNotDpiAware,
   NativeOption.cglOpenGl => l10n.nativeCglOpenGl,
   NativeOption.vulkanWined3d => l10n.nativeVulkanWined3d,
+  NativeOption.strictCodeTracking => l10n.nativeStrictCodeTracking,
+  NativeOption.fullX87Precision => l10n.nativeFullX87Precision,
 };
 
 /// The line under that switch: when to turn it on.
@@ -31,6 +33,8 @@ String nativeOptionHintText(AppL10n l10n, NativeOption option) =>
       NativeOption.notDpiAware => l10n.nativeNotDpiAwareHint,
       NativeOption.cglOpenGl => l10n.nativeCglOpenGlHint,
       NativeOption.vulkanWined3d => l10n.nativeVulkanWined3dHint,
+      NativeOption.strictCodeTracking => l10n.nativeStrictCodeTrackingHint,
+      NativeOption.fullX87Precision => l10n.nativeFullX87PrecisionHint,
     };
 
 /// What moving a bottle to the Native engine is doing (PA8).

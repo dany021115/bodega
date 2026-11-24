@@ -33,6 +33,10 @@ sealed class LibraryEvent with _$LibraryEvent {
     NativeOption option,
     bool on,
   ) = LibrarySetNativeOptionEvent;
+  /// Moves an app of a Native bottle to the Rosetta engine and opens it
+  /// there (ER6).
+  const factory LibraryEvent.openWithRosetta(String bottle, String key) =
+      LibraryOpenWithRosettaEvent;
   const factory LibraryEvent.detected(String bottle) = LibraryDetectedEvent;
   const factory LibraryEvent.closed(String bottle) = LibraryClosedEvent;
   const factory LibraryEvent.appClosed(String bottle, String key) =

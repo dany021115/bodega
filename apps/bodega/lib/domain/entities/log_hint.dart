@@ -25,4 +25,7 @@ enum LogHint {
 
   /// Mach9's copy is damaged, or this macOS cannot run it.
   loaderNotSigned,
+
+  /// The program waits on a lock nobody frees: it seems stuck (ER5).
+  stuckLock,
 }

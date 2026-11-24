@@ -23,8 +23,10 @@ usage: bodega install <engine.tar.gz> <hostlibs.tar.gz>
        bodega option <bottle> gpu auto|discrete
        bodega option <bottle> gamemode on|off
        bodega option <bottle> retina auto|on|off
+       bodega option <bottle> metal4 on|off
        bodega native <bottle> <key> [<option> on|off]
        bodega native-move <bottle>
+       bodega measure <bottle> [seconds]
        bodega sdl install [file.dmg]
        bodega pads
        bodega catalog list [text]
@@ -130,6 +132,8 @@ const nativeOptionNames = {
   NativeOption.notDpiAware: 'not-dpi-aware',
   NativeOption.cglOpenGl: 'cgl-opengl',
   NativeOption.vulkanWined3d: 'vulkan-wined3d',
+  NativeOption.strictCodeTracking: 'strict-code-tracking',
+  NativeOption.fullX87Precision: 'full-x87-precision',
 };
 
 NativeOption? _nativeOptionNamed(String name) => nativeOptionNames.entries
@@ -212,6 +216,12 @@ Future<int> Function(String home)? runtimeVerb(
       await setRetina(home, bottle, mode);
       return 0;
     },
+  ['option', final bottle, 'metal4', final state]
+      when state == 'on' || state == 'off' =>
+    (home) async {
+      setBottleOptions(home, bottle, metal4: state == 'on');
+      return 0;
+    },
   ['native', final bottle, final key] => (home) async {
     final on = nativeOptions(home, bottle, key);
     for (final MapEntry(key: option, value: name)
@@ -250,6 +260,19 @@ Future<int> Function(String home)? runtimeVerb(
     }
     return 0;
   },
+  ['measure', final bottle, ...final rest] when _measureSeconds(rest) != null =>
+    (home) async {
+      final seconds = _measureSeconds(rest)!;
+      final samples = <BottleSample>[];
+      for (var t = 1; t <= seconds; t++) {
+        await Future<void>.delayed(const Duration(seconds: 1));
+        final sample = measureBottle(home, bottle);
+        samples.add(sample);
+        out.writeln(measureLine('${t}s', sample));
+      }
+      out.writeln(measureLine('average', averageSample(samples)));
+      return 0;
+    },
   ['backend', 'list', '--runtime', final name] when _kindNamed(name) != null =>
     (home) async {
       listBackends(home, runtime: _kindNamed(name)!).forEach((name, installed) {
@@ -259,3 +282,49 @@ Future<int> Function(String home)? runtimeVerb(
     },
   _ => null,
 };
+
+/// The seconds of `measure`, 60 by default, or null for a bad usage.
+int? _measureSeconds(List<String> rest) => switch (rest) {
+  [] => 60,
+  [final n] => switch (int.tryParse(n)) {
+    final seconds? when seconds > 0 => seconds,
+    _ => null,
+  },
+  _ => null,
+};
+
+/// One line of `bodega measure` (ER8).
+String measureLine(String label, BottleSample sample) => [
+  label,
+  'cpu ${sample.cpu.toStringAsFixed(1)}%',
+  if (sample.top case final top?)
+    'top $top ${sample.topCpu.toStringAsFixed(1)}%',
+  if (sample.gpu case final gpu?) 'gpu $gpu%',
+].join('  ');
+
+/// The mean of [samples]: CPU and GPU averaged, the busiest program the most
+/// frequent one (ER8).
+BottleSample averageSample(List<BottleSample> samples) {
+  if (samples.isEmpty) return (cpu: 0, top: null, topCpu: 0, gpu: null);
+  double mean(Iterable<double> values) =>
+      values.fold<double>(0, (a, b) => a + b) / samples.length;
+  final gpus = [for (final s in samples) ?s.gpu];
+  final tops = <String, int>{};
+  for (final s in samples) {
+    if (s.top case final top?) tops[top] = (tops[top] ?? 0) + 1;
+  }
+  final top = tops.entries
+      .fold<MapEntry<String, int>?>(
+        null,
+        (best, e) => best == null || e.value > best.value ? e : best,
+      )
+      ?.key;
+  return (
+    cpu: mean(samples.map((s) => s.cpu)),
+    top: top,
+    topCpu: mean(samples.map((s) => s.top == top ? s.topCpu : 0)),
+    gpu: gpus.isEmpty
+        ? null
+        : (gpus.fold<int>(0, (a, b) => a + b) / gpus.length).round(),
+  );
+}

@@ -1231,7 +1231,7 @@ void main() {
           locale: locale,
         );
         expect(find.text(l10n.nativeOptionsTitle(_longName)), findsOneWidget);
-        expect(find.byType(SwitchListTile), findsNWidgets(5));
+        expect(find.byType(SwitchListTile), findsNWidgets(7));
       });
 
       testWidgets(
@@ -1642,8 +1642,11 @@ void main() {
         ),
         findsOneWidget,
       );
-      expect(find.text('High-density display'), findsOneWidget);
+      // ER7: on the Mac, a Rosetta bottle's retina is the dropdown.
+      expect(find.text(en.bottleRetina), findsOneWidget);
       expect(find.text('DLSS'), findsOneWidget);
+      // ER8: a Rosetta bottle with D3DMetal may try Metal 4.
+      expect(find.text(en.bottleMetal4), findsOneWidget);
       expect(find.text('Advertise AVX'), findsOneWidget);
     });
 
@@ -1801,6 +1804,100 @@ void main() {
           ),
         ),
       ).called(1);
+    });
+
+    testWidgets('FA2 the FEX switches show their state and save', (
+      tester,
+    ) async {
+      final app = LibraryApp(
+        bottle: _longName,
+        key: 'g/game.exe',
+        id: 'game',
+        title: 'Game',
+        nativeEngine: true,
+        nativeOptions: const {NativeOption.strictCodeTracking},
+      );
+      showBottle(_bottle(apps: [app]));
+      await pump(tester, 1150, bottleView(), height: 1200);
+      await tester.tap(find.byIcon(Icons.more_horiz_rounded));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(en.appMenuNativeOptions));
+      await tester.pumpAndSettle();
+      expect(
+        find.descendant(
+          of: find.byType(NativeOptionsDialog),
+          matching: find.byType(SwitchListTile),
+        ),
+        findsNWidgets(7),
+      );
+      bool on(NativeOption option) => tester
+          .widget<SwitchListTile>(find.byKey(ValueKey('native ${option.name}')))
+          .value;
+      expect(on(NativeOption.strictCodeTracking), isTrue);
+      expect(on(NativeOption.fullX87Precision), isFalse);
+      await tester.tap(find.text(en.nativeFullX87Precision));
+      await tester.pumpAndSettle();
+      verify(
+        () => library.add(
+          LibraryEvent.setNativeOption(
+            _longName,
+            'g/game.exe',
+            NativeOption.fullX87Precision,
+            true,
+          ),
+        ),
+      ).called(1);
+      expect(on(NativeOption.fullX87Precision), isTrue);
+    });
+
+    testWidgets('EA5 a Native game outside its bottle can open on Rosetta', (
+      tester,
+    ) async {
+      final app = LibraryApp(
+        bottle: _longName,
+        key: '/volumes/x/fifa22.exe',
+        id: 'fifa22',
+        title: 'FIFA22',
+        // No exe: the card would read its graphics; the flag is what counts.
+        nativeEngine: true,
+        outsideBottle: true,
+      );
+      showBottle(_bottle(apps: [app]));
+      await pump(tester, 1150, bottleView(), height: 1200);
+      await tester.tap(find.byIcon(Icons.more_horiz_rounded));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(en.appMenuOpenRosetta));
+      await tester.pumpAndSettle();
+      verify(
+        () => library.add(
+          LibraryEvent.openWithRosetta(
+            _longName,
+            '/volumes/x/fifa22.exe',
+          ),
+        ),
+      ).called(1);
+    });
+
+    testWidgets('EA5 a game installed in its bottle has no such item', (
+      tester,
+    ) async {
+      showBottle(
+        _bottle(
+          apps: [
+            LibraryApp(
+              bottle: _longName,
+              key: 'steam:9',
+              id: 'steam-game',
+              title: 'Muck',
+              nativeEngine: true,
+            ),
+          ],
+        ),
+      );
+      await pump(tester, 1150, bottleView(), height: 1200);
+      await tester.tap(find.byIcon(Icons.more_horiz_rounded));
+      await tester.pumpAndSettle();
+      expect(find.text(en.appMenuOpenRosetta), findsNothing);
     });
 
     testWidgets('PA2 a Rosetta app has no such item', (tester) async {

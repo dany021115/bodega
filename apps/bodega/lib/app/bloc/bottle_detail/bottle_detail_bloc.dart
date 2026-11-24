@@ -47,6 +47,12 @@ class BottleDetailBloc extends Bloc<BottleDetailEvent, BottleDetailState> {
         (name) => _repository.setOptions(name, dlss: event.value),
       ),
     );
+    on<BottleDetailSetMetal4Event>(
+      (event, emit) => _change(
+        emit,
+        (name) => _repository.setOptions(name, metal4: event.value),
+      ),
+    );
     on<BottleDetailSetAvxEvent>(
       (event, emit) => _change(
         emit,

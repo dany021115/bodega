@@ -378,7 +378,18 @@ enum NativeOption {
   cglOpenGl('opengl', 'cgl'),
 
   /// wined3d draws with Vulkan instead of OpenGL.
-  vulkanWined3d('wined3d', 'vulkan');
+  vulkanWined3d('wined3d', 'vulkan'),
+
+  /// FEX validates translated code before every run instead of tracking
+  /// pages, for code that changes itself while it runs (FE1; FEX's
+  /// `Config.json.in`, `SMCChecks`). Slower. Exactly `full`: FEX reads any
+  /// text but `none`, `mtrack` and `full` as `none`.
+  strictCodeTracking('env', 'FEX_SMCCHECKS=full'),
+
+  /// FEX's full x87 precision instead of Mach9's built-in 64-bit default
+  /// (FE1; Mach9's `builtin.rs`, `fex_reduced_x87_precision`). Slower. `0`,
+  /// not an empty value, so a child the game starts inherits it.
+  fullX87Precision('env', 'FEX_X87REDUCEDPRECISION=0');
 
   const NativeOption(this.field, this.value);
 

@@ -51,6 +51,13 @@ void main() {
     when(() => repository.waitBottle('steam'))
         .thenAnswer((_) => bottleEmpty.future);
     when(() => repository.bottleNames()).thenAnswer((_) async => const []);
+    // ER3 and ER4: nothing left behind, and no app relaunched itself.
+    when(() => repository.reapOrphans()).thenAnswer((_) async => 0);
+    when(() => repository.appStillRunning(any(), any()))
+        .thenAnswer((_) async => false);
+    // ER5: no app's CPU to read, so nothing looks hung.
+    when(() => repository.appCpu(any(), any())).thenAnswer((_) async => null);
+    when(() => repository.runHung(any(), any())).thenAnswer((_) async => false);
     // Closing a bottle reloads the apps: what ran may have added some.
     when(() => repository.apps()).thenAnswer((_) async => right(const []));
     when(() => repository.antiCheatHints(any(), any())).thenReturn(const []);
@@ -227,6 +234,106 @@ void main() {
     expect(bloc.state.open, {'steam'});
     await bloc.close();
   });
+
+  test(
+    'EA2 a game that relaunches itself stays running until it is gone',
+    () async {
+      LibraryBloc.relaunchPoll = Duration.zero;
+      addTearDown(() => LibraryBloc.relaunchPoll = const Duration(seconds: 5));
+      final exit = Completer<void>();
+      when(() => repository.open('steam', key: 'g'))
+          .thenAnswer((_) async => right('/l/g.log'));
+      when(() => repository.firstExit('/l/g.log'))
+          .thenAnswer((_) => exit.future);
+      // Its second copy runs for two looks, then ends.
+      final answers = [true, true, false];
+      when(() => repository.appStillRunning('steam', '/l/g.log'))
+          .thenAnswer((_) async => answers.removeAt(0));
+      final bloc = LibraryBloc(repository, bottles)
+        ..add(const LibraryEvent.open('steam', 'g'));
+      await settle();
+      exit.complete();
+      await settle();
+      expect(bloc.state.running, {
+        'steam': {'g'},
+      });
+      for (var i = 0; i < 6; i++) {
+        await settle();
+      }
+      expect(answers, isEmpty);
+      expect(bloc.state.running, isEmpty);
+      await bloc.close();
+    },
+  );
+
+  blocTest<LibraryBloc, LibraryState>(
+    "EA3 the first load ends what old bottles left behind, with one toast",
+    setUp: () =>
+        when(() => repository.reapOrphans()).thenAnswer((_) async => 2),
+    build: () => LibraryBloc(repository, bottles),
+    act: (bloc) => bloc
+      ..add(const LibraryEvent.load())
+      ..add(const LibraryEvent.load()),
+    verify: (bloc) {
+      expect(bloc.state.toast, const RunHint.orphans(2));
+      expect(bloc.state.toastId, 1);
+      verify(() => repository.reapOrphans()).called(1);
+    },
+  );
+
+  test('EA4 a hung app gets the stuck hint, once', () async {
+    when(() => repository.open('steam', key: 'g'))
+        .thenAnswer((_) async => right('/l/g.log'));
+    when(() => repository.firstExit('/l/g.log'))
+        .thenAnswer((_) => Completer<void>().future);
+    when(() => repository.appCpu('steam', '/l/g.log'))
+        .thenAnswer((_) async => 0.1);
+    when(() => repository.runHung('/l/g.log', any()))
+        .thenAnswer((_) async => true);
+    final bloc = LibraryBloc(repository, bottles)
+      ..add(const LibraryEvent.open('steam', 'g'));
+    await settle();
+    bloc
+      ..add(const LibraryEvent.checkHints())
+      ..add(const LibraryEvent.checkHints());
+    for (var i = 0; i < 6; i++) {
+      await settle();
+    }
+    expect(bloc.state.hints['steam'], [const RunHint.log(LogHint.stuckLock)]);
+    expect(bloc.state.toast, const RunHint.log(LogHint.stuckLock));
+    await bloc.close();
+  });
+
+  test(
+    'EA5 open with Rosetta: two toasts, then the game opens there',
+    () async {
+      when(() => repository.openWithRosetta('Games', '/x/fifa22.exe'))
+          .thenAnswer(
+            (_) async => right((bottle: 'FIFA22', key: '/x/fifa22.exe')),
+          );
+      when(() => repository.open('FIFA22', key: '/x/fifa22.exe'))
+          .thenAnswer((_) async => right('/l/f.log'));
+      when(() => repository.firstExit('/l/f.log'))
+          .thenAnswer((_) => Completer<void>().future);
+      final toasts = <RunHint?>[];
+      final bloc = LibraryBloc(repository, bottles);
+      final listening = bloc.stream.listen((s) => toasts.add(s.toast));
+      bloc.add(const LibraryEvent.openWithRosetta('Games', '/x/fifa22.exe'));
+      for (var i = 0; i < 8; i++) {
+        await settle();
+      }
+      expect(
+        toasts.toSet(),
+        containsAll([
+          const RunHint.rosettaPreparing('/x/fifa22.exe'),
+          const RunHint.rosettaReady('/x/fifa22.exe', 'FIFA22'),
+        ]),
+      );
+      verify(() => repository.open('FIFA22', key: '/x/fifa22.exe')).called(1);
+      await listening.cancel();
+      await bloc.close();
+    },
+  );
 
   test('stop with a key stops that app only', () async {
     when(() => repository.open('steam', key: 'a'))

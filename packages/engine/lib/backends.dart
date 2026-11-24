@@ -446,6 +446,10 @@ typedef BottleSettings = ({
   bool highRes,
   bool dlss,
 
+  /// D3DMetal's Metal 4 path (`D3DM_MTL4=1`) for a Rosetta bottle's
+  /// `d3dmetal` launches; off by default (ER8).
+  bool metal4,
+
   /// False takes `ROSETTA_ADVERTISE_AVX` out of every launch (M8).
   bool avx,
 
@@ -479,6 +483,26 @@ typedef BottleSettings = ({
   Map<String, List<String>> native,
 });
 
+/// A bottle's retina mode when `settings.json` names none (ER7): Mach9's
+/// default, `auto`; a Rosetta bottle's older `highRes`, where `true` follows
+/// the display on the Mac (on is wrong on a mode that isn't HiDPI) and stays
+/// on elsewhere, and its absence is off.
+String _retinaOf(Map<String, dynamic> json) {
+  if (_runtimeNamed(json['runtime'] as String?) == RuntimeKind.mach9) {
+    return 'auto';
+  }
+  if (json['highRes'] != true) return 'off';
+  return hostPlatform is MacPlatform ? 'auto' : 'on';
+}
+
+/// The retina mode `settings.json` need not name, since reading it back
+/// gives it anyway (ER7): Mach9's `auto`, or what a Rosetta bottle's
+/// `highRes` stands for.
+String _retinaImplied(BottleSettings settings) => _retinaOf({
+  if (settings.runtime == RuntimeKind.mach9) 'runtime': 'mach9',
+  'highRes': settings.retina != 'off',
+});
+
 /// What [setRetina] admits: `auto` follows the main display (PE3).
 const retinaModes = ['auto', 'on', 'off'];
 
@@ -498,6 +522,7 @@ BottleSettings get _defaults => (
   gamepads: 0,
   highRes: false,
   dlss: false,
+  metal4: false,
   avx: true,
   dxvkAsync: false,
   windows: 'win10',
@@ -521,6 +546,7 @@ BottleSettings _with(
   int? gamepads,
   bool? highRes,
   bool? dlss,
+  bool? metal4,
   bool? avx,
   bool? dxvkAsync,
   String? windows,
@@ -540,6 +566,7 @@ BottleSettings _with(
   gamepads: gamepads ?? settings.gamepads,
   highRes: highRes ?? settings.highRes,
   dlss: dlss ?? settings.dlss,
+  metal4: metal4 ?? settings.metal4,
   avx: avx ?? settings.avx,
   dxvkAsync: dxvkAsync ?? settings.dxvkAsync,
   windows: windows ?? settings.windows,
@@ -585,6 +612,7 @@ BottleSettings _settings(String dir) {
       gamepads: (json['gamepads'] ?? 0) as int,
       highRes: (json['highRes'] ?? false) as bool,
       dlss: (json['dlss'] ?? false) as bool,
+      metal4: (json['metal4'] ?? false) as bool,
       avx: (json['avx'] ?? true) as bool,
       dxvkAsync: (json['dxvkAsync'] ?? false) as bool,
       windows: (json['windows'] ?? 'win10') as String,
@@ -594,10 +622,8 @@ BottleSettings _settings(String dir) {
       user: (json['user'] ?? '') as String,
       runtime: _runtimeNamed(json['runtime'] as String?),
       configOff: Set<String>.from((json['configOff'] ?? const []) as List),
-      verdicts: Map<String, String>.from(
-        (json['verdicts'] ?? const {}) as Map,
-      ),
-      retina: (json['retina'] ?? 'auto') as String,
+      verdicts: Map<String, String>.from((json['verdicts'] ?? const {}) as Map),
+      retina: (json['retina'] ?? _retinaOf(json)) as String,
       native: {
         for (final MapEntry(:key, :value)
             in ((json['native'] ?? const {}) as Map).entries)
@@ -662,8 +688,12 @@ void _saveSettings(String dir, BottleSettings settings) {
         },
     },
     if (settings.gamepads > 0) 'gamepads': settings.gamepads,
-    if (settings.highRes) 'highRes': true,
+    // ER7: a Rosetta bottle's retina stays readable as the older highRes, so
+    // an older Bodega, and MB1's byte-for-byte legacy file, keep it.
+    if (settings.runtime != RuntimeKind.mach9 && settings.retina != 'off')
+      'highRes': true,
     if (settings.dlss) 'dlss': true,
+    if (settings.metal4) 'metal4': true,
     if (!settings.avx) 'avx': false,
     if (settings.dxvkAsync) 'dxvkAsync': true,
     if (settings.windows != _defaults.windows) 'windows': settings.windows,
@@ -675,7 +705,7 @@ void _saveSettings(String dir, BottleSettings settings) {
     if (settings.configOff.isNotEmpty)
       'configOff': [...settings.configOff]..sort(),
     if (settings.verdicts.isNotEmpty) 'verdicts': settings.verdicts,
-    if (settings.retina != 'auto') 'retina': settings.retina,
+    if (settings.retina != _retinaImplied(settings)) 'retina': settings.retina,
     if (settings.native.isNotEmpty)
       'native': {
         for (final key in settings.native.keys.toList()..sort())
@@ -732,6 +762,7 @@ void setBottleOptions(
   String home,
   String name, {
   bool? dlss,
+  bool? metal4,
   bool? avx,
   bool? dxvkAsync,
   String? gpu,
@@ -745,6 +776,7 @@ void setBottleOptions(
     _with(
       _settings(dir),
       dlss: dlss,
+      metal4: metal4,
       avx: avx,
       dxvkAsync: dxvkAsync,
       gpu: gpu,
@@ -826,45 +858,25 @@ Future<bool> setBottleUser(String home, String name, String? user) async {
   return true;
 }
 
-/// `RetinaMode` and the doubled `LogPixels` (M9, INFORME §6.1). Wine reads them
-/// when a process starts, and they apply to the whole prefix, so a change stops
-/// the bottle first. Returns whether it did.
+/// The older high-resolution switch, through [setRetina]. On a Rosetta bottle
+/// on means what its `highRes` reads back as (ER7): `auto` on the Mac, and
+/// nothing changes when it already is; on Mach9 it is `on` or `off` (PE2).
 Future<bool> setHighRes(String home, String name, bool value) async {
   final dir = _existing(home, name);
   if (_bottleRuntimeIn(dir) == RuntimeKind.mach9) {
     return setRetina(home, name, value ? 'on' : 'off');
   }
-  if (_settings(dir).highRes == value) return false;
-  await stopBottle(home, name);
-  for (final args in hostPlatform.highResRegistry(value)) {
-    final log = await _launchIn(
-      home,
-      name,
-      'reg',
-      ['add', args[0], '/v', args[1], '/t', args[2], '/d', args[3], '/f'],
-      backend: 'wine',
-      label: 'resolution',
-    );
-    final code = await exitOf(log);
-    if (code != 0) throw WineToolFailed(WineTool.reg, code, log);
-  }
-  _saveSettings(dir, _with(_settings(dir), highRes: value));
-  return true;
+  if (value == (_settings(dir).retina != 'off')) return false;
+  return setRetina(home, name, value ? _retinaOf({'highRes': true}) : 'off');
 }
 
-/// A bottle's retina mode (PE2). A Mach9 bottle keeps it, and its next launch
-/// puts the values in place (PE4), so nothing stops. A Rosetta bottle has
-/// [setHighRes]: `on` and `off` are that, and `auto` is not offered. Returns
-/// whether it changed.
+/// A bottle's retina mode, on either engine (PE2, ER7): `RetinaMode` and the
+/// doubled `LogPixels` (M9, INFORME §6.1). The bottle keeps it, and its next
+/// session puts the values in place (PE4), so nothing stops. Returns whether
+/// it changed.
 Future<bool> setRetina(String home, String name, String mode) async {
   final dir = _existing(home, name);
   _checkRetina(mode);
-  if (_bottleRuntimeIn(dir) != RuntimeKind.mach9) {
-    if (mode == 'auto') {
-      throw BadChoice(ChoiceKind.retina, mode, const ['on', 'off']);
-    }
-    return setHighRes(home, name, mode == 'on');
-  }
   final settings = _settings(dir);
   if (settings.retina == mode) return false;
   _saveSettings(dir, _with(settings, retina: mode));

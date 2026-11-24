@@ -624,7 +624,9 @@ Future<List<String>> moveToNative(
         gamemode: settings.gamemode,
         configOff: settings.configOff,
         verdicts: settings.verdicts,
-        retina: settings.highRes ? 'on' : now.retina,
+        // ER7: a Rosetta bottle's migrated retina; its old default, off,
+        // takes the new bottle's.
+        retina: settings.retina == 'off' ? now.retina : settings.retina,
       ),
     );
   } on Object {

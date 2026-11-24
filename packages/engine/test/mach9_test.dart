@@ -97,6 +97,8 @@ void main() {
         'WINEMSYNC': '1',
         'WINEPREFIX': '$dir/prefix',
         'WINE_COMPATDB': 'exe=*;$menu',
+        // ER1: winedevice.exe gets the pad's input from SDL3.
+        'SDL_JOYSTICK_ALLOW_BACKGROUND_EVENTS': '1',
         'WINEDEBUG': mach9Debug,
       });
       expect(
@@ -194,6 +196,65 @@ void main() {
     });
   });
 
+  group('ER1 SDL3 pads before the session boots', () {
+    String regLog(String dir) => File('$dir/prefix/reg.log').existsSync()
+        ? File('$dir/prefix/reg.log').readAsStringSync()
+        : '';
+
+    test('missing values are written, then the session ends', () async {
+      fakeMach9Wine(home);
+      final dir = mach9Bottle(home, 'm9');
+      File('$dir/prefix/system.reg').writeAsStringSync('');
+      final log = await runInBottle(home, 'm9', 'game.exe', []);
+      await exitOf(log);
+      for (final (value, data) in [
+        ('DisableHidraw', 1),
+        ('Enable SDL', 1),
+        ('DisableInput', 0),
+      ]) {
+        expect(
+          regLog(dir),
+          contains('$value /t REG_DWORD /d $data'),
+          reason: value,
+        );
+      }
+      final lines = File('$home/bottles/m9/mach9-calls')
+          .readAsStringSync()
+          .trim()
+          .split('\n');
+      final kill = lines.indexOf('wineserver -k');
+      expect(kill, greaterThan(0));
+      expect(
+        lines.indexWhere((l) => l.contains('game.exe')),
+        greaterThan(kill),
+      );
+      expect(File(log).readAsLinesSync(), contains('# pads sdl3'));
+      expect(bottleSettings(home, 'm9').gamepads, 3);
+    });
+
+    test('values already there cost nothing', () async {
+      fakeMach9Wine(home);
+      final dir = mach9Bottle(home, 'm9', '{"retina": "off"}');
+      await exitOf(await runInBottle(home, 'm9', 'game.exe', []));
+      expect(regLog(dir), isNot(contains('WineBus')));
+    });
+
+    test('a running session keeps its own until the next', () async {
+      fakeMach9Wine(home);
+      final dir = mach9Bottle(home, 'm9', '{"retina": "off"}');
+      File('$dir/prefix/system.reg').writeAsStringSync('');
+      File('$dir/prefix/hang').createSync();
+      final log = await runInBottle(home, 'm9', 'game.exe', []);
+      File('$dir/prefix/hang').deleteSync();
+      await exitOf(log);
+      expect(regLog(dir), isNot(contains('WineBus')));
+      expect(
+        File(log).readAsLinesSync(),
+        contains('# pads wait for the next session'),
+      );
+    });
+  });
+
   group('PE4 retina before the session boots', () {
     String calls(String bottle) =>
         File('$home/bottles/$bottle/mach9-calls').readAsStringSync();
@@ -262,19 +323,30 @@ void main() {
       );
     });
 
-    test('a Rosetta bottle has no such step', () async {
+    test('ER7 a Rosetta bottle follows its retina too', () async {
       fakeCurrent(home);
       final dir = '$home/bottles/x86';
+      // The user's Fifa22: high resolution on, RetinaMode y in user.reg, on
+      // a display mode that isn't HiDPI.
       File('$dir/settings.json')
         ..createSync(recursive: true)
-        ..writeAsStringSync('{}');
+        ..writeAsStringSync('{"highRes": true}');
       File('$dir/prefix/drive_c/windows/syswow64/kernel32.dll')
           .createSync(recursive: true);
       File('$dir/prefix/system.reg').createSync();
+      File('$dir/prefix/user.reg').writeAsStringSync(
+        'WINE REGISTRY Version 2\n\n'
+        '[Software\\\\Wine\\\\Mac Driver] 1700000000\n'
+        '"RetinaMode"="y"\n',
+      );
       Directory('$dir/logs').createSync();
       final log = await runInBottle(home, 'x86', 'game.exe', []);
       await exitOf(log);
-      expect(File(log).readAsStringSync(), isNot(contains('# retina')));
+      expect(File(log).readAsLinesSync(), contains('# retina off (auto)'));
+      expect(
+        File('$dir/prefix/reg.log').readAsStringSync(),
+        contains('RetinaMode /t REG_SZ /d n'),
+      );
     });
   });
 
@@ -1158,7 +1230,8 @@ void installTests(({String tmp, String home}) Function() paths) {
       expect(settings.programs['steam.exe']?.backend, 'dxmt');
       expect(settings.programs['steam.exe']?.hud, isTrue);
       expect(settings.programs['g.exe']?.backend, isNull);
-      expect(settings.retina, 'on');
+      // ER7: the old highRes reads auto on the Mac, and the move keeps it.
+      expect(settings.retina, 'auto');
       expect(settings.avx, isTrue);
       expect(settings.verdicts, {
         'program files (x86)/steam/steam.exe': 'works',
@@ -1529,8 +1602,18 @@ void installTests(({String tmp, String home}) Function() paths) {
         'large-address-aware: off\n'
         'not-dpi-aware: off\n'
         'cgl-opengl: on\n'
-        'vulkan-wined3d: off\n',
+        'vulkan-wined3d: off\n'
+        'strict-code-tracking: off\n'
+        'full-x87-precision: off\n',
       );
+      expect(
+        await cli(['native', 'm9', 'g/game.exe', 'strict-code-tracking', 'on']),
+        (0, 'strict-code-tracking: on\n'),
+      );
+      expect(nativeOptions(home, 'm9', 'g/game.exe'), {
+        NativeOption.cglOpenGl,
+        NativeOption.strictCodeTracking,
+      });
       expect((await cli(['native', 'm9', 'g/game.exe', 'turbo', 'on'])).$1, 64);
       expect(
         (await cli(['native', 'm9', 'g/game.exe', 'cgl-opengl', 'yes'])).$1,

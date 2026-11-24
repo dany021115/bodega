@@ -88,6 +88,7 @@ class BottleDetailView extends StatelessWidget {
       inLibrary: app.inLibrary,
       hud: app.hud,
       native: app.nativeEngine,
+      rosetta: app.nativeEngine && app.outsideBottle,
     );
     if (action == null || !anchor.mounted) return;
 
@@ -113,6 +114,10 @@ class BottleDetailView extends StatelessWidget {
         await showNativeOptions(anchor, app);
         // The bottle's own list of apps holds the options too.
         bloc.add(BottleDetailEvent.load(detail.name));
+      case AppMenuAction.rosetta:
+        anchor.read<LibraryBloc>().add(
+          LibraryEvent.openWithRosetta(detail.name, app.key),
+        );
       case AppMenuAction.library:
         _setInLibrary(anchor, app);
       case AppMenuAction.hide:

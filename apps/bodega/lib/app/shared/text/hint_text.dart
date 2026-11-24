@@ -13,6 +13,12 @@ extension RunHintText on RunHint {
     LogRunHint(:final hint) => logHintText(l10n, hint),
     AntiCheatRunHint(:final game?) => l10n.hintAntiCheat(game),
     AntiCheatRunHint(game: null) => l10n.hintAntiCheatUnnamed,
+    OrphansRunHint(:final count) => l10n.hintOrphans(count),
+    RosettaPreparingRunHint(:final game) => l10n.hintRosettaPreparing(game),
+    RosettaReadyRunHint(:final game, :final bottle) => l10n.hintRosettaReady(
+      game,
+      bottle,
+    ),
   };
 }
 
@@ -26,4 +32,5 @@ String logHintText(AppL10n l10n, LogHint hint) => switch (hint) {
   LogHint.monoMissing => l10n.hintMonoMissing,
   LogHint.rulesIgnored => l10n.hintRulesIgnored,
   LogHint.loaderNotSigned => l10n.hintLoaderNotSigned(l10n.navBackends),
+  LogHint.stuckLock => l10n.hintStuckLock(l10n.appMenuOpenRosetta),
 };

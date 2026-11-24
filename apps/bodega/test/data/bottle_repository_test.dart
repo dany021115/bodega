@@ -250,21 +250,28 @@ void main() {
       File('$dir/prefix/drive_c/G/game.exe').createSync(recursive: true);
       engine.addApp(home.path, 'native', 'Game', 'G/game.exe');
       final key = engine.bottleApps(home.path, 'native').single.key;
-      expect(
-        (await repository.setNativeOption(
-          'native',
-          key,
-          NativeOption.largeAddressAware,
-          true,
-        )).isRight(),
-        isTrue,
-      );
+      const options = {
+        NativeOption.largeAddressAware,
+        NativeOption.strictCodeTracking,
+        NativeOption.fullX87Precision,
+      };
+      for (final option in options) {
+        expect(
+          (await repository.setNativeOption(
+            'native',
+            key,
+            option,
+            true,
+          )).isRight(),
+          isTrue,
+        );
+      }
       final app = (await repository.detail('native'))
           .getOrElse((error) => fail('$error'))
           .apps
           .single;
       expect(app.nativeEngine, isTrue);
-      expect(app.nativeOptions, {NativeOption.largeAddressAware});
+      expect(app.nativeOptions, options);
     });
 
     test('PA8 a Rosetta bottle moves to the Native engine', () async {

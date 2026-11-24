@@ -155,6 +155,8 @@ void main() {
           .thenAnswer((_) async => right(unit));
       when(() => repository.setOptions('steam', dlss: true))
           .thenAnswer((_) async => right(unit));
+      when(() => repository.setOptions('steam', metal4: true))
+          .thenAnswer((_) async => right(unit));
       when(() => repository.setOptions('steam', avx: false))
           .thenAnswer((_) async => right(unit));
       when(() => repository.setOptions('steam', dxvkAsync: true))
@@ -172,6 +174,7 @@ void main() {
         ..add(const BottleDetailEvent.setHighRes(true))
         ..add(const BottleDetailEvent.setWindows('win7'))
         ..add(const BottleDetailEvent.setDlss(true))
+        ..add(const BottleDetailEvent.setMetal4(true))
         ..add(const BottleDetailEvent.setAvx(false))
         ..add(const BottleDetailEvent.setDxvkAsync(true))
         ..add(const BottleDetailEvent.setUser('Dany'))
@@ -182,11 +185,12 @@ void main() {
       verify(() => repository.setHighRes('steam', true)).called(1);
       verify(() => repository.setWindowsVersion('steam', 'win7')).called(1);
       verify(() => repository.setOptions('steam', dlss: true)).called(1);
+      verify(() => repository.setOptions('steam', metal4: true)).called(1);
       verify(() => repository.setOptions('steam', avx: false)).called(1);
       verify(() => repository.setOptions('steam', dxvkAsync: true)).called(1);
       verify(() => repository.setUser('steam', 'Dany')).called(1);
       verify(() => repository.setRetina('steam', RetinaMode.off)).called(1);
-      verify(() => repository.detail('steam')).called(8);
+      verify(() => repository.detail('steam')).called(9);
       expect(bloc.state.isBusy, isFalse);
     },
   );

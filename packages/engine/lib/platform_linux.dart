@@ -161,6 +161,7 @@ class LinuxPlatform extends HostPlatform {
   @override
   HostCapabilities get capabilities => (
     highRes: true,
+    retina: false,
     avx: false,
     dlss: false,
     d3dmetal: false,
@@ -302,6 +303,56 @@ class LinuxPlatform extends HostPlatform {
 
   @override
   List<String> get applicationDirs => const [];
+
+  /// Linux may lack `lsof`: each process of this user names its prefix in
+  /// its environment (D1).
+  @override
+  List<WineProcess> wineProcesses(String prefix) {
+    final pids = {
+      for (final (pid, of) in _winePrefixes())
+        if (of == prefix) pid,
+    };
+    return _psOf(pids);
+  }
+
+  /// No GPU counter that every driver gives without privileges (ER8).
+  @override
+  int? gpuUtilization() => null;
+
+  /// A prefix under [home] whose processes include no wineserver (D2).
+  @override
+  List<WineProcess> orphanWineProcesses(String home) {
+    final root = home.endsWith('/') ? home : '$home/';
+    final byPrefix = <String, Set<int>>{};
+    for (final (pid, prefix) in _winePrefixes()) {
+      if (prefix.startsWith(root)) (byPrefix[prefix] ??= {}).add(pid);
+    }
+    return [
+      for (final pids in byPrefix.values)
+        if (_psOf(pids) case final processes when !processes.any(isWineserver))
+          ...processes,
+    ];
+  }
+}
+
+/// Each readable process with a `WINEPREFIX`, and that prefix.
+List<(int, String)> _winePrefixes() {
+  final found = <(int, String)>[];
+  for (final entry in Directory('/proc').listSync(followLinks: false)) {
+    final pid = int.tryParse(entry.path.split('/').last);
+    if (pid == null) continue;
+    try {
+      final environ = File('/proc/$pid/environ').readAsBytesSync();
+      for (final variable in latin1.decode(environ).split('\u0000')) {
+        if (variable.startsWith('WINEPREFIX=')) {
+          found.add((pid, variable.substring('WINEPREFIX='.length)));
+        }
+      }
+    } on FileSystemException {
+      // Another user's process, or one that just ended.
+    }
+  }
+  return found;
 }
 
 /// Whether [name] is an executable file somewhere on the PATH.
