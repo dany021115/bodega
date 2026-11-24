@@ -176,9 +176,8 @@ void main() {
     );
   });
 
-  testWidgets('a download in progress shows how far, for screen readers too', (
-    tester,
-  ) async {
+  testWidgets('a download shows how far under each line of what it installs, '
+      'announced once', (tester) async {
     await pump(
       tester,
       const DependenciesState(
@@ -190,8 +189,27 @@ void main() {
         total: 4000000,
       ),
     );
-    expect(find.text(en.downloadProgress(0.5, 2, 4)), findsOneWidget);
-    await tester.tap(find.text(en.commonCancel));
+    // Blur's line and the runtime's row, each with its bar at 50 %.
+    final text = find.text(en.downloadProgress(0.5, 2, 4));
+    expect(text, findsNWidgets(2));
+    final bars = find.byType(LinearProgressIndicator);
+    expect(bars, findsNWidgets(2));
+    for (final bar in tester.widgetList<LinearProgressIndicator>(bars)) {
+      expect(bar.value, 0.5);
+    }
+    // Each bar sits under its line, not at the section's end: above
+    // NFS13's setting, and above the end of the section.
+    expect(
+      tester.getTopLeft(text.first).dy,
+      lessThan(tester.getTopLeft(find.text('NFS13')).dy),
+    );
+    expect(
+      tester
+          .widgetList<Semantics>(find.byType(Semantics))
+          .where((s) => s.properties.liveRegion == true),
+      hasLength(1),
+    );
+    await tester.tap(find.text(en.commonCancel).first);
     verify(() => bloc.add(const DependenciesEvent.cancel())).called(1);
   });
 
