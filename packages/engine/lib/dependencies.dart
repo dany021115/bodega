@@ -49,6 +49,7 @@ final class DependencyFile {
     this.downloads, {
     required this.marker,
     this.args = const [],
+    this.repairArgs = const [],
     this.wineManifests = const [],
     this.windowsDuring,
     this.replacesMono = false,
@@ -72,6 +73,7 @@ final class DependencyFile {
     this.minutes = 10,
   }) : kind = DependencyKind.cab,
        args = const [],
+       repairArgs = const [],
        wineManifests = const [],
        windowsDuring = null,
        replacesMono = false,
@@ -80,6 +82,7 @@ final class DependencyFile {
   const DependencyFile.copy(this.downloads, {required this.marker})
     : kind = DependencyKind.copy,
       args = const [],
+      repairArgs = const [],
       wineManifests = const [],
       windowsDuring = null,
       replacesMono = false,
@@ -97,6 +100,10 @@ final class DependencyFile {
 
   /// run: each download's silent arguments.
   final List<String> args;
+
+  /// run: each download's silent repair, run when [args] left the marker
+  /// missing: an installer that finds its product registered does nothing.
+  final List<String> repairArgs;
   final List<String> wineManifests;
 
   /// run: the bottle's Windows version during the run (`winecfg -v`), set
@@ -500,7 +507,10 @@ const dependencies = <Dependency>[
           ),
         ],
         args: ['/install', '/quiet', '/norestart'],
-        marker: 'windows/syswow64/vcruntime140.dll',
+        repairArgs: ['/repair', '/quiet', '/norestart'],
+        // msvcp140, not vcruntime140: Mach9's own msvcp140 used to survive
+        // an install beside Microsoft's vcruntime140.
+        marker: 'windows/syswow64/msvcp140.dll',
       ),
       'x64': DependencyFile.run(
         [
@@ -512,7 +522,8 @@ const dependencies = <Dependency>[
           ),
         ],
         args: ['/install', '/quiet', '/norestart'],
-        marker: 'windows/system32/vcruntime140.dll',
+        repairArgs: ['/repair', '/quiet', '/norestart'],
+        marker: 'windows/system32/msvcp140.dll',
       ),
     },
   ),
@@ -903,6 +914,15 @@ bool _nameMatches(String name, String pattern) => RegExp(
 
 /// Whether [path] starts as a PE does and lacks Wine's marks in its first 128
 /// bytes, where Wine writes them in its own DLLs: a vendor's DLL.
+/// The folder of a marker straight in `system32` or `syswow64`, where an
+/// installer puts the DLLs it overrides; null for one elsewhere (winsxs).
+String? _dllFolder(String marker) {
+  final folder = marker.substring(0, marker.lastIndexOf('/') + 1);
+  return const ['windows/system32/', 'windows/syswow64/'].contains(folder)
+      ? folder.substring(0, folder.length - 1)
+      : null;
+}
+
 bool _isVendors(String path) {
   final file = File(path).openSync();
   try {
@@ -1439,6 +1459,20 @@ Future<String> installDependency(
             }
           }
         }
+        // An installer skips a file whose version isn't older than its own.
+        // Mach9's msvcp140 says 14.51.36247.0, the pinned redistributable's,
+        // so Wine's stayed beside Microsoft's vcruntime140, which it imports,
+        // and failed to load (2026-11-24). Wine's copies go first.
+        if (_dllFolder(pin.marker) case final folder?) {
+          for (final name in row.dlls) {
+            final dll = '$prefix/drive_c/$folder/$name.dll';
+            if (FileSystemEntity.typeSync(dll, followLinks: false) ==
+                    FileSystemEntityType.file &&
+                !_isVendors(dll)) {
+              File(dll).deleteSync();
+            }
+          }
+        }
         if (pin.windowsDuring case final version?) {
           windowsSet = true;
           final code = await step('winecfg', ['-v', version]);
@@ -1461,6 +1495,17 @@ Future<String> installDependency(
           final code = await step(path, pin.args);
           if (!_installerOk.contains(code)) {
             throw WineToolFailed(WineTool.installer, code, log);
+          }
+        }
+        // Over a bottle where it is registered, with Wine's copy deleted
+        // above, the install leaves the file missing; the repair puts it back.
+        if (pin.repairArgs.isNotEmpty &&
+            dependencyStatus(home, bottle, id, arch) == false) {
+          for (final path in paths) {
+            final code = await step(path, pin.repairArgs);
+            if (!_installerOk.contains(code)) {
+              throw WineToolFailed(WineTool.installer, code, log);
+            }
           }
         }
       case DependencyKind.cab:
