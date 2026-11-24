@@ -5,6 +5,7 @@ import 'package:test/test.dart';
 
 import '_mac.dart';
 import 'engine_test.dart' show fakeRuntime;
+import 'runtimes_test.dart' show mach9Bottle;
 
 void main() {
   useMac();
@@ -258,9 +259,13 @@ void main() {
       ];
     }
 
-    test('writes both values and stops the bottle', () async {
+    // ER7: the mode is kept, and the next session writes it (PE4).
+    test('on is kept, and the next session writes both values', () async {
       await createBottle(home, 'b');
-      expect(await setHighRes(home, 'b', true), isTrue);
+      expect(await setRetina(home, 'b', 'on'), isTrue);
+      expect(bottleSettings(home, 'b').retina, 'on');
+      expect(reg('b'), isNot(contains(contains('RetinaMode'))));
+      await exitOf(await runInBottle(home, 'b', 'game.exe', []));
       expect(reg('b'), [
         r'reg add HKCU\Software\Wine\Mac Driver /v RetinaMode /t REG_SZ /d y /f',
         r'reg add HKCU\Control Panel\Desktop /v LogPixels /t REG_DWORD /d 192 /f',
@@ -268,33 +273,98 @@ void main() {
       // Its runs log under an English label (E5).
       expect(
         bottleLogs(home, 'b').map((log) => log.name),
-        contains(endsWith('-resolution.log')),
+        contains(endsWith('-retina.log')),
       );
-      expect(
-        File('${prefix('b')}/server.log').readAsStringSync(),
-        contains('k'),
-      );
-      expect(bottleSettings(home, 'b').highRes, isTrue);
     });
 
     test('the same value again does nothing', () async {
+      // A new bottle on the Mac follows the display: high resolution on.
       await createBottle(home, 'b');
-      await setHighRes(home, 'b', true);
-      File('${prefix('b')}/server.log').deleteSync();
       expect(await setHighRes(home, 'b', true), isFalse);
-      expect(reg('b'), hasLength(2));
-      expect(File('${prefix('b')}/server.log').existsSync(), isFalse);
+      expect(await setHighRes(home, 'b', false), isTrue);
+      expect(await setHighRes(home, 'b', false), isFalse);
+      expect(await setHighRes(home, 'b', true), isTrue);
+      expect(bottleSettings(home, 'b').retina, 'auto');
     });
 
     test('turning it off writes the defaults back', () async {
       await createBottle(home, 'b');
-      await setHighRes(home, 'b', true);
+      await setRetina(home, 'b', 'on');
+      await exitOf(await runInBottle(home, 'b', 'game.exe', []));
+      // What Wine leaves in user.reg once that session ends.
+      File('${prefix('b')}/user.reg').writeAsStringSync(
+        'WINE REGISTRY Version 2\n\n'
+        '[Control Panel\\\\Desktop] 1700000000\n'
+        '"LogPixels"=dword:000000c0\n\n'
+        '[Software\\\\Wine\\\\Mac Driver] 1700000000\n'
+        '"RetinaMode"="y"\n',
+      );
       await setHighRes(home, 'b', false);
+      await exitOf(await runInBottle(home, 'b', 'game.exe', []));
       expect(reg('b').skip(2), [
         r'reg add HKCU\Software\Wine\Mac Driver /v RetinaMode /t REG_SZ /d n /f',
         r'reg add HKCU\Control Panel\Desktop /v LogPixels /t REG_DWORD /d 96 /f',
       ]);
-      expect(bottleSettings(home, 'b').highRes, isFalse);
+      expect(bottleSettings(home, 'b').retina, 'off');
+    });
+
+    test('a new Rosetta bottle on the Mac follows the display', () async {
+      await createBottle(home, 'b');
+      expect(bottleSettings(home, 'b').retina, 'auto');
+    });
+  });
+
+  test('ER8 metal4: D3DM_MTL4 only where D3DMetal draws', () async {
+    await createBottle(home, 'b');
+    await program('b');
+    addApp(home, 'b', 'A', 'P/a.exe');
+    Directory('$home/backends/d3dmetal/wine').createSync(recursive: true);
+    setBottleOptions(home, 'b', metal4: true);
+    expect(bottleSettings(home, 'b').metal4, isTrue);
+    await exitOf(await openApp(home, 'b', backend: 'd3dmetal'));
+    expect(lastEnv('b')['D3DM_MTL4'], '1');
+    await exitOf(await openApp(home, 'b', backend: 'wine'));
+    expect(lastEnv('b').containsKey('D3DM_MTL4'), isFalse);
+  });
+
+  group('ER6 open with the Rosetta engine', () {
+    test('a bottle named after the game, and the Native entry hides', () async {
+      final exe = File('$tmp/Games/FIFA 22/FIFA22.exe')
+        ..createSync(recursive: true);
+      mach9Bottle(home, 'Games');
+      addApp(home, 'Games', 'FIFA 22', exe.path);
+      final key = bottleApps(home, 'Games').single.key;
+      final target = await openWithRosetta(home, 'Games', key);
+      expect(target, (bottle: 'FIFA-22', key: key));
+      expect(bottleRuntime(home, 'FIFA-22'), RuntimeKind.bodega);
+      expect(bottleApps(home, 'FIFA-22').map((app) => app.key), [key]);
+      expect(bottleApps(home, 'Games'), isEmpty);
+
+      // Once more: the Rosetta bottle that has it is used again.
+      addApp(home, 'Games', 'FIFA 22', exe.path);
+      final bottles = listBottles(home).length;
+      expect(await openWithRosetta(home, 'Games', key), target);
+      expect(listBottles(home), hasLength(bottles));
+    });
+
+    test('an app installed inside its bottle stays there', () async {
+      final dir = mach9Bottle(home, 'Games');
+      File('$dir/prefix/drive_c/G/game.exe').createSync(recursive: true);
+      addApp(home, 'Games', 'Game', 'G/game.exe');
+      final key = bottleApps(home, 'Games').single.key;
+      expect(
+        () => openWithRosetta(home, 'Games', key),
+        throwsA(isA<BadChoice>()),
+      );
+    });
+
+    test('a name a bottle can have, from any title', () {
+      expect(rosettaBottleName('FIFA 22'), 'FIFA-22');
+      expect(
+        rosettaBottleName('  Need for Speed™: Most Wanted '),
+        'Need-for-Speed-Most-Wanted',
+      );
+      expect(rosettaBottleName('***'), 'Game');
     });
   });
 

@@ -6,6 +6,7 @@ import 'package:bodega/app/shared/widgets/collapsible_section.dart';
 import 'package:bodega/app/shared/widgets/copy_details_button.dart';
 import 'package:bodega/app/shared/widgets/status_chip.dart';
 import 'package:bodega/device/theme/color.dart';
+import 'package:bodega/device/theme/radius.dart';
 import 'package:bodega/device/theme/spacing.dart';
 import 'package:bodega/device/theme/typography.dart';
 import 'package:bodega/domain/entities/dependency.dart';
@@ -17,8 +18,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 /// What the bottle's programs need and what it has (DA7, RA5): each app with
 /// its runtimes and its game settings, each with its state and its button;
 /// every runtime with its state per architecture and its button; when the
-/// bottle was read, with "Check again"; the job's progress; a failure with its
-/// log. While the bottle is open, nothing can start.
+/// bottle was read, with "Check again"; the job's progress under each line of
+/// what it installs; a failure with its log. While the bottle is open, nothing
+/// can start.
 class DependenciesSection extends StatefulWidget {
   final String bottle;
   final bool isOpen;
@@ -71,6 +73,20 @@ class _DependenciesSectionState extends State<DependenciesSection> {
     final data = state.bottles[widget.bottle];
     final canAct = !widget.isOpen && !state.isBusy;
     final failed = state.failedBottle == widget.bottle ? state.failed : null;
+    final busy = state.isBusy && state.bottle == widget.bottle;
+    // The job's bar, under each line of what it installs. Only the table's
+    // announces it, so a screen reader hears it once.
+    Widget? progressOf(
+      bool Function(NeedItem item) matches, {
+      bool announce = false,
+    }) => switch (state.item) {
+      final item? when busy && matches(item) => _Progress(
+        state: state,
+        data: data,
+        announce: announce,
+      ),
+      _ => null,
+    };
     // The table's rows, each with its architectures, in the table's order.
     final runtimes = <String, List<Dependency>>{};
     for (final dependency in data?.all ?? const <Dependency>[]) {
@@ -140,6 +156,11 @@ class _DependenciesSectionState extends State<DependenciesSection> {
                       onPressed: canAct ? () => install(need.dependency) : null,
                       child: Text(l10n.commonInstall),
                     ),
+              below: progressOf(
+                (item) =>
+                    item ==
+                    NeedItem.runtime(need.dependency.id, need.dependency.arch),
+              ),
             ),
           for (final setting in app.settings)
             _Item(
@@ -169,21 +190,34 @@ class _DependenciesSectionState extends State<DependenciesSection> {
                       child: Text(l10n.depsApply),
                     )
                   : null,
+              below: progressOf(
+                (item) => item == NeedItem.settings(setting.fix),
+                announce: true,
+              ),
             ),
         ],
         if (runtimes.isNotEmpty) ...[
           const SizedBox(height: AppSpacing.md),
           Text(l10n.depsAllRuntimes, style: styles.label),
           for (final archs in runtimes.values)
-            _RuntimeRow(archs: archs, canAct: canAct, onInstall: install),
+            _RuntimeRow(
+              archs: archs,
+              canAct: canAct,
+              onInstall: install,
+              progress: progressOf(
+                (item) => item is RuntimeItem && item.id == archs.first.id,
+                announce: true,
+              ),
+            ),
         ],
         if (widget.isOpen) ...[
           const SizedBox(height: AppSpacing.sm),
           Text(l10n.depsStopFirst, style: styles.caption),
         ],
-        if (state.isBusy && state.bottle == widget.bottle) ...[
+        // ponytail: with the bottle read, every job has its line above.
+        if (busy && data == null) ...[
           const SizedBox(height: AppSpacing.md),
-          _Progress(state: state, data: data),
+          _Progress(state: state, data: data, announce: true),
         ],
         if (state.error case final error? when failed != null) ...[
           const SizedBox(height: AppSpacing.md),
@@ -226,6 +260,9 @@ class _Item extends StatelessWidget {
   final Widget? action;
   final String? note;
 
+  /// The job's bar, when it installs this line.
+  final Widget? below;
+
   const _Item({
     required this.title,
     required this.reason,
@@ -233,6 +270,7 @@ class _Item extends StatelessWidget {
     this.state,
     this.action,
     this.note,
+    this.below,
   });
 
   @override
@@ -240,43 +278,54 @@ class _Item extends StatelessWidget {
     final l10n = context.l10n;
     final styles = AppTextStyle(context);
 
+    final line = Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title, style: styles.body),
+              const SizedBox(height: AppSpacing.xs),
+              Wrap(
+                spacing: AppSpacing.sm,
+                runSpacing: AppSpacing.xs,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  StatusChip(
+                    label: l10n.needOf(need),
+                    color: need == Need.recommended
+                        ? AppColor.statusTested
+                        : AppColor.statusUntested,
+                  ),
+                  Text(reason, style: styles.caption),
+                ],
+              ),
+              if (note case final text?) ...[
+                const SizedBox(height: AppSpacing.xs),
+                Text(text, style: styles.caption),
+              ],
+            ],
+          ),
+        ),
+        if (state case final shown?) ...[
+          const SizedBox(width: AppSpacing.sm),
+          shown,
+        ],
+        ?action,
+      ],
+    );
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: styles.body),
-                const SizedBox(height: AppSpacing.xs),
-                Wrap(
-                  spacing: AppSpacing.sm,
-                  runSpacing: AppSpacing.xs,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    StatusChip(
-                      label: l10n.needOf(need),
-                      color: need == Need.recommended
-                          ? AppColor.statusTested
-                          : AppColor.statusUntested,
-                    ),
-                    Text(reason, style: styles.caption),
-                  ],
-                ),
-                if (note case final text?) ...[
-                  const SizedBox(height: AppSpacing.xs),
-                  Text(text, style: styles.caption),
-                ],
-              ],
-            ),
-          ),
-          if (state case final shown?) ...[
-            const SizedBox(width: AppSpacing.sm),
-            shown,
+          line,
+          if (below case final bar?) ...[
+            const SizedBox(height: AppSpacing.xs),
+            bar,
           ],
-          ?action,
         ],
       ),
     );
@@ -290,10 +339,14 @@ class _RuntimeRow extends StatelessWidget {
   final bool canAct;
   final ValueChanged<Dependency> onInstall;
 
+  /// The job's bar, when it installs one of [archs].
+  final Widget? progress;
+
   const _RuntimeRow({
     required this.archs,
     required this.canAct,
     required this.onInstall,
+    this.progress,
   });
 
   @override
@@ -344,18 +397,29 @@ class _RuntimeRow extends StatelessWidget {
               ],
             ],
           ),
+          if (progress case final bar?) ...[
+            const SizedBox(height: AppSpacing.sm),
+            bar,
+          ],
         ],
       ),
     );
   }
 }
 
-/// What the job does now, for screen readers too.
+/// What the job does now: how far a download is, in percent; an installer
+/// tells nothing, so its bar only moves. With [announce], for screen readers
+/// too.
 class _Progress extends StatelessWidget {
   final DependenciesState state;
   final BottleDependencies? data;
+  final bool announce;
 
-  const _Progress({required this.state, required this.data});
+  const _Progress({
+    required this.state,
+    required this.data,
+    required this.announce,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -393,7 +457,7 @@ class _Progress extends StatelessWidget {
     };
 
     return Semantics(
-      liveRegion: true,
+      liveRegion: announce,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -401,7 +465,8 @@ class _Progress extends StatelessWidget {
             value: state.phase == DependencyPhase.downloading
                 ? state.fraction
                 : null,
-            minHeight: 2,
+            minHeight: 6,
+            borderRadius: BorderRadius.circular(AppRadius.xs),
           ),
           const SizedBox(height: AppSpacing.xs),
           Row(

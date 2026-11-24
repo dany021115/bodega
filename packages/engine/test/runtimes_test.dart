@@ -88,10 +88,20 @@ String mach9Bottle(String home, String name, [String settings = '{}']) {
   final windows = '$dir/prefix/drive_c/windows';
   fakePe('$windows/system32/kernel32.dll', 0xAA64, '');
   fakePe('$windows/syswow64/kernel32.dll', 0x14C, '');
-  File('$dir/prefix/system.reg').writeAsStringSync('');
+  // Set up for SDL3 pads, as a launch leaves it (ER1).
+  File('$dir/prefix/system.reg').writeAsStringSync(mach9Winebus);
   Directory('$dir/logs').createSync();
   return dir;
 }
+
+/// `system.reg`'s `winebus` key with the values ER1 writes.
+const mach9Winebus =
+    'WINE REGISTRY Version 2\n\n'
+    r'[System\\ControlSet001\\Services\\winebus] 1795547605'
+    '\n'
+    '"DisableHidraw"=dword:00000001\n'
+    '"DisableInput"=dword:00000000\n'
+    '"Enable SDL"=dword:00000001\n';
 
 /// The fake Mach9.app of `runtimes.md`: its XML Info.plist, under [root].
 String fakeMach9App(
@@ -444,18 +454,12 @@ void main() {
       expect(() => bottleSettings(home, 'bad'), throwsA(isA<CorruptData>()));
     });
 
-    test('a Rosetta bottle has no auto', () {
+    test('ER7 a Rosetta bottle takes auto too', () async {
       bottle('x86', '{}');
-      expect(
-        () => setRetina(home, 'x86', 'auto'),
-        throwsA(
-          isA<BadChoice>().having(
-            (f) => f.message,
-            'message',
-            'unknown retina mode: auto (on, off)',
-          ),
-        ),
-      );
+      // An older bottle that never had high resolution stays as it was.
+      expect(bottleSettings(home, 'x86').retina, 'off');
+      expect(await setRetina(home, 'x86', 'auto'), isTrue);
+      expect(bottleSettings(home, 'x86').retina, 'auto');
     });
   });
 

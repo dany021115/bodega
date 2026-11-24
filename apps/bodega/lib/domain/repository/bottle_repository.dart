@@ -44,6 +44,7 @@ abstract class BottleRepository {
   Future<Either<AppError, Unit>> setOptions(
     String name, {
     bool? dlss,
+    bool? metal4,
     bool? avx,
     bool? dxvkAsync,
     String? gpu,

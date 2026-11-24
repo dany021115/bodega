@@ -37,6 +37,9 @@ abstract class BottleDetail with _$BottleDetail {
     /// (PA8).
     @Default(false) bool nativeInstalled,
     @Default(false) bool dlss,
+
+    /// D3DMetal's Metal 4 path for a Rosetta bottle (ER8).
+    @Default(false) bool metal4,
     @Default(true) bool avx,
 
     /// DXVK compiles shaders in the background (RE8).

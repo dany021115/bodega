@@ -22,6 +22,7 @@ part 'english.dart';
 part 'failures.dart';
 part 'fixes.dart';
 part 'mach9.dart';
+part 'processes.dart';
 part 'platform.dart';
 part 'platform_linux.dart';
 part 'platform_mac.dart';
@@ -93,6 +94,9 @@ Map<String, String> wineEnv(
       ])
     else
       'WINEDLLOVERRIDES': _overrides,
+    // ER1: Mach9's SDL3 gives winedevice.exe, which has no window, no pad
+    // input without it; winedevice inherits the session's first process's.
+    if (mach9) 'SDL_JOYSTICK_ALLOW_BACKGROUND_EVENTS': '1',
     // ponytail: BODEGA_WINEDEBUG is the only knob read from the caller.
     'WINEDEBUG':
         parent['BODEGA_WINEDEBUG'] ??
@@ -224,6 +228,10 @@ Future<String> createBottle(
   Directory('$dir/logs').createSync(recursive: true);
   // Before wineboot: wineEnv gives a Mach9 prefix its own environment (MB5).
   if (mach9) _saveSettings(dir, _with(_settings(dir), runtime: runtime));
+  // ER7: a new Rosetta bottle on the Mac follows the display, as Mach9's do.
+  if (!mach9 && hostPlatform is MacPlatform) {
+    _saveSettings(dir, _with(_settings(dir), retina: 'auto'));
+  }
   final prefix = '$dir/prefix';
   onStep?.call(BottleStep.prefix);
   final log = _newLog(dir, 'wineboot', rt, dir, ['wineboot']);
@@ -385,8 +393,11 @@ Future<String> _launchIn(
   final settings = _settings(dir);
   final key = _exeKey(program);
   final more = [
-    if (mach9 && !_ownRuns.contains(key))
+    if (!_ownRuns.contains(key)) ...[
+      // ER7: retina before the session on both engines.
       ...await _syncRetina(home, name, dir, rt, settings.retina),
+      if (mach9) ...await _syncGamepads(home, name, dir, rt),
+    ],
   ];
   // The HUD saved for the program, or else asked for by this launch.
   final hudOn = hud || (settings.programs[key]?.hud ?? false);
@@ -434,6 +445,9 @@ Future<String> _launchIn(
       ...hostPlatform.dxvkEnv(dir, async: settings.dxvkAsync),
     if (!mach9 && hudOn) ...hostPlatform.perfEnv(dir),
     if (!mach9 && settings.dlss) ..._dlssEnv,
+    // ER8: D3DMetal's Metal 4, only where D3DMetal draws.
+    if (!mach9 && settings.metal4 && choice.name == 'd3dmetal')
+      'D3DM_MTL4': '1',
     if (mach9) 'VKD3D_SHADER_CACHE_PATH': '$dir/cache/vkd3d',
     ...hostPlatform.gpuEnv(settings.gpu),
     for (final step in steps)
@@ -466,10 +480,12 @@ Future<String> _launchIn(
     extra: launchEnv,
     remove: {if (mach9 || !(avx ?? settings.avx)) 'ROSETTA_ADVERTISE_AVX'},
   );
-  // The pid is the run's process group too: stopApp and runningApps read it here.
+  // The pid is the run's process group too: stopApp and runningApps read it
+  // here. The third line, the program's file name, follows a game that
+  // relaunches itself (ER4).
   if (appKey != null) {
     File(log.replaceFirst(RegExp(r'\.log$'), '.pid'))
-        .writeAsStringSync('${process.pid}\n$appKey\n');
+        .writeAsStringSync('${process.pid}\n$appKey\n$key\n');
   }
   return log;
 }
@@ -486,7 +502,7 @@ const _ownRuns = {
   'winecfg.exe',
 };
 
-/// PE4: `RetinaMode` and `LogPixels` as the bottle's retina [mode] wants them,
+/// PE4, ER7: `RetinaMode` and `LogPixels` as the bottle's retina [mode] wants them,
 /// written before the session boots, since Wine reads them only then (Mach9's
 /// `registry.rs`, `session.rs`). A running session keeps its own: stopping it
 /// would stop a game. Returns the log header's lines.
@@ -504,11 +520,20 @@ Future<List<String>> _syncRetina(
   };
   final header = 'retina ${on ? 'on' : 'off'} ($mode)';
   final (:retina, :dpi) = _userRegRetina('$dir/prefix/user.reg');
-  if (retina == on && dpi == (on ? 192 : 96)) return [header];
+  // Only what this platform writes: Linux has no RetinaMode (ER7).
+  final written = hostPlatform.highResRegistry(on);
+  final inPlace = written.every(
+    (value) => switch (value[1]) {
+      'RetinaMode' => retina == (value[3] == 'y'),
+      'LogPixels' => dpi == int.parse(value[3]),
+      _ => true,
+    },
+  );
+  if (inPlace) return [header];
   if (await _serverRunning(rt, dir)) {
     return [header, 'retina waits for the next session'];
   }
-  for (final args in hostPlatform.highResRegistry(on)) {
+  for (final args in written) {
     final log = await _launchIn(
       home,
       name,
@@ -524,6 +549,83 @@ Future<List<String>> _syncRetina(
   await _wineserver(rt, '$dir/prefix', '-k');
   await _wineserver(rt, '$dir/prefix', '-w');
   return [header];
+}
+
+/// ER1, D7: Mach9's SDL3 pads. Its Wine takes an Xbox pad raw from IOHID,
+/// with the wrong controls, unless `DisableHidraw` gives it to SDL (measured
+/// on 2026-11-23 with an Xbox One S pad, 045e:02fd). Written before a session
+/// boots, as retina is; a running one keeps its own. Returns the log header's
+/// lines.
+Future<List<String>> _syncGamepads(
+  String home,
+  String name,
+  String dir,
+  String rt,
+) async {
+  final values = _winebusValues('$dir/prefix/system.reg');
+  final missing = [
+    for (final (value, data) in _mach9Winebus)
+      if (values[value.toLowerCase()] != data) (value, data),
+  ];
+  if (missing.isEmpty) return const [];
+  if (await _serverRunning(rt, dir)) {
+    return ['pads wait for the next session'];
+  }
+  for (final (value, data) in missing) {
+    final log = await _launchIn(
+      home,
+      name,
+      'reg',
+      [
+        'add',
+        r'HKLM\System\CurrentControlSet\Services\WineBus',
+        '/v',
+        value,
+        '/t',
+        'REG_DWORD',
+        '/d',
+        '$data',
+        '/f',
+      ],
+      backend: 'wine',
+      label: 'pads',
+    );
+    final code = await exitOf(log);
+    if (code != 0) throw WineToolFailed(WineTool.reg, code, log);
+  }
+  // As for retina: the `reg add` booted a session with the old values.
+  await _wineserver(rt, '$dir/prefix', '-k');
+  await _wineserver(rt, '$dir/prefix', '-w');
+  _saveSettings(dir, _with(_settings(dir), gamepads: 3));
+  return ['pads sdl3'];
+}
+
+/// The `winebus` values a Mach9 bottle needs for SDL3 pads (ER1).
+const _mach9Winebus = [
+  ('DisableHidraw', 1),
+  ('Enable SDL', 1),
+  ('DisableInput', 0),
+];
+
+/// The dword values under `winebus` in `system.reg`, by lower-cased name.
+Map<String, int> _winebusValues(String path) {
+  final file = File(path);
+  if (!file.existsSync()) return const {};
+  final values = <String, int>{};
+  var inside = false;
+  for (final line in file.readAsLinesSync()) {
+    if (line.startsWith('[')) {
+      inside = line.toLowerCase().startsWith(
+        r'[system\\controlset001\\services\\winebus]',
+      );
+    } else if (inside) {
+      if (RegExp(r'^"([^"]+)"=dword:([0-9a-fA-F]+)').firstMatch(line)
+          case final m?) {
+        values[m.group(1)!.toLowerCase()] = int.parse(m.group(2)!, radix: 16);
+      }
+    }
+  }
+  return values;
 }
 
 /// What `user.reg` holds for retina mode and the system DPI; Wine's defaults,
@@ -557,13 +659,12 @@ Future<int> waitBottle(String home, String name) async {
 }
 
 /// `wineserver -k`; its 1 means there was no server, so it counts as 0 (R11).
+/// Whatever survives it, or has no server left to end it, ends next (ER3).
 Future<int> stopBottle(String home, String name) async {
   final dir = _existing(home, name);
   final rt = _serverRuntime(home, dir);
-  if (rt == null) return 0;
-  // ponytail: no reaper; whatever survives -k (trap 6) stays, and acceptance
-  // looks for it with pgrep.
-  final code = await _wineserver(rt, '$dir/prefix', '-k');
+  final code = rt == null ? 1 : await _wineserver(rt, '$dir/prefix', '-k');
+  await _reap('$dir/prefix');
   return code == 1 ? 0 : code;
 }
 
@@ -646,6 +747,14 @@ enum LogHint {
     'the loader must run from the signed wine.app',
     "Mach9's copy is damaged or this macOS cannot run it: bodega runtime "
         'install mach9',
+  ),
+
+  /// Wine's `RtlpWaitForCriticalSection` waited 60 s for a lock that no
+  /// thread frees: the program seems stuck (ER5).
+  stuckLock(
+    'wait timed out in thread',
+    'the program seems stuck, waiting on a lock: close it, and on the Native '
+        'engine try the Rosetta engine',
   );
 
   const LogHint(this.marker, this.english);
@@ -907,6 +1016,8 @@ Future<void> removeBottle(String home, String name) async {
     await _wineserver(rt, '$dir/prefix', '-k');
     await _wineserver(rt, '$dir/prefix', '-w');
   }
+  // ER3: a process the server no longer reaches would outlive the folder.
+  await _reap('$dir/prefix');
   Directory(dir).deleteSync(recursive: true);
 }
 

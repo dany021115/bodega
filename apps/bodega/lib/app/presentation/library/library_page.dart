@@ -53,6 +53,7 @@ class _LibraryPageState extends State<LibraryPage> {
       inLibrary: app.inLibrary,
       hud: app.hud,
       native: app.nativeEngine,
+      rosetta: app.nativeEngine && app.outsideBottle,
     );
     if (action == null || !anchor.mounted) return;
     // Read now: the menu's awaits below may outlive the item.
@@ -82,6 +83,8 @@ class _LibraryPageState extends State<LibraryPage> {
         bloc.add(LibraryEvent.setHud(app.bottle, app.key, !app.hud));
       case AppMenuAction.native:
         await showNativeOptions(anchor, app);
+      case AppMenuAction.rosetta:
+        bloc.add(LibraryEvent.openWithRosetta(app.bottle, app.key));
       case AppMenuAction.library:
         bloc.add(
           LibraryEvent.setInLibrary(app.bottle, app.key, !app.inLibrary),

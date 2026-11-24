@@ -214,6 +214,57 @@ void hideApp(String home, String bottle, String key) {
   _writeStore(dir, store);
 }
 
+/// ER6, D5: moves the app [key] of the Mach9 bottle [bottle] to the Rosetta
+/// engine, for a game FEX cannot run. Its exe must be a host path outside
+/// Bodega's bottles, since an installed one lives in that prefix: else
+/// [BadChoice]. The target is a Rosetta bottle that already has the app, or a
+/// new one named after the title; its backend stays `auto`, which picks
+/// D3DMetal for a 64-bit DX12 game where it is installed. The Native entry is
+/// hidden, so the library shows the one that runs. Returns the target.
+Future<({String bottle, String key})> openWithRosetta(
+  String home,
+  String bottle,
+  String key, {
+  void Function(BottleStep step)? onStep,
+}) async {
+  final app =
+      bottleApps(home, bottle).where((app) => app.key == key).firstOrNull ??
+      (throw AppNotFound(bottle, key));
+  if (!app.exe.startsWith('/') || app.exe.startsWith('$home/')) {
+    throw BadChoice(ChoiceKind.app, key);
+  }
+  final bottles = listBottles(home);
+  final target =
+      bottles
+          .where((b) => b.runtime == RuntimeKind.bodega && b.ready)
+          .where((b) => b.apps.any((other) => other.key == key))
+          .map((b) => b.name)
+          .firstOrNull ??
+      await () async {
+        final names = {for (final b in bottles) b.name};
+        final base = rosettaBottleName(app.title);
+        var name = base;
+        for (var n = 2; names.contains(name); n++) {
+          name = '$base-$n';
+        }
+        await createBottle(home, name, onStep: onStep);
+        addApp(home, name, app.title, app.exe, args: app.args);
+        return name;
+      }();
+  hideApp(home, bottle, key);
+  return (bottle: target, key: key);
+}
+
+/// A bottle name (R8) from an app's [title]: letters, digits, `_` and `-`,
+/// at most 60 characters, starting with a letter or digit.
+String rosettaBottleName(String title) {
+  final clean = title
+      .replaceAll(RegExp(r'[^A-Za-z0-9_-]+'), '-')
+      .replaceAll(RegExp(r'^[-_]+|[-_]+$'), '');
+  final name = clean.isEmpty ? 'Game' : clean;
+  return name.length > 60 ? name.substring(0, 60) : name;
+}
+
 /// Puts the application in the library, or takes it out. It stays installed
 /// and launchable either way.
 void setInLibrary(String home, String bottle, String key, bool value) {

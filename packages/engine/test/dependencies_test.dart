@@ -261,6 +261,12 @@ void main() {
         'amd64_microsoft.vc90.crt_1fc8b3b9a1e18e3b_9.0.30729.6161_*.manifest',
       );
       expect(row('vcrun2022').windows, 'win10');
+      // The file Mach9's own copy kept from the installer (2026-11-24).
+      for (final (arch, folder) in [('x86', 'syswow64'), ('x64', 'system32')]) {
+        final file = row('vcrun2022').files[arch]!;
+        expect(file.marker, 'windows/$folder/msvcp140.dll');
+        expect(file.repairArgs, ['/repair', '/quiet', '/norestart']);
+      }
       expect(dependencies.where((row) => row.windows != null), hasLength(1));
     });
 
@@ -897,6 +903,42 @@ void main() {
         File('$prefix/installer-args').readAsStringSync().trim(),
         '$file /install /quiet /norestart',
       );
+    });
+
+    test("Wine's copy goes first, and a repair puts back what the install "
+        'skipped', () async {
+      // As Mach9's msvcp140 met Microsoft's installer on 2026-11-24: of the
+      // same version, so the install left it, and over a registered product
+      // the install does nothing at all.
+      File('$prefix/drive_c/windows/syswow64/msvcp140.dll')
+        ..createSync(recursive: true)
+        ..writeAsBytesSync(dll('Wine builtin DLL'));
+      final file = File('$installers/vcrun2022-x86.exe')
+        ..createSync(recursive: true)
+        ..writeAsStringSync(
+          r'd="$WINEPREFIX/drive_c/windows/syswow64"'
+          '\n'
+          r'echo "$2" >>"$WINEPREFIX/runs"'
+          '\n'
+          r'[ -e "$d/msvcp140.dll" ] && echo present >>"$WINEPREFIX/runs"'
+          '\n'
+          r'[ "$2" = /repair ] && printf "MZ%062d" 0 >"$d/msvcp140.dll"'
+          '\n'
+          'exit 0\n',
+        );
+      only(
+        'vc',
+        DependencyFile.run(
+          [await download(file.path)],
+          args: ['/install', '/quiet'],
+          repairArgs: ['/repair', '/quiet'],
+          marker: 'windows/syswow64/msvcp140.dll',
+        ),
+        dlls: ['msvcp140'],
+      );
+      await installDependency(home, 'b', 'vc', 'x86', files: [file.path]);
+      expect(File('$prefix/runs').readAsLinesSync(), ['/install', '/repair']);
+      expect(dependencyInstalled(home, 'b', 'vc', 'x86'), isTrue);
     });
 
     test('a wrong checksum runs nothing', () async {

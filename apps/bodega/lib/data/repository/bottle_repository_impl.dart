@@ -97,6 +97,7 @@ class BottleRepositoryImpl implements BottleRepository {
   Future<Either<AppError, Unit>> setOptions(
     String name, {
     bool? dlss,
+    bool? metal4,
     bool? avx,
     bool? dxvkAsync,
     String? gpu,
@@ -106,6 +107,7 @@ class BottleRepositoryImpl implements BottleRepository {
       _home.path,
       name,
       dlss: dlss,
+      metal4: metal4,
       avx: avx,
       dxvkAsync: dxvkAsync,
       gpu: gpu,
@@ -247,6 +249,7 @@ BottleDetail _detail(String home, String name) {
     retina: RetinaMode.values.byName(settings.retina),
     nativeInstalled: _nativeInstalled(home),
     dlss: settings.dlss,
+    metal4: settings.metal4,
     avx: settings.avx,
     dxvkAsync: settings.dxvkAsync,
     gpu: settings.gpu,

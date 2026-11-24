@@ -8,6 +8,10 @@ abstract class LibraryApp with _$LibraryApp {
   const factory LibraryApp({
     required String bottle,
 
+    /// Its exe is a folder of the Mac outside Bodega's bottles, so the Rosetta
+    /// engine can open it too (ER6).
+    @Default(false) bool outsideBottle,
+
     /// What identifies it in its bottle.
     required String key,
     required String id,

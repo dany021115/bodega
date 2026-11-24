@@ -346,6 +346,7 @@ final class BadChoice extends EngineFailure {
         ChoiceKind.dependency => 'bodega deps list <bottle>',
         ChoiceKind.verdict => gameVerdicts.join(', '),
         ChoiceKind.retina => retinaModes.join(', '),
+        ChoiceKind.app => 'an app added from a folder outside its bottle',
       };
 }
 
@@ -603,8 +604,12 @@ enum ChoiceKind {
   /// What the user said of a game: one of [gameVerdicts].
   verdict('verdict'),
 
-  /// A Mach9 bottle's retina mode: one of [retinaModes].
-  retina('retina mode');
+  /// A bottle's retina mode: one of [retinaModes].
+  retina('retina mode'),
+
+  /// An app to move to the Rosetta engine: one whose exe is a host path
+  /// outside Bodega's bottles (ER6).
+  app('app to open on the Rosetta engine');
 
   const ChoiceKind(this.english);
 

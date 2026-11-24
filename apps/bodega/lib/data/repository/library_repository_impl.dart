@@ -116,6 +116,33 @@ class LibraryRepositoryImpl implements LibraryRepository {
       repositoryCall(() => engine.waitBottle(_home.path, bottle));
 
   @override
+  Future<bool> appStillRunning(String bottle, String log) async =>
+      (await repositoryCall(
+        () async => engine.appStillRunning(_home.path, bottle, log),
+      )).getOrElse((_) => false);
+
+  @override
+  Future<double?> appCpu(String bottle, String log) async =>
+      (await repositoryCall(() async => engine.appCpu(_home.path, bottle, log)))
+          .getOrElse((_) => null);
+
+  @override
+  Future<bool> runHung(String log, List<double> samples) async =>
+      (await repositoryCall(() async => engine.runHung(log, samples)))
+          .getOrElse((_) => false);
+
+  @override
+  Future<Either<AppError, ({String bottle, String key})>> openWithRosetta(
+    String bottle,
+    String key,
+  ) => repositoryCall(() => engine.openWithRosetta(_home.path, bottle, key));
+
+  @override
+  Future<int> reapOrphans() async => (await repositoryCall(
+    () async => (await engine.reapOrphans(_home.path)).length,
+  )).getOrElse((_) => 0);
+
+  @override
   List<RunHint> antiCheatHints(String bottle, DateTime since) {
     try {
       final found = engine.antiCheatHints(_home.path, bottle, since: since);
@@ -150,6 +177,7 @@ LogHint logHintOf(engine.LogHint hint) => switch (hint) {
   engine.LogHint.monoMissing => LogHint.monoMissing,
   engine.LogHint.rulesIgnored => LogHint.rulesIgnored,
   engine.LogHint.loaderNotSigned => LogHint.loaderNotSigned,
+  engine.LogHint.stuckLock => LogHint.stuckLock,
 };
 
 /// How the engine keeps [program]: `C:\\X\\a.exe` and a path inside the

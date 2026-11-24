@@ -323,7 +323,7 @@ void main() {
     final markers = [for (final hint in LogHint.values) hint.marker];
     expect(markers, everyElement(isNotEmpty));
     expect(markers.toSet(), hasLength(LogHint.values.length));
-    expect(markers, hasLength(8));
+    expect(markers, hasLength(9));
     expect(LogHint.fixNotApplied.marker, fixNotApplied);
     expect(LogHint.monoMissing.english, contains('bodega mono install'));
     expect(

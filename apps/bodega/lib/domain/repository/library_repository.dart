@@ -57,6 +57,28 @@ abstract class LibraryRepository {
   /// Ends when the bottle's last process exits, or at once if nothing runs.
   Future<void> waitBottle(String bottle);
 
+  /// Whether the app of [log] still runs in [bottle] after its first process
+  /// exited, as a game that relaunches itself does (ER4); false when unknown.
+  Future<bool> appStillRunning(String bottle, String log);
+
+  /// Ends the Wine processes Bodega's bottles left behind (ER3) and says how
+  /// many; 0 when it cannot tell.
+  Future<int> reapOrphans();
+
+  /// The CPU of the app of [log] in [bottle], or null when it runs no more
+  /// or cannot be read (ER5).
+  Future<double?> appCpu(String bottle, String log);
+
+  /// Whether the run of [log] looks hung, given its CPU [samples] (ER5).
+  Future<bool> runHung(String log, List<double> samples);
+
+  /// Moves the app [key] of the Native bottle [bottle] to a Rosetta bottle,
+  /// made if needed, and gives where it went (ER6).
+  Future<Either<AppError, ({String bottle, String key})>> openWithRosetta(
+    String bottle,
+    String key,
+  );
+
   /// Easy Anti-Cheat's failures in the bottle since [since], one per game, as
   /// [RunHint.antiCheat]; none when they cannot be read.
   List<RunHint> antiCheatHints(String bottle, DateTime since);

@@ -1794,6 +1794,62 @@
       }
     }
   },
+  "hintStuckLock": "This game seems stuck: it waits on something that never comes. Close it with ■, and if its bottle uses the Native engine, try \u201c{action}\u201d in its menu.",
+  "@hintStuckLock": {
+    "description": "Hint when a game's log shows Wine waiting on a lock for a minute and the game uses almost no CPU. {action} is the name of the app menu item appMenuOpenRosetta. ■ is the stop button of the app card.",
+    "placeholders": {
+      "action": {
+        "type": "String",
+        "example": "Open with the Rosetta engine"
+      }
+    }
+  },
+  "hintRosettaPreparing": "Making a Rosetta engine bottle for {game}. It takes about a minute; the game opens when it is ready.",
+  "@hintRosettaPreparing": {
+    "description": "Toast when the user chose to open a game with the Rosetta engine and Bodega is making a bottle for it.",
+    "placeholders": {
+      "game": {
+        "type": "String",
+        "example": "FIFA22"
+      }
+    }
+  },
+  "hintRosettaReady": "{game} now opens from the {bottle} bottle, on the Rosetta engine.",
+  "@hintRosettaReady": {
+    "description": "Toast when a game was moved to a Rosetta engine bottle, which is named {bottle}.",
+    "placeholders": {
+      "game": {
+        "type": "String",
+        "example": "FIFA22"
+      },
+      "bottle": {
+        "type": "String",
+        "example": "FIFA22"
+      }
+    }
+  },
+  "appMenuOpenRosetta": "Open with the Rosetta engine",
+  "@appMenuOpenRosetta": {
+    "description": "App menu item, for a game of a Native engine bottle that lives outside it: makes or reuses a Rosetta engine bottle, adds the game there and opens it."
+  },
+  "bottleMetal4": "Metal 4 (D3DMetal)",
+  "@bottleMetal4": {
+    "description": "Name of a switch in a Rosetta bottle's settings that turns on D3DMetal's Metal 4 path. Keep Metal 4 and D3DMetal as they are."
+  },
+  "bottleMetal4Note": "Try it when a DirectX 12 game on D3DMetal runs slowly; compare with it off.",
+  "@bottleMetal4Note": {
+    "description": "Line under the Metal 4 switch: when to try it."
+  },
+  "hintOrphans": "{count, plural, =1{Bodega closed 1 leftover process of an old bottle. It could hold a game controller or slow the Mac.} other{Bodega closed {count} leftover processes of old bottles. They could hold a game controller or slow the Mac.}}",
+  "@hintOrphans": {
+    "description": "Toast when Bodega starts and ends Wine processes left behind by bottles that were stopped or deleted, such as one that kept a game controller from reaching other bottles.",
+    "placeholders": {
+      "count": {
+        "type": "int",
+        "example": "1"
+      }
+    }
+  },
   "hintAntiCheatUnnamed": "This game uses Easy Anti-Cheat, which couldn't load under Wine (error 206). This isn't a problem with your installation: it depends on the game's developers and on Epic.",
   "@hintAntiCheatUnnamed": {
     "description": "Advice after a bottle's run, as hintAntiCheat: Easy Anti-Cheat failed to load under Wine, with its error 206, for a game whose title its log does not give, so the sentence says this game instead."
@@ -3516,6 +3572,22 @@
   "nativeVulkanWined3dHint": "For DirectX 8, DirectDraw and games on the wine graphics: wined3d draws with Vulkan instead of OpenGL.",
   "@nativeVulkanWined3dHint": {
     "description": "Line under the switch named nativeVulkanWined3d: when to turn it on."
+  },
+  "nativeStrictCodeTracking": "Strict code tracking",
+  "@nativeStrictCodeTracking": {
+    "description": "Name of the option that makes FEX, the Native engine's x86 translator, check code that changes itself before every run, a switch of the Native engine options dialog."
+  },
+  "nativeStrictCodeTrackingHint": "Turn it on when a game hangs or closes at start on the Native engine and runs on the Rosetta engine: for games that change their own code while they run. Slower.",
+  "@nativeStrictCodeTrackingHint": {
+    "description": "Line under the switch named nativeStrictCodeTracking: when to turn it on. Rosetta engine is the other engine a bottle can use."
+  },
+  "nativeFullX87Precision": "Full x87 precision",
+  "@nativeFullX87Precision": {
+    "description": "Name of the option that makes FEX compute x87 floating point at full precision instead of the faster 64-bit default, a switch of the Native engine options dialog. x87 is the name of the old x86 floating-point unit; keep it."
+  },
+  "nativeFullX87PrecisionHint": "Turn it on when an old game's physics, timing or picture go wrong. Slower.",
+  "@nativeFullX87PrecisionHint": {
+    "description": "Line under the switch named nativeFullX87Precision: when to turn it on."
   },
   "catalogEngine": "Engine",
   "@catalogEngine": {

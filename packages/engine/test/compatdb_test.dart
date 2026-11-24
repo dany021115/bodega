@@ -254,6 +254,33 @@ void main() {
       );
     });
 
+    test('FE1 the FEX options are env fields, last and exact', () {
+      mach9Bottle(
+        home,
+        'b',
+        '{"native": {"games/game.exe": '
+            '["fullX87Precision", "largeAddressAware", "strictCodeTracking"], '
+            '"steam:220": ["strictCodeTracking"]}}',
+      );
+      expect(
+        compatdbRules(home, 'b', 'game.exe', appKey: 'games/game.exe'),
+        'exe=*;$menu\n'
+        'exe=game.exe;large_address_aware=true;'
+        'env=FEX_X87REDUCEDPRECISION=0;env=FEX_SMCCHECKS=full',
+      );
+      expect(
+        compatdbRules(
+          home,
+          'b',
+          r'C:\Program Files (x86)\Steam\steam.exe',
+          hud: true,
+          appKey: 'steam:220',
+        ),
+        'exe=*;$menu\n'
+        'exe=steam:220;metal_hud=true;env=FEX_SMCCHECKS=full',
+      );
+    });
+
     test('a program that is no Steam app keeps its lines', () {
       mach9Bottle(home, 'b');
       expect(

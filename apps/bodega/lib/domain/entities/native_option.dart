@@ -15,4 +15,10 @@ enum NativeOption {
 
   /// wined3d draws with Vulkan.
   vulkanWined3d,
+
+  /// FEX checks code that changes itself before every run (FE1).
+  strictCodeTracking,
+
+  /// FEX's full x87 precision (FE1).
+  fullX87Precision,
 }

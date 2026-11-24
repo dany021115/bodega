@@ -21,5 +21,9 @@ abstract class HostCapabilities with _$HostCapabilities {
 
     /// DXVK's async compiling: only the Mac's DXVK reads it (RE8).
     @Default(false) bool dxvkAsync,
+
+    /// Retina modes that follow the display, for bottles of either engine:
+    /// the Mac only (ER7).
+    @Default(true) bool retina,
   }) = _HostCapabilities;
 }

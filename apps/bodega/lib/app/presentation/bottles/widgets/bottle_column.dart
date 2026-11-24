@@ -573,7 +573,8 @@ class BottleColumn extends StatelessWidget {
                   }
                 },
               ),
-            if (caps.highRes && _native) ...[
+            // ER7: the Mac's bottles of both engines follow the display.
+            if (caps.highRes && (_native || caps.retina)) ...[
               const SizedBox(height: AppSpacing.md),
               DropdownButtonFormField<RetinaMode>(
                 key: ValueKey('retina ${detail.retina.name}'),
@@ -600,20 +601,14 @@ class BottleColumn extends StatelessWidget {
                       },
               ),
             ] else if (caps.highRes)
+              // Linux: on or off, which the next session takes (ER7), so
+              // nothing closes.
               _switch(
                 context,
                 l10n.bottleHighRes,
-                // Two sentences, each its own message: the second is shared.
-                '${l10n.bottleHighResNote} ${l10n.bottleChangeCloses}',
+                l10n.bottleHighResNote,
                 detail.highRes,
-                (value) async {
-                  final title = value
-                      ? l10n.bottleHighResOn
-                      : l10n.bottleHighResOff;
-                  if (await _closes(context, title)) {
-                    bloc.add(BottleDetailEvent.setHighRes(value));
-                  }
-                },
+                (value) => bloc.add(BottleDetailEvent.setHighRes(value)),
               ),
             if (caps.dlss && !_native)
               _switch(
@@ -622,6 +617,15 @@ class BottleColumn extends StatelessWidget {
                 l10n.bottleDlssNote,
                 detail.dlss,
                 (value) => bloc.add(BottleDetailEvent.setDlss(value)),
+              ),
+            // ER8: D3DMetal's Metal 4, to try against the default.
+            if (caps.d3dmetal && !_native)
+              _switch(
+                context,
+                l10n.bottleMetal4,
+                l10n.bottleMetal4Note,
+                detail.metal4,
+                (value) => bloc.add(BottleDetailEvent.setMetal4(value)),
               ),
             if (caps.avx && !_native)
               _switch(

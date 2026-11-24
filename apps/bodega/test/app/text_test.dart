@@ -195,8 +195,12 @@ const _hintCases = <(RunHint, List<String>)>[
   (RunHint.log(LogHint.monoMissing), ['Wine Mono']),
   (RunHint.log(LogHint.rulesIgnored), ['Mach9']),
   (RunHint.log(LogHint.loaderNotSigned), []),
+  (RunHint.log(LogHint.stuckLock), ['■']),
   (RunHint.antiCheat(game: 'POLYGON'), ['POLYGON', 'Easy Anti-Cheat', '206']),
   (RunHint.antiCheat(), ['Easy Anti-Cheat', '206']),
+  (RunHint.orphans(2), ['2']),
+  (RunHint.rosettaPreparing('FIFA22'), ['FIFA22', 'Rosetta']),
+  (RunHint.rosettaReady('FIFA22', 'FIFA22-2'), ['FIFA22', 'FIFA22-2']),
 ];
 
 /// What a bottle shows after a run that missed its fix and failed Easy
@@ -1433,11 +1437,6 @@ void main() {
           final l10n = lookupAppL10n(locale);
           await pumpColumn(tester, locale);
           expect(find.text(l10n.bottleChangeCloses), findsOneWidget);
-          // Its own note first, then the shared sentence.
-          expect(
-            find.text('${l10n.bottleHighResNote} ${l10n.bottleChangeCloses}'),
-            findsOneWidget,
-          );
 
           // msync is on: the switch turns it off.
           await tester.tap(find.widgetWithText(SwitchListTile, 'msync'));

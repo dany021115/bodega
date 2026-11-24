@@ -1,7 +1,7 @@
 import 'package:bodega/l10n/l10n.dart';
 import 'package:flutter/material.dart';
 
-enum AppMenuAction { open, options, hud, native, library, hide }
+enum AppMenuAction { open, options, hud, native, rosetta, library, hide }
 
 /// The widest a popup menu gets.
 const double _menuWidth = 280;
@@ -32,6 +32,10 @@ Future<AppMenuAction?> showAppMenu(
 
   /// The app's bottle runs on the Native engine: its options get an item.
   bool native = false,
+
+  /// It can also open on the Rosetta engine (ER6): a Native app whose exe
+  /// is outside its bottle.
+  bool rosetta = false,
 }) {
   final l10n = anchor.l10n;
 
@@ -60,6 +64,11 @@ Future<AppMenuAction?> showAppMenu(
         PopupMenuItem(
           value: AppMenuAction.native,
           child: Text(l10n.appMenuNativeOptions),
+        ),
+      if (rosetta)
+        PopupMenuItem(
+          value: AppMenuAction.rosetta,
+          child: Text(l10n.appMenuOpenRosetta),
         ),
       PopupMenuItem(
         value: AppMenuAction.library,

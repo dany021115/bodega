@@ -25,6 +25,7 @@ class RuntimeRepositoryImpl implements RuntimeRepository {
       runtime: hasRuntime(_home.path),
       capabilities: HostCapabilities(
         highRes: caps.highRes,
+        retina: caps.retina,
         avx: caps.avx,
         dlss: caps.dlss,
         d3dmetal: caps.d3dmetal,

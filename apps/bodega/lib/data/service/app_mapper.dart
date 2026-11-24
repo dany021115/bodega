@@ -23,6 +23,7 @@ List<LibraryApp> libraryApps(String home, List<InstalledApp> apps) {
         inLibrary: app.inLibrary,
         hud: app.hud,
         nativeEngine: nativeEngine(app.bottle),
+        outsideBottle: app.exe.startsWith('/') && !app.exe.startsWith('$home/'),
         nativeOptions: nativeEngine(app.bottle)
             ? {
                 for (final option in nativeOptions(home, app.bottle, app.key))

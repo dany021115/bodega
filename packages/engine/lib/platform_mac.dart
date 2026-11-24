@@ -135,6 +135,7 @@ class MacPlatform extends HostPlatform {
   @override
   HostCapabilities get capabilities => (
     highRes: true,
+    retina: true,
     avx: true,
     dlss: true,
     d3dmetal: true,
@@ -362,6 +363,95 @@ class MacPlatform extends HostPlatform {
     '/Applications',
     if (Platform.environment['HOME'] case final home?) '$home/Applications',
   ];
+
+  /// Every Wine process of the prefix has its server folder open, as its
+  /// working folder, or mapped (`tmpmap-*`): `lsof -p` shows both, where
+  /// `lsof +d` misses a mapped file, as Mach9's processes have it (D1).
+  @override
+  List<WineProcess> wineProcesses(String prefix) {
+    final run = Process.runSync('/usr/bin/stat', ['-f', '%d %i', prefix]);
+    final ids = '${run.stdout}'.trim().split(' ');
+    if (run.exitCode != 0 || ids.length != 2) return const [];
+    final name =
+        '/server-${int.parse(ids[0]).toRadixString(16)}'
+        '-${int.parse(ids[1]).toRadixString(16)}';
+    return [
+      for (final (:process, :server, names: _) in _wineFiles())
+        if (server.endsWith(name)) process,
+    ];
+  }
+
+  /// IOKit's own counter, readable without sudo (ER8).
+  @override
+  int? gpuUtilization() => parseGpuUtilization(
+    '${Process.runSync('/usr/sbin/ioreg', ['-r', '-d', '1', '-w', '0', '-c', 'IOAccelerator']).stdout}',
+  );
+
+  @override
+  List<WineProcess> orphanWineProcesses(String home) {
+    final byServer = <String, List<({WineProcess process, bool mine})>>{};
+    for (final (:process, :server, :names) in _wineFiles()) {
+      (byServer[server] ??= []).add((
+        process: process,
+        mine: lsofNamesUnder(names.map((n) => 'n$n').join('\n'), home),
+      ));
+    }
+    return [
+      for (final members in byServer.values)
+        if (!members.any((m) => isWineserver(m.process)))
+          for (final (:process, :mine) in members)
+            if (mine) process,
+    ];
+  }
+}
+
+/// Each Wine process of this user with its server folder and the files it has
+/// open or mapped, from one `ps` and one `lsof` (D1). A Wine process runs an
+/// `.exe` or is a wineserver; one with no server folder is left out.
+List<({WineProcess process, String server, List<String> names})> _wineFiles() {
+  final ps = Process.runSync(
+    'ps',
+    ['-axo', 'pid=,%cpu=,command='],
+    environment: const {'LC_ALL': 'C'},
+  );
+  final wine = {
+    for (final process in parsePs('${ps.stdout}'))
+      if (programName(process.command) != null || isWineserver(process))
+        process.pid: process,
+  };
+  if (wine.isEmpty) return const [];
+  final run = Process.runSync('/usr/sbin/lsof', [
+    '-p',
+    wine.keys.join(','),
+    '-Fn',
+  ]);
+  final names = <int, List<String>>{};
+  int? pid;
+  for (final line in '${run.stdout}'.split('\n')) {
+    if (line.startsWith('p')) pid = int.tryParse(line.substring(1));
+    if (line.startsWith('n') && pid != null) {
+      (names[pid] ??= []).add(line.substring(1));
+    }
+  }
+  final server = RegExp(
+    r'^(/private/tmp/\.wine-\d+/server-[0-9a-f]+-[0-9a-f]+)',
+  );
+  return [
+    for (final MapEntry(key: pid, value: files) in names.entries)
+      if (wine[pid] case final process?)
+        if (files.map(server.firstMatch).nonNulls.firstOrNull case final m?)
+          (process: process, server: m.group(1)!, names: files),
+  ];
+}
+
+/// Whether `lsof -Fn` [output] names a file under [home] (D2).
+bool lsofNamesUnder(String output, String home) {
+  final root = home.endsWith('/') ? home : '$home/';
+  return output
+      .split('\n')
+      .any(
+        (line) => line.startsWith('n') && line.substring(1).startsWith(root),
+      );
 }
 
 /// [MacPlatform.mach9Block], read once: neither changes while Bodega runs.

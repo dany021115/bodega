@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:bloc/bloc.dart';
 import 'package:bodega/domain/entities/app_error.dart';
 import 'package:bodega/domain/entities/library_app.dart';
+import 'package:bodega/domain/entities/log_hint.dart';
 import 'package:bodega/domain/entities/native_option.dart';
 import 'package:bodega/domain/entities/run_hint.dart';
 import 'package:bodega/domain/repository/bottle_repository.dart';
@@ -25,9 +26,30 @@ class LibraryBloc extends Bloc<LibraryEvent, LibraryState> {
   final Set<String> _watching = {};
   final Set<String> _opening = {};
   Timer? _hintTimer;
+  bool _reaped = false;
+
+  /// Each running app's CPU samples, by its log, the last minute (ER5).
+  final Map<String, List<double>> _cpu = {};
+
+  /// How often a relaunched app is looked for (ER4).
+  @visibleForTesting
+  static Duration relaunchPoll = const Duration(seconds: 5);
 
   LibraryBloc(this._repository, this._bottles) : super(const LibraryState()) {
     on<LibraryLoadEvent>((event, emit) async {
+      // ER3: once per start, what deleted or stopped bottles left behind.
+      if (!_reaped) {
+        _reaped = true;
+        final ended = await _repository.reapOrphans();
+        if (ended > 0) {
+          emit(
+            state.copyWith(
+              toast: RunHint.orphans(ended),
+              toastId: state.toastId + 1,
+            ),
+          );
+        }
+      }
       final result = await _repository.apps();
       result.match(
         (error) => emit(state.copyWith(isLoading: false, error: error)),
@@ -203,10 +225,48 @@ class LibraryBloc extends Bloc<LibraryEvent, LibraryState> {
       emit(state.copyWith(running: running));
     });
 
-    on<LibraryCheckHintsEvent>((event, emit) {
+    on<LibraryCheckHintsEvent>((event, emit) async {
       for (final MapEntry(key: bottle, value: run) in _runs.entries) {
         _addHints(bottle, _repository.antiCheatHints(bottle, run.since), emit);
       }
+      // ER5: each running app's CPU, kept a minute, against its log.
+      for (final MapEntry(key: bottle, value: logs) in {..._appLogs}.entries) {
+        for (final log in logs.values) {
+          final cpu = await _repository.appCpu(bottle, log);
+          if (cpu == null) continue;
+          final samples = (_cpu[log] ??= [])..add(cpu);
+          if (samples.length > 12) samples.removeAt(0);
+          if (await _repository.runHung(log, samples)) {
+            _addHints(bottle, const [RunHint.log(LogHint.stuckLock)], emit);
+          }
+        }
+      }
+    });
+
+    on<LibraryOpenWithRosettaEvent>((event, emit) async {
+      final title =
+          state.apps
+              .where((a) => a.bottle == event.bottle && a.key == event.key)
+              .firstOrNull
+              ?.title ??
+          event.key;
+      emit(
+        state.copyWith(
+          toast: RunHint.rosettaPreparing(title),
+          toastId: state.toastId + 1,
+        ),
+      );
+      final moved = await _repository.openWithRosetta(event.bottle, event.key);
+      moved.match((error) => emit(state.copyWith(error: error)), (target) {
+        emit(
+          state.copyWith(
+            toast: RunHint.rosettaReady(title, target.bottle),
+            toastId: state.toastId + 1,
+          ),
+        );
+        add(const LibraryEvent.load());
+        add(LibraryEvent.open(target.bottle, target.key));
+      });
     });
   }
 
@@ -243,9 +303,12 @@ class LibraryBloc extends Bloc<LibraryEvent, LibraryState> {
   /// newer launch of the same app no longer counts, so it reports nothing.
   Future<void> _followApp(String bottle, String key, String log) async {
     await _repository.firstExit(log);
-    if (!isClosed && _appLogs[bottle]?[key] == log) {
-      add(LibraryEvent.appClosed(bottle, key));
+    bool current() => !isClosed && _appLogs[bottle]?[key] == log;
+    // ER4: a game that started a second copy of itself and exited runs on.
+    while (current() && await _repository.appStillRunning(bottle, log)) {
+      await Future<void>.delayed(relaunchPoll);
     }
+    if (current()) add(LibraryEvent.appClosed(bottle, key));
   }
 
   /// The bottle's first app, as the engine opens it when no key is given.

@@ -70,6 +70,10 @@ typedef HostCapabilities = ({
 
   /// DXVK's async compiling: only the Mac's DXVK reads `DXVK_ASYNC` (RE8).
   bool dxvkAsync,
+
+  /// Retina modes that follow the display, `auto` among them, for bottles of
+  /// either engine: the Mac only (ER7). Elsewhere high resolution is on/off.
+  bool retina,
 });
 
 /// What differs between hosts. The rest of the engine is shared.
@@ -158,6 +162,17 @@ abstract class HostPlatform {
 
   /// Where a user keeps apps such as `Mach9.app` (MR4).
   List<String> get applicationDirs;
+
+  /// The processes of the Wine prefix [prefix], its wineserver included (D1).
+  List<WineProcess> wineProcesses(String prefix);
+
+  /// Processes of Wine prefixes whose wineserver is gone that map a file
+  /// under [home], Bodega's own (D2).
+  List<WineProcess> orphanWineProcesses(String home);
+
+  /// The GPU's utilization in percent, or null where the host does not tell
+  /// it without privileges (ER8).
+  int? gpuUtilization();
 }
 
 /// The host in use. Tests replace it.

@@ -21,6 +21,8 @@ sealed class BottleDetailEvent with _$BottleDetailEvent {
       BottleDetailSetWindowsEvent;
   const factory BottleDetailEvent.setDlss(bool value) =
       BottleDetailSetDlssEvent;
+  const factory BottleDetailEvent.setMetal4(bool value) =
+      BottleDetailSetMetal4Event;
   const factory BottleDetailEvent.setAvx(bool value) = BottleDetailSetAvxEvent;
   const factory BottleDetailEvent.setDxvkAsync(bool value) =
       BottleDetailSetDxvkAsyncEvent;
