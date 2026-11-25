@@ -65,11 +65,11 @@ esac
 
 const _fakeWineserver = '#!/bin/sh\nexit 0\n';
 
-/// A Mach9 runtime at the pinned version under `runtimes/mach9`, with every
+/// A Mach9 runtime 0.4.0 under `runtimes/mach9`, with every
 /// graphics module (MG2), the fake Wine and a fake Mono MSI that makes Mono's
 /// folder. Returns its folder.
 String fakeMach9Runtime(String home) {
-  final version = engine.mach9Release.version;
+  const version = '0.4.0';
   final dir = '$home/runtimes/mach9-$version';
   for (final sub in [
     'dxgi/wined3d',
@@ -85,7 +85,7 @@ String fakeMach9Runtime(String home) {
   final server = File('$dir/engine/bin/wineserver')
     ..writeAsStringSync(_fakeWineserver);
   Process.runSync('/bin/chmod', ['+x', wine.path, server.path]);
-  File('$dir/${engine.mach9Release.mono.file}').writeAsStringSync(
+  File('$dir/wine-mono-11.3.0-x86.msi').writeAsStringSync(
     r'mkdir -p "$WINEPREFIX/drive_c/windows/mono/mono-2.0"'
     '\n',
   );

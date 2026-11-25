@@ -1,4 +1,5 @@
 import 'package:bloc_test/bloc_test.dart';
+import 'package:bodega/app/bloc/backends/backends_bloc.dart';
 import 'package:bodega/app/bloc/install/install_bloc.dart';
 import 'package:bodega/app/bloc/library/library_bloc.dart';
 import 'package:bodega/app/bloc/switch/switch_bloc.dart';
@@ -16,6 +17,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
 import '../support/pump.dart';
+
+class _MockBackends extends MockBloc<BackendsEvent, BackendsState>
+    implements BackendsBloc {}
 
 class _MockUpdate extends MockBloc<UpdateEvent, UpdateState>
     implements UpdateBloc {}
@@ -114,6 +118,17 @@ void main() {
         providers: [
           BlocProvider<LibraryBloc>.value(value: library),
           BlocProvider<UpdateBloc>.value(value: bloc),
+          BlocProvider<BackendsBloc>.value(
+            value: () {
+              final backends = _MockBackends();
+              whenListen(
+                backends,
+                const Stream<BackendsState>.empty(),
+                initialState: const BackendsState(),
+              );
+              return backends;
+            }(),
+          ),
           BlocProvider<InstallBloc>.value(value: install),
           BlocProvider<SwitchBloc>.value(value: switchGames),
           BlocProvider<DependenciesBloc>.value(value: _quietDependencies()),

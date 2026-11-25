@@ -52,7 +52,10 @@ class _BodegaAppState extends State<BodegaApp> {
     return MultiBlocProvider(
       providers: [
         BlocProvider.value(value: _setup),
-        BlocProvider.value(value: getIt<BackendsBloc>()),
+        // MA1: Mach9's latest release, at start and hourly.
+        BlocProvider.value(
+          value: getIt<BackendsBloc>()..add(const BackendsEvent.checkMach9()),
+        ),
         BlocProvider.value(value: getIt<BottlesBloc>()),
         BlocProvider.value(value: getIt<CatalogBloc>()),
         BlocProvider.value(value: getIt<DependenciesBloc>()),

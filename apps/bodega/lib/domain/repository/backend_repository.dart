@@ -14,12 +14,17 @@ abstract class BackendRepository {
   /// mach9 on the Mac.
   Future<Either<AppError, List<RuntimeInfo>>> runtimes();
 
+  /// Looks up Mach9's latest release, at most once a day (MA1).
+  Future<Either<AppError, Unit>> checkMach9();
+
   /// MR4: installs [kind] from [file] (a `.dmg` or a `Mach9.app`), else from
-  /// the Mach9.app found at the pinned version, else from the pinned
-  /// download. False if it was cancelled with [cancelDownload].
+  /// the Mach9.app found at the latest version, else from the latest
+  /// download. With [deleteFile], a `.dmg` [file] goes once installed.
+  /// False if it was cancelled with [cancelDownload].
   Future<Either<AppError, bool>> installRuntime(
     RuntimeKind kind, {
     String? file,
+    bool deleteFile = false,
     required void Function(int received, int? total) onProgress,
     required void Function(Mach9Step step) onStep,
   });

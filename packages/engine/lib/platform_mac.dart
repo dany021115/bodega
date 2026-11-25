@@ -49,6 +49,30 @@ class MacPlatform extends HostPlatform {
     // the first start slow, move it to a step with progress.
     _registerBundled(home, root, copy: true, afterCopy: _stripQuarantine);
     _syncSdl(home, root);
+    _bundleCurrentWine(home);
+  }
+
+  /// Game Mode for the runtime in use, once no Wine process of it runs:
+  /// moving its folder under a running session would strand the processes it
+  /// starts. Best effort: a failure is tried again at the next start.
+  void _bundleCurrentWine(String home) {
+    final current = Directory('$home/runtimes/current');
+    if (!current.existsSync()) return;
+    try {
+      final real = current.resolveSymbolicLinksSync();
+      if (FileSystemEntity.isLinkSync('$real/engine/lib/wine/x86_64-unix') &&
+          File(_winePlistPath('$real/engine')).existsSync()) {
+        return;
+      }
+      final busy = _wineFiles().any(
+        (wine) => wine.names.any((name) => name.startsWith('$real/')),
+      );
+      if (!busy) bundleWineForGameMode('$real/engine');
+    } on FileSystemException {
+      // Left as it is; the next start tries again.
+    } on ProcessException {
+      // No ps or lsof: nothing tells whether it runs, so it waits.
+    }
   }
 
   /// SDL2 lives inside a runtime, and a runtime is copied only when it is
@@ -114,6 +138,10 @@ class MacPlatform extends HostPlatform {
   @override
   Future<void> afterExtract(String dir) async {
     await Process.run('/usr/bin/xattr', ['-dr', 'com.apple.quarantine', dir]);
+    // A runtime, not a backend: Game Mode before anything runs from it.
+    if (Directory('$dir/engine/lib/wine/x86_64-unix').existsSync()) {
+      bundleWineForGameMode('$dir/engine');
+    }
   }
 
   @override
@@ -470,7 +498,7 @@ RuntimeBlock? _readMach9Block() {
     return RuntimeBlock.appleSiliconOnly;
   }
   final version = ask('/usr/bin/sw_vers', ['-productVersion']);
-  return _versionAtLeast(version, mach9Release.minimumMacos)
+  return _versionAtLeast(version, mach9Identity.minimumMacos)
       ? null
       : RuntimeBlock.macosTooOld;
 }
@@ -602,4 +630,78 @@ bool _mainDisplayHiDpi() {
   } on Object {
     return false;
   }
+}
+
+/// Where [bundleWineForGameMode] writes the bundle's `Info.plist`.
+String _winePlistPath(String engine) =>
+    '$engine/lib/wine/wine.app/Contents/Info.plist';
+
+/// What makes macOS give Game Mode to a game of the Rosetta engine, as Mach9's
+/// own `wine.app` does for the Native one: the games category.
+const winePlist = '''<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+<key>CFBundleIdentifier</key><string>com.dany021115.bodega.wine</string>
+<key>CFBundleName</key><string>wine</string>
+<key>CFBundleExecutable</key><string>wine</string>
+<key>CFBundlePackageType</key><string>APPL</string>
+<key>LSApplicationCategoryType</key><string>public.app-category.games</string>
+<key>LSSupportsGameMode</key><true/>
+<key>GCSupportsGameMode</key><true/>
+<key>LSUIElement</key><true/>
+</dict></plist>
+''';
+
+/// Puts the Rosetta engine's unix folder in a `wine.app` so that macOS gives
+/// its games Game Mode (measured on 2026-11-24 with a game in full screen).
+///
+/// macOS reads an app's category from the bundle of the path a process was
+/// started by, never through a link. Wine starts each process as
+/// `<ntdll.so's real folder>/wine` (`dlls/ntdll/unix/loader.c`, init_paths),
+/// so the real `lib/wine/x86_64-unix` becomes `lib/wine/wine.app/Contents/
+/// MacOS`, and links keep every path that Wine and Bodega use:
+/// - `lib/wine/x86_64-unix`, the old place, for `bin/wine` and Bodega;
+/// - in `MacOS`, `x86_64-unix` (itself), `x86_64-windows` and `i386-windows`,
+///   where Wine looks once its dll folder is `MacOS`;
+/// - `wine.app/bin` and `wine.app/share`, Wine's `../../bin` and
+///   `../../share` from there.
+///
+/// Idempotent. Returns false for a tree without that folder.
+bool bundleWineForGameMode(String engine) {
+  final wine = '$engine/lib/wine';
+  final unix = '$wine/x86_64-unix';
+  final macos = '$wine/wine.app/Contents/MacOS';
+  if (!FileSystemEntity.isLinkSync(unix)) {
+    if (Directory(unix).existsSync()) {
+      if (Directory(macos).existsSync()) return false;
+      Directory('$wine/wine.app/Contents').createSync(recursive: true);
+      Directory(unix).renameSync(macos);
+    } else if (!Directory(macos).existsSync()) {
+      return false;
+    }
+    try {
+      Link(unix).createSync('wine.app/Contents/MacOS');
+    } on FileSystemException {
+      if (!Directory(unix).existsSync()) Directory(macos).renameSync(unix);
+      rethrow;
+    }
+  }
+  for (final (path, target) in [
+    ('$macos/x86_64-unix', '.'),
+    ('$macos/x86_64-windows', '../../../x86_64-windows'),
+    ('$macos/i386-windows', '../../../i386-windows'),
+    ('$wine/wine.app/bin', '../../../bin'),
+    if (Directory('$engine/share').existsSync())
+      ('$wine/wine.app/share', '../../../share'),
+  ]) {
+    if (FileSystemEntity.typeSync(path, followLinks: false) ==
+        FileSystemEntityType.notFound) {
+      Link(path).createSync(target);
+    }
+  }
+  final plist = File(_winePlistPath(engine));
+  if (!plist.existsSync() || plist.readAsStringSync() != winePlist) {
+    plist.writeAsStringSync(winePlist);
+  }
+  return true;
 }

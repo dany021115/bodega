@@ -180,11 +180,18 @@ void main() {
       expect(mach9.checked, isFalse);
     });
 
-    test('the pinned version counts as checked', () {
+    test('MU5 checked is what runtime.json says', () {
       fakeMach9Runtime(home);
       final mach9 = listRuntimes(home).last;
-      expect(mach9.version, mach9Release.version);
+      expect(mach9.version, '0.4.0');
       expect(mach9.checked, isTrue);
+      expect(mach9.latest, isNull);
+      File('$home/runtimes/.mach9-latest.json').writeAsStringSync(
+        '{"version":"0.5.0","url":"https://x/Mach9.dmg","bytes":1,'
+        '"sha256":"${'a' * 64}","minimumMacos":"26.4",'
+        '"checkedAt":"2026-11-24T00:00:00Z"}',
+      );
+      expect(listRuntimes(home).last.latest, '0.5.0');
     });
 
     test('bodega names the folder current points at', () {
@@ -565,19 +572,21 @@ void main() {
     });
   });
 
-  group('MR3 the release pin', () {
-    test('both hashes and HTTPS URLs', () {
-      expect(
-        mach9Release.sha256,
+  group('MU1 no fixed version', () {
+    test('only who Mach9 is, and what Bodega needs of it', () {
+      expect(mach9Identity.bundleId, 'app.mach9');
+      expect(mach9Identity.team, 'WLKUUJD25W');
+      expect(mach9Identity.minimumVersion, '0.4.0');
+      expect(mach9Identity.minimumMacos, '26.4');
+      final source = File('lib/mach9.dart').readAsStringSync();
+      for (final pinned in [
         '3b5dd83ee7b08d55e6c4a84dabb32db994dc6a5bfb2a1500fb50d0b45436e6d9',
-      );
-      expect(
-        mach9Release.mono.sha256,
         'df2dfc1665c2511882e7cabd56eafd0c0a3d94e5a7e86f969277f6c189d418d3',
-      );
-      expect(Uri.parse(mach9Release.url).scheme, 'https');
-      expect(Uri.parse(mach9Release.mono.url).scheme, 'https');
-      expect(mach9Release.file, 'Mach9-${mach9Release.version}.dmg');
+        'releases/download/v0.4.0',
+        'wine-mono/11.3.0',
+      ]) {
+        expect(source, isNot(contains(pinned)), reason: pinned);
+      }
     });
   });
 

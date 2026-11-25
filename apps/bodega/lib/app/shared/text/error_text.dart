@@ -67,6 +67,8 @@ extension AppErrorText on AppError {
       version,
       minimum,
     ),
+    NoMach9ReleaseError() => l10n.errNoMach9Release,
+    Mach9CheckFailedError(:final version) => l10n.errMach9CheckFailed(version),
     BackendNotForRuntimeError(:final backend, :final runtime) =>
       l10n.errBackendNotForRuntime(backend, runtime.name),
     WineToolFailedError(:final tool, :final exitCode, :final log) =>

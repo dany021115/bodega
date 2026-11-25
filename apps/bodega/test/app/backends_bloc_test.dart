@@ -273,14 +273,48 @@ void main() {
     const notInstalled = RuntimeInfo(
       kind: RuntimeKind.mach9,
       installed: false,
-      pinnedVersion: '0.4.0',
+      latestVersion: '0.4.0',
     );
     const installedMach9 = RuntimeInfo(
       kind: RuntimeKind.mach9,
       installed: true,
       version: '0.4.0',
-      pinnedVersion: '0.4.0',
+      latestVersion: '0.4.0',
     );
+
+    test('MA1 and MA2 a newer Mach9 is told once per version', () async {
+      const outdated = RuntimeInfo(
+        kind: RuntimeKind.mach9,
+        installed: true,
+        version: '0.4.0',
+        latestVersion: '0.5.0',
+      );
+      when(() => repository.checkMach9()).thenAnswer((_) async => right(unit));
+      when(() => repository.runtimes())
+          .thenAnswer((_) async => right(const [bodega, outdated]));
+      final bloc = BackendsBloc(repository)
+        ..add(const BackendsEvent.checkMach9())
+        ..add(const BackendsEvent.checkMach9());
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      expect(bloc.state.mach9Notice, '0.5.0');
+      expect(bloc.state.noticeId, 1);
+      expect(bloc.state.runtimes.last.updateAvailable, isTrue);
+      verify(() => repository.checkMach9()).called(2);
+      await bloc.close();
+    });
+
+    test('MA1 offline says nothing', () async {
+      when(() => repository.checkMach9()).thenAnswer(
+        (_) async => left(const AppError.network(detail: 'offline')),
+      );
+      final bloc = BackendsBloc(repository)
+        ..add(const BackendsEvent.checkMach9());
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      expect(bloc.state.mach9Notice, isNull);
+      expect(bloc.state.noticeId, 0);
+      expect(bloc.state.error, isNull);
+      await bloc.close();
+    });
 
     /// Installing reports [steps] and progress, then ends with [result]; on
     /// success the runtime lists as installed.
@@ -295,6 +329,7 @@ void main() {
         () => repository.installRuntime(
           RuntimeKind.mach9,
           file: file,
+          deleteFile: any(named: 'deleteFile'),
           onProgress: any(named: 'onProgress'),
           onStep: any(named: 'onStep'),
         ),
@@ -389,7 +424,38 @@ void main() {
     );
 
     blocTest<BackendsBloc, BackendsState>(
-      'from a file: passes it on',
+      'from a file with the box unticked: kept',
+      build: () {
+        installs(
+          const [Mach9Step.mounting, Mach9Step.copying],
+          right(true),
+          file: '/d/Mach9.dmg',
+        );
+        return BackendsBloc(repository);
+      },
+      act: (bloc) => bloc
+        ..add(const BackendsEvent.setDeleteDmg(false))
+        ..add(
+          const BackendsEvent.installRuntime(
+            RuntimeKind.mach9,
+            file: '/d/Mach9.dmg',
+          ),
+        ),
+      verify: (bloc) {
+        expect(bloc.state.deleteDmg, isFalse);
+        verify(
+          () => repository.installRuntime(
+            RuntimeKind.mach9,
+            file: '/d/Mach9.dmg',
+            onProgress: any(named: 'onProgress'),
+            onStep: any(named: 'onStep'),
+          ),
+        ).called(1);
+      },
+    );
+
+    blocTest<BackendsBloc, BackendsState>(
+      'from a file: passes it on, to delete once installed (by default)',
       build: () {
         installs(
           const [Mach9Step.mounting, Mach9Step.copying],
@@ -409,6 +475,7 @@ void main() {
           () => repository.installRuntime(
             RuntimeKind.mach9,
             file: '/d/Mach9.dmg',
+            deleteFile: true,
             onProgress: any(named: 'onProgress'),
             onStep: any(named: 'onStep'),
           ),

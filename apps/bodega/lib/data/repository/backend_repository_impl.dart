@@ -46,9 +46,16 @@ class BackendRepositoryImpl implements BackendRepository {
   Future<Either<AppError, List<RuntimeInfo>>> runtimes() => repositoryCall(
     () => [
       for (final runtime in engine.listRuntimes(_home.path))
-        _runtimeInfo(runtime),
+        _runtimeInfo(runtime, engine.cachedMach9Latest(_home.path)),
     ],
   );
+
+  /// MA1: Mach9's latest release, from GitHub at most once a day.
+  @override
+  Future<Either<AppError, Unit>> checkMach9() => repositoryCall(() async {
+    await engine.mach9Latest(_home.path, maxAge: const Duration(hours: 24));
+    return unit;
+  });
 
   /// MR4, design §3.3: the Mono MSI and, without [file] or a Mach9.app at the
   /// pinned version, the DMG come through the Downloader, so they show
@@ -59,6 +66,7 @@ class BackendRepositoryImpl implements BackendRepository {
   Future<Either<AppError, bool>> installRuntime(
     RuntimeKind kind, {
     String? file,
+    bool deleteFile = false,
     required void Function(int received, int? total) onProgress,
     required void Function(Mach9Step step) onStep,
   }) => repositoryCall(() async {
@@ -67,7 +75,6 @@ class BackendRepositoryImpl implements BackendRepository {
         detail: "Bodega's Wine comes with the app, not from here",
       );
     }
-    final release = engine.mach9Release;
     final cancel = _cancel = CancelToken();
     final downloads = <String>[];
 
@@ -84,30 +91,43 @@ class BackendRepositoryImpl implements BackendRepository {
       );
     }
 
-    final mono = await fetch(
-      release.mono.url,
-      release.mono.file,
-      Mach9Step.downloadingMono,
-    );
-    if (mono == null) return false;
+    // MU4: the latest release, else the user's Mach9.app when it is that
+    // version or newer, or when GitHub cannot be reached.
     var source = file;
-    var pinned = false;
+    String? sha256;
     if (source == null) {
       final app = engine.findMach9App();
-      if (app != null && app.version == release.version) {
+      engine.Mach9Latest? latest;
+      try {
+        latest = await engine.mach9Latest(_home.path);
+      } on engine.ProcessFailed {
+        latest = engine.cachedMach9Latest(_home.path);
+        if (latest == null && app == null) rethrow;
+      }
+      if (app != null &&
+          (latest == null ||
+              RuntimeInfo.compareVersions(app.version, latest.version) >= 0)) {
         source = app.path;
       } else {
-        source = await fetch(release.url, release.file, Mach9Step.downloading);
+        source = await fetch(
+          latest!.url,
+          'Mach9-${latest.version}.dmg',
+          Mach9Step.downloading,
+        );
         if (source == null) return false;
-        pinned = true;
+        sha256 = latest.sha256;
       }
     }
     try {
       await engine.installMach9(
         _home.path,
         source: source,
-        pinned: pinned,
-        mono: mono,
+        sha256: sha256,
+        deleteSource: deleteFile && file != null,
+        // MU3: the Wine Mono the copy names, with progress; a cancel stops it.
+        fetchMono: (release) async =>
+            await fetch(release.url, release.file, Mach9Step.downloadingMono) ??
+            (throw const engine.Cancelled()),
         onStep: (step) => onStep(mach9StepOf(step)),
         cancelled: () => cancel.isCancelled,
       );
@@ -270,11 +290,14 @@ class BackendRepositoryImpl implements BackendRepository {
   });
 }
 
-/// The engine's view of one runtime kind, with the pinned release's numbers
-/// for the engine card (MR3).
-RuntimeInfo _runtimeInfo(engine.RuntimeInfo runtime) {
+/// The engine's view of one runtime kind, with Mach9's latest release as last
+/// looked up, [latest], for the engine card (MU5).
+RuntimeInfo _runtimeInfo(
+  engine.RuntimeInfo runtime, [
+  engine.Mach9Latest? latest,
+]) {
   final mach9 = runtime.kind == engine.RuntimeKind.mach9;
-  final release = engine.mach9Release;
+  final identity = engine.mach9Identity;
   return RuntimeInfo(
     kind: runtimeKindOf(runtime.kind),
     installed: runtime.installed,
@@ -286,10 +309,10 @@ RuntimeInfo _runtimeInfo(engine.RuntimeInfo runtime) {
     },
     appPath: runtime.app?.path,
     appVersion: runtime.app?.version,
-    pinnedVersion: mach9 ? release.version : null,
+    latestVersion: mach9 ? runtime.latest : null,
     backends: mach9 ? engine.backendNamesFor(runtime.kind) : const [],
-    downloadBytes: mach9 ? release.bytes + release.mono.bytes : 0,
-    diskBytes: mach9 ? release.diskBytes : 0,
-    minimumMacos: mach9 ? release.minimumMacos : null,
+    downloadBytes: mach9 ? latest?.bytes ?? 0 : 0,
+    diskBytes: mach9 ? identity.diskBytes : 0,
+    minimumMacos: mach9 ? latest?.minimumMacos ?? identity.minimumMacos : null,
   );
 }

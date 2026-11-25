@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -138,27 +139,41 @@ void main() {
       expect(runtimes.map((r) => r.kind), [RuntimeKind.bodega]);
     });
 
-    test('a Mac that can run Mach9 lists it with the pinned release', () async {
+    test('a Mac that can run Mach9 lists it with its latest release', () async {
       final missing = (await repository().runtimes())
           .getOrElse((error) => fail('$error'))
           .last;
-      final release = engine.mach9Release;
       expect(missing.kind, RuntimeKind.mach9);
       expect(missing.installed, isFalse);
       expect(missing.blocked, isNull);
       expect(missing.appPath, isNull);
-      expect(missing.pinnedVersion, release.version);
+      // MU5: nothing looked up yet.
+      expect(missing.latestVersion, isNull);
       expect(missing.backends, ['wine', 'dxmt', 'mtld3d']);
-      expect(missing.downloadBytes, release.bytes + release.mono.bytes);
-      expect(missing.diskBytes, release.diskBytes);
-      expect(missing.minimumMacos, release.minimumMacos);
+      expect(missing.downloadBytes, 0);
+      expect(missing.diskBytes, engine.mach9Identity.diskBytes);
+      expect(missing.minimumMacos, engine.mach9Identity.minimumMacos);
+      File('$home/runtimes/.mach9-latest.json')
+        ..createSync(recursive: true)
+        ..writeAsStringSync(
+          '{"version":"0.5.0","url":"https://x/Mach9.dmg","bytes":200,'
+          '"sha256":"${'a' * 64}","minimumMacos":"26.5",'
+          '"checkedAt":"2026-11-24T00:00:00Z"}',
+        );
+      final looked = (await repository().runtimes())
+          .getOrElse((error) => fail('$error'))
+          .last;
+      expect(looked.latestVersion, '0.5.0');
+      expect(looked.downloadBytes, 200);
+      expect(looked.minimumMacos, '26.5');
+      File('$home/runtimes/.mach9-latest.json').deleteSync();
 
       fakeMach9Runtime(home);
       final installed = (await repository().runtimes())
           .getOrElse((error) => fail('$error'))
           .last;
       expect(installed.usable, isTrue);
-      expect(installed.version, release.version);
+      expect(installed.version, '0.4.0');
       expect(installed.checked, isTrue);
       expect(installed.updateAvailable, isFalse);
     });
@@ -230,66 +245,85 @@ void main() {
             onStep: steps.add,
           );
 
+      /// GitHub as a folder (MU2): Mach9 0.4.0, whose dmg hashes as [dmg].
+      Future<void> github({String dmg = 'x'}) async {
+        final api = '$home/api';
+        final file = File('$api/repos/athei/mach9/releases/latest')
+          ..createSync(recursive: true);
+        final content = File('$home/dmg-content')..writeAsStringSync(dmg);
+        final hash = await engine.sha256Of(content.path);
+        file.writeAsStringSync(
+          jsonEncode({
+            'tag_name': 'v0.4.0',
+            'assets': [
+              {
+                'name': 'Mach9.dmg',
+                'size': dmg.length,
+                'digest': 'sha256:$hash',
+                'browser_download_url': 'https://example.invalid/Mach9.dmg',
+              },
+            ],
+          }),
+        );
+        engine.githubApi = Uri.directory(api)
+            .toString()
+            .replaceFirst(RegExp(r'/$'), '');
+      }
+
+      final api = engine.githubApi;
+      tearDown(() => engine.githubApi = api);
+
+      test('a cancelled download is false, and fetches nothing else', () async {
+        await github();
+        downloads(null);
+        expect(await install(), const Right<AppError, bool>(false));
+        expect(fetched, ['https://example.invalid/Mach9.dmg']);
+        expect(steps, [Mach9Step.downloading]);
+        expect(Directory('$home/runtimes/mach9').existsSync(), isFalse);
+      });
+
       test(
-        'a cancelled Mono download is false, and fetches nothing else',
+        'a dmg unlike its digest is ChecksumMismatch, and is deleted',
         () async {
-          downloads(null);
-          expect(await install(), const Right<AppError, bool>(false));
-          expect(fetched, [engine.mach9Release.mono.url]);
-          expect(steps, [Mach9Step.downloadingMono]);
+          await github(dmg: 'the real one');
+          downloads('not it');
+          final error = (await install()).getLeft().toNullable();
+          expect(error, isA<ChecksumMismatchError>());
+          expect(fetched, ['https://example.invalid/Mach9.dmg']);
+          expect(
+            Directory('$home/downloads').listSync().whereType<File>(),
+            isEmpty,
+          );
           expect(Directory('$home/runtimes/mach9').existsSync(), isFalse);
         },
       );
 
-      test('without a file or app it fetches the MSI and the DMG, and an '
-          'engine failure deletes both', () async {
-        downloads('not the pinned file');
-        final error = (await install()).getLeft().toNullable();
-        expect(error, isA<ChecksumMismatchError>());
-        expect(fetched, [
-          engine.mach9Release.mono.url,
-          engine.mach9Release.url,
-        ]);
-        expect(steps, [Mach9Step.downloadingMono, Mach9Step.downloading]);
-        expect(
-          Directory('$home/downloads').listSync().whereType<File>(),
-          isEmpty,
-        );
-        expect(Directory('$home/runtimes/mach9').existsSync(), isFalse);
-      });
-
       test('a failure that is not about the files keeps them', () async {
+        await github();
         downloads('x');
         engine.hostPlatform = const _TooOldMac();
         final error = (await install()).getLeft().toNullable();
         expect(error, isNot(isA<ChecksumMismatchError>()));
-        expect(fetched, [
-          engine.mach9Release.mono.url,
-          engine.mach9Release.url,
-        ]);
-        for (final file in [
-          engine.mach9Release.mono.file,
-          engine.mach9Release.file,
-        ]) {
-          expect(File('$home/downloads/$file').existsSync(), isTrue);
-        }
+        expect(File('$home/downloads/Mach9-0.4.0.dmg').existsSync(), isTrue);
       });
 
-      test('a file given fetches only the MSI', () async {
-        downloads('not the pinned file');
-        await install(file: '$home/Mach9.dmg');
-        expect(fetched, [engine.mach9Release.mono.url]);
-      });
-
-      test('an MSI already in downloads is not fetched again', () async {
+      test('a file given fetches nothing before its copy', () async {
+        await github();
         downloads('x');
-        File('$home/downloads/${engine.mach9Release.mono.file}')
-          ..createSync(recursive: true)
-          ..writeAsStringSync('left by a cancelled try');
         await install(file: '$home/Mach9.dmg');
         expect(fetched, isEmpty);
-        expect(steps, isNot(contains(Mach9Step.downloadingMono)));
       });
+
+      test(
+        'offline, with no Mach9.app, is an error that fetches nothing',
+        () async {
+          engine.githubApi = 'file://$home/nowhere';
+          downloads('x');
+          final error = (await install()).getLeft().toNullable();
+          expect(error, isNotNull);
+          expect(fetched, isEmpty);
+        },
+      );
     });
   });
 }
