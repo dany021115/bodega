@@ -138,6 +138,11 @@ AppError appErrorOf(engine.EngineFailure failure) {
     ),
     engine.RuntimeTooOld(:final version, :final minimum) =>
       AppError.runtimeTooOld(version, minimum, detail: detail),
+    engine.NoMach9Release() => AppError.noMach9Release(detail: detail),
+    engine.Mach9CheckFailed(:final version) => AppError.mach9CheckFailed(
+      version,
+      detail: detail,
+    ),
     engine.BackendNotForRuntime(:final backend, :final runtime) =>
       AppError.backendNotForRuntime(
         backend,

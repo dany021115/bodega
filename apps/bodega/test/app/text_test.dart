@@ -2566,6 +2566,17 @@ void main() {
               providers: [
                 BlocProvider<LibraryBloc>.value(value: library),
                 BlocProvider<UpdateBloc>.value(value: updates),
+                BlocProvider<BackendsBloc>.value(
+                  value: () {
+                    final backends = _MockBackends();
+                    whenListen(
+                      backends,
+                      const Stream<BackendsState>.empty(),
+                      initialState: const BackendsState(),
+                    );
+                    return backends;
+                  }(),
+                ),
                 BlocProvider<InstallBloc>.value(value: install),
                 BlocProvider<SwitchBloc>.value(value: switchGames),
                 BlocProvider<AppGamesBloc>.value(value: _quietAppGames()),

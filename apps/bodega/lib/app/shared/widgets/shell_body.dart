@@ -2,6 +2,7 @@ import 'package:bodega/app/bloc/bottles/bottles_bloc.dart';
 import 'package:bodega/app/bloc/catalog/catalog_bloc.dart';
 import 'package:bodega/app/bloc/dependencies/dependencies_bloc.dart';
 import 'package:bodega/app/bloc/install/install_bloc.dart';
+import 'package:bodega/app/bloc/backends/backends_bloc.dart';
 import 'package:bodega/app/bloc/library/library_bloc.dart';
 import 'package:bodega/app/bloc/switch/switch_bloc.dart';
 import 'package:bodega/app/bloc/update/update_bloc.dart';
@@ -57,6 +58,22 @@ class _ShellBodyState extends State<ShellBody> {
           listenWhen: (previous, current) =>
               previous.update == null && current.update != null,
           listener: (context, state) => _showUpdate(context),
+        ),
+        // MA2: a newer Mach9, once per version, wherever the user is.
+        BlocListener<BackendsBloc, BackendsState>(
+          listenWhen: (previous, current) =>
+              previous.noticeId != current.noticeId,
+          listener: (context, state) {
+            if (state.mach9Notice case final version?) {
+              AppToast.info(
+                context,
+                context.l10n.engineNewVersion(
+                  version,
+                  context.l10n.navBackends,
+                ),
+              );
+            }
+          },
         ),
         BlocListener<LibraryBloc, LibraryState>(
           listenWhen: (previous, current) =>

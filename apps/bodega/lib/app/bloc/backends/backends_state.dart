@@ -36,6 +36,14 @@ abstract class BackendsState with _$BackendsState {
     /// Each runtime kind on this host (MR3).
     @Default([]) List<RuntimeInfo> runtimes,
 
+    /// MA2: the newer Mach9 the app tells of, once per version; [noticeId]
+    /// tells two notices apart.
+    String? mach9Notice,
+    @Default(0) int noticeId,
+
+    /// Whether a `.dmg` the user chose goes once Mach9 is installed from it.
+    @Default(true) bool deleteDmg,
+
     /// What the native engine's install is doing, as a code: its card words
     /// it.
     Mach9Step? runtimeStep,

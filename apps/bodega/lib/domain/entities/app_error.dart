@@ -139,6 +139,14 @@ sealed class AppError with _$AppError implements Exception {
     String? detail,
   }) = RuntimeTooOldError;
 
+  /// GitHub gave no Mach9 release Bodega can use (MU2).
+  const factory AppError.noMach9Release({String? detail}) = NoMach9ReleaseError;
+
+  /// The new Mach9 [version] failed the graphics check, and the previous
+  /// version stays (MU4); [detail] holds what failed.
+  const factory AppError.mach9CheckFailed(String version, {String? detail}) =
+      Mach9CheckFailedError;
+
   /// [backend] does not work with the bottle's [runtime].
   const factory AppError.backendNotForRuntime(
     String backend,

@@ -1,55 +1,207 @@
 part of 'engine.dart';
 
-/// The Mach9 release Bodega is checked with, and the Wine Mono that its
-/// `appwiz.cpl` asks for, in one record so that a bump re-checks both (MR3).
-typedef Mach9Release = ({
-  String version,
-  String url,
-  String sha256,
-  int bytes,
-  String file,
-
-  /// What the copied runtime takes on disk.
-  int diskBytes,
+/// Who Mach9 is, and what Bodega's rules need of it: the only Mach9 facts in
+/// the code (MU1). Its versions, and the Wine Mono each asks for, come from
+/// GitHub; Apple's signature with [team] is what makes a copy trusted.
+typedef Mach9Identity = ({
   String bundleId,
   String team,
 
   /// The oldest Mach9 accepted: older ones drop rules without `name=`.
   String minimumVersion,
+
+  /// A floor; a release's own appcast may ask for more.
   String minimumMacos,
-  ({String version, String url, String sha256, int bytes, String file}) mono,
+
+  /// What a copied runtime takes on disk, for the engine card.
+  int diskBytes,
 });
 
-/// The pin (D4, D11). Tests may replace it; the app only reads it.
-Mach9Release mach9Release = (
-  version: '0.4.0',
-  url: 'https://github.com/athei/mach9/releases/download/v0.4.0/Mach9.dmg',
-  sha256: '3b5dd83ee7b08d55e6c4a84dabb32db994dc6a5bfb2a1500fb50d0b45436e6d9',
-  bytes: 200499232,
-  file: 'Mach9-0.4.0.dmg',
-  diskBytes: 1061000000,
+/// Mach9's identity (D1). Tests may replace it; the app only reads it.
+Mach9Identity mach9Identity = (
   bundleId: 'app.mach9',
   team: 'WLKUUJD25W',
   minimumVersion: '0.4.0',
   minimumMacos: '26.4',
-  mono: (
-    version: '11.3.0',
-    url: 'https://dl.winehq.org/wine/wine-mono/11.3.0/wine-mono-11.3.0-x86.msi',
-    sha256: 'df2dfc1665c2511882e7cabd56eafd0c0a3d94e5a7e86f969277f6c189d418d3',
-    bytes: 83348992,
-    file: 'wine-mono-11.3.0-x86.msi',
-  ),
+  diskBytes: 1061000000,
 );
+
+/// Mach9's latest release (MU2): its version, its dmg's URL, size and
+/// SHA-256 from GitHub's digest, and the macOS its appcast asks for.
+typedef Mach9Latest = ({
+  String version,
+  String url,
+  int bytes,
+  String sha256,
+  String minimumMacos,
+});
+
+/// Where GitHub's API is: `BODEGA_GITHUB_API`, else GitHub's. A test may
+/// set a `file://` folder laid out as the API's paths.
+String githubApi =
+    Platform.environment['BODEGA_GITHUB_API'] ?? 'https://api.github.com';
+
+/// The text at [url], through curl as downloads are: HTTPS or a file.
+Future<String> _fetchText(String url) => _run(hostPlatform.tool('curl'), [
+  '-fLsS',
+  '--proto',
+  '=https,file',
+  '--proto-redir',
+  '=https',
+  '-H',
+  'Accept: application/vnd.github+json',
+  '-A',
+  'Bodega',
+  url,
+]);
+
+/// An asset of a GitHub release JSON by [name]: URL, size and SHA-256 from
+/// its `digest`, or [NoMach9Release] naming what is wrong.
+({String url, int bytes, String sha256}) _asset(
+  Map<String, dynamic> release,
+  String name,
+) {
+  final asset = ((release['assets'] ?? const []) as List)
+      .cast<Map<String, dynamic>>()
+      .where((asset) => asset['name'] == name)
+      .firstOrNull;
+  if (asset == null) throw NoMach9Release('no $name in the release');
+  final digest = RegExp(r'^sha256:([0-9a-f]{64})$')
+      .firstMatch('${asset['digest']}');
+  if (digest == null) throw NoMach9Release('no SHA-256 digest for $name');
+  return (
+    url: '${asset['browser_download_url']}',
+    bytes: (asset['size'] ?? 0) as int,
+    sha256: digest.group(1)!,
+  );
+}
+
+/// The latest Mach9 release (MU2, D2), saved in `runtimes/.mach9-latest.json`.
+/// With [maxAge], a saved answer younger than it is given without asking.
+Future<Mach9Latest> mach9Latest(String home, {Duration? maxAge}) async {
+  final cache = File('$home/runtimes/.mach9-latest.json');
+  if (maxAge != null) {
+    if (cachedMach9Latest(home) case final saved?) {
+      final at = DateTime.tryParse(
+        '${(jsonDecode(cache.readAsStringSync()) as Map)['checkedAt']}',
+      );
+      if (at != null && DateTime.now().difference(at) < maxAge) return saved;
+    }
+  }
+  final release = jsonDecode(
+    await _fetchText('$githubApi/repos/athei/mach9/releases/latest'),
+  ) as Map<String, dynamic>;
+  final version = '${release['tag_name']}'.replaceFirst(RegExp('^v'), '');
+  if (!RegExp(r'^[0-9][0-9A-Za-z.+-]*$').hasMatch(version)) {
+    throw NoMach9Release('version $version');
+  }
+  if (!_versionAtLeast(version, mach9Identity.minimumVersion)) {
+    throw NoMach9Release(
+      'version $version is older than ${mach9Identity.minimumVersion}',
+    );
+  }
+  final dmg = _asset(release, 'Mach9.dmg');
+  var macos = mach9Identity.minimumMacos;
+  try {
+    final appcast = await _fetchText(_asset(release, 'appcast.xml').url);
+    for (final item in RegExp(
+      r'<item>.*?</item>',
+      dotAll: true,
+    ).allMatches(appcast).map((m) => m.group(0)!)) {
+      if (!item.contains('<sparkle:version>$version</sparkle:version>')) {
+        continue;
+      }
+      final wanted = RegExp(r'<sparkle:minimumSystemVersion>([0-9.]+)<')
+          .firstMatch(item)
+          ?.group(1);
+      if (wanted != null && !_versionAtLeast(macos, wanted)) macos = wanted;
+    }
+  } on NoMach9Release {
+    // No appcast: the floor stands.
+  } on ProcessFailed {
+    // Unreachable: the floor stands.
+  }
+  final latest = (
+    version: version,
+    url: dmg.url,
+    bytes: dmg.bytes,
+    sha256: dmg.sha256,
+    minimumMacos: macos,
+  );
+  Directory('$home/runtimes').createSync(recursive: true);
+  _writeJson(cache.path, {
+    'version': latest.version,
+    'url': latest.url,
+    'bytes': latest.bytes,
+    'sha256': latest.sha256,
+    'minimumMacos': latest.minimumMacos,
+    'checkedAt': DateTime.now().toUtc().toIso8601String(),
+  });
+  return latest;
+}
+
+/// What [mach9Latest] last saved, or null.
+Mach9Latest? cachedMach9Latest(String home) {
+  try {
+    final json = jsonDecode(
+      File('$home/runtimes/.mach9-latest.json').readAsStringSync(),
+    ) as Map<String, dynamic>;
+    return (
+      version: json['version'] as String,
+      url: json['url'] as String,
+      bytes: json['bytes'] as int,
+      sha256: json['sha256'] as String,
+      minimumMacos: json['minimumMacos'] as String,
+    );
+  } on Object {
+    return null;
+  }
+}
+
+/// The Wine Mono a Mach9 engine asks for (MU3, D3): the version its
+/// `appwiz.cpl` names as `wine-mono-<v>-x86.msi`, in UTF-16, or null.
+String? monoVersionOf(String engine) {
+  final file = File('$engine/lib/wine/aarch64-windows/appwiz.cpl');
+  if (!file.existsSync()) return null;
+  final bytes = file.readAsBytesSync();
+  final text = String.fromCharCodes([
+    for (var i = 0; i + 1 < bytes.length; i += 2) bytes[i] | bytes[i + 1] << 8,
+  ]);
+  return RegExp(r'wine-mono-(\d+\.\d+\.\d+)-x86\.msi')
+      .firstMatch(text)
+      ?.group(1);
+}
+
+/// A Wine Mono MSI from its GitHub release (MU3): URL, size, SHA-256 and the
+/// file name Mach9 looks for.
+typedef MonoRelease = ({String url, int bytes, String sha256, String file});
+
+Future<MonoRelease> monoRelease(String version) async {
+  final file = 'wine-mono-$version-x86.msi';
+  final release = jsonDecode(
+    await _fetchText(
+      '$githubApi/repos/madewokherd/wine-mono/releases/tags/'
+      'wine-mono-$version',
+    ),
+  ) as Map<String, dynamic>;
+  final asset = _asset(release, file);
+  return (url: asset.url, bytes: asset.bytes, sha256: asset.sha256, file: file);
+}
 
 /// What [installMach9] is doing, for a UI to word in its own language.
 enum Mach9Step {
-  downloadingMono('Downloading Wine Mono'),
   downloading('Downloading Mach9'),
   mounting('Opening the dmg'),
-  checkingSignature("Checking Mach9's signature"),
   copying('Copying Mach9'),
+  checkingSignature("Checking Mach9's signature"),
   checking('Checking the copy'),
-  switching('Switching to the new version');
+
+  /// After the copy, whose appwiz.cpl names the Wine Mono it needs (MU3).
+  downloadingMono('Downloading Wine Mono'),
+  switching('Switching to the new version'),
+
+  /// A temporary bottle runs the graphics check on the new version (MU4).
+  probing('Checking the new version');
 
   const Mach9Step(this.english);
 
@@ -69,19 +221,30 @@ enum BottleStep {
 }
 
 /// Installs Mach9 into `runtimes/mach9-<version>` and points `runtimes/mach9`
-/// at it (MR4–MR9), from [source] (a `.dmg` or a `.app`), else the pinned
-/// `Mach9.app` in the applications folders, else the pinned dmg. [pinned]
-/// says the caller downloaded the pinned dmg, whose hash must then match.
-/// [mono] is the Wine Mono MSI, else downloaded; its hash is always checked.
+/// at it (MR4–MR9, MU4), from [source] (a `.dmg` or a `.app`), else the
+/// user's `Mach9.app` when it is the latest release or newer, else the latest
+/// release's dmg, checked against GitHub's digest. [sha256] is what a file
+/// the caller downloaded must hash to. The Wine Mono is the one the copy's
+/// `appwiz.cpl` names (MU3): [mono] when given, else [fetchMono]'s or the
+/// engine's download of its GitHub release, checked against its digest.
 /// The signature is checked on the copy, and installs run one at a time
-/// (`runtimes/.mach9.lock`). Nothing under the copy's `engine/` is ever written, signed or stripped
-/// (I3); a failure or [cancelled] leaves no `.tmp-*`, no changed link and no
-/// mounted volume (I6). Returns the runtime's folder.
+/// (`runtimes/.mach9.lock`). Nothing under the copy's `engine/` is ever
+/// written, signed or stripped (I3); a failure or [cancelled] leaves no
+/// `.tmp-*`, no changed link and no mounted volume (I6). With [check], a
+/// temporary bottle runs the probe on the new version: a failure points the
+/// link back to the previous one and throws [Mach9CheckFailed]. Once it is
+/// installed, its installers only take space, since the runtime keeps what it
+/// uses: Bodega's own downloads go, older tries' included, and with
+/// [deleteSource] the user's own `.dmg` [source] too. Returns the runtime's
+/// folder.
 Future<String> installMach9(
   String home, {
   String? source,
-  bool pinned = false,
+  String? sha256,
   String? mono,
+  Future<String> Function(MonoRelease release)? fetchMono,
+  bool check = true,
+  bool deleteSource = false,
   void Function(Mach9Step step)? onStep,
   bool Function()? cancelled,
 }) async {
@@ -96,47 +259,39 @@ Future<String> installMach9(
   // What this call downloaded itself, deleted once the install succeeds.
   final downloaded = <String>[];
 
-  // Mono first: a bad MSI must stop the install before anything is copied.
-  final String msi;
-  if (mono != null) {
-    msi = mono;
-  } else {
-    onStep?.call(Mach9Step.downloadingMono);
-    msi = await _download(
-      home,
-      mach9Release.mono.url,
-      mach9Release.mono.sha256,
-      name: mach9Release.mono.file,
-    );
-    downloaded.add(msi);
-  }
-  if (!File(msi).existsSync() ||
-      await sha256Of(msi) != mach9Release.mono.sha256) {
-    throw ChecksumMismatch(msi);
-  }
-  stopIfCancelled();
-
   var from = source;
+  var expected = sha256;
   String origin;
   if (from != null) {
-    origin = pinned ? 'download' : (_isDmg(from) ? 'dmg' : 'app');
-  } else if (findMach9App() case final app?
-      when app.version == mach9Release.version) {
-    from = app.path;
-    origin = 'app';
+    origin = expected != null ? 'download' : (_isDmg(from) ? 'dmg' : 'app');
   } else {
-    onStep?.call(Mach9Step.downloading);
-    from = await _download(
-      home,
-      mach9Release.url,
-      mach9Release.sha256,
-      name: mach9Release.file,
-    );
-    downloaded.add(from);
-    pinned = true;
-    origin = 'download';
+    // Offline, the last answer; with none, the user's own Mach9.app.
+    Mach9Latest? latest;
+    try {
+      latest = await mach9Latest(home);
+    } on ProcessFailed {
+      latest = cachedMach9Latest(home);
+      if (latest == null && findMach9App() == null) rethrow;
+    }
+    if (findMach9App() case final app?
+        when latest == null || _versionAtLeast(app.version, latest.version)) {
+      from = app.path;
+      origin = 'app';
+    } else {
+      onStep?.call(Mach9Step.downloading);
+      latest!;
+      from = await _download(
+        home,
+        latest.url,
+        latest.sha256,
+        name: 'Mach9-${latest.version}.dmg',
+      );
+      downloaded.add(from);
+      expected = latest.sha256;
+      origin = 'download';
+    }
   }
-  if (pinned && await sha256Of(from) != mach9Release.sha256) {
+  if (expected != null && await sha256Of(from) != expected) {
     throw ChecksumMismatch(from);
   }
   stopIfCancelled();
@@ -144,7 +299,7 @@ Future<String> installMach9(
   final image = from;
   // One install at a time, in this process and across processes (the app
   // and the CLI): they share the staging folder and the link.
-  final dest = await _oneMach9Install(runtimes.path, () async {
+  final (:dest, :previous) = await _oneMach9Install(runtimes.path, () async {
     // Mach9 staging left by an install that was killed: none runs now. A
     // Bodega runtime's `.tmp-*` is not ours.
     for (final old in runtimes.listSync(followLinks: false)) {
@@ -172,7 +327,8 @@ Future<String> installMach9(
       final version = _mach9Version(app);
       final id = 'mach9-$version';
       final dest = '${runtimes.path}/$id';
-      if (_mach9Linked(runtimes.path) == id) throw AlreadyInstalled(dest);
+      final previous = _mach9Linked(runtimes.path);
+      if (previous == id) throw AlreadyInstalled(dest);
       await _noMach9BottleOpen(home);
       // A folder the link does not name is not installed: a killed install
       // left it, or an update kept it for a bottle that was open (MR8).
@@ -202,12 +358,46 @@ Future<String> installMach9(
 
         onStep?.call(Mach9Step.checking);
         await _checkMach9Copy(tmp.path, source: image);
-        File(msi).copySync('${tmp.path}/${mach9Release.mono.file}');
+
+        // MU3: the Wine Mono this Mach9 asks for, checked by its release.
+        final monoVersion = monoVersionOf('${tmp.path}/engine');
+        if (monoVersion == null) {
+          throw IncompleteArchive(image, 'appwiz.cpl naming wine-mono');
+        }
+        final String msi;
+        final String monoFile;
+        if (mono != null) {
+          msi = mono;
+          monoFile = 'wine-mono-$monoVersion-x86.msi';
+          // Offline, the user's own file is taken as it is.
+          final release = await _monoReleaseOrNull(monoVersion);
+          if (release != null && await sha256Of(msi) != release.sha256) {
+            throw ChecksumMismatch(msi);
+          }
+        } else {
+          onStep?.call(Mach9Step.downloadingMono);
+          final release = await monoRelease(monoVersion);
+          monoFile = release.file;
+          msi = fetchMono != null
+              ? await fetchMono(release)
+              : await _download(
+                  home,
+                  release.url,
+                  release.sha256,
+                  name: release.file,
+                );
+          downloaded.add(msi);
+          if (await sha256Of(msi) != release.sha256) {
+            throw ChecksumMismatch(msi);
+          }
+        }
+        File(msi).copySync('${tmp.path}/$monoFile');
         _writeJson('${tmp.path}/runtime.json', {
           'kind': RuntimeKind.mach9.name,
           'version': version,
           'source': origin,
-          'checked': version == mach9Release.version,
+          'checked': false,
+          'mono': monoFile,
         });
         stopIfCancelled();
 
@@ -221,17 +411,15 @@ Future<String> installMach9(
       }
       // Before the detach, which takes seconds: a folder no link names is
       // not installed (I6).
-      final link = Link('${runtimes.path}/mach9.tmp');
-      if (FileSystemEntity.typeSync(link.path, followLinks: false) !=
-          FileSystemEntityType.notFound) {
-        link.deleteSync();
-      }
-      (link..createSync(id)).renameSync('${runtimes.path}/mach9');
-      return dest;
+      _pointMach9(runtimes.path, id);
+      return (dest: dest, previous: previous);
     } finally {
       if (mount != null) await _detach(mount);
     }
   });
+  if (check) {
+    await _checkNewMach9(home, runtimes.path, dest, previous, onStep);
+  }
   // Older versions go: only the one the link names is ever used (MR8). One a
   // bottle still runs on stays, for the next install to remove.
   await _oneMach9Install(
@@ -241,7 +429,118 @@ Future<String> installMach9(
   for (final file in downloaded) {
     if (File(file).existsSync()) File(file).deleteSync();
   }
+  _deleteMach9Downloads(home);
+  if (deleteSource &&
+      source != null &&
+      _isDmg(source) &&
+      File(source).existsSync()) {
+    File(source).deleteSync();
+  }
   return dest;
+}
+
+/// Mach9's dmgs and Wine Mono's MSIs in `downloads/`, partial ones included:
+/// after a good install none is needed, and a cancelled or failed try can
+/// have left one (seen on 2026-11-24, 200 MB).
+void _deleteMach9Downloads(String home) {
+  final downloads = Directory('$home/downloads');
+  if (!downloads.existsSync()) return;
+  final installer = RegExp(
+    r'^(Mach9(-[0-9][0-9A-Za-z.+-]*)?\.dmg|wine-mono-[0-9.]+-x86\.msi)(\.part)?$',
+  );
+  for (final file in downloads.listSync(followLinks: false).whereType<File>()) {
+    if (installer.hasMatch(file.path.split('/').last)) file.deleteSync();
+  }
+}
+
+/// Points `runtimes/mach9` at [id], atomically.
+void _pointMach9(String runtimes, String id) {
+  final link = Link('$runtimes/mach9.tmp');
+  if (FileSystemEntity.typeSync(link.path, followLinks: false) !=
+      FileSystemEntityType.notFound) {
+    link.deleteSync();
+  }
+  (link..createSync(id)).renameSync('$runtimes/mach9');
+}
+
+/// [monoRelease], or null when GitHub cannot be reached.
+Future<MonoRelease?> _monoReleaseOrNull(String version) async {
+  try {
+    return await monoRelease(version);
+  } on ProcessFailed {
+    return null;
+  }
+}
+
+/// The name of the temporary bottle that checks a new Mach9 (MU4).
+const mach9CheckBottle = 'mach9-check';
+
+/// The check of a newly linked Mach9 (MU4): null when it passed, else what
+/// failed. Tests may replace it.
+Future<String?> Function(String home) mach9Probe = _probeMach9;
+
+/// A temporary bottle on the linked Mach9 runs the probe's mtld3d cases; the
+/// bottle is removed either way.
+Future<String?> _probeMach9(String home) async {
+  try {
+    if (Directory(bottleDir(home, mach9CheckBottle)).existsSync()) {
+      await removeBottle(home, mach9CheckBottle);
+    }
+    await createBottle(
+      home,
+      mach9CheckBottle,
+      runtime: RuntimeKind.mach9,
+      mono: false,
+    );
+    final cases = await backendTest(home, mach9CheckBottle, 'mtld3d');
+    if (cases.isEmpty) return 'no case ran';
+    final bad = [
+      for (final result in cases)
+        if (!result.ok) '${result.bits}-bit D3D${result.d3d}: ${result.log}',
+    ];
+    return bad.isEmpty ? null : bad.join('; ');
+  } on EngineFailure catch (error) {
+    return error.message;
+  } finally {
+    if (Directory(bottleDir(home, mach9CheckBottle)).existsSync()) {
+      await removeBottle(home, mach9CheckBottle);
+    }
+  }
+}
+
+/// MU4, D4: a temporary bottle on the new runtime runs the probe's mtld3d
+/// cases. Passing, the runtime is marked checked; failing, the link goes back
+/// to [previous], the new copy goes, and [Mach9CheckFailed] is thrown. The
+/// bottle is removed either way.
+Future<void> _checkNewMach9(
+  String home,
+  String runtimes,
+  String dest,
+  String? previous,
+  void Function(Mach9Step step)? onStep,
+) async {
+  onStep?.call(Mach9Step.probing);
+  final json = '$dest/runtime.json';
+  final info = jsonDecode(File(json).readAsStringSync()) as Map;
+  final failure = await mach9Probe(home);
+  if (failure == null) {
+    _writeJson(json, {
+      ...info,
+      'checked': true,
+      'checkedAt': DateTime.now().toUtc().toIso8601String(),
+    });
+    return;
+  }
+  final id = dest.split('/').last;
+  if (previous != null &&
+      previous != id &&
+      Directory('$runtimes/$previous').existsSync()) {
+    await _oneMach9Install(runtimes, () async {
+      _pointMach9(runtimes, previous);
+      Directory(dest).deleteSync(recursive: true);
+    });
+  }
+  throw Mach9CheckFailed('${info['version']}', failure);
 }
 
 /// Runs [body] once no other Mach9 install runs: in this process, after the
@@ -300,12 +599,12 @@ String _mach9Version(String app) {
     throw IncompleteArchive(app, 'Contents/Info.plist');
   }
   final id = _plistString(plist, 'CFBundleIdentifier');
-  if (id != mach9Release.bundleId) {
+  if (id != mach9Identity.bundleId) {
     throw RuntimeNotTrusted(app, 'bundle id ${id ?? 'missing'}');
   }
   final version = _plistString(plist, 'CFBundleShortVersionString') ?? '';
-  if (!_versionAtLeast(version, mach9Release.minimumVersion)) {
-    throw RuntimeTooOld(version, mach9Release.minimumVersion);
+  if (!_versionAtLeast(version, mach9Identity.minimumVersion)) {
+    throw RuntimeTooOld(version, mach9Identity.minimumVersion);
   }
   // A folder name: nothing else may come from the plist.
   if (!RegExp(r'^[0-9][0-9A-Za-z.+-]*$').hasMatch(version)) {
@@ -324,7 +623,7 @@ String _mach9Version(String app) {
 Future<String> _trustedMach9(String app) async {
   final version = _mach9Version(app);
   final team = await hostPlatform.signingTeam(app, deep: true);
-  if (team != mach9Release.team) {
+  if (team != mach9Identity.team) {
     throw RuntimeNotTrusted(app, 'signed by team $team');
   }
   return version;
@@ -411,7 +710,7 @@ Future<void> _checkMach9Copy(String tmp, {required String source}) async {
     'lib/wine/aarch64-unix/compatdb.so',
   ]) {
     final team = await hostPlatform.signingTeam('$engine/$part');
-    if (team != mach9Release.team) {
+    if (team != mach9Identity.team) {
       throw RuntimeNotTrusted('$engine/$part', 'signed by team $team');
     }
   }
@@ -442,7 +741,7 @@ Future<void> _checkMach9Copy(String tmp, {required String source}) async {
     final app = '$dir/Mach9.app';
     final plist = '$app/Contents/Info.plist';
     if (!File(plist).existsSync()) continue;
-    if (_plistString(plist, 'CFBundleIdentifier') != mach9Release.bundleId) {
+    if (_plistString(plist, 'CFBundleIdentifier') != mach9Identity.bundleId) {
       continue;
     }
     final version = _plistString(plist, 'CFBundleShortVersionString');
@@ -486,13 +785,26 @@ Future<String?> installMono(
   if (!monoMissing(home, name)) return null;
   final rt = runtimeDir(home, RuntimeKind.mach9);
   final prefix = '$dir/prefix';
-  var msi = '$rt/${mach9Release.mono.file}';
-  if (!File(msi).existsSync()) {
+  // The MSI the runtime keeps (MU3), else the one its appwiz.cpl names,
+  // from its GitHub release.
+  final kept = Directory(rt)
+      .listSync()
+      .whereType<File>()
+      .where(
+        (file) => RegExp(r'/wine-mono-[0-9.]+-x86\.msi$').hasMatch(file.path),
+      )
+      .firstOrNull;
+  var msi = kept?.path;
+  if (msi == null) {
+    final version = monoVersionOf('$rt/engine');
+    if (version == null)
+      throw IncompleteArchive(rt, 'appwiz.cpl naming wine-mono');
+    final release = await monoRelease(version);
     msi = await _download(
       home,
-      mach9Release.mono.url,
-      mach9Release.mono.sha256,
-      name: mach9Release.mono.file,
+      release.url,
+      release.sha256,
+      name: release.file,
     );
   }
   final log = await _launchIn(

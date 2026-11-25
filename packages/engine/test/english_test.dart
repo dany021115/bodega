@@ -99,6 +99,8 @@ final failures = <EngineFailure>[
         'missing or invalid',
   ),
   const RuntimeTooOld('0.3.1', '0.4.0'),
+  const NoMach9Release('no Mach9.dmg in the release'),
+  const Mach9CheckFailed('0.5.0', '64-bit D3D9: no window'),
   const BackendNotForRuntime('dxvk', RuntimeKind.mach9),
   const BackendNotForRuntime('mtld3d', RuntimeKind.bodega),
   const BadChoice(ChoiceKind.backend, 'foo', ['wine', 'dxmt', 'mtld3d']),
@@ -199,6 +201,8 @@ String? hintOf(EngineFailure failure) => switch (failure) {
   RuntimeUnavailable() ||
   RuntimeNotTrusted() ||
   RuntimeTooOld() ||
+  NoMach9Release() ||
+  Mach9CheckFailed() ||
   BackendNotForRuntime() ||
   NoSwitchKeys() => null,
 };
@@ -236,10 +240,10 @@ void main() {
     }
   });
 
-  test('the list holds each of the 45 failures', () {
+  test('the list holds each of the 47 failures', () {
     expect(
       failures.map((failure) => failure.runtimeType).toSet(),
-      hasLength(45),
+      hasLength(47),
     );
   });
 

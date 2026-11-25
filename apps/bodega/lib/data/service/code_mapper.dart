@@ -111,6 +111,7 @@ Mach9Step mach9StepOf(engine.Mach9Step step) => switch (step) {
   engine.Mach9Step.copying => Mach9Step.copying,
   engine.Mach9Step.checking => Mach9Step.checking,
   engine.Mach9Step.switching => Mach9Step.switching,
+  engine.Mach9Step.probing => Mach9Step.probing,
 };
 
 BottleStep bottleStepOf(engine.BottleStep step) => switch (step) {

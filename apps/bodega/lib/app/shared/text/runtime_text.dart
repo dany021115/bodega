@@ -29,6 +29,7 @@ String mach9StepText(AppL10n l10n, Mach9Step step) => switch (step) {
   Mach9Step.copying => l10n.engineStepCopying,
   Mach9Step.checking => l10n.engineStepChecking,
   Mach9Step.switching => l10n.engineStepSwitching,
+  Mach9Step.probing => l10n.engineStepProbing,
 };
 
 /// What making a bottle is doing, beside the new-bottle dialog's spinner.

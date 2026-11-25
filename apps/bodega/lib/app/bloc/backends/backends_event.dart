@@ -3,14 +3,21 @@ part of 'backends_bloc.dart';
 @freezed
 sealed class BackendsEvent with _$BackendsEvent {
   const factory BackendsEvent.load() = BackendsLoadEvent;
+
+  /// MA1: looks up Mach9's latest release (GitHub at most once a day), at
+  /// start and then every hour; a newer one gives one notice per version.
+  const factory BackendsEvent.checkMach9() = BackendsCheckMach9Event;
   const factory BackendsEvent.download(String name) = BackendsDownloadEvent;
   const factory BackendsEvent.cancel() = BackendsCancelEvent;
 
-  /// MR4: installs the runtime [kind] from [file] (a `.dmg` or a
-  /// `Mach9.app`); without one, from the Mach9.app found at the pinned
-  /// version, else from the pinned download. [BackendsEvent.cancel] stops it.
+  /// MR4, MU4: installs the runtime [kind] from [file] (a `.dmg` or a
+  /// `Mach9.app`); without one, the latest release, from the Mach9.app found
+  /// when it is that version or newer. [BackendsEvent.cancel] stops it.
   const factory BackendsEvent.installRuntime(RuntimeKind kind, {String? file}) =
       BackendsInstallRuntimeEvent;
+
+  /// Whether a chosen `.dmg` goes once installed from.
+  const factory BackendsEvent.setDeleteDmg(bool on) = BackendsSetDeleteDmgEvent;
   const factory BackendsEvent.installFile(String name, String tarball) =
       BackendsInstallFileEvent;
 

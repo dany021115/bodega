@@ -22,4 +22,7 @@ enum Mach9Step {
 
   /// Makes the copy the one bottles use.
   switching,
+
+  /// Checks the new version's graphics in a temporary bottle (MU4).
+  probing,
 }

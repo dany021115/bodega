@@ -3277,7 +3277,7 @@
       }
     }
   },
-  "engineUntested": "Mach9 {version} hasn't been checked with this version of Bodega.",
+  "engineUntested": "Mach9 {version} has not passed Bodega's graphics check.",
   "@engineUntested": {
     "description": "On the native engine's card: the Mach9 found in Applications, or the one installed, is newer than the one this Bodega was checked with. It can still be used. version is its version.",
     "placeholders": {
@@ -3297,6 +3297,38 @@
       }
     }
   },
+  "engineStepProbing": "Checking the new version",
+  "@engineStepProbing": {
+    "description": "Step of installing the Native engine: a temporary bottle checks the new version's graphics before it is kept."
+  },
+  "engineNewVersion": "Mach9 {version} is out: update it in {page}.",
+  "@engineNewVersion": {
+    "description": "Notice, once per version, when a newer Mach9 (the Native engine) is released. {page} is the name of the page with the engine card (navBackends).",
+    "placeholders": {
+      "version": {
+        "type": "String",
+        "example": "0.5.0"
+      },
+      "page": {
+        "type": "String",
+        "example": "Backends"
+      }
+    }
+  },
+  "errNoMach9Release": "GitHub has no Mach9 release Bodega can use right now. Try again later.",
+  "@errNoMach9Release": {
+    "description": "Error when Mach9's latest release on GitHub lacks its dmg, its checksum, or is too old for Bodega."
+  },
+  "errMach9CheckFailed": "Mach9 {version} failed Bodega's graphics check, so the previous version stays. Copy the details and report it.",
+  "@errMach9CheckFailed": {
+    "description": "Error when a newly installed Mach9 version fails the graphics check and Bodega goes back to the version before it.",
+    "placeholders": {
+      "version": {
+        "type": "String",
+        "example": "0.5.0"
+      }
+    }
+  },
   "engineUpdate": "Update to {version}",
   "@engineUpdate": {
     "description": "Button on the native engine's card when an older version is installed: installs the version this Bodega was checked with. version is that version.",
@@ -3306,6 +3338,10 @@
         "example": "0.4.0"
       }
     }
+  },
+  "engineDeleteDmg": "Delete the chosen .dmg when done",
+  "@engineDeleteDmg": {
+    "description": "Checkbox under the native engine's install buttons: once Mach9 is installed from a .dmg the user chose, that .dmg is deleted. Bodega's own downloads always go."
   },
   "engineStepDownloadingMono": "Downloading Wine Mono",
   "@engineStepDownloadingMono": {

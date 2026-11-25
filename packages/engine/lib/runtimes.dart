@@ -36,6 +36,9 @@ typedef RuntimeInfo = ({
   bool checked,
   RuntimeBlock? blocked,
   ({String path, String version})? app,
+
+  /// Mach9's latest release as last looked up (MU5); null for Bodega's.
+  String? latest,
 });
 
 /// The link of each kind under `runtimes/`.
@@ -60,6 +63,7 @@ List<RuntimeInfo> listRuntimes(String home) {
       checked: true,
       blocked: null,
       app: null,
+      latest: null,
     ),
     if (block != RuntimeBlock.notThisHost) _mach9Info(home, block),
   ];
@@ -70,12 +74,16 @@ RuntimeInfo _mach9Info(String home, RuntimeBlock? block) {
   final installed = link.existsSync();
   final dir = installed ? link.resolveSymbolicLinksSync() : null;
   String? version;
+  var checked = false;
   if (dir != null) {
     try {
       final json = jsonDecode(
         File('$dir/runtime.json').readAsStringSync(),
       ) as Map<String, dynamic>;
       version = json['version'] as String?;
+      // MU4: what the probe found when it was installed; a 1.8 runtime wrote
+      // true for the version it was pinned to.
+      checked = json['checked'] == true;
     } on Object {
       version = null;
     }
@@ -85,9 +93,10 @@ RuntimeInfo _mach9Info(String home, RuntimeBlock? block) {
     installed: installed,
     id: dir?.split('/').last,
     version: version,
-    checked: version == mach9Release.version,
+    checked: checked,
     blocked: block,
     app: findMach9App(),
+    latest: cachedMach9Latest(home)?.version,
   );
 }
 

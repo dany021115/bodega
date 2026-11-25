@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:bloc_test/bloc_test.dart';
+import 'package:bodega/app/bloc/backends/backends_bloc.dart';
 import 'package:bodega/app/bloc/bottles/bottles_bloc.dart';
 import 'package:bodega/app/bloc/catalog/catalog_bloc.dart';
 import 'package:bodega/app/bloc/dependencies/dependencies_bloc.dart';
@@ -18,6 +19,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
 import '../support/pump.dart';
+
+class _MockBackends extends MockBloc<BackendsEvent, BackendsState>
+    implements BackendsBloc {}
 
 class _MockUpdate extends MockBloc<UpdateEvent, UpdateState>
     implements UpdateBloc {}
@@ -114,6 +118,9 @@ void main() {
           ),
           BlocProvider<UpdateBloc>.value(
             value: quiet(_MockUpdate(), const UpdateState()),
+          ),
+          BlocProvider<BackendsBloc>.value(
+            value: quiet(_MockBackends(), const BackendsState()),
           ),
           BlocProvider<SwitchBloc>.value(
             value: quiet(_MockSwitch(), const SwitchState()),

@@ -17,7 +17,8 @@ abstract class RuntimeInfo with _$RuntimeInfo {
     /// The installed version; null when not installed or not known.
     String? version,
 
-    /// False for a version newer than the one this Bodega was checked with.
+    /// Bodega's graphics check passed on this version when it was installed
+    /// (MU4).
     @Default(true) bool checked,
 
     /// Why this host cannot run it; null when it can.
@@ -27,9 +28,10 @@ abstract class RuntimeInfo with _$RuntimeInfo {
     String? appPath,
     String? appVersion,
 
-    /// The version this Bodega pins, and the sizes of its download and of
-    /// its copy on disk, in bytes; null or 0 when the kind pins none.
-    String? pinnedVersion,
+    /// Mach9's latest release as Bodega last looked it up (MU5), and the
+    /// sizes of its download and of its copy on disk, in bytes; null or 0
+    /// when not known.
+    String? latestVersion,
 
     /// The graphics names a bottle of this kind can choose, besides auto,
     /// once it is installed: `wine`, `dxmt` and `mtld3d` for mach9 (MG1).
@@ -44,20 +46,19 @@ abstract class RuntimeInfo with _$RuntimeInfo {
   /// Usable: installed and not blocked.
   bool get usable => installed && blocked == null;
 
-  /// The found app is the pinned version, so installing copies it.
-  bool get appMatchesPin =>
-      appPath != null && pinnedVersion != null && appVersion == pinnedVersion;
+  /// The found app is the latest release or newer, or the latest is not
+  /// known: installing copies it.
+  bool get appIsLatest =>
+      appPath != null &&
+      (latestVersion == null ||
+          compareVersions(appVersion ?? '0', latestVersion!) >= 0);
 
-  /// The found app is another version than the pinned one.
-  bool get appUntested =>
-      appPath != null && pinnedVersion != null && appVersion != pinnedVersion;
-
-  /// Installed, at an older version than the pinned one.
+  /// Installed, at an older version than the latest release.
   bool get updateAvailable {
     final installed = version;
-    final pinned = pinnedVersion;
-    if (!this.installed || installed == null || pinned == null) return false;
-    return compareVersions(installed, pinned) < 0;
+    final latest = latestVersion;
+    if (!this.installed || installed == null || latest == null) return false;
+    return compareVersions(installed, latest) < 0;
   }
 
   /// Compares dotted versions number by number.

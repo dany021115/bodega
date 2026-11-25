@@ -70,16 +70,13 @@ class EngineCard extends StatelessWidget {
           l10n.engineUntested(runtime.version!),
       ];
     }
-    if (runtime.appMatchesPin) {
+    if (runtime.appIsLatest) {
       return [
         l10n.engineUseApp(runtime.appVersion!, runtime.appPath!),
         l10n.engineSizeFromApp(disk),
       ];
     }
-    return [
-      if (runtime.appUntested) l10n.engineUntested(runtime.appVersion!),
-      if (runtime.diskBytes > 0) l10n.engineSizeDownload(download, disk),
-    ];
+    return [if (runtime.diskBytes > 0) l10n.engineSizeDownload(download, disk)];
   }
 
   Future<void> _check(BuildContext context) async {
@@ -197,7 +194,7 @@ class EngineCard extends StatelessWidget {
                                 RuntimeKind.mach9,
                               ),
                             ),
-                      child: Text(l10n.engineUpdate(runtime.pinnedVersion!)),
+                      child: Text(l10n.engineUpdate(runtime.latestVersion!)),
                     ),
                   if (runtime.installed)
                     OutlinedButton(
@@ -208,6 +205,18 @@ class EngineCard extends StatelessWidget {
                     ),
                 ],
               ),
+              if (!runtime.installed)
+                CheckboxListTile(
+                  value: state.deleteDmg,
+                  onChanged: downloading
+                      ? null
+                      : (on) =>
+                            bloc.add(BackendsEvent.setDeleteDmg(on ?? true)),
+                  title: Text(l10n.engineDeleteDmg, style: styles.caption),
+                  controlAffinity: ListTileControlAffinity.leading,
+                  contentPadding: EdgeInsets.zero,
+                  dense: true,
+                ),
               if (runtime.installed && state.nativeBottles.isEmpty) ...[
                 const SizedBox(height: AppSpacing.xs),
                 Text(l10n.engineCheckNoBottle, style: styles.caption),

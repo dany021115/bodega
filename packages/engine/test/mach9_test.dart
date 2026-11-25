@@ -593,6 +593,18 @@ String fakeMach9Tree(
   for (final file in files.where((f) => !skip.contains(f))) {
     File('$wine/$file').createSync(recursive: true);
   }
+  // MU3: the Wine Mono this Mach9 asks for, named in UTF-16 as Wine has it.
+  if (!skip.contains('appwiz.cpl')) {
+    File('$wine/lib/wine/aarch64-windows/appwiz.cpl')
+      ..createSync(recursive: true)
+      ..writeAsBytesSync([
+        for (final unit
+            in 'x\u0000wine-mono-11.3.0-x86.msi\u0000'.codeUnits) ...[
+          unit & 0xff,
+          unit >> 8,
+        ],
+      ]);
+  }
   final loader = File(
     '$wine/lib/wine/aarch64-unix/wine.app/Contents/MacOS/wine',
   )..createSync(recursive: true);
@@ -606,27 +618,52 @@ String fakeMach9Tree(
   return app;
 }
 
-/// The pin with these values changed: records have no copyWith.
-Mach9Release pinWith(Mach9Release pin, {String? sha256, String? monoSha256}) =>
-    (
-      version: pin.version,
-      url: pin.url,
-      sha256: sha256 ?? pin.sha256,
-      bytes: pin.bytes,
-      file: pin.file,
-      diskBytes: pin.diskBytes,
-      bundleId: pin.bundleId,
-      team: pin.team,
-      minimumVersion: pin.minimumVersion,
-      minimumMacos: pin.minimumMacos,
-      mono: (
-        version: pin.mono.version,
-        url: pin.mono.url,
-        sha256: monoSha256 ?? pin.mono.sha256,
-        bytes: pin.mono.bytes,
-        file: pin.mono.file,
-      ),
+/// A GitHub API folder for [githubApi] (MU2, MU3): Mach9's latest release
+/// [version] with [dmg] as its `Mach9.dmg` and, with [macos], an appcast
+/// asking for it; and the Wine Mono release whose MSI is [msi].
+Future<String> fakeGithub(
+  String root, {
+  String version = '0.4.0',
+  required String dmg,
+  required String msi,
+  String? macos,
+  String? digest,
+}) async {
+  final api = '$root/api';
+  Map<String, Object> asset(String name, String path, String hash) => {
+    'name': name,
+    'size': File(path).lengthSync(),
+    'digest': 'sha256:$hash',
+    'browser_download_url': Uri.file(path).toString(),
+  };
+  final assets = [asset('Mach9.dmg', dmg, digest ?? await sha256Of(dmg))];
+  if (macos != null) {
+    final appcast = File('$root/appcast.xml')
+      ..writeAsStringSync(
+        '<rss><channel><item><title>$version</title>'
+        '<sparkle:version>$version</sparkle:version>'
+        '<sparkle:minimumSystemVersion>$macos</sparkle:minimumSystemVersion>'
+        '</item></channel></rss>',
+      );
+    assets.add(
+      asset('appcast.xml', appcast.path, await sha256Of(appcast.path)),
     );
+  }
+  File('$api/repos/athei/mach9/releases/latest')
+    ..createSync(recursive: true)
+    ..writeAsStringSync(
+      jsonEncode({'tag_name': 'v$version', 'assets': assets}),
+    );
+  File('$api/repos/madewokherd/wine-mono/releases/tags/wine-mono-11.3.0')
+    ..createSync(recursive: true)
+    ..writeAsStringSync(
+      jsonEncode({
+        'tag_name': 'wine-mono-11.3.0',
+        'assets': [asset('wine-mono-11.3.0-x86.msi', msi, await sha256Of(msi))],
+      }),
+    );
+  return Uri.directory(api).toString().replaceFirst(RegExp(r'/$'), '');
+}
 
 /// The test Mac without a network: curl always fails (MB10, I5).
 class _OfflineMac extends TestMac {
@@ -667,7 +704,8 @@ class _TamperMac extends TestMac {
 
 /// E5–E7: installing Mach9, Mach9 bottles, Mono, the catalog and the CLI.
 void installTests(({String tmp, String home}) Function() paths) {
-  final shipped = mach9Release;
+  final api = githubApi;
+  final probe = mach9Probe;
   late String tmp, home, msi;
   setUp(() async {
     (:tmp, :home) = paths();
@@ -677,35 +715,111 @@ void installTests(({String tmp, String home}) Function() paths) {
       r'mkdir -p "$WINEPREFIX/drive_c/windows/mono/mono-2.0"'
       '\n',
     );
-    final (tool, args) = const TestMac().sha256Tool;
-    final hash = '${(await Process.run(tool, [...args, msi])).stdout}'
-        .split(' ')
-        .first;
-    mach9Release = pinWith(shipped, monoSha256: hash);
+    // MU2, MU3: GitHub is a folder, and the new version's probe passes.
+    githubApi = await fakeGithub(tmp, dmg: msi, msi: msi);
+    mach9Probe = (_) async => null;
   });
-  tearDown(() => mach9Release = shipped);
+  tearDown(() {
+    githubApi = api;
+    mach9Probe = probe;
+  });
+
+  /// `runtime.json` without the time of its check.
+  Map<String, Object?> runtimeJson(String dir) =>
+      (jsonDecode(File('$dir/runtime.json').readAsStringSync()) as Map)
+          .cast<String, Object?>()
+        ..remove('checkedAt');
 
   /// The entries of `runtimes/`, links with what they point at, without the
-  /// install lock, which stays.
+  /// install lock, which stays, and the latest release's cache (MU2).
   Map<String, String> runtimesNow() => {
     for (final e in Directory('$home/runtimes').listSync(followLinks: false))
-      if (e.path.split('/').last != '.mach9.lock')
+      if (!const [
+        '.mach9.lock',
+        '.mach9-latest.json',
+      ].contains(e.path.split('/').last))
         e.path.split('/').last: e is Link ? e.targetSync() : 'dir',
   };
 
   Future<String> install({
     String? source,
-    bool pinned = false,
+    String? sha256,
     List<Mach9Step>? steps,
     bool Function()? cancelled,
+    bool deleteSource = false,
   }) => installMach9(
     home,
     source: source,
-    pinned: pinned,
+    sha256: sha256,
     mono: msi,
+    deleteSource: deleteSource,
     onStep: steps?.add,
     cancelled: cancelled,
   );
+
+  group('MU2 and MU3 the latest release and its Wine Mono', () {
+    test('the version, the digest, and the macOS its appcast asks', () async {
+      final dmg = File('$tmp/Mach9.dmg')..writeAsStringSync('dmg');
+      githubApi = await fakeGithub(
+        tmp,
+        version: '0.5.0',
+        dmg: dmg.path,
+        msi: msi,
+        macos: '26.5',
+      );
+      final latest = await mach9Latest(home);
+      expect(latest.version, '0.5.0');
+      expect(latest.sha256, await sha256Of(dmg.path));
+      expect(latest.bytes, 3);
+      expect(latest.url, Uri.file(dmg.path).toString());
+      expect(latest.minimumMacos, '26.5');
+      expect(cachedMach9Latest(home), latest);
+      // A young cache answers without asking.
+      githubApi = 'file://$tmp/nowhere';
+      expect(
+        await mach9Latest(home, maxAge: const Duration(hours: 24)),
+        latest,
+      );
+      await expectLater(mach9Latest(home), throwsA(isA<ProcessFailed>()));
+    });
+
+    test('a release Bodega cannot use is NoMach9Release', () async {
+      final dmg = File('$tmp/Mach9.dmg')..writeAsStringSync('dmg');
+      githubApi = await fakeGithub(tmp, dmg: dmg.path, msi: msi, digest: 'x');
+      await expectLater(mach9Latest(home), throwsA(isA<NoMach9Release>()));
+      githubApi = await fakeGithub(
+        tmp,
+        version: '0.3.1',
+        dmg: dmg.path,
+        msi: msi,
+      );
+      await expectLater(mach9Latest(home), throwsA(isA<NoMach9Release>()));
+    });
+
+    test("the Wine Mono a Mach9 names, and its release's digest", () async {
+      final app = fakeMach9Tree(tmp);
+      expect(monoVersionOf('$app/Contents/Resources/wine'), '11.3.0');
+      expect(monoVersionOf('$tmp/nothing'), isNull);
+      final release = await monoRelease('11.3.0');
+      expect(release.file, 'wine-mono-11.3.0-x86.msi');
+      expect(release.sha256, await sha256Of(msi));
+    });
+
+    test('runtime check mach9 says what is out', () async {
+      fakeMach9Runtime(home);
+      final dmg = File('$tmp/Mach9.dmg')..writeAsStringSync('dmg');
+      githubApi = await fakeGithub(
+        tmp,
+        version: '0.5.0',
+        dmg: dmg.path,
+        msi: msi,
+      );
+      final out = StringBuffer();
+      expect(await runtimeVerb(['runtime', 'check', 'mach9'], out)!(home), 0);
+      expect('$out', 'installed 0.4.0\nlatest 0.5.0\nupdate available\n');
+      expect(listRuntimes(home).last.latest, '0.5.0');
+    });
+  });
 
   group('MR4–MR9 installMach9', () {
     test('from the Mach9.app it finds, current untouched', () async {
@@ -720,12 +834,14 @@ void installTests(({String tmp, String home}) Function() paths) {
         Mach9Step.checkingSignature,
         Mach9Step.checking,
         Mach9Step.switching,
+        Mach9Step.probing,
       ]);
-      expect(jsonDecode(File('$dir/runtime.json').readAsStringSync()), {
+      expect(runtimeJson(dir), {
         'kind': 'mach9',
         'version': '0.4.0',
         'source': 'app',
         'checked': true,
+        'mono': 'wine-mono-11.3.0-x86.msi',
       });
       expect(FileSystemEntity.isLinkSync('$dir/engine/bin/wine'), isTrue);
       expect(
@@ -742,7 +858,13 @@ void installTests(({String tmp, String home}) Function() paths) {
       expect(listRuntimes(home).last.checked, isTrue);
     });
 
-    test('an MSI with another hash stops before any copy', () async {
+    test('a Mach9.app is never deleted, whatever deleteSource says', () async {
+      final app = fakeMach9Tree(tmp);
+      await install(source: app, deleteSource: true);
+      expect(Directory(app).existsSync(), isTrue);
+    });
+
+    test('MU3 an MSI unlike its release stops before the switch', () async {
       File(msi).writeAsStringSync('changed');
       final app = fakeMach9Tree(tmp);
       final steps = <Mach9Step>[];
@@ -750,15 +872,15 @@ void installTests(({String tmp, String home}) Function() paths) {
         install(source: app, steps: steps),
         throwsA(isA<ChecksumMismatch>()),
       );
-      expect(steps, isEmpty);
+      expect(steps, isNot(contains(Mach9Step.switching)));
       expect(runtimesNow(), isEmpty);
     });
 
-    test('a pinned source must match the pinned hash', () async {
+    test('a downloaded source must match its digest', () async {
       final app = fakeMach9Tree(tmp);
       final dmg = File('$tmp/Mach9.dmg')..writeAsStringSync('not it');
       await expectLater(
-        install(source: dmg.path, pinned: true),
+        install(source: dmg.path, sha256: '0' * 64),
         throwsA(isA<ChecksumMismatch>()),
       );
       expect(Directory(app).existsSync(), isTrue);
@@ -784,7 +906,7 @@ void installTests(({String tmp, String home}) Function() paths) {
       expect(runtimesNow(), isEmpty);
     });
 
-    test('0.3.1 is too old; 0.5.0 installs unchecked', () async {
+    test('0.3.1 is too old; 0.5.0 installs, checked by the probe', () async {
       await expectLater(
         install(source: fakeMach9Tree('$tmp/old', version: '0.3.1')),
         throwsA(
@@ -797,17 +919,46 @@ void installTests(({String tmp, String home}) Function() paths) {
         source: fakeMach9Tree('$tmp/new', version: '0.5.0'),
       );
       expect(dir, endsWith('/mach9-0.5.0'));
-      expect(jsonDecode(File('$dir/runtime.json').readAsStringSync()), {
+      expect(runtimeJson(dir), {
         'kind': 'mach9',
         'version': '0.5.0',
         'source': 'app',
-        'checked': false,
+        'checked': true,
+        'mono': 'wine-mono-11.3.0-x86.msi',
       });
       expect(
         describeRuntime(listRuntimes(home).last),
-        'mach9: installed 0.5.0 (not checked with this Bodega)',
+        'mach9: installed 0.5.0 (mach9-0.5.0)',
       );
     });
+
+    test('MU4 a failed probe puts the previous version back', () async {
+      await install(source: fakeMach9Tree('$tmp/a'));
+      mach9Probe = (_) async => '64-bit D3D9: no window';
+      await expectLater(
+        install(source: fakeMach9Tree('$tmp/b', version: '0.5.0')),
+        throwsA(
+          isA<Mach9CheckFailed>()
+              .having((f) => f.version, 'version', '0.5.0')
+              .having((f) => f.log, 'log', '64-bit D3D9: no window'),
+        ),
+      );
+      expect(runtimesNow(), {'mach9': 'mach9-0.4.0', 'mach9-0.4.0': 'dir'});
+      expect(listRuntimes(home).last.checked, isTrue);
+    });
+
+    test(
+      'MU4 with nothing before, a failed probe leaves it unchecked',
+      () async {
+        mach9Probe = (_) async => 'no case ran';
+        await expectLater(
+          install(source: fakeMach9Tree(tmp)),
+          throwsA(isA<Mach9CheckFailed>()),
+        );
+        expect(runtimesNow(), {'mach9': 'mach9-0.4.0', 'mach9-0.4.0': 'dir'});
+        expect(listRuntimes(home).last.checked, isFalse);
+      },
+    );
 
     test('a missing file leaves nothing behind', () async {
       await expectLater(
@@ -961,7 +1112,7 @@ void installTests(({String tmp, String home}) Function() paths) {
       );
     });
 
-    test('from a dmg, with no mount left', () async {
+    Future<String> makeDmg() async {
       fakeMach9Tree('$tmp/volume');
       final dmg = '$tmp/Mach9.dmg';
       final made = await Process.run('/usr/bin/hdiutil', [
@@ -974,6 +1125,11 @@ void installTests(({String tmp, String home}) Function() paths) {
         dmg,
       ]);
       expect(made.exitCode, 0, reason: '${made.stderr}');
+      return dmg;
+    }
+
+    test('from a dmg, with no mount left, the dmg kept', () async {
+      final dmg = await makeDmg();
       final steps = <Mach9Step>[];
       final dir = await install(source: dmg, steps: steps);
       expect(steps.first, Mach9Step.mounting);
@@ -983,6 +1139,30 @@ void installTests(({String tmp, String home}) Function() paths) {
       );
       final info = await Process.run('/usr/bin/hdiutil', ['info']);
       expect('${info.stdout}', isNot(contains(dmg)));
+      expect(File(dmg).existsSync(), isTrue);
+    }, skip: Platform.isMacOS ? false : 'needs hdiutil');
+
+    test('once installed, deleteSource deletes the dmg, and older tries\' '
+        'installers in downloads go', () async {
+      final dmg = await makeDmg();
+      for (final name in [
+        'Mach9-0.3.9.dmg',
+        'Mach9.dmg',
+        'wine-mono-11.2.0-x86.msi.part',
+        'dxmt.tar.gz',
+      ]) {
+        File('$home/downloads/$name')
+          ..createSync(recursive: true)
+          ..writeAsStringSync('left');
+      }
+      await install(source: dmg, deleteSource: true);
+      expect(File(dmg).existsSync(), isFalse);
+      expect(
+        Directory('$home/downloads')
+            .listSync()
+            .map((e) => e.path.split('/').last),
+        ['dxmt.tar.gz'],
+      );
     }, skip: Platform.isMacOS ? false : 'needs hdiutil');
 
     test(

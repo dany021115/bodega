@@ -407,6 +407,29 @@ final class RuntimeTooOld extends EngineFailure {
       'with';
 }
 
+/// GitHub gave no usable Mach9 release (MU2): [reason] says what was wrong.
+final class NoMach9Release extends EngineFailure {
+  const NoMach9Release(this.reason);
+
+  final String reason;
+
+  @override
+  String get message => 'no usable Mach9 release on GitHub: $reason';
+}
+
+/// The new Mach9 [version] failed the probe after its install (MU4); the
+/// previous version, if any, is back. [log] is what the probe said.
+final class Mach9CheckFailed extends EngineFailure {
+  const Mach9CheckFailed(this.version, this.log);
+
+  final String version, log;
+
+  @override
+  String get message =>
+      'Mach9 $version failed the graphics check, so Bodega kept the previous '
+      'version: $log';
+}
+
 /// A graphics name of the other runtime kind (MG3).
 final class BackendNotForRuntime extends EngineFailure {
   const BackendNotForRuntime(this.backend, this.runtime);

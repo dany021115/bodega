@@ -5,6 +5,7 @@ const bodegaUsage = '''
 usage: bodega install <engine.tar.gz> <hostlibs.tar.gz>
        bodega runtime list
        bodega runtime install mach9 [Mach9.dmg|Mach9.app] [--mono <wine-mono.msi>]
+       bodega runtime check mach9
        bodega create [--runtime bodega|mach9] <bottle>
        bodega mono install <bottle>
        bodega run [--backend <b>] [--hud] <bottle> <program> [args…]
@@ -182,6 +183,19 @@ Future<int> Function(String home)? runtimeVerb(
       out.writeln(dir);
       return 0;
     },
+  // MU5, D7: what is installed and what GitHub has.
+  ['runtime', 'check', 'mach9'] => (home) async {
+    final latest = await mach9Latest(home);
+    final info = listRuntimes(home).where((r) => r.kind == RuntimeKind.mach9);
+    final installed = info.firstOrNull?.version;
+    out
+      ..writeln('installed ${installed ?? 'none'}')
+      ..writeln('latest ${latest.version}');
+    if (installed != null && !_versionAtLeast(installed, latest.version)) {
+      out.writeln('update available');
+    }
+    return 0;
+  },
   ['mono', 'install', final bottle] => (home) async {
     if (bottleRuntime(home, bottle) != RuntimeKind.mach9) {
       out.writeln('not needed: $bottle runs on ${RuntimeKind.bodega.english}');

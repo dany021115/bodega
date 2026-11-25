@@ -28,13 +28,39 @@ const mach9Checks = ['mtld3d', 'dxmt', 'wine'];
 class BackendsBloc extends Bloc<BackendsEvent, BackendsState> {
   final BackendRepository _repository;
   Timer? _poll;
+  Timer? _hourly;
   var _cancelled = false;
+
+  /// The Mach9 versions already told of in this run (MA2).
+  final Set<String> _told = {};
 
   BackendsBloc(this._repository)
     : super(BackendsState(releases: _repository.gptkReleases)) {
     on<BackendsLoadEvent>((event, emit) async {
       emit(state.copyWith(error: null));
       await _load(emit);
+    });
+    on<BackendsCheckMach9Event>((event, emit) async {
+      _hourly ??= Timer.periodic(
+        const Duration(hours: 1),
+        (_) => add(const BackendsEvent.checkMach9()),
+      );
+      // Offline nothing is said: the next look tries again.
+      if ((await _repository.checkMach9()).isLeft()) return;
+      final runtimes = (await _repository.runtimes()).getOrElse(
+        (_) => state.runtimes,
+      );
+      emit(state.copyWith(runtimes: runtimes));
+      final mach9 = runtimes
+          .where((r) => r.kind == RuntimeKind.mach9)
+          .firstOrNull;
+      final latest = mach9?.latestVersion;
+      if (mach9 != null &&
+          mach9.updateAvailable &&
+          latest != null &&
+          _told.add(latest)) {
+        emit(state.copyWith(mach9Notice: latest, noticeId: state.noticeId + 1));
+      }
     });
     on<BackendsDownloadEvent>((event, emit) async {
       if (state.busy != null) return;
@@ -73,6 +99,7 @@ class BackendsBloc extends Bloc<BackendsEvent, BackendsState> {
       final result = await _repository.installRuntime(
         event.kind,
         file: event.file,
+        deleteFile: event.file != null && state.deleteDmg,
         onProgress: (received, total) {
           final mark = total == null ? received >> 20 : received * 100 ~/ total;
           if (mark == shown) return;
@@ -96,6 +123,9 @@ class BackendsBloc extends Bloc<BackendsEvent, BackendsState> {
       emit(state.copyWith(runtimeStep: null));
       await _finish(result.map((_) => unit), emit);
     });
+    on<BackendsSetDeleteDmgEvent>(
+      (event, emit) => emit(state.copyWith(deleteDmg: event.on)),
+    );
     on<BackendsInstallFileEvent>((event, emit) async {
       if (state.busy != null) return;
       emit(
@@ -214,6 +244,7 @@ class BackendsBloc extends Bloc<BackendsEvent, BackendsState> {
   @override
   Future<void> close() {
     _poll?.cancel();
+    _hourly?.cancel();
     return super.close();
   }
 

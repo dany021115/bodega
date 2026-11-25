@@ -216,7 +216,7 @@ const _rosetta = RuntimeInfo(kind: RuntimeKind.bodega, installed: true);
 const _mach9 = RuntimeInfo(
   kind: RuntimeKind.mach9,
   installed: false,
-  pinnedVersion: '0.4.0',
+  latestVersion: '0.4.0',
   downloadBytes: 200499232,
   diskBytes: 1015000000,
   minimumMacos: '26.4',
@@ -273,7 +273,7 @@ final _engineStates = <String, BackendsState>{
       _mach9.copyWith(
         installed: true,
         version: '0.3.9',
-        pinnedVersion: '0.4.0',
+        latestVersion: '0.4.0',
       ),
     ],
   ),
@@ -1128,6 +1128,17 @@ void main() {
               findsNothing,
             );
           }
+          if (name == 'not installed') {
+            final box = find.widgetWithText(
+              CheckboxListTile,
+              l10n.engineDeleteDmg,
+            );
+            expect(box, findsOneWidget);
+            expect(tester.widget<CheckboxListTile>(box).value, isTrue);
+          }
+          if (name == 'installed') {
+            expect(find.text(l10n.engineDeleteDmg), findsNothing);
+          }
           if (name == 'a step') {
             expect(find.text(l10n.engineStepSwitching), findsOneWidget);
           }
@@ -1870,10 +1881,7 @@ void main() {
       await tester.pumpAndSettle();
       verify(
         () => library.add(
-          LibraryEvent.openWithRosetta(
-            _longName,
-            '/volumes/x/fifa22.exe',
-          ),
+          LibraryEvent.openWithRosetta(_longName, '/volumes/x/fifa22.exe'),
         ),
       ).called(1);
     });
