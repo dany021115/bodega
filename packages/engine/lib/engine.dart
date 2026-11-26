@@ -375,6 +375,10 @@ Future<String> _launchIn(
   final drive = '$prefix/drive_c';
   if (!_ready(prefix)) throw BottleNotReady(name);
   final (:exe, :cwd, :scan) = _programPaths(drive, program);
+  // AA1: an ARM64 Windows program needs an arm64 Wine; Rosetta's is x86_64.
+  if (scan != null && !mach9 && isArm64Program(scan)) {
+    throw ProgramNotForRuntime(scan.split('/').last, kind);
+  }
   final choice = await resolveBackend(
     home,
     dir,

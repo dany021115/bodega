@@ -103,6 +103,7 @@ final failures = <EngineFailure>[
   const Mach9CheckFailed('0.5.0', '64-bit D3D9: no window'),
   const BackendNotForRuntime('dxvk', RuntimeKind.mach9),
   const BackendNotForRuntime('mtld3d', RuntimeKind.bodega),
+  const ProgramNotForRuntime('Arm64 Game.exe', RuntimeKind.bodega),
   const BadChoice(ChoiceKind.backend, 'foo', ['wine', 'dxmt', 'mtld3d']),
   ...switchFailures.keys,
 ];
@@ -166,6 +167,7 @@ String? hintOf(EngineFailure failure) => switch (failure) {
   RuntimeNotInstalled(runtime: RuntimeKind.mach9) =>
     'bodega runtime install mach9',
   RuntimeNotInstalled() => 'bodega install <engine.tar.gz>',
+  ProgramNotForRuntime() => 'bodega create --runtime mach9 <bottle>',
   NoEmulator() => 'bodega switch emulator <path>',
   SwitchGameNotFound() => 'bodega switch list',
   SwitchGameRunning(:final path) => 'bodega switch stop "$path"',
@@ -240,10 +242,10 @@ void main() {
     }
   });
 
-  test('the list holds each of the 47 failures', () {
+  test('the list holds each of the 48 failures', () {
     expect(
       failures.map((failure) => failure.runtimeType).toSet(),
-      hasLength(47),
+      hasLength(48),
     );
   });
 

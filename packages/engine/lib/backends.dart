@@ -1016,6 +1016,19 @@ int? _peMachine(String path) {
   }
 }
 
+/// Whether [path] is an ARM64 Windows PE (`0xAA64`) or ARM64EC (`0xA641`),
+/// which only an arm64 Wine runs (AA1); false for x86, x64, a missing file and
+/// non-PEs.
+bool isArm64Program(String path) {
+  if (FileSystemEntity.typeSync(path) != FileSystemEntityType.file) {
+    return false;
+  }
+  return switch (_peMachine(path)) {
+    0xAA64 || 0xA641 => true,
+    _ => false,
+  };
+}
+
 /// Options before the bottle (S7), and what follows them; null for a bad one.
 ({String? backend, bool hud, List<String> rest})? _parseOptions(
   List<String> args,

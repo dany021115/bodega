@@ -476,6 +476,18 @@ void main() {
     File('$tmp/n.exe').writeAsStringSync('d3d12.dll');
     expect(await exeGraphics('$tmp/n.exe'), isNull);
 
+    // AA1: ARM64 and ARM64EC are told apart, and x86, x64 and junk are not
+    // ARM64.
+    bool arm64(int machine) =>
+        isArm64Program(fakePe('$tmp/a.exe', machine, '').path);
+    expect(arm64(0xAA64), isTrue);
+    expect(arm64(0xA641), isTrue);
+    expect(arm64(0x8664), isFalse);
+    expect(arm64(0x14C), isFalse);
+    expect(isArm64Program('$tmp/no.exe'), isFalse);
+    File('$tmp/junk.exe').writeAsStringSync('not a PE');
+    expect(isArm64Program('$tmp/junk.exe'), isFalse);
+
     bool fits(String backend, int bits, String directx) =>
         hostPlatform.backendFits(backend, (bits: bits, directx: directx));
     expect(fits('d3dmetal', 32, 'DX9'), isFalse);
