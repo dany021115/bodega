@@ -5,6 +5,7 @@ import 'package:bodega/app/presentation/bottles/widgets/run_options_dialog.dart'
 import 'package:bodega/app/presentation/library/widgets/bottle_tag.dart';
 import 'package:bodega/app/presentation/library/widgets/native_options_dialog.dart';
 import 'package:bodega/app/shared/graphics_of.dart';
+import 'package:bodega/app/shared/text/app_text.dart';
 import 'package:bodega/app/shared/text/backend_text.dart';
 import 'package:bodega/app/shared/text/error_text.dart';
 import 'package:bodega/app/shared/widgets/app_card.dart';
@@ -119,13 +120,14 @@ class _LibraryPageState extends State<LibraryPage> {
         final graphics = found == null
             ? null
             : graphicsLabelText(anchor.l10n, found);
+        final facts = programFactsText(anchor.l10n, app, graphics);
 
         return asRow
             ? AppRow(
                 app: app,
                 running: running,
                 footerChip: tag,
-                graphics: graphics,
+                graphics: facts,
                 onPlay: play,
                 onStop: stop,
                 onMenu: menu,
@@ -134,7 +136,7 @@ class _LibraryPageState extends State<LibraryPage> {
                 app: app,
                 running: running,
                 footerChip: tag,
-                graphics: graphics,
+                graphics: facts,
                 onPlay: play,
                 onStop: stop,
                 onMenu: menu,

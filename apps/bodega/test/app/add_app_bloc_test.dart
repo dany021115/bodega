@@ -23,6 +23,7 @@ void main() {
     repository = _MockAddApp();
     bottles = _MockBottles();
     when(() => repository.pathProblem(any())).thenReturn(null);
+    when(() => repository.isArm64Program(any())).thenReturn(false);
     when(() => repository.addApp(any(), any(), any()))
         .thenAnswer((_) async => right('blur/blur.exe'));
     when(() => bottles.setInLibrary(any(), any(), any()))
@@ -30,6 +31,15 @@ void main() {
   });
 
   AddAppBloc build() => AddAppBloc(repository, bottles);
+
+  blocTest<AddAppBloc, AddAppState>(
+    'an ARM64 program is marked, so the dialog can say it needs the native '
+    'engine (AA1)',
+    build: build,
+    setUp: () => when(() => repository.isArm64Program(exe)).thenReturn(true),
+    act: (bloc) => bloc.add(const AddAppEvent.exeChosen(exe)),
+    expect: () => const [AddAppState(exe: exe, title: 'Blur', arm64: true)],
+  );
 
   blocTest<AddAppBloc, AddAppState>(
     'the title comes from the file, and can be changed',

@@ -24,6 +24,9 @@ class AddAppRepositoryImpl implements AddAppRepository {
   }
 
   @override
+  bool isArm64Program(String path) => engine.isArm64Program(path);
+
+  @override
   Future<Either<AppError, String>> addApp(
     String bottle,
     String title,

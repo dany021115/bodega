@@ -1018,7 +1018,7 @@ void main() {
               error: _error,
             ),
           );
-          await pumpAt(tester, const AddAppDialog());
+          await pumpAt(tester, const AddAppDialog(native: false));
         });
       }
 
@@ -1445,7 +1445,7 @@ void main() {
               const Stream<AddAppState>.empty(),
               initialState: AddAppState(bottle: 'games', error: error),
             );
-            return pumpPanel(tester, const AddAppDialog(), locale);
+            return pumpPanel(tester, const AddAppDialog(native: false), locale);
           },
           // The catalog's own error, on the tab that lists it when it could
           // not load.
@@ -1460,7 +1460,7 @@ void main() {
               const Stream<AddAppState>.empty(),
               initialState: const AddAppState(bottle: 'games'),
             );
-            await pumpPanel(tester, const AddAppDialog(), locale);
+            await pumpPanel(tester, const AddAppDialog(native: false), locale);
             await tester.tap(find.text(lookupAppL10n(locale).addAppTabOthers));
             await tester.pump();
           },
@@ -2317,7 +2317,7 @@ void main() {
       expect(find.text(label), findsOneWidget, reason: '$locale catalog');
 
       // The add-app dialog's card, on its tab.
-      await pump(tester, 720, const AddAppDialog(), locale: locale);
+      await pump(tester, 720, const AddAppDialog(native: false), locale: locale);
       await tester.tap(find.text(others));
       await tester.pump();
       expect(find.text(label), findsOneWidget, reason: '$locale add-app');

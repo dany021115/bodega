@@ -18,6 +18,9 @@ abstract class AddAppState with _$AddAppState {
     String? driveC,
     AppError? error,
 
+    /// The chosen program is built for Windows on ARM (AA1).
+    @Default(false) bool arm64,
+
     /// The key of the app once it is added, for what follows (DA6).
     String? addedKey,
   }) = _AddAppState;
