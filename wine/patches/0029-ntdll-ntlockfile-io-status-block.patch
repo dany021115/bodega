@@ -1,0 +1,52 @@
+NtLockFile takes and releases a lock when the caller passes an IO_STATUS_BLOCK.
+
+NtLockFile returned STATUS_NOT_IMPLEMENTED whenever its IO_STATUS_BLOCK
+argument was not NULL. Wine's own LockFileEx passes NULL, so nothing in Wine
+noticed, but Zig's standard library calls NtLockFile directly with a status
+block for every file lock (std.os.windows.LockFile; no event, no APC, no
+key). Zig's compiler locks each cache manifest that way, so `zig cc` (Zig
+0.17) stopped on its first file with "checking cache failed: manifest_create
+Unexpected", wherever its cache was, and a program that builds code with a
+bundled Zig could not build anything.
+
+The status block is now filled when the lock is taken or refused (Status is
+the returned status, Information 0), as NtUnlockFile already does. An APC
+routine or a key is still not implemented and still returns
+STATUS_NOT_IMPLEMENTED. The asynchronous wait (an overlapped handle that has
+to wait) is unchanged and leaves the block alone.
+
+Checked on an Apple M6, macOS 27.2.1, on 2026-11-25, with
+tests/ntlockfile/ntlockfile.c (exclusive, waiting and shared locks through a
+status block, and a second handle refused while the first holds the range)
+and with Zig 0.17.0's `zig cc -c`, its cache on APFS and on exFAT. The engine
+engine-wine-11.0-20261030T202616Z-primer-build fails both (c0000002 at the
+first lock); the same engine with this ntdll.so passes both. An ntdll.so
+built from this tree without the patch fails the test as the shipped one
+does. Upstream: master still has the stub (checked at 274fcfa9,
+2026-11-25); not sent.
+
+--- a/dlls/ntdll/unix/file.c
++++ b/dlls/ntdll/unix/file.c
+@@ -6949,7 +6949,9 @@
+     HANDLE handle;
+     BOOLEAN async;
+ 
+-    if (apc || io_status || key)
++    /* An IO_STATUS_BLOCK is filled once the lock is taken or refused, as NtUnlockFile does;
++     * Zig's standard library passes one with every lock. APCs and keys are still not supported. */
++    if (apc || key)
+     {
+         FIXME("Unimplemented yet parameter\n");
+         return STATUS_NOT_IMPLEMENTED;
+@@ -6973,6 +6975,11 @@
+         if (ret != STATUS_PENDING)
+         {
+             if (!ret && event) NtSetEvent( event, NULL );
++            if (io_status)
++            {
++                io_status->Status = ret;
++                io_status->Information = 0;
++            }
+             return ret;
+         }
+         if (async)
