@@ -23,6 +23,7 @@ const _esFile = 'app_es.arb';
 const _sameInBothLanguages = {
   // Brand and product names the app shows.
   'Apple',
+  'ARM64',
   'AreWeAntiCheatYet',
   'AVX',
   'Bodega',

@@ -71,6 +71,13 @@ sealed class AppError with _$AppError implements Exception {
   const factory AppError.badEnvLine(int line, String text, {String? detail}) =
       BadEnvLineError;
 
+  /// [program] is an ARM64 Windows program, and the bottle's engine is the
+  /// Rosetta one, whose Wine is x86_64 (AA2).
+  const factory AppError.programNotForRuntime(
+    String program, {
+    String? detail,
+  }) = ProgramNotForRuntimeError;
+
   // The runtime, backends and D3DMetal.
   const factory AppError.noRuntime({String? detail}) = NoRuntimeError;
 

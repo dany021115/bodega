@@ -6,6 +6,7 @@ import 'package:engine/engine.dart';
 import 'package:test/test.dart';
 
 import '_mac.dart';
+import 'backends_test.dart' show fakePe;
 import 'engine_test.dart' show fakeRuntime;
 
 /// A `.lnk` with the shape of the real `Steam.lnk`: a local path in LinkInfo,
@@ -209,6 +210,21 @@ void main() {
       expect(bottleApps(home, 'steam').map((a) => a.title), ['Steam', 'Game']);
       expect(File('$home/bottles/steam/app.json').existsSync(), isFalse);
       expect(File('$home/bottles/steam/apps.json').existsSync(), isTrue);
+    });
+
+    test('an ARM64 program is told apart from the rest (AA1)', () {
+      final drive = bottle('arm');
+      Directory('$drive/Games').createSync();
+      fakePe('$drive/Games/arm.exe', 0xAA64, '');
+      fakePe('$drive/Games/x64.exe', 0x8664, '');
+      fakePe('$drive/Games/ec.exe', 0xA641, '');
+      addApp(home, 'arm', 'Arm', 'Games/arm.exe');
+      addApp(home, 'arm', 'X64', 'Games/x64.exe');
+      addApp(home, 'arm', 'Ec', 'Games/ec.exe');
+      final keys = {
+        for (final app in bottleApps(home, 'arm')) app.title: app.key,
+      };
+      expect(arm64Apps(home, 'arm'), {keys['Arm'], keys['Ec']});
     });
 
     test('a broken one is an error with its path', () {

@@ -651,6 +651,19 @@
   "@addAppIsProgramHint": {
     "description": "Under the choice addAppIsProgram, in the add-app dialog."
   },
+  "addAppArm64Notice": "This is an ARM64 Windows program, and the Rosetta engine can't run it. Move this bottle to the Native engine from its page, or add the program to a bottle on that engine.",
+  "@addAppArm64Notice": {
+    "description": "In the add-app dialog, under the chosen program, when it is built for Windows on ARM and the bottle runs on the Rosetta engine: only the native engine runs it, and this is where the user can still change their mind. Native engine is the name of the engine's card on the Backends page and of the bottle action that moves a bottle to it.",
+    "placeholders": {}
+  },
+  "appArm64": "ARM64",
+  "@appArm64": {
+    "description": "Beside an application's name in the library and in its bottle: it is a Windows program built for ARM, which the native engine runs with no translation. Before the DirectX it draws with, when both are shown."
+  },
+  "appArm64NeedsNative": "ARM64 · needs the Native engine",
+  "@appArm64NeedsNative": {
+    "description": "Beside an application's name, in a bottle on the Rosetta engine, when the program is built for Windows on ARM: that engine cannot run it. Native engine is the name of the engine's card and of the bottle action that moves a bottle to it."
+  },
   "addAppProgram": "Program",
   "@addAppProgram": {
     "description": "Label of the program an app runs: above the chosen program's file name in the add-app dialog, and on the field with its path in the run-with-options dialog."
@@ -3478,6 +3491,16 @@
       "runtime": {
         "type": "String",
         "example": "mach9"
+      }
+    }
+  },
+  "errProgramNotForRuntime": "{program} is an ARM64 Windows program, and the Rosetta engine cannot run it. Move the bottle to the Native engine, or add the program to a bottle on it.",
+  "@errProgramNotForRuntime": {
+    "description": "Error, in the error panel of the screen that failed or in a toast: the program launched is built for Windows on ARM, which only an arm64 Wine runs, and this bottle is on the Rosetta engine. program is its file name; Native engine is the label of the engine's card on the Backends page and of the bottle action that moves a bottle to it.",
+    "placeholders": {
+      "program": {
+        "type": "String",
+        "example": "Game.exe"
       }
     }
   },

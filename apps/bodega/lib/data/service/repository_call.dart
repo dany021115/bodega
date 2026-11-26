@@ -74,6 +74,8 @@ AppError appErrorOf(engine.EngineFailure failure) {
       bottle,
       detail: detail,
     ),
+    engine.ProgramNotForRuntime(:final program) =>
+      AppError.programNotForRuntime(program, detail: detail),
     engine.MissingFile(:final path) => AppError.badPath(
       PathProblem.missing(path),
       detail: detail,

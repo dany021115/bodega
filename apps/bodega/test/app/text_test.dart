@@ -38,6 +38,7 @@ import 'package:bodega/app/presentation/bottles/widgets/run_options_dialog.dart'
 import 'package:bodega/app/presentation/bottles/widgets/windows_user_dialog.dart';
 import 'package:bodega/app/presentation/library/widgets/bottle_tag.dart';
 import 'package:bodega/app/presentation/setup/widgets/requirement_card.dart';
+import 'package:bodega/app/shared/text/app_text.dart';
 import 'package:bodega/app/shared/text/backend_text.dart';
 import 'package:bodega/app/shared/text/catalog_text.dart';
 import 'package:bodega/app/shared/text/error_text.dart';
@@ -1882,6 +1883,10 @@ void main() {
       (const AppError.appNotFound('steam', null, detail: detail), ['steam']),
       (const AppError.appAlreadyAdded('steam', detail: detail), ['steam']),
       (const AppError.badEnvLine(2, 'bad', detail: detail), ['2', 'bad']),
+      (
+        const AppError.programNotForRuntime('Arm64 Game.exe', detail: detail),
+        ['Arm64 Game.exe'],
+      ),
       (const AppError.noRuntime(detail: detail), []),
       (
         const AppError.alreadyInstalled('/h/backends/dxvk', detail: detail),
@@ -2034,7 +2039,7 @@ void main() {
     test('the cases hold every code', () {
       expect({
         for (final (error, _) in codes) error.runtimeType,
-      }, hasLength(44));
+      }, hasLength(45));
     });
 
     for (final (language, l10n) in [('en', en), ('es', es)]) {
@@ -3362,6 +3367,59 @@ void main() {
             isNull,
           );
         }
+      });
+
+      group('what an app row says about its program (AA1)', () {
+        LibraryApp app({required bool arm64, required bool native}) =>
+            LibraryApp(
+              bottle: 'steam',
+              key: 'games/blur.exe',
+              id: 'blur',
+              title: 'Blur',
+              arm64: arm64,
+              nativeEngine: native,
+            );
+        const facts = 'DX9 · 32 bits';
+
+        test('the DirectX it draws with, and nothing else', () {
+          expect(
+            programFactsText(en, app(arm64: false, native: false), facts),
+            facts,
+          );
+          expect(
+            programFactsText(es, app(arm64: false, native: false), facts),
+            es.graphicsLabel('DX9', 32),
+          );
+        });
+
+        test('ARM64 comes before it, on the native engine', () {
+          expect(
+            programFactsText(en, app(arm64: true, native: true), facts),
+            'ARM64 · $facts',
+          );
+          expect(
+            programFactsText(en, app(arm64: true, native: true), null),
+            en.appArm64,
+          );
+        });
+
+        test('and on the Rosetta engine it says the engine it needs', () {
+          expect(
+            programFactsText(en, app(arm64: true, native: false), null),
+            en.appArm64NeedsNative,
+          );
+          expect(
+            programFactsText(es, app(arm64: true, native: false), facts),
+            startsWith(es.appArm64NeedsNative),
+          );
+        });
+
+        test('a row with nothing to say says nothing', () {
+          expect(
+            programFactsText(en, app(arm64: false, native: false), null),
+            isNull,
+          );
+        });
       });
 
       group('in the run-with-options dialog', () {

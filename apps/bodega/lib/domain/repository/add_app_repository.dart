@@ -6,6 +6,10 @@ abstract class AddAppRepository {
   /// What makes [path] unusable, or null if it can be used.
   PathProblem? pathProblem(String path);
 
+  /// Whether [path] is an ARM64 Windows program, which only the Native engine
+  /// runs (AA1): false for anything else, and for a file that is no PE.
+  bool isArm64Program(String path);
+
   /// Registers [exe], an absolute path, as the bottle's app, and returns its key.
   Future<Either<AppError, String>> addApp(
     String bottle,

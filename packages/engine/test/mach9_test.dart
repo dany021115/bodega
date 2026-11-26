@@ -132,6 +132,15 @@ void main() {
       expect(lastEnv('m9')['WINEDLLOVERRIDES'], 'x=n');
     });
 
+    test('an ARM64 program runs on the native engine (AA1)', () async {
+      fakeMach9Wine(home);
+      final dir = mach9Bottle(home, 'm9', '{}');
+      fakePe('$dir/prefix/drive_c/Games/arm.exe', 0xAA64, '');
+      final log = await runInBottle(home, 'm9', r'C:\Games\arm.exe', []);
+      expect(await exitOf(log), 7);
+      expect(File('$dir/prefix/last-env').existsSync(), isTrue);
+    });
+
     test('a launch appends the user rules after its own', () async {
       fakeMach9Wine(home);
       mach9Bottle(

@@ -10,6 +10,7 @@ import 'package:bodega/app/shared/widgets/copy_details_button.dart';
 import 'package:bodega/app/shared/widgets/custom_loading.dart';
 import 'package:bodega/app/shared/widgets/gradient_button.dart';
 import 'package:bodega/device/helpers/app_toast.dart';
+import 'package:bodega/device/theme/color.dart';
 import 'package:bodega/device/router/manager.dart';
 import 'package:bodega/device/theme/gradient.dart';
 import 'package:bodega/device/theme/radius.dart';
@@ -31,20 +32,25 @@ XTypeGroup _programs(AppL10n l10n) =>
 Future<String?> showAddAppDialog(
   BuildContext context, {
   required String bottle,
+  required bool native,
 }) => showDialog<String>(
   context: context,
   // An installer may be running: only the dialog's own buttons close it.
   barrierDismissible: false,
   builder: (_) => BlocProvider(
     create: (_) => getIt<AddAppBloc>()..add(AddAppEvent.load(bottle)),
-    child: const AddAppDialog(),
+    child: AddAppDialog(native: native),
   ),
 );
 
 enum _Tab { popular, file }
 
 class AddAppDialog extends StatefulWidget {
-  const AddAppDialog({super.key});
+  /// Whether the bottle runs on the Native engine: an ARM64 Windows program
+  /// needs it, so the Rosetta one warns (AA1).
+  final bool native;
+
+  const AddAppDialog({super.key, required this.native});
 
   @override
   State<AddAppDialog> createState() => _AddAppDialogState();
@@ -364,6 +370,31 @@ class _AddAppDialogState extends State<AddAppDialog> {
               ],
             ),
             const SizedBox(height: AppSpacing.lg),
+            if (state.arm64 && !widget.native) ...[
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const ExcludeSemantics(
+                    child: Icon(
+                      Icons.warning_amber_rounded,
+                      size: 18,
+                      color: AppColor.statusFlaky,
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: Semantics(
+                      liveRegion: true,
+                      child: Text(
+                        l10n.addAppArm64Notice,
+                        style: styles.caption,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.lg),
+            ],
             TextField(
               controller: _title,
               decoration: InputDecoration(labelText: l10n.addAppTitleField),

@@ -33,6 +33,10 @@ abstract class LibraryApp with _$LibraryApp {
     /// Whether its bottle runs on the Native engine (PA2).
     @Default(false) bool nativeEngine,
 
+    /// Whether its exe is an ARM64 Windows program, which only the Native
+    /// engine runs (AA1).
+    @Default(false) bool arm64,
+
     /// The Native engine options it has on (PA2).
     @Default({}) Set<NativeOption> nativeOptions,
   }) = _LibraryApp;

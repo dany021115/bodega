@@ -24,6 +24,7 @@ class AddAppBloc extends Bloc<AddAppEvent, AddAppState> {
       emit(
         state.copyWith(
           exe: event.path,
+          arm64: _repository.isArm64Program(event.path),
           title: state.title.isEmpty
               ? name.replaceFirst(RegExp(r'\.exe$', caseSensitive: false), '')
               : state.title,

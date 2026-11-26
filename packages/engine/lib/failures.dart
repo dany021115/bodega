@@ -443,6 +443,20 @@ final class BackendNotForRuntime extends EngineFailure {
       '${backendNamesFor(runtime).join(', ')}';
 }
 
+/// [program] is an ARM64 Windows program, which only an arm64 Wine runs: a
+/// bottle on the Rosetta engine cannot open it (AA1).
+final class ProgramNotForRuntime extends EngineFailure {
+  const ProgramNotForRuntime(this.program, this.runtime);
+
+  final String program;
+  final RuntimeKind runtime;
+
+  @override
+  String get message =>
+      '$program is an ARM64 Windows program, and ${runtime.english} cannot run '
+      'it: bodega create --runtime mach9 <bottle>, then add it there';
+}
+
 /// No D3DMetal at [source]: a Game Porting Toolkit dmg or a folder.
 final class NoD3DMetal extends EngineFailure {
   const NoD3DMetal(this.source, this.missing);

@@ -36,6 +36,7 @@ Future<void> _pump(
   WidgetTester tester, {
   required AddAppState add,
   CatalogState catalog = const CatalogState(isLoading: false),
+  bool native = false,
 }) async {
   // The smallest window the app goes down to.
   tester.view.physicalSize = const Size(720, 480);
@@ -59,7 +60,7 @@ Future<void> _pump(
           BlocProvider<AddAppBloc>.value(value: addBloc),
           BlocProvider<CatalogBloc>.value(value: catalogBloc),
         ],
-        child: const Scaffold(body: AddAppDialog()),
+        child: Scaffold(body: AddAppDialog(native: native)),
       ),
       theme: AppTheme.getDarkTheme(),
     ),
@@ -135,5 +136,35 @@ void main() {
     expect(find.text('The installer has finished'), findsOneWidget);
     expect(find.text(en.commonCancel), findsNothing);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('an ARM64 program in a Rosetta bottle says it needs the native '
+      'engine (AA1)', (tester) async {
+    await _pump(
+      tester,
+      add: const AddAppState(
+        bottle: 'steam',
+        exe: '/g/Arm64 Game.exe',
+        title: 'Arm64 Game',
+        arm64: true,
+      ),
+    );
+
+    expect(find.text(en.addAppArm64Notice), findsOneWidget);
+  });
+
+  testWidgets('and on the native engine it says nothing', (tester) async {
+    await _pump(
+      tester,
+      native: true,
+      add: const AddAppState(
+        bottle: 'native',
+        exe: '/g/Arm64 Game.exe',
+        title: 'Arm64 Game',
+        arm64: true,
+      ),
+    );
+
+    expect(find.text(en.addAppArm64Notice), findsNothing);
   });
 }

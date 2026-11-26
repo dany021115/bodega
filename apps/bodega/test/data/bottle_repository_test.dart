@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:bodega/data/repository/bottle_repository_impl.dart';
 import 'package:bodega/domain/entities/app_error.dart';
@@ -14,6 +15,19 @@ import 'package:flutter_test/flutter_test.dart';
 
 import '_home.dart';
 import '_mach9.dart';
+
+/// A PE with [machine] as its whole content: all the engine reads of one
+/// before the bottle's list says which engine its program needs (AA1).
+List<int> _pe(int machine) {
+  final header = ByteData(70)
+    ..setUint8(0, 0x4D)
+    ..setUint8(1, 0x5A)
+    ..setUint32(60, 64, Endian.little)
+    ..setUint8(64, 0x50)
+    ..setUint8(65, 0x45)
+    ..setUint16(68, machine, Endian.little);
+  return header.buffer.asUint8List();
+}
 
 void main() {
   late Directory home;
@@ -114,6 +128,31 @@ void main() {
     expect(detail.apps.map((app) => app.key), ['a/a.exe', 'b/b.exe']);
     expect(detail.apps.first.bottle, 'steam');
     expect(detail.apps.first.iconPath, isNull);
+  });
+
+  test('an ARM64 program of the bottle says so in its detail (AA1)', () async {
+    File('${bottle.path}/prefix/drive_c/A/arm.exe')
+      ..createSync(recursive: true)
+      ..writeAsBytesSync(_pe(0xAA64));
+    File('${bottle.path}/prefix/drive_c/B/b.exe')
+      ..createSync(recursive: true)
+      ..writeAsBytesSync(_pe(0x8664));
+    File('${bottle.path}/apps.json').writeAsStringSync(
+      jsonEncode({
+        'apps': [
+          {'id': 'custom', 'title': 'Arm', 'exe': 'A/arm.exe', 'args': []},
+          {'id': 'custom', 'title': 'B', 'exe': 'B/b.exe', 'args': []},
+        ],
+      }),
+    );
+
+    final detail = (await repository.detail('steam'))
+        .getOrElse((error) => fail('$error'));
+
+    expect(
+      {for (final app in detail.apps) app.title: app.arm64},
+      {'Arm': true, 'B': false},
+    );
   });
 
   test('hiding an application takes it out', () async {

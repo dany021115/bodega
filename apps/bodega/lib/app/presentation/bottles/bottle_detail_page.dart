@@ -13,6 +13,7 @@ import 'package:bodega/app/presentation/bottles/widgets/run_options_dialog.dart'
 import 'package:bodega/app/presentation/library/widgets/native_options_dialog.dart';
 import 'package:bodega/app/router.dart';
 import 'package:bodega/app/shared/graphics_of.dart';
+import 'package:bodega/app/shared/text/app_text.dart';
 import 'package:bodega/app/shared/text/backend_text.dart';
 import 'package:bodega/app/shared/text/error_text.dart';
 import 'package:bodega/app/shared/widgets/app_card.dart';
@@ -30,6 +31,7 @@ import 'package:bodega/device/theme/typography.dart';
 import 'package:bodega/di.dart';
 import 'package:bodega/domain/entities/bottle_detail.dart';
 import 'package:bodega/domain/entities/library_app.dart';
+import 'package:bodega/domain/entities/runtime_kind.dart';
 import 'package:bodega/domain/entities/run_hint.dart';
 import 'package:bodega/l10n/l10n.dart';
 import 'package:flutter/material.dart';
@@ -152,6 +154,7 @@ class BottleDetailView extends StatelessWidget {
         final graphics = found == null
             ? null
             : graphicsLabelText(itemContext.l10n, found);
+        final facts = programFactsText(itemContext.l10n, app, graphics);
         return isGrid
             ? AppCard(
                 key: ValueKey(app.key),
@@ -160,7 +163,7 @@ class BottleDetailView extends StatelessWidget {
                 onStop: stop,
                 onPlay: open,
                 footerChip: toggle,
-                graphics: graphics,
+                graphics: facts,
                 onMenu: menu,
               )
             : Padding(
@@ -172,7 +175,7 @@ class BottleDetailView extends StatelessWidget {
                   onStop: stop,
                   onPlay: open,
                   footerChip: toggle,
-                  graphics: graphics,
+                  graphics: facts,
                   onMenu: menu,
                 ),
               );
@@ -194,7 +197,11 @@ class BottleDetailView extends StatelessWidget {
     final inLibrary = detail.apps.where((app) => app.inLibrary).length;
     final canAdd = detail.ready && !isBusy;
     Future<void> add() async {
-      final key = await showAddAppDialog(context, bottle: detail.name);
+      final key = await showAddAppDialog(
+        context,
+        bottle: detail.name,
+        native: detail.runtime == RuntimeKind.mach9,
+      );
       if (key != null && context.mounted) {
         context.read<DependenciesBloc>().add(
           DependenciesEvent.offer(detail.name, key),

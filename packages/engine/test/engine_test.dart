@@ -6,6 +6,7 @@ import 'package:engine/probe_data.dart';
 import 'package:test/test.dart';
 
 import '_mac.dart';
+import 'backends_test.dart' show fakePe;
 
 const fakeWine = r'''#!/bin/sh
 # C:\x\y -> $WINEPREFIX/drive_c/x/y
@@ -363,6 +364,39 @@ void main() {
         ),
       );
     }
+  });
+
+  test('an ARM64 program needs the native engine (AA1)', () async {
+    final home = bodegaHome({'BODEGA_HOME': '$tmp/home'});
+    final (engine, hostlibs) = await fakeRuntime(tmp, 'engine-aa');
+    await installRuntime(home, engine, hostlibs);
+    await createBottle(home, 'aa');
+    final logs = Directory('$home/bottles/aa/logs');
+    final before = logs.listSync().length;
+    fakePe(
+      '$home/bottles/aa/prefix/drive_c/Games/Arm64 Game.exe',
+      0xAA64,
+      '',
+    );
+    await expectLater(
+      runInBottle(home, 'aa', r'C:\Games\Arm64 Game.exe', []),
+      throwsA(
+        isA<ProgramNotForRuntime>()
+            .having((f) => f.program, 'program', 'Arm64 Game.exe')
+            .having((f) => f.runtime, 'runtime', RuntimeKind.bodega),
+      ),
+    );
+    // Nothing ran, so nothing was logged.
+    expect(logs.listSync(), hasLength(before));
+    // ARM64EC too, and an x64 program in the same folder still runs.
+    fakePe('$home/bottles/aa/prefix/drive_c/Games/ec.exe', 0xA641, '');
+    await expectLater(
+      runInBottle(home, 'aa', r'C:\Games\ec.exe', []),
+      throwsA(isA<ProgramNotForRuntime>()),
+    );
+    fakePe('$home/bottles/aa/prefix/drive_c/Games/x64.exe', 0x8664, '');
+    expect(await exitOf(await runInBottle(home, 'aa', r'C:\Games\x64.exe', [])),
+        7);
   });
 
   test('hints', () async {
