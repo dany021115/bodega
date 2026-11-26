@@ -959,6 +959,12 @@ Future<ExeGraphics?> _readGraphics(String path) async {
   if (!File(path).existsSync()) return null;
   final bits = _peBits(path);
   if (bits == null) return null;
+  return (bits: bits, directx: await _directxOf(path));
+}
+
+/// The newest DirectX [path] names, from its strings (G1): `DX12`, `DX11`,
+/// `DX10`, `DX9`, or empty when it names none. Read for any PE, ARM64 too.
+Future<String> _directxOf(String path) async {
   final found = <String>{};
   var tail = '';
   // NULs are dropped to catch UTF-16 strings too.
@@ -976,20 +982,17 @@ Future<ExeGraphics?> _readGraphics(String path) async {
     if (found.contains('d3d12.dll')) break;
     tail = text.substring(text.length < 16 ? 0 : text.length - 16);
   }
-  return (
-    bits: bits,
-    directx: found.contains('d3d12.dll')
-        ? 'DX12'
-        : found.contains('d3d11.dll')
-        ? 'DX11'
-        // A D3D9 game can mention d3d10 or dxgi just to probe them, as Blur
-        // does (A4).
-        : found.contains('d3d9.dll')
-        ? 'DX9'
-        : found.isNotEmpty
-        ? 'DX10'
-        : '',
-  );
+  return found.contains('d3d12.dll')
+      ? 'DX12'
+      : found.contains('d3d11.dll')
+      ? 'DX11'
+      // A D3D9 game can mention d3d10 or dxgi just to probe them, as Blur
+      // does (A4).
+      : found.contains('d3d9.dll')
+      ? 'DX9'
+      : found.isNotEmpty
+      ? 'DX10'
+      : '';
 }
 
 /// 64 or 32 from the PE header, or null if [path] is not a PE on x86.
@@ -1016,18 +1019,29 @@ int? _peMachine(String path) {
   }
 }
 
+/// A program's architecture from its PE header (AA1): `x86`, `x64`, `arm64`
+/// (`0xAA64`) or `arm64ec` (`0xA641`); null for a missing file and for one
+/// that is no PE.
+String? programArch(String path) {
+  if (FileSystemEntity.typeSync(path) != FileSystemEntityType.file) {
+    return null;
+  }
+  return switch (_peMachine(path)) {
+    0x14C => 'x86',
+    0x8664 => 'x64',
+    0xAA64 => 'arm64',
+    0xA641 => 'arm64ec',
+    _ => null,
+  };
+}
+
 /// Whether [path] is an ARM64 Windows PE (`0xAA64`) or ARM64EC (`0xA641`),
 /// which only an arm64 Wine runs (AA1); false for x86, x64, a missing file and
 /// non-PEs.
-bool isArm64Program(String path) {
-  if (FileSystemEntity.typeSync(path) != FileSystemEntityType.file) {
-    return false;
-  }
-  return switch (_peMachine(path)) {
-    0xAA64 || 0xA641 => true,
-    _ => false,
-  };
-}
+bool isArm64Program(String path) => switch (programArch(path)) {
+  'arm64' || 'arm64ec' => true,
+  _ => false,
+};
 
 /// Options before the bottle (S7), and what follows them; null for a bad one.
 ({String? backend, bool hud, List<String> rest})? _parseOptions(

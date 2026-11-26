@@ -106,6 +106,16 @@ Future<void> main(List<String> args) async {
       }
       return 0;
     },
+    ['probe', final path] => (_) async {
+      // AA4: what a program is, before a bottle is involved.
+      final text = await probeProgram(path);
+      if (text == null) {
+        stderr.writeln('$path is not a Windows program');
+        return 1;
+      }
+      stdout.writeln(text);
+      return 0;
+    },
     ['sync', final bottle, final mode] => (home) async {
       if (await setSync(home, bottle, mode)) stdout.writeln('bottle stopped');
       return 0;

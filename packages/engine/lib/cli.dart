@@ -42,6 +42,7 @@ usage: bodega install <engine.tar.gz> <hostlibs.tar.gz>
        bodega deps check <bottle> <key>
        bodega deps install <bottle> <id> <x86|x64|all> [file…]
        bodega apps
+       bodega probe <path>
        bodega open [--backend <b>] [--hud] <bottle> [key]
        bodega switch status
        bodega switch emulator <Ryujinx.app>|auto
@@ -341,4 +342,18 @@ BottleSample averageSample(List<BottleSample> samples) {
         ? null
         : (gpus.fold<int>(0, (a, b) => a + b) / gpus.length).round(),
   );
+}
+
+/// What `bodega probe <path>` prints (AA4): the program's architecture, the
+/// newest DirectX it names, and which engine runs it. Null for a file that is
+/// no Windows program.
+Future<String?> probeProgram(String path) async {
+  final arch = programArch(path);
+  if (arch == null) return null;
+  final directx = await _directxOf(path);
+  return [
+    '$path: $arch, ${directx.isEmpty ? 'no DirectX' : directx}',
+    if (arch == 'arm64' || arch == 'arm64ec')
+      'It runs only on the native engine (Mach9).',
+  ].join('\n');
 }

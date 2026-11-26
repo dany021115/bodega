@@ -488,6 +488,29 @@ void main() {
     File('$tmp/junk.exe').writeAsStringSync('not a PE');
     expect(isArm64Program('$tmp/junk.exe'), isFalse);
 
+    // AA4: `bodega probe` names the architecture, and the engine an ARM64
+    // program needs.
+    expect(programArch(fakePe('$tmp/p.exe', 0xAA64, '').path), 'arm64');
+    expect(programArch(fakePe('$tmp/p.exe', 0xA641, '').path), 'arm64ec');
+    expect(programArch(fakePe('$tmp/p.exe', 0x8664, '').path), 'x64');
+    expect(programArch(fakePe('$tmp/p.exe', 0x14C, '').path), 'x86');
+    expect(programArch('$tmp/none.exe'), isNull);
+    expect(await probeProgram('$tmp/none.exe'), isNull);
+    final probed = await probeProgram(
+      fakePe('$tmp/arm.exe', 0xAA64, 'd3d11.dll').path,
+    );
+    expect(
+      probed,
+      allOf(
+        contains(': arm64, DX11'),
+        contains('native engine (Mach9)'),
+      ),
+    );
+    expect(
+      await probeProgram(fakePe('$tmp/x64.exe', 0x8664, 'opengl32.dll').path),
+      endsWith(': x64, no DirectX'),
+    );
+
     bool fits(String backend, int bits, String directx) =>
         hostPlatform.backendFits(backend, (bits: bits, directx: directx));
     expect(fits('d3dmetal', 32, 'DX9'), isFalse);
