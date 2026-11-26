@@ -38,6 +38,7 @@ String fixes(
   List<Map<String, Object?>> steps, {
   bool optIn = false,
   Map<String, String> backends = const {},
+  Map<String, Object?>? antiCheat,
 }) => jsonEncode([
   {
     'id': 'game',
@@ -50,6 +51,7 @@ String fixes(
     'knownIssues': <Object?>[],
     'source': 'recipes/games/game.json',
     'verified': null,
+    'antiCheat': ?antiCheat,
   },
 ]);
 
@@ -551,6 +553,36 @@ void main() {
       expect(lastEnv()['ROSETTA_ADVERTISE_AVX'], '1');
       await open(avx: false);
       expect(lastEnv(), isNot(contains('ROSETTA_ADVERTISE_AVX')));
+    });
+
+    test('HE2 no hookable thunks for a game with anti-cheat', () async {
+      Directory('$home/backends/d3dmetal/wine').createSync(recursive: true);
+      fixesSource = fixes([], backends: {'mac': 'd3dmetal'});
+      await open();
+      expect(lastEnv(), contains('BODEGA_HOOKABLE_THUNKS'));
+
+      fixesSource = fixes(
+        [],
+        backends: {'mac': 'd3dmetal'},
+        antiCheat: {
+          'names': ['Easy Anti-Cheat'],
+          'verdict': 'warning',
+        },
+      );
+      await open();
+      expect(lastEnv()['CX_ACTIVE_GRAPHICS_BACKEND'], 'd3dmetal');
+      expect(lastEnv(), isNot(contains('BODEGA_HOOKABLE_THUNKS')));
+      // Nor when the bottle asks for them itself.
+      setBottleOptions(home, 'b', env: {'BODEGA_HOOKABLE_THUNKS': 'dxgi.dll'});
+      await open();
+      expect(lastEnv(), isNot(contains('BODEGA_HOOKABLE_THUNKS')));
+      // Nor with the game's configuration turned off: the anti-cheat is known.
+      await setGameConfig(home, 'b', 'steam:9', on: false);
+      await exitOf(
+        await openApp(home, 'b', key: 'steam:9', backend: 'd3dmetal'),
+      );
+      expect(lastEnv()['CX_ACTIVE_GRAPHICS_BACKEND'], 'd3dmetal');
+      expect(lastEnv(), isNot(contains('BODEGA_HOOKABLE_THUNKS')));
     });
 
     test('a DLL override is added to the ones already there', () async {

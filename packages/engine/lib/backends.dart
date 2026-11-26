@@ -446,8 +446,9 @@ typedef BottleSettings = ({
   bool highRes,
   bool dlss,
 
-  /// D3DMetal's Metal 4 path (`D3DM_MTL4=1`) for a Rosetta bottle's
-  /// `d3dmetal` launches; off by default (ER8).
+  /// D3DMetal's Metal 4 path for a Rosetta bottle's `d3dmetal` launches:
+  /// `D3DM_MTL4=1`, or `0` when off, since D3DMetal 4 takes Metal 4 when the
+  /// variable is unset; off by default (ER8).
   bool metal4,
 
   /// False takes `ROSETTA_ADVERTISE_AVX` out of every launch (M8).

@@ -450,6 +450,8 @@ Future<String> openApp(
       : apps.where((app) => app.key == key).firstOrNull ??
             (throw AppNotFound(bottle, key));
   final fix = _gameIn(_existing(home, bottle), app)?.fix;
+  // HE2: an anti-cheat stays known with the game's configuration turned off.
+  final antiCheat = gameFor(app)?.fix.antiCheat != null;
   // A Steam already open starts the game with its own environment, so the
   // fix's variables would not reach it: the log says so instead of hiding it.
   final missed =
@@ -465,6 +467,7 @@ Future<String> openApp(
     env: env,
     avx: avx,
     fix: fix,
+    antiCheat: antiCheat,
     note: missed ? fixNotApplied : null,
     appKey: app.key,
   );

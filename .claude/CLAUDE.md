@@ -71,7 +71,7 @@ See `rules/architecture.md`. The short version: `domain/` is pure Dart, **only `
 
 ## Lines not to cross
 
-- D3DMetal is never bundled or downloaded by Bodega, nor copied from CrossOver: the user imports their own copy, and its license is their decision.
+- D3DMetal is never bundled or downloaded by Bodega, nor copied from CrossOver: the user imports their own copy, and its license is their decision. Bodega never edits D3DMetal's files. In memory, Bodega's Wine rewrites D3DMetal's method thunks to an equivalent jump so that mods and overlays can hook them (`wine/patches/0030`); the engine does not ask for it when it launches a game whose configuration names an anti-cheat.
 - Don't copy CrossOver's proprietary code, UI, data or brand (`crossover.tie`, `cxcompatdb`, CrossTie, closed helpers), and don't circumvent its licensing. Its LGPL Wine tree is fine.
 - Don't help bypass anti-cheat: no hiding Wine from Easy Anti-Cheat, no swapping its modules.
 - Catalog data comes from `highball-db` (CC0) at a pinned commit; the anti-cheat list is AreWeAntiCheatYet (MIT).

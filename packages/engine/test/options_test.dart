@@ -5,7 +5,7 @@ import 'package:test/test.dart';
 
 import '_mac.dart';
 import 'engine_test.dart' show fakeRuntime;
-import 'runtimes_test.dart' show mach9Bottle;
+import 'runtimes_test.dart' show fakeMach9Wine, mach9Bottle;
 
 void main() {
   useMac();
@@ -319,12 +319,51 @@ void main() {
     await program('b');
     addApp(home, 'b', 'A', 'P/a.exe');
     Directory('$home/backends/d3dmetal/wine').createSync(recursive: true);
+    // Off says so: D3DMetal 4 takes Metal 4 when the variable is unset.
+    await exitOf(await openApp(home, 'b', backend: 'd3dmetal'));
+    expect(lastEnv('b')['D3DM_MTL4'], '0');
     setBottleOptions(home, 'b', metal4: true);
     expect(bottleSettings(home, 'b').metal4, isTrue);
     await exitOf(await openApp(home, 'b', backend: 'd3dmetal'));
     expect(lastEnv('b')['D3DM_MTL4'], '1');
     await exitOf(await openApp(home, 'b', backend: 'wine'));
     expect(lastEnv('b').containsKey('D3DM_MTL4'), isFalse);
+  });
+
+  group('D3DMetal thunks that hooks can copy (wine/patches/0030)', () {
+    const thunks = 'dxgi.dll,d3d11.dll,d3d12.dll,d3d12core.dll,nvapi64.dll';
+
+    setUp(() async {
+      await createBottle(home, 'b');
+      await program('b');
+      Directory('$home/backends/d3dmetal/wine').createSync(recursive: true);
+    });
+
+    test('HE1 only D3DMetal launches ask for them', () async {
+      expect(backendEnv(home, 'd3dmetal')['BODEGA_HOOKABLE_THUNKS'], thunks);
+      for (final backend in ['dxmt', 'dxvk', 'dxvk9', 'wine']) {
+        expect(
+          backendEnv(home, backend),
+          isNot(contains('BODEGA_HOOKABLE_THUNKS')),
+        );
+      }
+      addApp(home, 'b', 'A', 'P/a.exe');
+      await exitOf(await openApp(home, 'b', backend: 'd3dmetal'));
+      expect(lastEnv('b')['BODEGA_HOOKABLE_THUNKS'], thunks);
+      await exitOf(await openApp(home, 'b', backend: 'wine'));
+      expect(lastEnv('b'), isNot(contains('BODEGA_HOOKABLE_THUNKS')));
+      // A Mach9 bottle never gets Bodega's layers, D3DMetal installed or not.
+      fakeMach9Wine(home);
+      mach9Bottle(home, 'm9');
+      await exitOf(await runInBottle(home, 'm9', 'game.exe', []));
+      expect(lastEnv('m9'), isNot(contains('BODEGA_HOOKABLE_THUNKS')));
+    });
+
+    test('HE3 a program turns them off with an empty value', () async {
+      addApp(home, 'b', 'A', 'P/a.exe', env: {'BODEGA_HOOKABLE_THUNKS': ''});
+      await exitOf(await openApp(home, 'b', backend: 'd3dmetal'));
+      expect(lastEnv('b'), containsPair('BODEGA_HOOKABLE_THUNKS', ''));
+    });
   });
 
   group('ER6 open with the Rosetta engine', () {

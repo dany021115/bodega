@@ -357,6 +357,7 @@ Future<String> _launchIn(
   bool? avx,
   Map<String, String> extra = const {},
   GameFix? fix,
+  bool antiCheat = false,
   String? note,
   String? appKey,
   List<String> dllOverrides = const [],
@@ -445,9 +446,10 @@ Future<String> _launchIn(
       ...hostPlatform.dxvkEnv(dir, async: settings.dxvkAsync),
     if (!mach9 && hudOn) ...hostPlatform.perfEnv(dir),
     if (!mach9 && settings.dlss) ..._dlssEnv,
-    // ER8: D3DMetal's Metal 4, only where D3DMetal draws.
-    if (!mach9 && settings.metal4 && choice.name == 'd3dmetal')
-      'D3DM_MTL4': '1',
+    // ER8: D3DMetal's Metal 4, only where D3DMetal draws. D3DMetal 4 takes it
+    // when nobody says, so off is said too.
+    if (!mach9 && choice.name == 'd3dmetal')
+      'D3DM_MTL4': settings.metal4 ? '1' : '0',
     if (mach9) 'VKD3D_SHADER_CACHE_PATH': '$dir/cache/vkd3d',
     ...hostPlatform.gpuEnv(settings.gpu),
     for (final step in steps)
@@ -478,7 +480,11 @@ Future<String> _launchIn(
     detached: true,
     wrapper: hostPlatform.launchWrapper(gamemode: settings.gamemode),
     extra: launchEnv,
-    remove: {if (mach9 || !(avx ?? settings.avx)) 'ROSETTA_ADVERTISE_AVX'},
+    remove: {
+      if (mach9 || !(avx ?? settings.avx)) 'ROSETTA_ADVERTISE_AVX',
+      // HE2: no thunk rewrite (wine/patches/0030) for a game with anti-cheat.
+      if (antiCheat || fix?.antiCheat != null) 'BODEGA_HOOKABLE_THUNKS',
+    },
   );
   // The pid is the run's process group too: stopApp and runningApps read it
   // here. The third line, the program's file name, follows a game that
