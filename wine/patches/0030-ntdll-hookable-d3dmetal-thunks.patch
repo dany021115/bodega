@@ -1,0 +1,168 @@
+A mod or overlay whose hooking library relocates D3DMetal's method prologues
+the way PolyHook 2 does no longer crashes the game when it hooks Present.
+
+D3DMetal's dxgi.dll, d3d12.dll and d3d11.dll reach their native code through
+thunks that each DLL writes into its own writable section while it attaches:
+"66 90 ff 25 00 00 00 00 <8-byte target>", that is "nop; jmp qword ptr [rip]"
+followed by the target. The vtables point at them, so IDXGISwapChain::Present
+is such a thunk. A hooking library that relocates that prologue into a
+trampoline must keep the jmp reading those 8 bytes. PolyHook 2 redirected it
+into its own jump table instead, so the trampoline's "jmp [rip+6]" read code
+bytes as an address. FIFA 23's Live Editor (v23.1.3.3) made the game jump to
+0x3825ff on every run, the moment it hooked Present, and a test program with
+PolyHook 2 at b0aac63 (2023-07-19) faulted at 0x39200000003c25ff the same way.
+MinHook re-aims the copied jmp at the original 8 bytes and is not affected
+(2026-11-25, M2 Pro, macOS 27, engine
+engine-wine-11.0-20261030T202616Z-primer-build, D3DMetal 4.0b3).
+
+For each DLL named in BODEGA_HOOKABLE_THUNKS (comma-separated base names, any
+case, no spaces), the loader now rewrites those thunks once the DLL's
+DLL_PROCESS_ATTACH has returned: "48 b8 <target> ff e0 90 90 90 90", that is
+"mov rax, target; jmp rax". The target is the same and RAX is free at a
+function's entry under the Windows x64 convention, but the first instruction
+has no RIP-relative operand, so any hooker copies it as it is. A slot is
+rewritten only if it is 16-byte aligned, in an executable region of a section
+with IMAGE_SCN_MEM_WRITE (D3DMetal makes its thunk pages executable; the rest
+of dxgi.dll's 16 MB .data stays untouched and is never read), starts with
+those 8 bytes, and its target is not zero and lies outside the image. Each memory region is made writable only while it is
+rewritten and gets its own protection back. The loader lock is held and the
+DLL's methods have not been handed out yet, so no Windows thread can be
+running a thunk meanwhile; D3DMetal's own threads run its native code.
+Without the variable, or with it empty, nothing changes. With
+WINEDEBUG=trace+module, each listed DLL logs how many thunks it rewrote
+(+module itself aborts this engine at start, with or without this patch).
+
+Checked 2026-11-25 on that engine and D3DMetal, headless, with test programs
+that do in the process what this patch does in the loader:
+- each DLL holds its 1024 thunks as soon as its own load returns (dxgi.dll
+  alone, d3d12.dll alone, d3d11.dll alone); d3d12core.dll and nvapi64.dll hold
+  none, and creating a factory, a device, a queue or a swap chain adds none;
+- after the rewrite (1024 thunks in dxgi.dll and 1024 in d3d12.dll), PolyHook 2
+  at b0aac63 and MinHook both detour Present, which returns S_OK three times
+  out of three;
+- the rewrite function, cut from this patch, passes a standalone test of its
+  byte rules under AddressSanitizer.
+Not yet run inside a built engine. Not for upstream: D3DMetal is not Wine's.
+
+diff -ruN a/dlls/ntdll/loader.c b/dlls/ntdll/loader.c
+--- a/dlls/ntdll/loader.c	2026-11-25 22:00:00
++++ b/dlls/ntdll/loader.c	2026-11-25 22:00:00
+@@ -1760,8 +1760,108 @@
+ 
+     return status;
+ }
++
++
++#if defined(__x86_64__) && !defined(__arm64ec__)
+ 
++/* D3DMetal fills its DXGI and Direct3D 12 method thunks, in its DLLs' writable
++ * sections, with "nop; jmp [rip]; .quad target" while each DLL attaches.  A hooking
++ * library that relocates that prologue can build a broken trampoline (PolyHook's
++ * jumped to 0x3825ff).  For each DLL that BODEGA_HOOKABLE_THUNKS lists, they are
++ * rewritten after its attach to "mov rax, target; jmp rax": the same target, and a
++ * first instruction any hooker copies as it is.  The loader lock is held and the
++ * DLL's methods have not been handed out, so no Windows thread can be inside a
++ * thunk meanwhile; D3DMetal's own threads run its native code. */
+ 
++/* BODEGA HOOKABLE THUNKS BEGIN */
++static unsigned int rewrite_hookable_thunks( unsigned char *start, SIZE_T size, ULONG_PTR image_base,
++                                             SIZE_T image_size, BOOL rewrite )
++{
++    static const unsigned char thunk[8] = { 0x66, 0x90, 0xff, 0x25, 0x00, 0x00, 0x00, 0x00 };
++    unsigned char *p = (unsigned char *)(((ULONG_PTR)start + 15) & ~(ULONG_PTR)15);
++    unsigned char *end = start + size;
++    unsigned int count = 0;
++    ULONG_PTR target;
++
++    for (; p + 16 <= end; p += 16)
++    {
++        if (memcmp( p, thunk, sizeof(thunk) )) continue;
++        memcpy( &target, p + 8, sizeof(target) );
++        if (!target || target - image_base < image_size) continue;
++        count++;
++        if (!rewrite) continue;
++        p[0] = 0x48;  /* mov rax, target */
++        p[1] = 0xb8;
++        memcpy( p + 2, &target, sizeof(target) );
++        p[10] = 0xff;  /* jmp rax */
++        p[11] = 0xe0;
++        p[12] = p[13] = p[14] = p[15] = 0x90;
++    }
++    return count;
++}
++/* BODEGA HOOKABLE THUNKS END */
++
++static void make_thunks_hookable( WINE_MODREF *wm )
++{
++    WCHAR list[256], *name, *next;
++    const IMAGE_NT_HEADERS *nt;
++    const IMAGE_SECTION_HEADER *sec;
++    ULONG_PTR base = (ULONG_PTR)wm->ldr.DllBase, addr, end;
++    SIZE_T image_size = wm->ldr.SizeOfImage;
++    UNICODE_STRING str;
++    unsigned int i, count = 0;
++
++    /* the last WCHAR stays 0: a value that fills the rest is copied without one */
++    list[ARRAY_SIZE(list) - 1] = 0;
++    if (!get_env( L"BODEGA_HOOKABLE_THUNKS", list, sizeof(list) - sizeof(WCHAR) )) return;
++    for (name = list; name; name = next)
++    {
++        if ((next = wcschr( name, ',' ))) *next++ = 0;
++        RtlInitUnicodeString( &str, name );
++        if (str.Length && RtlEqualUnicodeString( &str, &wm->ldr.BaseDllName, TRUE )) break;
++    }
++    if (!name) return;
++    if (!(nt = RtlImageNtHeader( wm->ldr.DllBase ))) return;
++    if (nt->OptionalHeader.Magic != IMAGE_NT_OPTIONAL_HDR64_MAGIC) return;
++
++    sec = IMAGE_FIRST_SECTION( nt );
++    for (i = 0; i < nt->FileHeader.NumberOfSections; i++, sec++)
++    {
++        if (!(sec->Characteristics & IMAGE_SCN_MEM_WRITE)) continue;
++        addr = base + sec->VirtualAddress;
++        end = addr + (sec->Misc.VirtualSize ? sec->Misc.VirtualSize : sec->SizeOfRawData);
++        if (end > base + image_size) end = base + image_size;
++        /* one region at a time: its pages share one protection, which goes back as it was */
++        while (addr < end)
++        {
++            MEMORY_BASIC_INFORMATION info;
++            void *start = (void *)addr, *prot_base;
++            SIZE_T len, prot_size;
++            ULONG old;
++
++            if (NtQueryVirtualMemory( NtCurrentProcess(), start, MemoryBasicInformation,
++                                      &info, sizeof(info), NULL )) break;
++            len = min( (ULONG_PTR)info.BaseAddress + info.RegionSize, end ) - addr;
++            addr += len;
++            /* a thunk is code: only executable regions, so untouched data is never read */
++            if (info.State != MEM_COMMIT || (info.Protect & (PAGE_NOACCESS | PAGE_GUARD))) continue;
++            if (!(info.Protect & (PAGE_EXECUTE | PAGE_EXECUTE_READ | PAGE_EXECUTE_READWRITE |
++                                  PAGE_EXECUTE_WRITECOPY))) continue;
++            if (!rewrite_hookable_thunks( start, len, base, image_size, FALSE )) continue;
++            prot_base = start;
++            prot_size = len;
++            if (NtProtectVirtualMemory( NtCurrentProcess(), &prot_base, &prot_size,
++                                        PAGE_EXECUTE_READWRITE, &old )) continue;
++            count += rewrite_hookable_thunks( start, len, base, image_size, TRUE );
++            NtProtectVirtualMemory( NtCurrentProcess(), &prot_base, &prot_size, old, &old );
++            NtFlushInstructionCache( NtCurrentProcess(), start, len );
++        }
++    }
++    TRACE( "%s: %u thunks made hookable\n", debugstr_w(wm->ldr.BaseDllName.Buffer), count );
++}
++
++#endif
++
+ /*************************************************************************
+  *		process_attach
+  *
+@@ -1836,6 +1936,9 @@
+         if (status == STATUS_SUCCESS)
+         {
+             wm->ldr.Flags |= LDR_PROCESS_ATTACHED;
++#if defined(__x86_64__) && !defined(__arm64ec__)
++            make_thunks_hookable( wm );
++#endif
+         }
+         else
+         {

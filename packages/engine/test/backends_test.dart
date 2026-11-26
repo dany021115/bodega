@@ -79,6 +79,8 @@ void main() {
       'WINEDLLPATH_PREPEND': '$layer/d3dmetal/wine',
       'CX_APPLEGPTK_LIBD3DSHARED_PATH':
           '$layer/d3dmetal/external/libd3dshared.dylib',
+      'BODEGA_HOOKABLE_THUNKS':
+          'dxgi.dll,d3d11.dll,d3d12.dll,d3d12core.dll,nvapi64.dll',
     };
     expect(backendEnv(home, 'd3dmetal'), d3dmetal);
     const dxvk9 = {

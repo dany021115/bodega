@@ -253,6 +253,9 @@ class MacPlatform extends HostPlatform {
         ].join(':'),
         'CX_APPLEGPTK_LIBD3DSHARED_PATH':
             '$home/backends/d3dmetal/external/libd3dshared.dylib',
+        // HE1: so that mods can hook D3DMetal's methods (wine/patches/0030).
+        'BODEGA_HOOKABLE_THUNKS':
+            'dxgi.dll,d3d11.dll,d3d12.dll,d3d12core.dll,nvapi64.dll',
         if (_installed(home, 'dxmt')) ..._crossProcess,
       },
       _ => const <String, String>{},
