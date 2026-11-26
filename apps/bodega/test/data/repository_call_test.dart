@@ -192,6 +192,13 @@ void main() {
         const AppError.appAlreadyAdded('steam'),
       ),
       (
+        const engine.ProgramNotForRuntime(
+          'Arm64 Game.exe',
+          engine.RuntimeKind.bodega,
+        ),
+        const AppError.programNotForRuntime('Arm64 Game.exe'),
+      ),
+      (
         const engine.MissingFile('/g/a.exe'),
         const AppError.badPath(PathProblem.missing('/g/a.exe')),
       ),
@@ -330,7 +337,7 @@ void main() {
     test('the cases hold every failure of the engine', () {
       expect({
         for (final (failure, _) in cases) failure.runtimeType,
-      }, hasLength(42));
+      }, hasLength(43));
     });
   });
 

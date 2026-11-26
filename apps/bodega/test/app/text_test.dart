@@ -1882,6 +1882,10 @@ void main() {
       (const AppError.appNotFound('steam', null, detail: detail), ['steam']),
       (const AppError.appAlreadyAdded('steam', detail: detail), ['steam']),
       (const AppError.badEnvLine(2, 'bad', detail: detail), ['2', 'bad']),
+      (
+        const AppError.programNotForRuntime('Arm64 Game.exe', detail: detail),
+        ['Arm64 Game.exe'],
+      ),
       (const AppError.noRuntime(detail: detail), []),
       (
         const AppError.alreadyInstalled('/h/backends/dxvk', detail: detail),
@@ -2034,7 +2038,7 @@ void main() {
     test('the cases hold every code', () {
       expect({
         for (final (error, _) in codes) error.runtimeType,
-      }, hasLength(44));
+      }, hasLength(45));
     });
 
     for (final (language, l10n) in [('en', en), ('es', es)]) {

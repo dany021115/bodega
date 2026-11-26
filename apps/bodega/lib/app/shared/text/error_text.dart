@@ -40,6 +40,8 @@ extension AppErrorText on AppError {
     ),
     AppAlreadyAddedError(:final bottle) => l10n.errAppAlreadyAdded(bottle),
     BadEnvLineError(:final line, :final text) => l10n.errBadEnvLine(line, text),
+    ProgramNotForRuntimeError(:final program) =>
+      l10n.errProgramNotForRuntime(program),
     NoRuntimeError() => l10n.errNoRuntime,
     AlreadyInstalledError(:final path) => l10n.errAlreadyInstalled(path),
     ChecksumMismatchError(:final file) => l10n.errChecksumMismatch(file),

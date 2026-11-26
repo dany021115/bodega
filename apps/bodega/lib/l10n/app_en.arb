@@ -3481,6 +3481,16 @@
       }
     }
   },
+  "errProgramNotForRuntime": "{program} is an ARM64 Windows program, and the Rosetta engine cannot run it. Move the bottle to the Native engine, or add the program to a bottle on it.",
+  "@errProgramNotForRuntime": {
+    "description": "Error, in the error panel of the screen that failed or in a toast: the program launched is built for Windows on ARM, which only an arm64 Wine runs, and this bottle is on the Rosetta engine. program is its file name; Native engine is the label of the engine's card on the Backends page and of the bottle action that moves a bottle to it.",
+    "placeholders": {
+      "program": {
+        "type": "String",
+        "example": "Game.exe"
+      }
+    }
+  },
   "errMonoFailed": "Couldn't install Wine Mono: its installer exited with code {code}. Log: {log}",
   "@errMonoFailed": {
     "description": "Error, in the error panel of the screen that failed or in a toast: Wine Mono's installer, which a native bottle needs for .NET programs, failed. code is its exit code; log is the path of its log.",
