@@ -282,6 +282,26 @@ void setInLibrary(String home, String bottle, String key, bool value) {
 List<InstalledApp> bottleApps(String home, String bottle) =>
     _appsIn(bottle, _existing(home, bottle));
 
+/// The keys of [bottle]'s apps whose exe is an ARM64 or ARM64EC Windows
+/// program (AA1), which only the Native engine runs. Read from the files, once
+/// per bottle, for a list that shows it before a launch fails; a path that
+/// cannot be resolved counts as not ARM64.
+Set<String> arm64Apps(String home, String bottle) {
+  final dir = _existing(home, bottle);
+  final drive = '$dir/prefix/drive_c';
+  final keys = <String>{};
+  for (final app in _appsIn(bottle, dir)) {
+    final String? scan;
+    try {
+      scan = _programPaths(drive, _appProgram(app)).scan;
+    } on EngineFailure {
+      continue;
+    }
+    if (scan != null && isArm64Program(scan)) keys.add(app.key);
+  }
+  return keys;
+}
+
 List<InstalledApp> _appsIn(String bottle, String dir) {
   final store = _readStore(dir);
   final settings = _settings(dir);
