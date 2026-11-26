@@ -8,9 +8,9 @@ Run on 2026-11-26, on Linux x86_64 (Arch, kernel 7.3.5), Dart 3.14.0, Flutter 3.
 | Check | Result |
 |---|---|
 | `cd packages/engine && dart analyze` | `No issues found!` |
-| `cd packages/engine && dart test` | `513` passed, `13` skipped, none failed |
+| `cd packages/engine && dart test` | `514` passed, `13` skipped, none failed |
 | `cd apps/bodega && flutter analyze` | no errors; `113` `info`, all the pre-existing `package:flutter/material.dart` deprecation of Flutter 3.47 (the same count as before this branch) |
-| `cd apps/bodega && flutter test` | `1015` passed, `6` skipped, `9` failed |
+| `cd apps/bodega && flutter test` | `1023` passed, `6` skipped, `9` failed |
 | `cd apps/bodega && bash tool/check_layers.sh` | `Layers OK` |
 | `tool/version.sh check` | `OK: version 1.11.0 (tag v1.10.0).` |
 
@@ -31,9 +31,31 @@ before this branch.
   `bodega create --runtime mach9 <bottle>`.
 - `text_test.dart` and `repository_call_test.dart`: the code and its mapping (45 codes, 43 failures),
   and `errProgramNotForRuntime` in both languages.
-- `l10n_parity_test.dart`: the two ARBs hold the same keys.
+- `l10n_parity_test.dart`: the two ARBs hold the same keys, and `ARM64` is a name of the allowlist.
+- `apps_test.dart`: `arm64Apps` gives the ARM64 and ARM64EC keys of a bottle, and not the x64 one.
+- `bottle_repository_test.dart`: the detail's apps say which are ARM64.
+- `add_app_bloc_test.dart` and `add_app_dialog_test.dart`: the chosen ARM64 program is marked, and the dialog's notice shows on the Rosetta engine only.
+- `text_test.dart`: `programFactsText` in both languages, with and without the DirectX, on both engines.
+- `backends_test.dart`: `programArch` and `probeProgram`'s two lines, and no DirectX for a program that names none.
 
-## The CLI, for real
+## The probe, for real
+
+Three files: an ARM64 PE naming `d3d11.dll`, an x64 one naming `d3d9.dll`, and eight bytes of text.
+
+```
+$ dart run bin/bodega.dart probe arm.exe
+…/arm.exe: arm64, DX11
+It runs only on the native engine (Mach9).
+exit=0
+$ dart run bin/bodega.dart probe x64.exe
+…/x64.exe: x64, DX9
+exit=0
+$ dart run bin/bodega.dart probe junk.exe
+…/junk.exe is not a Windows program
+exit=1
+```
+
+## The launch refusal, for real
 
 A temporary `BODEGA_HOME` with a fake `runtimes/current`, a bottle whose prefix is ready, and a
 70-byte PE whose machine is `0xAA64`:

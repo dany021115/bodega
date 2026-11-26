@@ -17,7 +17,8 @@ It is young and moves fast: it runs the games we play, and you should expect rou
   silicon: Windows code runs through FEX instead of Rosetta, and games can use much less CPU.
   Bodega copies Mach9 unmodified after checking its signature, and puts Wine Mono into each Mach9
   bottle. Your existing bottles stay on the Rosetta engine. A program built for Windows on ARM runs
-  there with no translation at all; on the Rosetta engine Bodega refuses it and says why.
+  there with no translation at all; the app marks it ARM64, and on the Rosetta engine Bodega says
+  why it cannot run it (`bodega probe <path>` tells a program's architecture from the terminal).
 - **Graphics backends.** Bodega reads each `.exe` to tell 32 from 64 bits and which DirectX it uses,
   picks a backend that fits, and warns you when the one you chose doesn't.
 - **Catalog and fixes.** Known games and launchers come with tested settings, and per-game fixes come

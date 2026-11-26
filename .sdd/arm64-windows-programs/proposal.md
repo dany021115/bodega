@@ -14,7 +14,9 @@ An ARM64 Windows program in a Native bottle already runs, since Mach9's Wine is 
 **In**
 - **Engine:** `isArm64Program(path)` reads the PE machine (`0xAA64` or `0xA641`; a missing file and a non-PE are false), and `_launchIn` throws `ProgramNotForRuntime` before resolving a backend, when the launch is on the Rosetta engine. On the Native engine the launch goes ahead untouched.
 - **App:** the new failure becomes `AppError.programNotForRuntime`, worded in both languages: the program, the Rosetta engine, and the two ways out (move the bottle to the Native engine, or add the program to a bottle on it).
-- **Tests:** the machine field of a real PE stub, the refusal on the Rosetta engine, the launch on the Native engine, and the wording in both languages.
+- **Before the launch:** `arm64Apps(home, bottle)` lists the apps whose exe is ARM64, the bottle's rows show `ARM64` (or `ARM64 · needs the Native engine` on the Rosetta engine), and the add-program dialog warns as soon as such a file is chosen, with the two ways out.
+- **CLI:** `bodega probe <path>`, which names a program's architecture and DirectX, and says when only the Native engine runs it.
+- **Tests:** the machine field of a real PE stub, the refusal on the Rosetta engine, the launch on the Native engine, the rows and the dialog in both languages, and the probe's text.
 
 **Out (each its own change)**
 - Compiling a Windows program to arm64: not possible from a binary, and not needed, since FEX runs x86 and x64 inside an arm64 Wine.
@@ -34,8 +36,8 @@ An ARM64 Windows program in a Native bottle already runs, since Mach9's Wine is 
 
 ## Impact
 
-- **Engine:** `backends.dart` (`isArm64Program`), `engine.dart` (`_launchIn`), `failures.dart` (one failure), `english_test`'s exhaustive list (48 failures) and hint.
-- **App:** `app_error.dart`, `repository_call.dart`, `error_text.dart`, the two ARBs, `text_test` (45 codes), `repository_call_test` (43 failures).
+- **Engine:** `backends.dart` (`isArm64Program`, `programArch`, `_directxOf`), `apps.dart` (`arm64Apps`), `engine.dart` (`_launchIn`), `cli.dart` (`probeProgram` and the usage), `bin/bodega.dart` (`probe`), `failures.dart` (one failure), `english_test`'s exhaustive list (48 failures) and hint.
+- **App:** `library_app.dart` and `app_mapper.dart` (the `arm64` fact), `app_text.dart` and the two list pages, the add-app repository, state, bloc and dialog, `app_error.dart`, `repository_call.dart`, `error_text.dart`, the two ARBs, and their tests.
 - **Users:** a Native bottle runs ARM64 Windows programs; a Rosetta bottle says why it cannot.
 - **Compatibility:** nothing on disk changes; `settings.json`, `apps.json` and the runtimes are untouched.
 
